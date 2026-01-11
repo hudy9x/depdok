@@ -1,23 +1,88 @@
-# Tauri Desktop App Template
+# Depdok
 
-A modern template for building cross-platform desktop applications using Tauri, React, and TypeScript. This template comes pre-configured with essential tools and commands to jumpstart your desktop app development.
+A macOS-first documentation editor built specifically for developers who write technical docs — not code.
 
-## 💎 Feature Showcase: Blur Transparent Window
+This project focuses on **Markdown + diagram-driven documentation**, with an emphasis on **interactive previews**, **offline usage**, and a **developer-friendly workflow**.
 
-This is an example about blur transparent window.
+---
 
-![Blur Transparent Window](./docs/blured-transparent-window.gif)
+## ✨ What is this?
 
-**What's implemented:**
-- **Native Blur:** Uses `window-vibrancy` for high-performance frosted glass effects.
-- **Custom Shape:** 10px rounded corners with hidden native titlebar.
-- **Native Shadow:** Forced drop shadow via Cocoa APIs for borderless windows.
-- **Transparency:** Fully transparent or tinted background support.
+This is a lightweight desktop application for writing **technical documentation**, such as:
 
-**How it works:**
-1. Window is created programmatically in Rust with `.decorations(false)`.
-2. `window-vibrancy` applies the `HudWindow` material with rounded corners.
-3. Native Cocoa APIs (`setHasShadow:`) ensure the drop shadow is visible.
-4. CSS handles the content clipping and optional color tinting.
+- Design documents
+- Architecture overviews
+- Sequence diagrams
+- Developer-facing markdown docs
 
-📚 **Full implementation guide:** See [`docs/workflow-macos-window.md`](docs/workflow-macos-window.md) for implementation details.
+Unlike general-purpose editors or note-taking apps, this tool treats **documentation and diagrams as first-class citizens**, not side features.
+
+---
+
+## 🎯 Key Features (MVP)
+
+### Markdown Editing
+- Dual-mode editing:
+  - **Code mode** (raw Markdown)
+  - **Preview mode** (rendered, powered by TipTap)
+- Real-time preview
+- Editor ↔ Preview **scroll synchronization**
+
+### Diagram Support (Core Differentiator)
+- Native support for **Mermaid `sequenceDiagram`** (offline)
+- Code + Preview modes for diagrams
+- **Interactive diagram preview**:
+  - Click a diagram element to jump to its source code
+  - Fold / unfold `alt` blocks
+  - Hover to highlight related code
+
+> Diagrams are parsed into an internal AST, enabling structured interactions instead of static rendering.
+
+### Export
+- Export documentation to:
+  - **PDF**
+  - **PNG** (for diagrams)
+- Export output matches the preview (WYSIWYG)
+
+### Workflow
+- Open and edit local folders
+- Works seamlessly with Git repositories
+- Fully **offline** and **local-first**
+
+---
+
+## 🚫 What this is NOT
+- Not a code editor
+- Not a note-taking or “second brain” app
+- Not a plugin-heavy or cloud-based platform
+
+The goal is focus, clarity, and a streamlined documentation workflow for developers.
+
+---
+
+## 🧠 Design Principles
+- Documentation-first, developer-centric
+- Opinionated and minimal
+- Structured content over free-form text
+- Offline by default
+
+---
+
+## 🛠 Tech Stack
+- **Desktop framework:** Tauri
+- **UI framework:** React
+- **Rendering:** AST-driven Markdown & diagram rendering
+- **Target platform:** macOS
+
+---
+
+## 📌 Project Status
+This project is currently in **early development / MVP exploration**.
+
+Scope is intentionally limited to validate the core idea:
+> *interactive, diagram-aware technical documentation for developers.*
+
+---
+
+## 📄 License
+TBD

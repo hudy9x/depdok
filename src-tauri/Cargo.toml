@@ -1,7 +1,7 @@
 [package]
-name = "tauri-template"
+name = "depdok"
 version = "0.0.1"
-description = "Tauri template"
+description = "Depdok"
 authors = ["hudy9x"]
 edition = "2021"
 

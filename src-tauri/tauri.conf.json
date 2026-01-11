@@ -1,0 +1,52 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Tauri template",
+  "version": "0.0.1",
+  "identifier": "com.tauri-template.app",
+  "build": {
+    "beforeDevCommand": "pnpm dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "pnpm build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "macOSPrivateApi": true,
+    "windows": [],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "resources": [],
+    "createUpdaterArtifacts": true,
+    "fileAssociations": [
+      {
+        "ext": [
+          "pu",
+          "puml"
+        ],
+        "name": "PlantUML Diagram",
+        "description": "PlantUML diagram file",
+        "mimeType": "text/plain"
+      }
+    ]
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDM4NjIzRDY4RkZGNDZFRQpSV1R1UnYrUDFpT0dBNWpIMXpEaEswbUVkMkY4aW9nendCR1hQYktnNHBaK0tlaXk1QzN1dkpZMwo=",
+      "endpoints": [
+        "https://github.com/hudy9x/uml/releases/latest/download/latest.json"
+      ]
+    }
+  }
+}

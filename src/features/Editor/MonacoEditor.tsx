@@ -1,54 +1,70 @@
-import { useEffect, useRef } from "react";
-import MonacoEditorReact, { OnMount } from "@monaco-editor/react";
+import { useState, useRef, useEffect } from "react";
+import MonacoEditorReact from "@monaco-editor/react";
+import { useAtomValue, useSetAtom } from "jotai";
 import { useDebouncedCallback } from "use-debounce";
 import { writeTextFile } from "@tauri-apps/plugin-fs";
-import { useAtomValue, useSetAtom } from "jotai";
-import { toast } from "sonner";
 
-import { editorStateAtom, markAsSavedAtom } from "@/stores/EditorStore";
+import { editorStateAtom, markAsDirtyAtom, markAsSavedAtom } from "@/stores/EditorStore";
+import { autoSaveEnabledAtom, autoSaveDelayAtom } from "@/stores/SettingsStore";
+import { draftService } from "@/lib/indexeddb";
 
 interface MonacoEditorProps {
-  value: string;
+  initialContent: string;
   language: string;
-  onChange: (value: string | undefined) => void;
+  onContentChange?: (content: string) => void;
 }
 
-export function MonacoEditor({ value, language, onChange }: MonacoEditorProps) {
+export function MonacoEditor({ initialContent, language, onContentChange }: MonacoEditorProps) {
+  const [content, setContent] = useState(initialContent);
   const editorState = useAtomValue(editorStateAtom);
+  const autoSaveEnabled = useAtomValue(autoSaveEnabledAtom);
+  const autoSaveDelay = useAtomValue(autoSaveDelayAtom);
+  const markAsDirty = useSetAtom(markAsDirtyAtom);
   const markAsSaved = useSetAtom(markAsSavedAtom);
   const editorRef = useRef<any>(null);
 
-  const handleEditorDidMount: OnMount = (editor) => {
-    editorRef.current = editor;
-  };
+  // Sync content when initialContent changes
+  useEffect(() => {
+    setContent(initialContent);
+  }, [initialContent]);
 
-  // Auto-save with debounce
-  const debouncedSave = useDebouncedCallback(async (content: string) => {
+  // Debounced IndexedDB draft save (always happens)
+  const debouncedSaveDraft = useDebouncedCallback(async (newContent: string) => {
     if (!editorState.filePath) return;
+    await draftService.saveDraft(editorState.filePath, newContent);
+    markAsDirty();
+  }, 500);
+
+  // Debounced auto-save to file (only if enabled)
+  const debouncedAutoSave = useDebouncedCallback(async (newContent: string) => {
+    if (!editorState.filePath || !autoSaveEnabled) return;
 
     try {
-      await writeTextFile(editorState.filePath, content);
+      await writeTextFile(editorState.filePath, newContent);
+      await draftService.removeDraft(editorState.filePath);
       markAsSaved();
     } catch (error) {
-      console.error("Error saving file:", error);
-      toast.error("Failed to save file");
+      console.error("Auto-save failed:", error);
     }
-  }, 1000);
+  }, autoSaveDelay);
 
-  useEffect(() => {
-    if (editorState.isDirty && editorState.fileContent) {
-      debouncedSave(editorState.fileContent);
-    }
-  }, [editorState.isDirty, editorState.fileContent, debouncedSave]);
+  const handleChange = (value: string | undefined) => {
+    if (value === undefined) return;
+
+    setContent(value);
+    debouncedSaveDraft(value); // Always save draft
+    debouncedAutoSave(value);  // Auto-save if enabled
+    onContentChange?.(value);
+  };
 
   return (
     <div className="w-full h-full">
       <MonacoEditorReact
-        value={value}
+        value={content}
         language={language}
         theme="vs-dark"
-        onChange={onChange}
-        onMount={handleEditorDidMount}
+        onChange={handleChange}
+        onMount={(editor) => { editorRef.current = editor; }}
         options={{
           fontSize: 14,
           fontFamily: "Monaco, Menlo, 'Courier New', monospace",

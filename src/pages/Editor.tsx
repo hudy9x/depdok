@@ -1,25 +1,36 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { useAtom, useSetAtom } from "jotai";
+import { useSetAtom, useAtomValue } from "jotai";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
-import { readTextFile } from "@tauri-apps/plugin-fs";
+import { readTextFile, writeTextFile } from "@tauri-apps/plugin-fs";
 import { toast } from "sonner";
 
 import { Titlebar } from "@/features/Titlebar";
 import { MonacoEditor } from "@/features/Editor/MonacoEditor";
 import { PreviewPanel } from "@/features/Preview/PreviewPanel";
+import { EditorToolbar } from "@/features/Editor/EditorToolbar";
+import { RecoveryDialog } from "@/components/RecoveryDialog";
 import {
   editorStateAtom,
-  loadFileAtom,
-  fileContentAtom,
+  loadFileMetadataAtom,
+  markAsSavedAtom,
+  viewModeAtom,
 } from "@/stores/EditorStore";
+import { draftService } from "@/lib/indexeddb";
 
 export default function Editor() {
   const [searchParams] = useSearchParams();
-  const [editorState] = useAtom(editorStateAtom);
-  const loadFile = useSetAtom(loadFileAtom);
-  const setContent = useSetAtom(fileContentAtom);
+  const editorState = useAtomValue(editorStateAtom);
+  const viewMode = useAtomValue(viewModeAtom);
+  const loadFileMetadata = useSetAtom(loadFileMetadataAtom);
+  const markAsSaved = useSetAtom(markAsSavedAtom);
 
+  const [initialContent, setInitialContent] = useState("");
+  const [currentContent, setCurrentContent] = useState("");
+  const [showRecoveryDialog, setShowRecoveryDialog] = useState(false);
+  const [draftContent, setDraftContent] = useState("");
+
+  // Load file on mount
   useEffect(() => {
     const filePath = searchParams.get("path");
     if (!filePath) {
@@ -27,16 +38,34 @@ export default function Editor() {
       return;
     }
 
-    // Load file content
-    const loadFileContent = async () => {
+    const loadFile = async () => {
       try {
-        const content = await readTextFile(filePath);
+        // 1. Load file from disk
+        const fileContent = await readTextFile(filePath);
         const extension = filePath.split(".").pop()?.toLowerCase() || "";
 
-        loadFile({
+        // 2. Check for draft in IndexedDB
+        const draft = await draftService.getDraft(filePath);
+
+        console.log('fileContent', fileContent, draft)
+
+        if (draft && draft.content !== fileContent) {
+          // Draft exists and differs from file
+          setDraftContent(draft.content);
+          setShowRecoveryDialog(true);
+          setInitialContent(fileContent); // Keep file content as fallback
+          setCurrentContent(fileContent); // Also set current content so editor shows something
+        } else {
+          // No draft or draft matches file
+          setInitialContent(fileContent);
+          setCurrentContent(fileContent);
+        }
+
+        // Update metadata
+        loadFileMetadata({
           path: filePath,
-          content,
           extension,
+          isDirty: !!draft,
         });
       } catch (error) {
         console.error("Error loading file:", error);
@@ -44,39 +73,94 @@ export default function Editor() {
       }
     };
 
-    loadFileContent();
-  }, [searchParams, loadFile]);
+    loadFile();
+  }, [searchParams, loadFileMetadata]);
 
-  const handleEditorChange = (value: string | undefined) => {
-    if (value !== undefined) {
-      setContent(value);
+  const handleRecoveryChoice = (useDraft: boolean) => {
+    const content = useDraft ? draftContent : initialContent;
+    setInitialContent(content);
+    setCurrentContent(content);
+    setShowRecoveryDialog(false);
+  };
+
+  const handleSave = async () => {
+    if (!editorState.filePath) return;
+
+    console.log('[Editor] handleSave - currentContent:', currentContent?.substring(0, 100));
+
+    try {
+      await writeTextFile(editorState.filePath, currentContent);
+      await draftService.removeDraft(editorState.filePath);
+      markAsSaved();
+      toast.success("File saved");
+    } catch (error) {
+      console.error("Error saving file:", error);
+      toast.error("Failed to save file");
     }
   };
+
+  // Keyboard shortcut for save
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        handleSave();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [currentContent, editorState.filePath]);
 
   return (
     <>
       <Titlebar />
+      <EditorToolbar onSave={handleSave} />
 
-      <div className="fixed top-[35px] h-[calc(100vh-35px)] left-0 w-full h-full flex flex-col bg-background">
+      {showRecoveryDialog && (
+        <RecoveryDialog
+          onUseDraft={() => handleRecoveryChoice(true)}
+          onUseFile={() => handleRecoveryChoice(false)}
+        />
+      )}
 
-        <PanelGroup direction="horizontal" className="flex-1">
-          <Panel defaultSize={50} minSize={30}>
-            <MonacoEditor
-              value={editorState.fileContent}
-              language={editorState.fileExtension === "md" ? "markdown" : "plaintext"}
-              onChange={handleEditorChange}
-            />
-          </Panel>
+      <div className="fixed top-[45px] h-[calc(100vh-45px)] left-0 w-full flex flex-col bg-background">
+        {viewMode === 'side-by-side' && (
+          <PanelGroup direction="horizontal" className="flex-1">
+            <Panel defaultSize={50} minSize={30}>
+              <MonacoEditor
+                initialContent={initialContent}
+                language={editorState.fileExtension === "md" ? "markdown" : "plaintext"}
+                onContentChange={setCurrentContent}
+              />
+            </Panel>
 
-          <PanelResizeHandle className="w-1 bg-border hover:bg-primary/50 transition-colors" />
+            <PanelResizeHandle className="w-1 bg-border hover:bg-primary/50 transition-colors" />
 
-          <Panel defaultSize={50} minSize={30}>
-            <PreviewPanel
-              content={editorState.fileContent}
-              fileExtension={editorState.fileExtension}
-            />
-          </Panel>
-        </PanelGroup>
+            <Panel defaultSize={50} minSize={30}>
+              <PreviewPanel
+                content={currentContent}
+                fileExtension={editorState.fileExtension}
+              />
+            </Panel>
+          </PanelGroup>
+        )}
+
+        {viewMode === 'editor-only' && (
+          <MonacoEditor
+            initialContent={initialContent}
+            language={editorState.fileExtension === "md" ? "markdown" : "plaintext"}
+            onContentChange={setCurrentContent}
+          />
+        )}
+
+        {viewMode === 'preview-only' && (
+          <PreviewPanel
+            content={currentContent || initialContent}
+            fileExtension={editorState.fileExtension}
+            editable={true}
+            onContentChange={setCurrentContent}
+          />
+        )}
       </div>
     </>
   );

@@ -62,7 +62,7 @@ export function MarkdownPreview({
     editable: editable,
     editorProps: {
       attributes: {
-        class: "prose prose-sm sm:prose lg:prose-lg dark:prose-invert max-w-none p-8 focus:outline-none",
+        class: "prose prose-sm sm:prose lg:prose-lg dark:prose-invert max-w-none px-8 pb-8 pt-0 focus:outline-none",
       },
     },
     onUpdate: ({ editor }) => {

@@ -11,10 +11,9 @@ import { draftService } from "@/lib/indexeddb";
 interface MonacoEditorProps {
   initialContent: string;
   language: string;
-  onContentChange?: (content: string) => void;
 }
 
-export function MonacoEditor({ initialContent, language, onContentChange }: MonacoEditorProps) {
+export function MonacoEditor({ initialContent, language }: MonacoEditorProps) {
   const [content, setContent] = useState(initialContent);
   const editorState = useAtomValue(editorStateAtom);
   const autoSaveEnabled = useAtomValue(autoSaveEnabledAtom);
@@ -54,7 +53,6 @@ export function MonacoEditor({ initialContent, language, onContentChange }: Mona
     setContent(value);
     debouncedSaveDraft(value); // Always save draft
     debouncedAutoSave(value);  // Auto-save if enabled
-    onContentChange?.(value);
   };
 
   return (

@@ -26,7 +26,6 @@ export default function Editor() {
   const markAsSaved = useSetAtom(markAsSavedAtom);
 
   const [initialContent, setInitialContent] = useState("");
-  const [currentContent, setCurrentContent] = useState("");
   const [showRecoveryDialog, setShowRecoveryDialog] = useState(false);
   const [draftContent, setDraftContent] = useState("");
 
@@ -54,11 +53,9 @@ export default function Editor() {
           setDraftContent(draft.content);
           setShowRecoveryDialog(true);
           setInitialContent(fileContent); // Keep file content as fallback
-          setCurrentContent(fileContent); // Also set current content so editor shows something
         } else {
           // No draft or draft matches file
           setInitialContent(fileContent);
-          setCurrentContent(fileContent);
         }
 
         // Update metadata
@@ -79,17 +76,20 @@ export default function Editor() {
   const handleRecoveryChoice = (useDraft: boolean) => {
     const content = useDraft ? draftContent : initialContent;
     setInitialContent(content);
-    setCurrentContent(content);
     setShowRecoveryDialog(false);
   };
 
   const handleSave = async () => {
     if (!editorState.filePath) return;
 
-    console.log('[Editor] handleSave - currentContent:', currentContent?.substring(0, 100));
-
     try {
-      await writeTextFile(editorState.filePath, currentContent);
+      // Get content from IndexedDB draft
+      const draft = await draftService.getDraft(editorState.filePath);
+      const contentToSave = draft?.content || initialContent;
+
+      console.log('[Editor] handleSave - saving from draft:', contentToSave?.substring(0, 100));
+
+      await writeTextFile(editorState.filePath, contentToSave);
       await draftService.removeDraft(editorState.filePath);
       markAsSaved();
       toast.success("File saved");
@@ -109,7 +109,7 @@ export default function Editor() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentContent, editorState.filePath]);
+  }, [editorState.filePath]);
 
   return (
     <>
@@ -130,7 +130,6 @@ export default function Editor() {
               <MonacoEditor
                 initialContent={initialContent}
                 language={editorState.fileExtension === "md" ? "markdown" : "plaintext"}
-                onContentChange={setCurrentContent}
               />
             </Panel>
 
@@ -138,7 +137,7 @@ export default function Editor() {
 
             <Panel defaultSize={50} minSize={30}>
               <PreviewPanel
-                content={currentContent}
+                content={initialContent}
                 fileExtension={editorState.fileExtension}
               />
             </Panel>
@@ -149,16 +148,14 @@ export default function Editor() {
           <MonacoEditor
             initialContent={initialContent}
             language={editorState.fileExtension === "md" ? "markdown" : "plaintext"}
-            onContentChange={setCurrentContent}
           />
         )}
 
         {viewMode === 'preview-only' && (
           <PreviewPanel
-            content={currentContent || initialContent}
+            content={initialContent}
             fileExtension={editorState.fileExtension}
             editable={true}
-            onContentChange={setCurrentContent}
           />
         )}
       </div>

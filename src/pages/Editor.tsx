@@ -1,74 +1,32 @@
-import { useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useSetAtom, useAtomValue } from "jotai";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
-import { writeTextFile } from "@tauri-apps/plugin-fs";
-import { toast } from "sonner";
 
 import { Titlebar } from "@/features/Titlebar";
 import { MonacoEditor } from "@/features/Editor/MonacoEditor";
 import { PreviewPanel } from "@/features/Preview/PreviewPanel";
 import { EditorToolbar } from "@/features/Editor/EditorToolbar";
-import { LoadFileContent } from "@/components/LoadFileContent";
+import { LoadFileContent } from "@/features/Editor/LoadFileContent";
+import { EditorSave } from "@/features/Editor/EditorSaveHandler";
 import {
   editorStateAtom,
   loadFileMetadataAtom,
-  markAsSavedAtom,
   viewModeAtom,
 } from "@/stores/EditorStore";
-import { draftService } from "@/lib/indexeddb";
 
 export default function Editor() {
   const [searchParams] = useSearchParams();
   const editorState = useAtomValue(editorStateAtom);
   const viewMode = useAtomValue(viewModeAtom);
   const loadFileMetadata = useSetAtom(loadFileMetadataAtom);
-  const markAsSaved = useSetAtom(markAsSavedAtom);
 
   const filePath = searchParams.get("path") || "";
-
-  const handleSave = async () => {
-    if (!editorState.filePath) return;
-
-    try {
-      // Get content from IndexedDB draft
-      const draft = await draftService.getDraft(editorState.filePath);
-
-      if (!draft) {
-        toast.error("No content to save");
-        return;
-      }
-
-      const contentToSave = draft.content;
-
-      console.log('[Editor] handleSave - saving from draft:', contentToSave?.substring(0, 100));
-
-      await writeTextFile(editorState.filePath, contentToSave);
-      await draftService.removeDraft(editorState.filePath);
-      markAsSaved();
-      toast.success("File saved");
-    } catch (error) {
-      console.error("Error saving file:", error);
-      toast.error("Failed to save file");
-    }
-  };
-
-  // Keyboard shortcut for save
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-        e.preventDefault();
-        handleSave();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [editorState.filePath]);
 
   return (
     <>
       <Titlebar />
-      <EditorToolbar onSave={handleSave} />
+      <EditorToolbar />
+      <EditorSave />
 
       <LoadFileContent filePath={filePath} onMetadataLoad={loadFileMetadata}>
         {(initialContent) => (

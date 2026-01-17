@@ -1,16 +1,13 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { useAtomValue, useAtom, useSetAtom } from "jotai";
-import { Settings, Save, Columns2, Code, Eye } from "lucide-react";
+import { Settings, Columns2, Code, Eye, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { editorStateAtom, viewModeAtom } from "@/stores/EditorStore";
 import { viewModeSettingAtom } from "@/stores/SettingsStore";
 import { SettingsDialog } from "@/components/SettingsDialog";
 
-interface EditorToolbarProps {
-  onSave: () => void;
-}
-
-export function EditorToolbar({ onSave }: EditorToolbarProps) {
+export function EditorToolbar() {
   const editorState = useAtomValue(editorStateAtom);
   const [viewMode, setViewMode] = useAtom(viewModeAtom);
   const setViewModeSetting = useSetAtom(viewModeSettingAtom);
@@ -28,9 +25,18 @@ export function EditorToolbar({ onSave }: EditorToolbarProps) {
 
   return (
     <>
-      <div className="h-10 border-b flex items-center justify-between px-4 bg-background">
-        {/* Left: File name with unsaved indicator */}
+      <div className="fixed top-1 left-[100px] h-10 border-b flex items-center justify-between px-4 bg-background z-[99999]">
+        {/* Left: Back button and file name with unsaved indicator */}
         <div className="flex items-center gap-2">
+          <Link to="/">
+            <Button
+              variant="ghost"
+              size="sm"
+              title="Back to home"
+            >
+              <ArrowLeft className="w-4 h-4" />
+            </Button>
+          </Link>
           <span className="text-sm font-medium">
             {getFileName(editorState.filePath)}
           </span>
@@ -42,7 +48,7 @@ export function EditorToolbar({ onSave }: EditorToolbarProps) {
           )}
         </div>
 
-        {/* Right: Settings and Save buttons */}
+        {/* Right: Settings button */}
         <div className="flex items-center gap-2">
           <Button
             variant="ghost"
@@ -51,17 +57,6 @@ export function EditorToolbar({ onSave }: EditorToolbarProps) {
             title="Settings"
           >
             <Settings className="w-4 h-4" />
-          </Button>
-
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onSave}
-            disabled={!editorState.isDirty}
-            title="Save (Ctrl/Cmd+S)"
-          >
-            <Save className="w-4 h-4 mr-2" />
-            Save
           </Button>
         </div>
       </div>

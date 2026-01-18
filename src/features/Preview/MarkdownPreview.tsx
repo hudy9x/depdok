@@ -62,23 +62,65 @@ export function MarkdownPreview({
         allowedMimeTypes: ['image/png', 'image/jpeg', 'image/gif', 'image/webp'],
         onDrop: (currentEditor, files, pos) => {
           console.log('[FileHandler] onDrop triggered', { files, pos });
-          files.forEach(file => {
+          files.forEach((file, index) => {
             console.log('[FileHandler] Processing dropped file:', file.name, file.type);
-            const fileReader = new FileReader();
 
+            // Insert placeholder skeleton immediately
+            const placeholderPos = pos + index;
+            const placeholderText = '⏳ Uploading...';
+            const startTime = Date.now();
+
+            currentEditor
+              .chain()
+              .insertContentAt(placeholderPos, {
+                type: 'paragraph',
+                content: [
+                  {
+                    type: 'text',
+                    text: placeholderText,
+                  },
+                ],
+              })
+              .run();
+
+            const fileReader = new FileReader();
             fileReader.readAsDataURL(file);
             fileReader.onload = () => {
-              console.log('[FileHandler] File loaded, inserting at position:', pos);
-              currentEditor
-                .chain()
-                .insertContentAt(pos, {
-                  type: 'image',
-                  attrs: {
-                    src: fileReader.result,
-                  },
-                })
-                .focus()
-                .run();
+              console.log('[FileHandler] File loaded, replacing placeholder');
+              const result = fileReader.result;
+
+              // Ensure minimum 300ms display time
+              const elapsed = Date.now() - startTime;
+              const delay = Math.max(0, 300 - elapsed);
+
+              setTimeout(() => {
+                // Find and replace the placeholder with the actual image
+                const { state } = currentEditor;
+                let foundPos = -1;
+                let nodeSize = 0;
+
+                state.doc.descendants((node, pos) => {
+                  if (node.textContent === placeholderText) {
+                    foundPos = pos;
+                    nodeSize = node.nodeSize;
+                    return false;
+                  }
+                });
+
+                if (foundPos !== -1) {
+                  currentEditor
+                    .chain()
+                    .deleteRange({ from: foundPos, to: foundPos + nodeSize })
+                    .insertContentAt(foundPos, {
+                      type: 'image',
+                      attrs: {
+                        src: result,
+                      },
+                    })
+                    .focus()
+                    .run();
+                }
+              }, delay);
             };
           });
         },
@@ -92,21 +134,63 @@ export function MarkdownPreview({
             }
 
             console.log('[FileHandler] Processing pasted file:', file.name, file.type);
-            const fileReader = new FileReader();
 
+            // Insert placeholder skeleton immediately
+            const cursorPos = currentEditor.state.selection.anchor;
+            const placeholderText = '⏳ Uploading...';
+            const startTime = Date.now();
+
+            currentEditor
+              .chain()
+              .insertContentAt(cursorPos, {
+                type: 'paragraph',
+                content: [
+                  {
+                    type: 'text',
+                    text: placeholderText,
+                  },
+                ],
+              })
+              .run();
+
+            const fileReader = new FileReader();
             fileReader.readAsDataURL(file);
             fileReader.onload = () => {
-              console.log('[FileHandler] File loaded, inserting at cursor');
-              currentEditor
-                .chain()
-                .insertContentAt(currentEditor.state.selection.anchor, {
-                  type: 'image',
-                  attrs: {
-                    src: fileReader.result,
-                  },
-                })
-                .focus()
-                .run();
+              console.log('[FileHandler] File loaded, replacing placeholder');
+              const result = fileReader.result;
+
+              // Ensure minimum 300ms display time
+              const elapsed = Date.now() - startTime;
+              const delay = Math.max(0, 300 - elapsed);
+
+              setTimeout(() => {
+                // Find and replace the placeholder with the actual image
+                const { state } = currentEditor;
+                let foundPos = -1;
+                let nodeSize = 0;
+
+                state.doc.descendants((node, pos) => {
+                  if (node.textContent === placeholderText) {
+                    foundPos = pos;
+                    nodeSize = node.nodeSize;
+                    return false;
+                  }
+                });
+
+                if (foundPos !== -1) {
+                  currentEditor
+                    .chain()
+                    .deleteRange({ from: foundPos, to: foundPos + nodeSize })
+                    .insertContentAt(foundPos, {
+                      type: 'image',
+                      attrs: {
+                        src: result,
+                      },
+                    })
+                    .focus()
+                    .run();
+                }
+              }, delay);
             };
           });
         },

@@ -2,12 +2,14 @@ interface AppSettings {
   autoSave: boolean;
   autoSaveDelay: number; // milliseconds
   viewMode: 'side-by-side' | 'editor-only' | 'preview-only';
+  theme: 'light' | 'dark' | 'system';
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
   autoSave: true,
   autoSaveDelay: 1000,
   viewMode: 'editor-only',
+  theme: 'system',
 };
 
 class SettingsService {

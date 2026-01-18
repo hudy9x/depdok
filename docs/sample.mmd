@@ -1,0 +1,24 @@
+sequenceDiagram
+    participant User
+    participant App
+    participant FileSystem
+    participant Editor
+
+    User->>App: Click "Open File"
+    App->>FileSystem: Open dialog
+    FileSystem-->>User: Select file
+    User->>App: Confirm selection
+    App->>FileSystem: Read file content
+    FileSystem-->>App: Return content
+    App->>Editor: Load content
+    Editor-->>User: Display editor + preview
+
+    alt Markdown file
+        Editor->>Editor: Render with TipTap
+    else Mermaid file
+        Editor->>Editor: Render with Mermaid
+    end
+
+    User->>Editor: Edit content
+    Editor->>FileSystem: Auto-save (debounced)
+    FileSystem-->>Editor: Save confirmed

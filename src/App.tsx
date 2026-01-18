@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { ThemeProvider } from 'next-themes';
 import { Toaster } from "@/components/ui/sonner"
 import Home from './pages/Home';
+import Editor from './pages/Editor';
 import { Layout } from './components/Layout';
 import Empty from './pages/Empty';
 
@@ -17,6 +18,7 @@ function App() {
             <Toaster position="bottom-right" richColors />
             <Routes>
               <Route path="/" element={<Home />} />
+              <Route path="/editor" element={<Editor />} />
               <Route path="/empty" element={<Empty />} />
             </Routes>
           </Layout>

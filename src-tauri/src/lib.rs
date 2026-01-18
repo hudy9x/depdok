@@ -107,6 +107,7 @@ pub fn run() {
             commands::files::list_dir,
             commands::files::read_file_content,
             commands::files::write_file_content,
+            commands::files::write_binary_file,
             commands::files::create_directory,
             commands::files::create_file,
             commands::files::delete_node,

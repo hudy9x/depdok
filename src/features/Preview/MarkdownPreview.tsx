@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import { useAtomValue, useSetAtom } from "jotai";
+import { invoke } from "@tauri-apps/api/core";
 import StarterKit from "@tiptap/starter-kit";
 import { Markdown } from "@tiptap/markdown";
 import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
@@ -16,6 +17,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { createTauriImage } from "./TauriImage";
 import { editorStateAtom, markAsDirtyAtom } from "@/stores/EditorStore";
 import { draftService } from "@/lib/indexeddb";
+import { toast } from "sonner";
 
 const lowlight = createLowlight(common);
 
@@ -62,7 +64,7 @@ export function MarkdownPreview({
         allowedMimeTypes: ['image/png', 'image/jpeg', 'image/gif', 'image/webp'],
         onDrop: (currentEditor, files, pos) => {
           console.log('[FileHandler] onDrop triggered', { files, pos });
-          files.forEach((file, index) => {
+          files.forEach(async (file, index) => {
             console.log('[FileHandler] Processing dropped file:', file.name, file.type);
 
             // Insert placeholder skeleton immediately
@@ -83,18 +85,39 @@ export function MarkdownPreview({
               })
               .run();
 
-            const fileReader = new FileReader();
-            fileReader.readAsDataURL(file);
-            fileReader.onload = () => {
-              console.log('[FileHandler] File loaded, replacing placeholder');
-              const result = fileReader.result;
+            try {
+              // Read file as array buffer
+              const arrayBuffer = await file.arrayBuffer();
+              const uint8Array = new Uint8Array(arrayBuffer);
+              const dataArray = Array.from(uint8Array);
+
+              // Generate unique filename with timestamp
+              const timestamp = Date.now();
+              const ext = file.name.split('.').pop() || 'png';
+              const filename = `image-${timestamp}.${ext}`;
+
+              // Get directory of current markdown file
+              const currentFilePath = editorState.filePath;
+              if (!currentFilePath) {
+                throw new Error('No file path available');
+              }
+              const directory = currentFilePath.substring(0, currentFilePath.lastIndexOf('/'));
+              const imagePath = `${directory}/${filename}`;
+
+              // Save image file
+              await invoke('write_binary_file', {
+                path: imagePath,
+                data: dataArray,
+              });
+
+              console.log('[FileHandler] Image saved to:', imagePath);
 
               // Ensure minimum 300ms display time
               const elapsed = Date.now() - startTime;
               const delay = Math.max(0, 300 - elapsed);
 
               setTimeout(() => {
-                // Find and replace the placeholder with the actual image
+                // Find and replace the placeholder with markdown image syntax
                 const { state } = currentEditor;
                 let foundPos = -1;
                 let nodeSize = 0;
@@ -108,25 +131,30 @@ export function MarkdownPreview({
                 });
 
                 if (foundPos !== -1) {
-                  currentEditor
-                    .chain()
-                    .deleteRange({ from: foundPos, to: foundPos + nodeSize })
-                    .insertContentAt(foundPos, {
-                      type: 'image',
-                      attrs: {
-                        src: result,
-                      },
-                    })
-                    .focus()
-                    .run();
+                  // Replace placeholder with markdown image using insertContentAt with range
+                  const markdownImage = `![${file.name}](./${filename})`;
+                  currentEditor.commands.insertContentAt(
+                    { from: foundPos, to: foundPos + nodeSize },
+                    markdownImage,
+                    { contentType: 'markdown' }
+                  );
+                  currentEditor.commands.focus();
                 }
               }, delay);
-            };
+            } catch (error) {
+              console.error('[FileHandler] Error saving image:', error);
+              toast.error(`Failed to upload image: ${error}`);
+
+              // Remove the placeholder on error
+              const currentMarkdown = currentEditor.getMarkdown();
+              const cleanedMarkdown = currentMarkdown.replace(placeholderText, '');
+              currentEditor.commands.setContent(cleanedMarkdown, { contentType: 'markdown' });
+            }
           });
         },
         onPaste: (currentEditor, files, htmlContent) => {
           console.log('[FileHandler] onPaste triggered', { files, htmlContent });
-          files.forEach(file => {
+          files.forEach(async (file) => {
             if (htmlContent) {
               // If there is htmlContent, stop manual insertion & let other extensions handle insertion
               console.log('[FileHandler] htmlContent present, skipping manual insertion');
@@ -153,18 +181,39 @@ export function MarkdownPreview({
               })
               .run();
 
-            const fileReader = new FileReader();
-            fileReader.readAsDataURL(file);
-            fileReader.onload = () => {
-              console.log('[FileHandler] File loaded, replacing placeholder');
-              const result = fileReader.result;
+            try {
+              // Read file as array buffer
+              const arrayBuffer = await file.arrayBuffer();
+              const uint8Array = new Uint8Array(arrayBuffer);
+              const dataArray = Array.from(uint8Array);
+
+              // Generate unique filename with timestamp
+              const timestamp = Date.now();
+              const ext = file.name.split('.').pop() || 'png';
+              const filename = `image-${timestamp}.${ext}`;
+
+              // Get directory of current markdown file
+              const currentFilePath = editorState.filePath;
+              if (!currentFilePath) {
+                throw new Error('No file path available');
+              }
+              const directory = currentFilePath.substring(0, currentFilePath.lastIndexOf('/'));
+              const imagePath = `${directory}/${filename}`;
+
+              // Save image file
+              await invoke('write_binary_file', {
+                path: imagePath,
+                data: dataArray,
+              });
+
+              console.log('[FileHandler] Image saved to:', imagePath);
 
               // Ensure minimum 300ms display time
               const elapsed = Date.now() - startTime;
               const delay = Math.max(0, 300 - elapsed);
 
               setTimeout(() => {
-                // Find and replace the placeholder with the actual image
+                // Find and replace the placeholder with markdown image syntax
                 const { state } = currentEditor;
                 let foundPos = -1;
                 let nodeSize = 0;
@@ -178,20 +227,19 @@ export function MarkdownPreview({
                 });
 
                 if (foundPos !== -1) {
-                  currentEditor
-                    .chain()
-                    .deleteRange({ from: foundPos, to: foundPos + nodeSize })
-                    .insertContentAt(foundPos, {
-                      type: 'image',
-                      attrs: {
-                        src: result,
-                      },
-                    })
-                    .focus()
-                    .run();
+                  // Replace placeholder with markdown image using insertContentAt with range
+                  const markdownImage = `![${file.name}](./${filename})`;
+                  currentEditor.commands.insertContentAt(
+                    { from: foundPos, to: foundPos + nodeSize },
+                    markdownImage,
+                    { contentType: 'markdown' }
+                  );
+                  currentEditor.commands.focus();
                 }
               }, delay);
-            };
+            } catch (error) {
+              toast.error(`Failed to upload image: ${error}`);
+            }
           });
         },
       }),

@@ -32,7 +32,7 @@ export function EditorSave() {
       await writeTextFile(editorState.filePath, contentToSave);
       await draftService.removeDraft(editorState.filePath);
       markAsSaved();
-      toast.success("File saved");
+      // toast.success("File saved");
     } catch (error) {
       console.error("Error saving file:", error);
       toast.error("Failed to save file");

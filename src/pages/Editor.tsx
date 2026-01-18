@@ -5,7 +5,8 @@ import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { Titlebar } from "@/features/Titlebar";
 import { MonacoEditor } from "@/features/Editor/MonacoEditor";
 import { PreviewPanel } from "@/features/Preview/PreviewPanel";
-import { EditorToolbar } from "@/features/Editor/EditorToolbar";
+import { EditorLeftActions } from "@/features/Editor/EditorLeftActions";
+import { EditorRightActions } from "@/features/Editor/EditorRightActions";
 import { LoadFileContent } from "@/features/Editor/LoadFileContent";
 import { EditorSave } from "@/features/Editor/EditorSaveHandler";
 import {
@@ -24,13 +25,16 @@ export default function Editor() {
 
   return (
     <>
-      <Titlebar />
-      <EditorToolbar />
+      <Titlebar
+        left={<EditorLeftActions />}
+        center={null}
+        right={<EditorRightActions />}
+      />
       <EditorSave />
 
       <LoadFileContent filePath={filePath} onMetadataLoad={loadFileMetadata}>
         {(initialContent) => (
-          <div className="fixed top-[45px] h-[calc(100vh-45px)] left-0 w-full flex flex-col bg-background">
+          <div className="fixed top-[35px] h-[calc(100vh-35px)] left-0 w-full flex flex-col bg-background">
             {viewMode === 'side-by-side' && (
               <PanelGroup direction="horizontal" className="flex-1">
                 <Panel defaultSize={50} minSize={30}>

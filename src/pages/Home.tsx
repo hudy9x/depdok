@@ -45,7 +45,7 @@ export default function Home() {
   return (
     <main
       className={cn(
-        "fixed top-0 left-0 z-50 w-full h-full flex flex-col items-center justify-center bg-background",
+        "fixed top-0 left-0 z-50 w-full h-full flex flex-col items-center justify-center bg-secondary",
         "transition-opacity duration-600 delay-[200ms] ease-in-out fill-mode-forwards",
         isVisible ? "opacity-100" : "opacity-0"
       )}

@@ -60,11 +60,21 @@
   color: var(--muted-foreground);
 }
 
+/* Subtitle style - only work with the first h1 */
+.prose>h1:first-child+p {
+  /* color: blue; */
+  color: var(--muted-foreground);
+  font-size: 1.35rem;
+  font-weight: 200;
+  font-family: Cambria, Cochin, Georgia, Times, 'Times New Roman', serif;
+}
+
 /* Paragraphs */
 .prose p {
   margin-top: 1.25em;
   margin-bottom: 1.25em;
   line-height: 1.75;
+  color: var(--muted-foreground);
 }
 
 /* Links */

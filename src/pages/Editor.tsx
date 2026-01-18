@@ -34,8 +34,8 @@ export default function Editor() {
 
       <LoadFileContent filePath={filePath} onMetadataLoad={loadFileMetadata}>
         {(initialContent) => (
-          <div className="fixed top-[35px] h-[calc(100vh-35px)] left-0 w-full flex flex-col px-1.5 pb-1.5 bg-secondary/90">
-            <div className="h-full w-full bg-background rounded-sm overflow-hidden">
+          <div className="fixed top-[35px] h-[calc(100vh-35px)] left-0 w-full flex flex-col px-1.5 pb-1.5 bg-secondary">
+            <div className="h-full w-full bg-background rounded-sm overflow-hidden shadow-sm">
               {viewMode === 'side-by-side' && (
                 <PanelGroup direction="horizontal" className="flex-1">
                   <Panel defaultSize={50} minSize={30}>

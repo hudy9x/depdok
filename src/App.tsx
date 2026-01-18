@@ -3,15 +3,17 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { ThemeProvider } from 'next-themes';
 import { Toaster } from "@/components/ui/sonner"
+import { settingsService } from '@/lib/settings';
 import Home from './pages/Home';
 import Editor from './pages/Editor';
 import { Layout } from './components/Layout';
 import Empty from './pages/Empty';
 
 function App() {
+  const savedTheme = settingsService.getSettings().theme;
 
   return (
-    <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+    <ThemeProvider attribute="class" defaultTheme={savedTheme} enableSystem>
       <>
         <BrowserRouter>
           <Layout>

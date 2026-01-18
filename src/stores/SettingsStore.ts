@@ -30,3 +30,12 @@ export const viewModeSettingAtom = atom(
     settingsService.updateSettings(settings);
   }
 );
+
+export const themeAtom = atom(
+  (get) => get(settingsAtom).theme,
+  (get, set, value: 'light' | 'dark' | 'system') => {
+    const settings = { ...get(settingsAtom), theme: value };
+    set(settingsAtom, settings);
+    settingsService.updateSettings(settings);
+  }
+);

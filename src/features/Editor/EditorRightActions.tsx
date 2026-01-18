@@ -20,8 +20,6 @@ export function EditorRightActions() {
   const isEditorOnly = viewMode === 'editor-only';
   const isPreviewOnly = viewMode === 'preview-only';
 
-  const activeView = (isSidebySide || isEditorOnly || isPreviewOnly) ? 'opacity-100' : 'opacity-70';
-
   const onClickViewMode = (mode: 'side-by-side' | 'editor-only' | 'preview-only') => {
     handleViewModeChange(mode);
     setShowSettings(false);

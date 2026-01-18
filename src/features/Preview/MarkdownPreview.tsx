@@ -10,6 +10,7 @@ import { common, createLowlight } from "lowlight";
 import { useDebouncedCallback } from "use-debounce";
 import "highlight.js/styles/github-dark.css";
 import "./markdown.css";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 import { createTauriImage } from "./TauriImage";
 import { editorStateAtom, markAsDirtyAtom } from "@/stores/EditorStore";
@@ -95,8 +96,10 @@ export function MarkdownPreview({
   }, [editable, content, editor]);
 
   return (
-    <div className="w-full h-full overflow-auto bg-background">
-      <EditorContent editor={editor} />
+    <div className="w-full h-full overflow-hidden bg-background">
+      <ScrollArea className="w-full h-full">
+        <EditorContent editor={editor} />
+      </ScrollArea>
     </div>
   );
 }

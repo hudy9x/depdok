@@ -34,7 +34,7 @@ export function EditorLeftActions() {
     toast.success("Copied full path");
   };
 
-  const styleButtons = `w-8 h-[35px] p-2 cursor-pointer hover:opacity-90 hover:bg-background/50 opacity-50 `
+  const styleButtons = `w-8 h-[35px] p-2 cursor-pointer hover:opacity-90 hover:bg-background/50 opacity-90 `
 
 
   return (

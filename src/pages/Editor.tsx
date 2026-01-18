@@ -34,41 +34,44 @@ export default function Editor() {
 
       <LoadFileContent filePath={filePath} onMetadataLoad={loadFileMetadata}>
         {(initialContent) => (
-          <div className="fixed top-[35px] h-[calc(100vh-35px)] left-0 w-full flex flex-col bg-background">
-            {viewMode === 'side-by-side' && (
-              <PanelGroup direction="horizontal" className="flex-1">
-                <Panel defaultSize={50} minSize={30}>
-                  <MonacoEditor
-                    initialContent={initialContent}
-                    language={editorState.fileExtension === "md" ? "markdown" : "plaintext"}
-                  />
-                </Panel>
+          <div className="fixed top-[35px] h-[calc(100vh-35px)] left-0 w-full flex flex-col px-1.5 pb-1.5 bg-secondary/90">
+            <div className="h-full w-full bg-background rounded-sm overflow-hidden">
+              {viewMode === 'side-by-side' && (
+                <PanelGroup direction="horizontal" className="flex-1">
+                  <Panel defaultSize={50} minSize={30}>
+                    <MonacoEditor
+                      initialContent={initialContent}
+                      language={editorState.fileExtension === "md" ? "markdown" : "plaintext"}
+                    />
+                  </Panel>
 
-                <PanelResizeHandle className="w-1 bg-border hover:bg-primary/50 transition-colors" />
+                  <PanelResizeHandle className="w-1 bg-border hover:bg-primary/50 transition-colors" />
 
-                <Panel defaultSize={50} minSize={30}>
-                  <PreviewPanel
-                    content={initialContent}
-                    fileExtension={editorState.fileExtension}
-                  />
-                </Panel>
-              </PanelGroup>
-            )}
+                  <Panel defaultSize={50} minSize={30}>
+                    <PreviewPanel
+                      content={initialContent}
+                      fileExtension={editorState.fileExtension}
+                    />
+                  </Panel>
+                </PanelGroup>
+              )}
 
-            {viewMode === 'editor-only' && (
-              <MonacoEditor
-                initialContent={initialContent}
-                language={editorState.fileExtension === "md" ? "markdown" : "plaintext"}
-              />
-            )}
+              {viewMode === 'editor-only' && (
+                <MonacoEditor
+                  initialContent={initialContent}
+                  language={editorState.fileExtension === "md" ? "markdown" : "plaintext"}
+                />
+              )}
 
-            {viewMode === 'preview-only' && (
-              <PreviewPanel
-                content={initialContent}
-                fileExtension={editorState.fileExtension}
-                editable={true}
-              />
-            )}
+              {viewMode === 'preview-only' && (
+                <PreviewPanel
+                  content={initialContent}
+                  fileExtension={editorState.fileExtension}
+                  editable={true}
+                />
+              )}
+            </div>
+
           </div>
         )}
       </LoadFileContent>

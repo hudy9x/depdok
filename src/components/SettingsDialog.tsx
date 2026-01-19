@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { autoSaveEnabledAtom, autoSaveDelayAtom, themeAtom } from "@/stores/SettingsStore";
-import { Monitor, Moon, Sun } from "lucide-react";
+import { CircleCheck, LoaderCircle, Monitor, Moon, Sun } from "lucide-react";
 
 interface SettingsDialogProps {
   open: boolean;
@@ -26,6 +26,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   const [selectedTheme, setSelectedTheme] = useAtom(themeAtom);
   const { setTheme } = useTheme();
 
+  const [assetFolderUpdating, setAssetFolderUpdating] = useState(false);
   const [assetsFolder, setAssetsFolderState] = useState(() => {
     return localStorage.getItem('settings-markdown-asset-folder') || '';
   });
@@ -36,9 +37,13 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
     const validPattern = /^[a-zA-Z0-9_-]*$/;
 
     if (validPattern.test(value)) {
+      setAssetFolderUpdating(true);
       setAssetsFolderState(value);
       localStorage.setItem('settings-markdown-asset-folder', value);
       setFolderNameError("");
+      setTimeout(() => {
+        setAssetFolderUpdating(false);
+      }, 300);
     } else {
       setFolderNameError("Only letters, numbers, hyphens, and underscores are allowed");
     }
@@ -153,7 +158,12 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
 
           {/* Assets Folder Input */}
           <div className="space-y-2">
-            <Label htmlFor="folder-name">Assets Folder</Label>
+            <Label htmlFor="folder-name">Assets Folder
+              {assetFolderUpdating
+                ? <LoaderCircle className="size-4 text-muted-foreground animate-spin" />
+                : <CircleCheck className="size-4 text-green-300 dark:text-green-500" />}
+
+            </Label>
             <p className="text-sm text-muted-foreground">
               Folder name for storing markdown assets (only letters, numbers, hyphens, and underscores)
             </p>

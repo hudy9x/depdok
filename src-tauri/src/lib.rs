@@ -58,7 +58,8 @@ pub fn run() {
                 .title("Transparent Titlebar Window")
                 .inner_size(740.0, 850.0)
                 .decorations(false)
-                .transparent(true);
+                .transparent(true)
+                .disable_drag_drop_handler(); // Disable Tauri's file drop to allow browser handling
 
 
 
@@ -106,6 +107,7 @@ pub fn run() {
             commands::files::list_dir,
             commands::files::read_file_content,
             commands::files::write_file_content,
+            commands::files::write_binary_file,
             commands::files::create_directory,
             commands::files::create_file,
             commands::files::delete_node,

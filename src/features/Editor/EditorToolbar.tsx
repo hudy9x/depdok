@@ -5,7 +5,7 @@ import { Settings, Columns2, Code, Eye, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { editorStateAtom, viewModeAtom } from "@/stores/EditorStore";
 import { viewModeSettingAtom } from "@/stores/SettingsStore";
-import { SettingsDialog } from "@/components/SettingsDialog";
+import { SettingsDialog } from "@/features/SettingsDialog";
 
 export function EditorToolbar() {
   const editorState = useAtomValue(editorStateAtom);

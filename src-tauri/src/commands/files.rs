@@ -68,6 +68,11 @@ pub fn write_file_content(path: &str, content: &str) -> Result<(), String> {
 }
 
 #[tauri::command]
+pub fn write_binary_file(path: &str, data: Vec<u8>) -> Result<(), String> {
+    fs::write(path, data).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 pub fn create_directory(path: &str) -> Result<(), String> {
     fs::create_dir_all(path).map_err(|e| e.to_string())
 }

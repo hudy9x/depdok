@@ -13,6 +13,7 @@ import { Switch } from "@/components/ui/switch";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { autoSaveEnabledAtom, autoSaveDelayAtom, themeAtom } from "@/stores/SettingsStore";
 import { Monitor, Moon, Sun } from "lucide-react";
+import { AssetsFolderSetting } from "./AssetsFolderSetting";
 
 interface SettingsDialogProps {
   open: boolean;
@@ -131,6 +132,9 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
               />
             </div>
           )}
+
+          {/* Assets Folder Setting */}
+          <AssetsFolderSetting />
         </div>
       </DialogContent>
     </Dialog>

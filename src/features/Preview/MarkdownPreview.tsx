@@ -14,6 +14,8 @@ import "highlight.js/styles/github-dark.css";
 import "./markdown.css";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
+import { MarkdownBubbleMenu } from "./MarkdownBubbleMenu";
+
 import { createTauriImage } from "./TauriImage";
 import { editorStateAtom, markAsDirtyAtom } from "@/stores/EditorStore";
 import { draftService } from "@/lib/indexeddb";
@@ -326,6 +328,7 @@ export function MarkdownPreview({
   return (
     <div className="w-full h-full overflow-hidden bg-background" ref={containerRef}>
       <ScrollArea className="w-full h-full">
+        {editable && <MarkdownBubbleMenu editor={editor} />}
         <EditorContent editor={editor} />
       </ScrollArea>
     </div>

@@ -4,7 +4,7 @@ import { Settings, Columns2, Code, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { viewModeAtom } from "@/stores/EditorStore";
 import { viewModeSettingAtom } from "@/stores/SettingsStore";
-import { SettingsDialog } from "@/components/SettingsDialog";
+import { SettingsDialog } from "@/features/SettingsDialog";
 
 export function EditorRightActions() {
   const [viewMode, setViewMode] = useAtom(viewModeAtom);

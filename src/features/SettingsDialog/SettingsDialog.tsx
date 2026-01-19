@@ -1,5 +1,5 @@
 import { useAtom } from "jotai";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useTheme } from "next-themes";
 import {
   Dialog,
@@ -9,11 +9,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { autoSaveEnabledAtom, autoSaveDelayAtom, themeAtom } from "@/stores/SettingsStore";
-import { CircleCheck, LoaderCircle, Monitor, Moon, Sun } from "lucide-react";
+import { Monitor, Moon, Sun } from "lucide-react";
+import { AssetsFolderSetting } from "./AssetsFolderSetting";
 
 interface SettingsDialogProps {
   open: boolean;
@@ -25,29 +25,6 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   const [autoSaveDelay, setAutoSaveDelay] = useAtom(autoSaveDelayAtom);
   const [selectedTheme, setSelectedTheme] = useAtom(themeAtom);
   const { setTheme } = useTheme();
-
-  const [assetFolderUpdating, setAssetFolderUpdating] = useState(false);
-  const [assetsFolder, setAssetsFolderState] = useState(() => {
-    return localStorage.getItem('settings-markdown-asset-folder') || '';
-  });
-  const [folderNameError, setFolderNameError] = useState("");
-
-  // Validate folder name (only a-z, A-Z, 0-9, -, _)
-  const handleFolderNameChange = (value: string) => {
-    const validPattern = /^[a-zA-Z0-9_-]*$/;
-
-    if (validPattern.test(value)) {
-      setAssetFolderUpdating(true);
-      setAssetsFolderState(value);
-      localStorage.setItem('settings-markdown-asset-folder', value);
-      setFolderNameError("");
-      setTimeout(() => {
-        setAssetFolderUpdating(false);
-      }, 300);
-    } else {
-      setFolderNameError("Only letters, numbers, hyphens, and underscores are allowed");
-    }
-  };
 
   // Sync theme changes with next-themes
   useEffect(() => {
@@ -156,32 +133,8 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
             </div>
           )}
 
-          {/* Assets Folder Input */}
-          <div className="space-y-2">
-            <Label htmlFor="folder-name">Assets Folder
-              {assetFolderUpdating
-                ? <LoaderCircle className="size-4 text-muted-foreground animate-spin" />
-                : <CircleCheck className="size-4 text-green-300 dark:text-green-500" />}
-
-            </Label>
-            <p className="text-sm text-muted-foreground">
-              Folder name for storing markdown assets (only letters, numbers, hyphens, and underscores)
-            </p>
-            <Input
-              id="folder-name"
-              type="text"
-              placeholder="my-folder_name"
-              value={assetsFolder}
-              onChange={(e) => handleFolderNameChange(e.target.value)}
-              className={folderNameError ? "border-destructive" : ""}
-            />
-            {folderNameError && (
-              <p className="text-sm text-destructive">{folderNameError}</p>
-            )}
-            <p className="text-xs text-muted-foreground italic">
-              Note: This only works for markdown files
-            </p>
-          </div>
+          {/* Assets Folder Setting */}
+          <AssetsFolderSetting />
         </div>
       </DialogContent>
     </Dialog>

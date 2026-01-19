@@ -151,17 +151,68 @@
 
 /* Lists */
 .prose ul {
-  list-style-type: disc;
+  list-style-type: none;
   margin-top: 1.25em;
   margin-bottom: 1.25em;
   padding-left: 1.625em;
 }
 
+.prose ul li {
+  display: flex;
+  align-items: start;
+}
+
+.prose ul li p {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+.prose ul li::before {
+  content: "—";
+  display: inline-block;
+  color: var(--foreground);
+  margin-right: 0.75em;
+}
+
 .prose ol {
-  list-style-type: decimal;
+  list-style: none;
+  counter-reset: my-item-counter;
   margin-top: 1.25em;
   margin-bottom: 1.25em;
   padding-left: 1.625em;
+}
+
+.prose ol li {
+  counter-increment: my-item-counter;
+  display: flex;
+  align-items: start;
+}
+
+.prose {
+  caret-color: #10e2f1;
+}
+
+.prose ol li::before {
+  content: counter(my-item-counter);
+  color: var(--foreground);
+  font-weight: 400;
+  margin-right: 0.5rem;
+  position: relative;
+  font-size: var(--text-xs);
+  top: 4px;
+  left: -4px;
+  width: 24px;
+  height: 24px;
+  background: var(--secondary);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.prose ol li p {
+  margin-top: 0;
+  margin-bottom: 0;
 }
 
 .prose li {

@@ -15,6 +15,7 @@ import "./markdown.css";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 import { MarkdownBubbleMenu } from "./MarkdownBubbleMenu";
+import { MarkdownFloatingMenu } from "./MarkdownFloatingMenu";
 
 import { createTauriImage } from "./TauriImage";
 import { editorStateAtom, markAsDirtyAtom } from "@/stores/EditorStore";
@@ -328,7 +329,12 @@ export function MarkdownPreview({
   return (
     <div className="w-full h-full overflow-hidden bg-background" ref={containerRef}>
       <ScrollArea className="w-full h-full">
-        {editable && <MarkdownBubbleMenu editor={editor} />}
+        {editable && (
+          <>
+            <MarkdownBubbleMenu editor={editor} />
+            <MarkdownFloatingMenu editor={editor} />
+          </>
+        )}
         <EditorContent editor={editor} />
       </ScrollArea>
     </div>

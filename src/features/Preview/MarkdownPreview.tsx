@@ -40,6 +40,13 @@ export function MarkdownPreview({
   const TauriImage = createTauriImage(editorState.filePath);
   const isUpdatingRef = useRef(false);
 
+  // Function to get assets folder from localStorage
+  const getAssetsFolder = () => {
+    const folder = localStorage.getItem('settings-markdown-asset-folder') || '';
+    console.log('[getAssetsFolder] Retrieved from localStorage:', folder);
+    return folder;
+  };
+
   console.log('MarkdownPreview', content)
 
   // Debounced draft save (only when editable)
@@ -105,7 +112,34 @@ export function MarkdownPreview({
                 throw new Error('No file path available');
               }
               const directory = currentFilePath.substring(0, currentFilePath.lastIndexOf('/'));
-              const imagePath = `${directory}/${filename}`;
+
+              // Get assets folder dynamically
+              const assetsFolder = getAssetsFolder();
+              console.log('[onDrop] Assets folder value:', assetsFolder);
+
+              // Determine the target directory (with or without assets folder)
+              let targetDirectory = directory;
+              let relativePath = `./${filename}`;
+
+              if (assetsFolder) {
+                console.log('[onDrop] Assets folder is set, will create subfolder');
+                targetDirectory = `${directory}/${assetsFolder}`;
+                relativePath = `./${assetsFolder}/${filename}`;
+
+                // Create assets folder if it doesn't exist
+                try {
+                  console.log('[onDrop] Creating directory:', targetDirectory);
+                  await invoke('create_directory', { path: targetDirectory });
+                  console.log('[onDrop] Directory created successfully');
+                } catch (error) {
+                  console.error('[onDrop] Error creating assets directory:', error);
+                  // Continue anyway, the write might still work
+                }
+              } else {
+                console.log('[onDrop] No assets folder set, saving to same directory');
+              }
+
+              const imagePath = `${targetDirectory}/${filename}`;
 
               // Save image file
               await invoke('write_binary_file', {
@@ -135,7 +169,7 @@ export function MarkdownPreview({
 
                 if (foundPos !== -1) {
                   // Replace placeholder with markdown image using insertContentAt with range
-                  const markdownImage = `![${file.name}](./${filename})`;
+                  const markdownImage = `![${file.name}](${relativePath})`;
                   currentEditor.commands.insertContentAt(
                     { from: foundPos, to: foundPos + nodeSize },
                     markdownImage,
@@ -201,7 +235,34 @@ export function MarkdownPreview({
                 throw new Error('No file path available');
               }
               const directory = currentFilePath.substring(0, currentFilePath.lastIndexOf('/'));
-              const imagePath = `${directory}/${filename}`;
+
+              // Get assets folder dynamically
+              const assetsFolder = getAssetsFolder();
+              console.log('[onPaste] Assets folder value:', assetsFolder);
+
+              // Determine the target directory (with or without assets folder)
+              let targetDirectory = directory;
+              let relativePath = `./${filename}`;
+
+              if (assetsFolder) {
+                console.log('[onPaste] Assets folder is set, will create subfolder');
+                targetDirectory = `${directory}/${assetsFolder}`;
+                relativePath = `./${assetsFolder}/${filename}`;
+
+                // Create assets folder if it doesn't exist
+                try {
+                  console.log('[onPaste] Creating directory:', targetDirectory);
+                  await invoke('create_directory', { path: targetDirectory });
+                  console.log('[onPaste] Directory created successfully');
+                } catch (error) {
+                  console.error('[onPaste] Error creating assets directory:', error);
+                  // Continue anyway, the write might still work
+                }
+              } else {
+                console.log('[onPaste] No assets folder set, saving to same directory');
+              }
+
+              const imagePath = `${targetDirectory}/${filename}`;
 
               // Save image file
               await invoke('write_binary_file', {
@@ -231,7 +292,7 @@ export function MarkdownPreview({
 
                 if (foundPos !== -1) {
                   // Replace placeholder with markdown image using insertContentAt with range
-                  const markdownImage = `![${file.name}](./${filename})`;
+                  const markdownImage = `![${file.name}](${relativePath})`;
                   currentEditor.commands.insertContentAt(
                     { from: foundPos, to: foundPos + nodeSize },
                     markdownImage,

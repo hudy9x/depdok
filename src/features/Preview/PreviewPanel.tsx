@@ -15,8 +15,6 @@ export function PreviewPanel({
   onContentChange
 }: PreviewPanelProps) {
 
-  console.log('PreviewPanel', fileExtension, editable)
-
   if (!fileExtension) {
     return (
       <div className="w-full h-full flex items-center justify-center text-muted-foreground">
@@ -26,8 +24,6 @@ export function PreviewPanel({
   }
 
   if (fileExtension === "md") {
-    console.log('run in here :D:D:D:D:D:', fileExtension)
-    console.log('content being passed to MarkdownPreview:', content?.substring(0, 100), 'length:', content?.length)
     return (
       <MarkdownPreview
         content={content}

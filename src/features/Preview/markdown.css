@@ -5,6 +5,13 @@
   color: var(--foreground);
 }
 
+.prose *::selection {
+  background-color: var(--foreground);
+  /* The highlight color */
+  color: var(--background);
+  /* The text color when highlighted */
+}
+
 /* Headings */
 .prose h1 {
   font-size: 2.25em;

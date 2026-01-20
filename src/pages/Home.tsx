@@ -23,7 +23,7 @@ export default function Home() {
         filters: [
           {
             name: "Documentation Files",
-            extensions: ["md", "mmd", "puml", "pu", "txt"],
+            extensions: ["md", "mmd", "txt", "pu", "puml"],
           },
         ],
       });
@@ -44,7 +44,7 @@ export default function Home() {
         filters: [
           {
             name: "Documentation Files",
-            extensions: ["md", "mmd", "puml", "pu", "txt"],
+            extensions: ["md", "mmd", "txt", "pu", "puml"],
           },
         ],
       });
@@ -106,7 +106,7 @@ export default function Home() {
         </div>
 
         <div className="text-sm text-muted-foreground mt-8">
-          Supports Markdown (.md), Mermaid (.mmd), PlantUML (.puml, .pu), and Text (.txt) files
+          Supports Markdown, Mermaid, PlantUML, and Text files
         </div>
       </div>
     </main>

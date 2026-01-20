@@ -38,6 +38,23 @@
     "fileAssociations": [
       {
         "ext": [
+          "md",
+          "txt"
+        ],
+        "name": "Markdown File",
+        "description": "Markdown documentation file",
+        "mimeType": "text/markdown"
+      },
+      {
+        "ext": [
+          "mmd"
+        ],
+        "name": "Mermaid Diagram",
+        "description": "Mermaid diagram file",
+        "mimeType": "text/plain"
+      },
+      {
+        "ext": [
           "pu",
           "puml"
         ],

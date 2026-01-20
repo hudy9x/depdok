@@ -41,7 +41,13 @@ export default function Editor() {
                   <Panel defaultSize={50} minSize={30}>
                     <MonacoEditor
                       initialContent={initialContent}
-                      language={editorState.fileExtension === "md" ? "markdown" : "plaintext"}
+                      language={
+                        ["md", "txt"].includes(editorState.fileExtension || "")
+                          ? "markdown"
+                          : ["puml", "pu"].includes(editorState.fileExtension || "")
+                            ? "plantuml"
+                            : "plaintext"
+                      }
                     />
                   </Panel>
 
@@ -59,7 +65,13 @@ export default function Editor() {
               {viewMode === 'editor-only' && (
                 <MonacoEditor
                   initialContent={initialContent}
-                  language={editorState.fileExtension === "md" ? "markdown" : "plaintext"}
+                  language={
+                    ["md", "txt"].includes(editorState.fileExtension || "")
+                      ? "markdown"
+                      : ["puml", "pu"].includes(editorState.fileExtension || "")
+                        ? "plantuml"
+                        : "plaintext"
+                  }
                 />
               )}
 

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { open } from "@tauri-apps/plugin-dialog";
+import { open, save } from "@tauri-apps/plugin-dialog";
+import { writeTextFile } from "@tauri-apps/plugin-fs";
 import { cn } from "@/lib/utils";
 import { Titlebar } from "@/features/Titlebar";
 import { Button } from "@/components/ui/button";
@@ -22,7 +23,7 @@ export default function Home() {
         filters: [
           {
             name: "Documentation Files",
-            extensions: ["md", "mmd"],
+            extensions: ["md", "mmd", "puml", "pu", "txt"],
           },
         ],
       });
@@ -37,9 +38,30 @@ export default function Home() {
     }
   };
 
-  const handleCreateNew = () => {
-    // Placeholder for future implementation
-    toast.info("Create new file - Coming soon!");
+  const handleCreateNew = async () => {
+    try {
+      const selected = await save({
+        filters: [
+          {
+            name: "Documentation Files",
+            extensions: ["md", "mmd", "puml", "pu", "txt"],
+          },
+        ],
+      });
+
+      if (selected) {
+        // Create empty file
+        await writeTextFile(selected, "");
+
+        // Navigate to editor with file path
+        navigate(`/editor?path=${encodeURIComponent(selected)}`);
+
+        toast.success("File created successfully");
+      }
+    } catch (error) {
+      console.error("Error creating file:", error);
+      toast.error("Failed to create file");
+    }
   };
 
   return (
@@ -84,7 +106,7 @@ export default function Home() {
         </div>
 
         <div className="text-sm text-muted-foreground mt-8">
-          Supports Markdown (.md) and Mermaid (.mmd) files
+          Supports Markdown (.md), Mermaid (.mmd), PlantUML (.puml, .pu), and Text (.txt) files
         </div>
       </div>
     </main>

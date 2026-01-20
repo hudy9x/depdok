@@ -1,5 +1,6 @@
 import { MarkdownPreview } from "./MarkdownPreview";
 import { MermaidPreview } from "./MermaidPreview";
+import { PlantUMLPreview } from "./PlantUMLPreview";
 
 interface PreviewPanelProps {
   content: string;
@@ -23,7 +24,7 @@ export function PreviewPanel({
     );
   }
 
-  if (fileExtension === "md") {
+  if (["md", "txt"].includes(fileExtension)) {
     return (
       <MarkdownPreview
         content={content}
@@ -35,6 +36,10 @@ export function PreviewPanel({
 
   if (fileExtension === "mmd") {
     return <MermaidPreview content={content} />;
+  }
+
+  if (["puml", "pu"].includes(fileExtension)) {
+    return <PlantUMLPreview content={content} />;
   }
 
   return (

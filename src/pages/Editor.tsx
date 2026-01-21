@@ -15,6 +15,7 @@ import {
   loadFileMetadataAtom,
   viewModeAtom,
 } from "@/stores/EditorStore";
+import { getMonacoLanguage } from "@/lib/utils/getMonacoLanguage";
 
 export default function Editor() {
   const [searchParams] = useSearchParams();
@@ -44,13 +45,7 @@ export default function Editor() {
               {viewMode === 'editor-only' && (
                 <MonacoEditor
                   initialContent={initialContent}
-                  language={
-                    ["md", "txt"].includes(editorState.fileExtension || "")
-                      ? "markdown"
-                      : ["puml", "pu"].includes(editorState.fileExtension || "")
-                        ? "plantuml"
-                        : "plaintext"
-                  }
+                  language={getMonacoLanguage(editorState.fileExtension)}
                 />
               )}
 

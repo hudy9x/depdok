@@ -6,6 +6,7 @@ import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { MonacoEditor } from "@/features/Editor/MonacoEditor";
 import { PreviewPanel } from "@/features/Preview/PreviewPanel";
 import { editorStateAtom } from "@/stores/EditorStore";
+import { getMonacoLanguage } from "@/lib/utils/getMonacoLanguage";
 
 interface SideBySideProps {
   initialContent: string;
@@ -19,11 +20,7 @@ export function SideBySide({ initialContent }: SideBySideProps) {
     setContent(newContent);
   }, []);
 
-  const language = ["md", "txt"].includes(editorState.fileExtension || "")
-    ? "markdown"
-    : ["puml", "pu"].includes(editorState.fileExtension || "")
-      ? "plantuml"
-      : "plaintext";
+  const language = getMonacoLanguage(editorState.fileExtension);
 
   return (
     <PanelGroup direction="horizontal" className="flex-1">

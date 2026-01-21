@@ -1,12 +1,16 @@
 import { useState, useRef, useEffect } from "react";
-import MonacoEditorReact from "@monaco-editor/react";
+import MonacoEditorReact, { BeforeMount, OnMount } from "@monaco-editor/react";
 import { useAtomValue, useSetAtom } from "jotai";
 import { useDebouncedCallback } from "use-debounce";
 import { writeTextFile } from "@tauri-apps/plugin-fs";
 
+
 import { editorStateAtom, markAsDirtyAtom, markAsSavedAtom } from "@/stores/EditorStore";
 import { autoSaveEnabledAtom, autoSaveDelayAtom } from "@/stores/SettingsStore";
 import { draftService } from "@/lib/indexeddb";
+import { setupMermaidTheme } from '@/lib/monaco-theme';
+import { registerFormatAction } from '@/lib/monaco-actions';
+
 
 interface MonacoEditorProps {
   initialContent: string;
@@ -57,6 +61,21 @@ export function MonacoEditor({ initialContent, language, onContentChange }: Mona
     debouncedAutoSave(value);  // Auto-save if enabled
   };
 
+  const handleBeforeMount: BeforeMount = (monaco) => {
+    setupMermaidTheme(monaco);
+  };
+
+  const handleEditorDidMount: OnMount = (editor, monaco) => {
+    editorRef.current = editor;
+    // Register format action with Shift+Alt+F
+    const handleFormat = (formattedCode: string) => {
+      setContent(formattedCode);
+    };
+
+    registerFormatAction(editor, monaco, handleFormat);
+
+  };
+
   return (
     <div className="w-full h-full">
       <MonacoEditorReact
@@ -64,9 +83,10 @@ export function MonacoEditor({ initialContent, language, onContentChange }: Mona
         language={language}
         theme="vs-dark"
         onChange={handleChange}
-        onMount={(editor) => { editorRef.current = editor; }}
+        beforeMount={handleBeforeMount}
+        onMount={handleEditorDidMount}
         options={{
-          fontSize: 14,
+          fontSize: 12,
           fontFamily: "Monaco, Menlo, 'Courier New', monospace",
           lineNumbers: "on",
           minimap: { enabled: true },

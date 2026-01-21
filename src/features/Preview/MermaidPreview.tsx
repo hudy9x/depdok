@@ -1,6 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useTheme } from "next-themes";
 import mermaid from "mermaid";
+
+import { ZoomPanContainer } from "@/components/ZoomPanContainer";
 
 interface MermaidPreviewProps {
   content: string;
@@ -8,7 +10,7 @@ interface MermaidPreviewProps {
 
 export function MermaidPreview({ content }: MermaidPreviewProps) {
   const { theme } = useTheme();
-  const containerRef = useRef<HTMLDivElement>(null);
+  // Ref removed as it was unused in logic
   const [error, setError] = useState<string | null>(null);
   const [svg, setSvg] = useState<string>("");
 
@@ -73,14 +75,11 @@ export function MermaidPreview({ content }: MermaidPreviewProps) {
   }
 
   return (
-    <div
-      ref={containerRef}
-      className="w-full h-full overflow-auto flex items-center justify-center p-8 bg-background"
-    >
+    <ZoomPanContainer className="w-full h-full bg-background">
       <div
-        className="mermaid-diagram"
+        className="mermaid-diagram flex justify-center p-8 w-full h-full [&_svg]:w-full [&_svg]:h-full"
         dangerouslySetInnerHTML={{ __html: svg }}
       />
-    </div>
+    </ZoomPanContainer>
   );
 }

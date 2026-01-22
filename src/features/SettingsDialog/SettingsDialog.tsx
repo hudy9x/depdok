@@ -14,6 +14,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { autoSaveEnabledAtom, autoSaveDelayAtom, themeAtom } from "@/stores/SettingsStore";
 import { Monitor, Moon, Sun } from "lucide-react";
 import { AssetsFolderSetting } from "./AssetsFolderSetting";
+import { MonacoThemeSetting } from "./MonacoThemeSetting";
 
 interface SettingsDialogProps {
   open: boolean;
@@ -33,7 +34,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[525px]">
         <DialogHeader>
           <DialogTitle>Settings</DialogTitle>
           <DialogDescription>
@@ -96,6 +97,8 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
               </div>
             </RadioGroup>
           </div>
+
+          <MonacoThemeSetting />
 
 
           {/* Auto-save toggle */}

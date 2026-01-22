@@ -21,7 +21,7 @@ export function registerMermaidLanguage(monaco: Monaco) {
         [/\b(subgraph|end)\b/, 'keyword.block'],
 
         // Sequence diagram keywords
-        [/\b(participant|actor|activate|deactivate|Note|loop|alt|else|opt|par|and|rect|autonumber|over|left of|right of)\b/, 'keyword.sequence'],
+        [/\b(participant|actor|activate|deactivate|Note|loop|alt|else|opt|par|and|rect|autonumber|over|left of|right of|create)\b/, 'keyword.sequence'],
 
         // Class diagram keywords
         [/\b(class|interface|enum|abstract|static|public|private|protected)\b/, 'keyword.class'],
@@ -32,7 +32,19 @@ export function registerMermaidLanguage(monaco: Monaco) {
         // Style keywords
         [/\b(style|classDef|class|fill|stroke|stroke-width|color|linkStyle)\b/, 'keyword.style'],
 
-        // Arrows and connections
+        // Sequence diagram arrows (specific patterns first for priority)
+        [/<<-->>/, 'operator.arrow.sequence'],  // Dotted bidirectional
+        [/<<->>/, 'operator.arrow.sequence'],   // Solid bidirectional
+        [/-->>/, 'operator.arrow.sequence'],    // Dotted with arrowhead
+        [/->>/, 'operator.arrow.sequence'],     // Solid with arrowhead
+        [/--x/, 'operator.arrow.sequence'],     // Dotted with cross
+        [/-x/, 'operator.arrow.sequence'],      // Solid with cross
+        [/--\)/, 'operator.arrow.sequence'],    // Dotted async (open arrow)
+        [/-\)/, 'operator.arrow.sequence'],     // Solid async (open arrow)
+        [/-->/, 'operator.arrow.sequence'],     // Dotted without arrow
+        [/->/, 'operator.arrow.sequence'],      // Solid without arrow
+
+        // Flowchart arrows and connections
         [/o?--+o/, 'operator.arrow'],
         [/x--+x/, 'operator.arrow'],
         [/o--+/, 'operator.arrow'],
@@ -48,6 +60,9 @@ export function registerMermaidLanguage(monaco: Monaco) {
         [/\.\.+/, 'operator.arrow'],
         [/-\.-/, 'operator.arrow'],
         [/-\.->/, 'operator.arrow'],
+
+        // Sequence diagram message text (after colon)
+        [/:.*$/, 'text.message'],
 
         // Link text
         [/\|[^|]*\|/, 'string.link'],

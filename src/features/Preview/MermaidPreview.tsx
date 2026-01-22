@@ -47,7 +47,7 @@ export function MermaidPreview({ content }: MermaidPreviewProps) {
     };
 
     renderDiagram();
-  }, [content]);
+  }, [content, theme]);
 
   if (error) {
     return (
@@ -77,7 +77,7 @@ export function MermaidPreview({ content }: MermaidPreviewProps) {
   return (
     <ZoomPanContainer className="w-full h-full bg-background">
       <div
-        className="mermaid-diagram flex justify-center p-8 w-full h-full [&_svg]:w-full [&_svg]:h-full"
+        className="mermaid-diagram flex justify-center items-center p-8"
         dangerouslySetInnerHTML={{ __html: svg }}
       />
     </ZoomPanContainer>

@@ -1,19 +1,25 @@
 import { useState, useRef, useEffect } from "react";
-import MonacoEditorReact from "@monaco-editor/react";
+import MonacoEditorReact, { BeforeMount, OnMount } from "@monaco-editor/react";
 import { useAtomValue, useSetAtom } from "jotai";
 import { useDebouncedCallback } from "use-debounce";
 import { writeTextFile } from "@tauri-apps/plugin-fs";
+import { useTheme } from "next-themes";
+
 
 import { editorStateAtom, markAsDirtyAtom, markAsSavedAtom } from "@/stores/EditorStore";
 import { autoSaveEnabledAtom, autoSaveDelayAtom } from "@/stores/SettingsStore";
 import { draftService } from "@/lib/indexeddb";
+import { setupMermaidTheme } from '@/lib/monaco-theme';
+import { registerFormatAction } from '@/lib/monaco-actions';
+
 
 interface MonacoEditorProps {
   initialContent: string;
   language: string;
+  onContentChange?: (content: string) => void;
 }
 
-export function MonacoEditor({ initialContent, language }: MonacoEditorProps) {
+export function MonacoEditor({ initialContent, language, onContentChange }: MonacoEditorProps) {
   const [content, setContent] = useState(initialContent);
   const editorState = useAtomValue(editorStateAtom);
   const autoSaveEnabled = useAtomValue(autoSaveEnabledAtom);
@@ -21,6 +27,7 @@ export function MonacoEditor({ initialContent, language }: MonacoEditorProps) {
   const markAsDirty = useSetAtom(markAsDirtyAtom);
   const markAsSaved = useSetAtom(markAsSavedAtom);
   const editorRef = useRef<any>(null);
+  const { theme } = useTheme();
 
   // Sync content when initialContent changes
   useEffect(() => {
@@ -51,8 +58,33 @@ export function MonacoEditor({ initialContent, language }: MonacoEditorProps) {
     if (value === undefined) return;
 
     setContent(value);
+    onContentChange?.(value); // Notify parent
     debouncedSaveDraft(value); // Always save draft
     debouncedAutoSave(value);  // Auto-save if enabled
+  };
+
+  const handleBeforeMount: BeforeMount = (monaco) => {
+    setupMermaidTheme(monaco);
+  };
+
+  const handleEditorDidMount: OnMount = (editor, monaco) => {
+    editorRef.current = editor;
+    // Register format action with Shift+Alt+F
+    const handleFormat = (formattedCode: string) => {
+      setContent(formattedCode);
+    };
+
+    registerFormatAction(editor, monaco, handleFormat);
+
+  };
+
+  // Determine Monaco theme based on system theme and language
+  const getMonacoTheme = () => {
+    const isDark = theme === "dark";
+    if (language === "mermaid") {
+      return isDark ? "mermaid-dark" : "mermaid-light";
+    }
+    return isDark ? "vs-dark" : "vs";
   };
 
   return (
@@ -60,11 +92,12 @@ export function MonacoEditor({ initialContent, language }: MonacoEditorProps) {
       <MonacoEditorReact
         value={content}
         language={language}
-        theme="vs-dark"
+        theme={getMonacoTheme()}
         onChange={handleChange}
-        onMount={(editor) => { editorRef.current = editor; }}
+        beforeMount={handleBeforeMount}
+        onMount={handleEditorDidMount}
         options={{
-          fontSize: 14,
+          fontSize: 12,
           fontFamily: "Monaco, Menlo, 'Courier New', monospace",
           lineNumbers: "on",
           minimap: { enabled: true },

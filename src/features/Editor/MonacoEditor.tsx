@@ -5,7 +5,6 @@ import { useDebouncedCallback } from "use-debounce";
 import { writeTextFile } from "@tauri-apps/plugin-fs";
 import { useTheme } from "next-themes";
 
-
 import { editorStateAtom, markAsDirtyAtom, markAsSavedAtom } from "@/stores/EditorStore";
 import { autoSaveEnabledAtom, autoSaveDelayAtom } from "@/stores/SettingsStore";
 import { draftService } from "@/lib/indexeddb";
@@ -27,6 +26,7 @@ export function MonacoEditor({ initialContent, language, onContentChange }: Mona
   const markAsDirty = useSetAtom(markAsDirtyAtom);
   const markAsSaved = useSetAtom(markAsSavedAtom);
   const editorRef = useRef<any>(null);
+  const monacoRef = useRef<any>(null);
   const { theme } = useTheme();
 
   // Sync content when initialContent changes
@@ -64,8 +64,20 @@ export function MonacoEditor({ initialContent, language, onContentChange }: Mona
   };
 
   const handleBeforeMount: BeforeMount = (monaco) => {
+    monacoRef.current = monaco;
     setupMermaidTheme(monaco);
+
+    loadTheme(monaco);
+
   };
+
+  const loadTheme = (monaco: any) => {
+    import('@/themes/Monokai.json').then((data) => {
+      console.log('editorRef.current', editorRef.current)
+      monaco.editor.defineTheme('monokai', data);
+      // monaco.editor.setTheme('monokai');
+    });
+  }
 
   const handleEditorDidMount: OnMount = (editor, monaco) => {
     editorRef.current = editor;
@@ -87,8 +99,16 @@ export function MonacoEditor({ initialContent, language, onContentChange }: Mona
     return isDark ? "vs-dark" : "vs";
   };
 
+  const changeTheme = () => {
+    monacoRef.current.editor.setTheme('monokai');
+  }
+
+
   return (
     <div className="w-full h-full">
+      {/* <button onClick={changeTheme}>
+        Change Theme
+      </button> */}
       <MonacoEditorReact
         value={content}
         language={language}

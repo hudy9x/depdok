@@ -37,7 +37,7 @@ export default function Editor() {
       <LoadFileContent filePath={filePath} onMetadataLoad={loadFileMetadata}>
         {(initialContent) => (
           <div className="fixed top-[35px] h-[calc(100vh-35px)] left-0 w-full flex flex-col px-1.5 pb-1.5 bg-secondary">
-            <div className="h-full w-full bg-background rounded-sm overflow-hidden shadow-sm">
+            <div className="h-full w-full bg-background border border-border rounded-lg overflow-hidden shadow-lg">
               {viewMode === 'side-by-side' && (
                 <SideBySide initialContent={initialContent} />
               )}

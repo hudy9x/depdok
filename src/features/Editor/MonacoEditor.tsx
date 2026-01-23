@@ -28,7 +28,6 @@ export function MonacoEditor({ initialContent, language, onContentChange }: Mona
   const markAsSaved = useSetAtom(markAsSavedAtom);
   const editorRef = useRef<any>(null);
   const monacoRef = useRef<any>(null);
-  const { theme } = useTheme();
 
   // Sync content when initialContent changes
   useEffect(() => {

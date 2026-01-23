@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useAtomValue } from "jotai";
 import { useMonaco } from "@monaco-editor/react";
 import { useTheme } from "next-themes";
+import { THEME_MAPPING } from "@/lib/monaco-theme";
 import { editorThemeAtom } from "@/stores/SettingsStore";
 
 export function MonacoThemeLoader({ children }: { children: React.ReactNode }) {
@@ -13,25 +14,29 @@ export function MonacoThemeLoader({ children }: { children: React.ReactNode }) {
     if (!monaco) return;
 
     const loadTheme = (name: string) => {
+      // Determine the actual theme file/name to load based on system preference
+      const isDark = systemTheme === "dark";
+      let targetTheme = name;
+
+      if (THEME_MAPPING[name]) {
+        targetTheme = isDark ? THEME_MAPPING[name].dark : THEME_MAPPING[name].light;
+      }
+
       // Handle default VS Code themes natively
-      if (name === 'vs' || name === 'vs-dark') {
-        monaco.editor.setTheme(name);
+      if (targetTheme === 'vs' || targetTheme === 'vs-dark') {
+        monaco.editor.setTheme(targetTheme);
         return;
       }
 
-      // Handle 'system' or other mapped logic preference if needed, 
-      // but for now we assume editorThemeAtom holds the direct filename/key.
-
       // Dynamic import
-      import(`@/themes/${name}.json`)
+      import(`@/themes/${targetTheme}.json`)
         .then((data) => {
-          monaco.editor.defineTheme(name, data);
-          monaco.editor.setTheme(name);
+          monaco.editor.defineTheme(targetTheme, data);
+          monaco.editor.setTheme(targetTheme);
         })
         .catch((err) => {
-          console.error(`Failed to load theme ${name}:`, err);
-          // Fallback based on system theme logic
-          const isDark = systemTheme === "dark";
+          console.error(`Failed to load theme ${targetTheme}:`, err);
+          // Fallback
           monaco.editor.setTheme(isDark ? "vs-dark" : "vs");
         });
     };

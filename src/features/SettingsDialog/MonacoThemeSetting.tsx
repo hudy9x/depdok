@@ -9,22 +9,12 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 
-const AVAILABLE_THEMES = [
-  // Default VS Code themes
-  { value: "vs", label: "Visual Studio Light" },
-  { value: "vs-dark", label: "Visual Studio Dark" },
-  // Custom themes
-  { value: "Dracula", label: "Dracula" },
-  { value: "Monokai", label: "Monokai" },
-  { value: "Night Owl", label: "Night Owl" },
-  { value: "Solarized-dark", label: "Solarized Dark" },
-  { value: "Solarized-light", label: "Solarized Light" },
-  { value: "Tomorrow-Night", label: "Tomorrow Night" },
-  { value: "Cobalt2", label: "Cobalt2" },
-  { value: "GitHub Dark", label: "GitHub Dark" },
-  { value: "GitHub Light", label: "GitHub Light" },
-  { value: "Nord", label: "Nord" },
-];
+import { THEME_MAPPING } from "@/lib/monaco-theme";
+
+const AVAILABLE_THEMES = Object.entries(THEME_MAPPING).map(([key, value]) => ({
+  value: key,
+  label: value.label,
+}));
 
 export function MonacoThemeSetting() {
   const [editorTheme, setEditorTheme] = useAtom(editorThemeAtom);

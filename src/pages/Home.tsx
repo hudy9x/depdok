@@ -23,7 +23,7 @@ export default function Home() {
         filters: [
           {
             name: "Documentation Files",
-            extensions: ["md", "mmd", "txt", "pu", "puml"],
+            extensions: ["md", "mmd", "txt", "pu", "puml", "todo"],
           },
         ],
       });

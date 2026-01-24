@@ -3,7 +3,6 @@ import MonacoEditorReact, { BeforeMount, OnMount } from "@monaco-editor/react";
 import { useAtomValue, useSetAtom } from "jotai";
 import { useDebouncedCallback } from "use-debounce";
 import { writeTextFile } from "@tauri-apps/plugin-fs";
-import { useTheme } from "next-themes";
 import { MonacoThemeLoader } from "./MonacoThemeLoader";
 
 import { editorStateAtom, markAsDirtyAtom, markAsSavedAtom } from "@/stores/EditorStore";

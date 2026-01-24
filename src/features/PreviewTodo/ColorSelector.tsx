@@ -9,6 +9,7 @@ export interface ColorTheme {
 interface ColorSelectorProps {
   currentColor?: string;
   onColorChange: (color: string | undefined) => void;
+  editable: boolean;
 }
 
 export const COLOR_THEMES: Record<string, ColorTheme> = {
@@ -50,20 +51,26 @@ export function getThemeByBg(bgColor?: string): ColorTheme | undefined {
   return Object.values(COLOR_THEMES).find(theme => theme.bg === bgColor);
 }
 
-export function ColorSelector({ currentColor, onColorChange }: ColorSelectorProps) {
+export function ColorSelector({ currentColor, onColorChange, editable }: ColorSelectorProps) {
   const presetColors = Object.values(COLOR_THEMES);
+
+  const view = <button
+    className="w-5 h-5 cursor-pointer rounded border-2 hover:border-foreground transition-colors shrink-0"
+    style={{
+      backgroundColor: currentColor || '#ffffff',
+      borderColor: getThemeByBg(currentColor)?.border || '#e5e7eb'
+    }}
+    aria-label="Change section color"
+  />
+
+  if (!editable) {
+    return view;
+  }
 
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <button
-          className="w-6 h-6 rounded border-2 hover:border-foreground transition-colors shrink-0 mr-2"
-          style={{
-            backgroundColor: currentColor || '#ffffff',
-            borderColor: getThemeByBg(currentColor)?.border || '#e5e7eb'
-          }}
-          aria-label="Change section color"
-        />
+        {view}
       </PopoverTrigger>
       <PopoverContent className="w-auto p-2" align="start">
         <div className="grid grid-cols-3 gap-2">

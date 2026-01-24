@@ -22,6 +22,7 @@ export function TodoPreview({ content, onContentChange, editable = false }: Todo
     document,
     handleToggleItem,
     handleUpdateItemTitle,
+    handleUpdateItemMetadata,
     handleAddItem,
     handleRemoveItem,
     handleAddSection,
@@ -56,24 +57,24 @@ export function TodoPreview({ content, onContentChange, editable = false }: Todo
           return (
             <Card
               key={sectionIndex}
-              className="w-80 pb-0 pt-4 flex-shrink-0 max-h-full flex flex-col gap-2"
+              className="w-80 pb-0 pt-4 flex-shrink-0 max-h-full flex flex-col gap-2 bg-board border-board-border"
               style={{
-                backgroundColor: bgColor,
-                borderColor: theme?.border,
-                borderWidth: theme ? '1px' : '1px',
+                // backgroundColor: bgColor,
+                // borderColor: theme?.border,
+                // borderWidth: theme ? '1px' : '1px',
               }}
             >
               <CardHeader className="px-4 flex flex-row items-center justify-between space-y-0 group">
-                {editable && (
-                  <ColorSelector
-                    currentColor={bgColor}
-                    onColorChange={(color) => handleSectionColorChange(sectionIndex, color)}
-                  />
-                )}
+                <ColorSelector
+                  currentColor={bgColor}
+                  onColorChange={(color) => handleSectionColorChange(sectionIndex, color)}
+                  editable={editable}
+                />
                 <Input
                   value={section.title}
                   onChange={(e) => handleSectionTitleChange(sectionIndex, e.target.value)}
-                  className="font-semibold text-lg bg-transparent shadow-none border-transparent focus:border-input h-auto p-1 py-0 mr-2"
+                  style={{ backgroundColor: "transparent" }}
+                  className="font-semibold text-lg bg-transparent shadow-none border-transparent focus:border-input h-auto p-1 py-0"
                   disabled={!editable}
                 />
                 {editable && (
@@ -89,7 +90,7 @@ export function TodoPreview({ content, onContentChange, editable = false }: Todo
               </CardHeader>
               <CardContent className="px-2 pb-2 flex-1 overflow-hidden h-full flex flex-col gap-2">
                 <ScrollArea className="flex-1 max-h-[calc(100vh-48px)]">
-                  <div className="flex flex-col gap-3 pt-3">
+                  <div className="flex flex-col gap-3 pt-1">
                     {section.items.map((item, itemIndex) => (
                       <TodoItem
                         key={itemIndex}
@@ -100,6 +101,7 @@ export function TodoPreview({ content, onContentChange, editable = false }: Todo
                         editable={editable}
                         onToggle={handleToggleItem}
                         onUpdateTitle={handleUpdateItemTitle}
+                        onUpdateMetadata={handleUpdateItemMetadata}
                         onRemove={handleRemoveItem}
                       />
                     ))}

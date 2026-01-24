@@ -9,7 +9,7 @@ export function getMonacoLanguage(fileExtension: string | null | undefined): str
   const ext = fileExtension.toLowerCase();
 
   // Markdown files
-  if (["md", "txt"].includes(ext)) {
+  if (["md", "txt", "todo"].includes(ext)) {
     return "markdown";
   }
 

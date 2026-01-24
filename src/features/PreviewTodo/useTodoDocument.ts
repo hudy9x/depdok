@@ -67,6 +67,19 @@ export function useTodoDocument({ content, editable, onContentChange }: UseTodoD
     updateContent(newDocument);
   };
 
+  const handleUpdateItemMetadata = (sectionIndex: number, itemIndex: number, metadata: any) => {
+    if (!editable) return;
+    const newDocument = { ...document };
+    newDocument.sections = [...newDocument.sections];
+    newDocument.sections[sectionIndex] = { ...newDocument.sections[sectionIndex] };
+    newDocument.sections[sectionIndex].items = [...newDocument.sections[sectionIndex].items];
+    newDocument.sections[sectionIndex].items[itemIndex] = {
+      ...newDocument.sections[sectionIndex].items[itemIndex],
+      metadata
+    };
+    updateContent(newDocument);
+  };
+
   const handleAddItem = (sectionIndex: number) => {
     if (!editable) return;
     const newDocument = { ...document };
@@ -129,6 +142,7 @@ export function useTodoDocument({ content, editable, onContentChange }: UseTodoD
     document,
     handleToggleItem,
     handleUpdateItemTitle,
+    handleUpdateItemMetadata,
     handleAddItem,
     handleRemoveItem,
     handleAddSection,

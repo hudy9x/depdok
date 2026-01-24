@@ -39,3 +39,12 @@ export const themeAtom = atom(
     settingsService.updateSettings(settings);
   }
 );
+
+export const editorThemeAtom = atom(
+  (get) => get(settingsAtom).editorTheme,
+  (get, set, value: string) => {
+    const settings = { ...get(settingsAtom), editorTheme: value };
+    set(settingsAtom, settings);
+    settingsService.updateSettings(settings);
+  }
+);

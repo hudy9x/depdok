@@ -3,6 +3,7 @@ interface AppSettings {
   autoSaveDelay: number; // milliseconds
   viewMode: 'side-by-side' | 'editor-only' | 'preview-only';
   theme: 'light' | 'dark' | 'system';
+  editorTheme: string;
   assetsFolder: string; // folder name for markdown assets
 }
 
@@ -11,6 +12,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   autoSaveDelay: 1000,
   viewMode: 'editor-only',
   theme: 'system',
+  editorTheme: 'vs-dark',
   assetsFolder: '',
 };
 

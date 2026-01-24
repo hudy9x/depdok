@@ -3,8 +3,7 @@ import MonacoEditorReact, { BeforeMount, OnMount } from "@monaco-editor/react";
 import { useAtomValue, useSetAtom } from "jotai";
 import { useDebouncedCallback } from "use-debounce";
 import { writeTextFile } from "@tauri-apps/plugin-fs";
-import { useTheme } from "next-themes";
-
+import { MonacoThemeLoader } from "./MonacoThemeLoader";
 
 import { editorStateAtom, markAsDirtyAtom, markAsSavedAtom } from "@/stores/EditorStore";
 import { autoSaveEnabledAtom, autoSaveDelayAtom } from "@/stores/SettingsStore";
@@ -27,7 +26,7 @@ export function MonacoEditor({ initialContent, language, onContentChange }: Mona
   const markAsDirty = useSetAtom(markAsDirtyAtom);
   const markAsSaved = useSetAtom(markAsSavedAtom);
   const editorRef = useRef<any>(null);
-  const { theme } = useTheme();
+  const monacoRef = useRef<any>(null);
 
   // Sync content when initialContent changes
   useEffect(() => {
@@ -64,7 +63,9 @@ export function MonacoEditor({ initialContent, language, onContentChange }: Mona
   };
 
   const handleBeforeMount: BeforeMount = (monaco) => {
+    monacoRef.current = monaco;
     setupMermaidTheme(monaco);
+
   };
 
   const handleEditorDidMount: OnMount = (editor, monaco) => {
@@ -79,34 +80,30 @@ export function MonacoEditor({ initialContent, language, onContentChange }: Mona
   };
 
   // Determine Monaco theme based on system theme and language
-  const getMonacoTheme = () => {
-    const isDark = theme === "dark";
-    if (language === "mermaid") {
-      return isDark ? "mermaid-dark" : "mermaid-light";
-    }
-    return isDark ? "vs-dark" : "vs";
-  };
 
   return (
     <div className="w-full h-full">
-      <MonacoEditorReact
-        value={content}
-        language={language}
-        theme={getMonacoTheme()}
-        onChange={handleChange}
-        beforeMount={handleBeforeMount}
-        onMount={handleEditorDidMount}
-        options={{
-          fontSize: 12,
-          fontFamily: "Monaco, Menlo, 'Courier New', monospace",
-          lineNumbers: "on",
-          minimap: { enabled: true },
-          wordWrap: "on",
-          automaticLayout: true,
-          scrollBeyondLastLine: false,
-          padding: { top: 16, bottom: 16 },
-        }}
-      />
+      <MonacoThemeLoader>
+        <MonacoEditorReact
+          value={content}
+          language={language}
+          // Theme is handled by MonacoThemeLoader
+          // theme={getMonacoTheme()} 
+          onChange={handleChange}
+          beforeMount={handleBeforeMount}
+          onMount={handleEditorDidMount}
+          options={{
+            fontSize: 12,
+            fontFamily: "Monaco, Menlo, 'Courier New', monospace",
+            lineNumbers: "on",
+            minimap: { enabled: true },
+            wordWrap: "on",
+            automaticLayout: true,
+            scrollBeyondLastLine: false,
+            padding: { top: 16, bottom: 16 },
+          }}
+        />
+      </MonacoThemeLoader>
     </div>
   );
 }

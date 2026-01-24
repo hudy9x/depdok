@@ -119,6 +119,9 @@ importers:
       '@tiptap/starter-kit':
         specifier: ^3.14.0
         version: 3.15.3
+      '@types/js-yaml':
+        specifier: ^4.0.9
+        version: 4.0.9
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -140,6 +143,9 @@ importers:
       jotai:
         specifier: ^2.12.5
         version: 2.12.5(@types/react@18.3.23)(react@18.3.1)
+      js-yaml:
+        specifier: ^4.1.1
+        version: 4.1.1
       lowlight:
         specifier: ^3.3.0
         version: 3.3.0
@@ -198,9 +204,6 @@ importers:
       '@types/react-dom':
         specifier: ^18.3.1
         version: 18.3.7(@types/react@18.3.23)
-      '@types/svg-pan-zoom':
-        specifier: ^3.4.0
-        version: 3.4.0
       '@vitejs/plugin-react':
         specifier: ^4.3.4
         version: 4.6.0(vite@6.3.5(@types/node@24.0.7)(jiti@2.4.2)(lightningcss@1.30.1))
@@ -1671,6 +1674,9 @@ packages:
   '@types/hast@3.0.4':
     resolution: {integrity: sha512-WPs+bbQw5aCj+x6laNGWLH3wviHtoCv/P3+otBhbOhJgG8qtpdAMlTCxLtsTWA7LH1Oh/bFCHsBn0TPS5m30EQ==}
 
+  '@types/js-yaml@4.0.9':
+    resolution: {integrity: sha512-k4MGaQl5TGo/iipqb2UDG2UwjXziSWkh0uysQelTlJpX1qGlpUZYm8PnO4DxG1qBomtJUdYJ6qR6xdIah10JLg==}
+
   '@types/linkify-it@3.0.5':
     resolution: {integrity: sha512-yg6E+u0/+Zjva+buc3EIb+29XEg4wltq7cSmd4Uc2EE/1nUVmxyzpX6gUXD0V8jIrG0r7YeOGVIbYRkxeooCtw==}
 
@@ -1702,10 +1708,6 @@ packages:
 
   '@types/react@18.3.23':
     resolution: {integrity: sha512-/LDXMQh55EzZQ0uVAZmKKhfENivEvWz6E+EYzh+/MCjMhNsotd+ZHhBGIjFDTi6+fz0OhQQQLbTgdQIxxCsC0w==}
-
-  '@types/svg-pan-zoom@3.4.0':
-    resolution: {integrity: sha512-G1/BVNEkjlcL8mOT1b6Iwsn0B9uxqYFhX12dbvpR8A6w4B8aucSn9XeI0W5HaR/JdGeztgR375At9jlsuYZHug==}
-    deprecated: This is a stub types definition for svg-pan-zoom (https://github.com/ariutta/svg-pan-zoom). svg-pan-zoom provides its own type definitions, so you don't need @types/svg-pan-zoom installed!
 
   '@types/trusted-types@2.0.7':
     resolution: {integrity: sha512-ScaPdn1dQczgbl0QFTeTOmVHFULt394XJgOQNoyVhZ6r2vLnMLJfBPd53SB52T/3G36VI1/g2MZaX0cwDuXsfw==}
@@ -2086,6 +2088,10 @@ packages:
 
   js-tokens@4.0.0:
     resolution: {integrity: sha512-RdJUflcE3cUzKiMqQgsCu06FPu9UdIJO0beYbPhHN4k6apgJtifcoCtT9bcxOpYBtpD2kCM6Sbzg4CausW/PKQ==}
+
+  js-yaml@4.1.1:
+    resolution: {integrity: sha512-qQKT4zQxXl8lLwBtHMWwaTcGfFOZviOJet3Oy/xmGk2gZH677CJM9EvtfdSkgWcATZhj/55JZ0rmy3myCT5lsA==}
+    hasBin: true
 
   jsesc@3.1.0:
     resolution: {integrity: sha512-/sM3dO2FOzXjKQhJuo0Q173wf2KOo8t4I8vHy6lF9poUp7bKT0/NHE8fPX23PwfhnykfqnC2xRxOnVw5XuGIaA==}
@@ -4064,6 +4070,8 @@ snapshots:
     dependencies:
       '@types/unist': 3.0.3
 
+  '@types/js-yaml@4.0.9': {}
+
   '@types/linkify-it@3.0.5': {}
 
   '@types/linkify-it@5.0.0': {}
@@ -4096,10 +4104,6 @@ snapshots:
     dependencies:
       '@types/prop-types': 15.7.15
       csstype: 3.1.3
-
-  '@types/svg-pan-zoom@3.4.0':
-    dependencies:
-      svg-pan-zoom: 3.6.2
 
   '@types/trusted-types@2.0.7':
     optional: true
@@ -4487,6 +4491,10 @@ snapshots:
       react: 18.3.1
 
   js-tokens@4.0.0: {}
+
+  js-yaml@4.1.1:
+    dependencies:
+      argparse: 2.0.1
 
   jsesc@3.1.0: {}
 

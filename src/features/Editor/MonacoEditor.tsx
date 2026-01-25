@@ -9,7 +9,11 @@ import { editorStateAtom, markAsDirtyAtom, markAsSavedAtom } from "@/stores/Edit
 import { autoSaveEnabledAtom, autoSaveDelayAtom } from "@/stores/SettingsStore";
 import { draftService } from "@/lib/indexeddb";
 import { setupMermaidTheme } from '@/lib/monaco-theme';
-import { registerFormatAction } from '@/lib/monaco-actions';
+import {
+  registerFormatAction,
+  registerDuplicateLineAction,
+  registerToggleTodoAction
+} from '@/lib/monaco-actions';
 
 
 interface MonacoEditorProps {
@@ -70,12 +74,22 @@ export function MonacoEditor({ initialContent, language, onContentChange }: Mona
 
   const handleEditorDidMount: OnMount = (editor, monaco) => {
     editorRef.current = editor;
-    // Register format action with Shift+Alt+F
+
+    // Action registration - Start ==================
+    // 1. Auto format on Shift+Alt+F
     const handleFormat = (formattedCode: string) => {
       setContent(formattedCode);
     };
 
     registerFormatAction(editor, monaco, handleFormat);
+
+    // 2. Duplicate line on Shift+Alt+D
+    registerDuplicateLineAction(editor, monaco);
+
+    // 3. Toggle todo checkbox on Shift+Alt+X
+    registerToggleTodoAction(editor, monaco);
+
+    // Action registration - End ==================
 
   };
 

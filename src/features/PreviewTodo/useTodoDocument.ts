@@ -80,13 +80,17 @@ export function useTodoDocument({ content, editable, onContentChange }: UseTodoD
     updateContent(newDocument);
   };
 
-  const handleAddItem = (sectionIndex: number) => {
+  const handleAddItem = (sectionIndex: number, metadata?: any) => {
     if (!editable) return;
     const newDocument = { ...document };
     newDocument.sections = [...newDocument.sections];
     newDocument.sections[sectionIndex] = { ...newDocument.sections[sectionIndex] };
     newDocument.sections[sectionIndex].items = [...newDocument.sections[sectionIndex].items];
-    newDocument.sections[sectionIndex].items.push({ title: "New Item", checked: false });
+    newDocument.sections[sectionIndex].items.push({
+      title: "New Item",
+      checked: false,
+      metadata: metadata || undefined
+    });
     updateContent(newDocument);
   };
 
@@ -138,6 +142,16 @@ export function useTodoDocument({ content, editable, onContentChange }: UseTodoD
     updateContent(newDocument);
   };
 
+  const handleModeChange = (mode: 'kanban' | 'week') => {
+    if (!editable) return;
+    const newDocument = { ...document };
+    newDocument.config = {
+      ...newDocument.config,
+      mode
+    };
+    updateContent(newDocument);
+  };
+
   return {
     document,
     handleToggleItem,
@@ -149,5 +163,6 @@ export function useTodoDocument({ content, editable, onContentChange }: UseTodoD
     handleRemoveSection,
     handleSectionTitleChange,
     handleSectionColorChange,
+    handleModeChange,
   };
 }

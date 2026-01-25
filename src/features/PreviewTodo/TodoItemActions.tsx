@@ -13,7 +13,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { MoreHorizontal, Calendar as CalendarIcon, User, Flag } from "lucide-react";
+import { MoreHorizontal, Calendar as CalendarIcon, User, Flag, Trash2 } from "lucide-react";
 import { TodoItemMetadata, TodoConfig } from "./todoRenderer";
 
 interface TodoItemActionsProps {
@@ -21,6 +21,7 @@ interface TodoItemActionsProps {
   config?: TodoConfig;
   onMetadataChange: (field: keyof TodoItemMetadata, value: any) => void;
   onRemoveMetadata: (field: keyof TodoItemMetadata) => void;
+  onDelete?: () => void;
 }
 
 export function TodoItemActions({
@@ -28,6 +29,7 @@ export function TodoItemActions({
   config,
   onMetadataChange,
   onRemoveMetadata,
+  onDelete,
 }: TodoItemActionsProps) {
   const [datePickerOpen, setDatePickerOpen] = useState(false);
 
@@ -147,10 +149,14 @@ export function TodoItemActions({
           <PopoverContent className="w-auto p-0" align="start">
             <Calendar
               mode="single"
-              selected={metadata?.due ? new Date(metadata.due) : undefined}
+              selected={metadata?.due ? new Date(metadata.due + 'T00:00:00') : undefined}
               onSelect={(date) => {
                 if (date) {
-                  onMetadataChange("due", date.toISOString().split('T')[0]);
+                  // Use date-fns format to avoid timezone issues
+                  const year = date.getFullYear();
+                  const month = String(date.getMonth() + 1).padStart(2, '0');
+                  const day = String(date.getDate()).padStart(2, '0');
+                  onMetadataChange("due", `${year}-${month}-${day}`);
                 } else {
                   onRemoveMetadata("due");
                 }
@@ -159,6 +165,20 @@ export function TodoItemActions({
             />
           </PopoverContent>
         </Popover>
+
+        {/* Delete action */}
+        {onDelete && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              className="text-xs text-destructive focus:text-destructive"
+              onClick={onDelete}
+            >
+              <Trash2 className="!mr-2 !h-3 !w-3 text-destructive" />
+              Delete
+            </DropdownMenuItem>
+          </>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );

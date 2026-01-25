@@ -1,7 +1,5 @@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { TodoItem as TodoItemType, TodoConfig, TodoItemMetadata } from "./todoRenderer";
 import { TodoItemActions } from "./TodoItemActions";
@@ -73,17 +71,8 @@ export function TodoItem({
               config={config}
               onMetadataChange={handleMetadataChange}
               onRemoveMetadata={handleRemoveMetadata}
+              onDelete={() => onRemove(sectionIndex, itemIndex)}
             />
-
-            {/* Delete button */}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
-              onClick={() => onRemove(sectionIndex, itemIndex)}
-            >
-              <X className="h-3 w-3" />
-            </Button>
           </>
         )}
       </div>

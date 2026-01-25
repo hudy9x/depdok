@@ -15,6 +15,7 @@ export interface TodoPriority {
 export interface TodoConfig {
   title?: string;
   description?: string;
+  mode?: 'kanban' | 'week';
   assignees?: TodoAssignee[];
   priorities?: {
     high?: TodoPriority;

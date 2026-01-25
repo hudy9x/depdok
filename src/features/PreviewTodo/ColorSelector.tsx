@@ -3,7 +3,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 export interface ColorTheme {
   bg: string;
   border: string;
-  shadow: string;
+  color: string;
 }
 
 interface ColorSelectorProps {
@@ -13,35 +13,65 @@ interface ColorSelectorProps {
 }
 
 export const COLOR_THEMES: Record<string, ColorTheme> = {
-  red: {
-    bg: '#fbc8c0',
-    border: '#f87171',
-    shadow: '#fca5a5',
+  purple: {
+    bg: '#6647f0',
+    border: '#5940C5',
+    color: '#fff',
+  },
+  neonblue: {
+    bg: '#3e63dd',
+    border: '#3350B3',
+    color: '#fff',
+  },
+  azureblue: {
+    bg: '#0091ff',
+    border: '#0976CE',
+    color: '#fff',
+  },
+  teal: {
+    bg: '#12a594',
+    border: '#108678',
+    color: '#fff',
+  },
+  greeen: {
+    bg: '#30a46c',
+    border: '#298557',
+    color: '#fff',
+  },
+  yellow: {
+    bg: '#ffc53d',
+    border: '#CEA032',
+    color: '#fff',
   },
   orange: {
-    bg: '#f0d194',
-    border: '#f4aa6dff',
-    shadow: '#fdba74',
+    bg: '#f76808',
+    border: '#C8540B',
+    color: '#fff',
   },
-  purple: {
-    bg: '#e9e1fa',
-    border: '#c084fc',
-    shadow: '#d8b4fe',
+  red: {
+    bg: '#e5484d',
+    border: '#B93B3F',
+    color: '#fff',
   },
-  peach: {
-    bg: '#ffece2',
-    border: '#fbbf24',
-    shadow: '#fcd34d',
+  pink: {
+    bg: '#e93d82',
+    border: '#BD3169',
+    color: '#fff',
   },
-  green: {
-    bg: '#e7f5ea',
-    border: '#4ade80',
-    shadow: '#86efac',
+  violet: {
+    bg: '#ab4aba',
+    border: '#8A3D97',
+    color: '#fff',
   },
-  blue: {
-    bg: '#e5f4fb',
-    border: '#60a5fa',
-    shadow: '#93c5fd',
+  brown: {
+    bg: '#a18072',
+    border: '#82675C',
+    color: '#fff',
+  },
+  gray: {
+    bg: '#8d8d8d',
+    border: '#727272',
+    color: '#fff',
   },
 };
 
@@ -55,10 +85,10 @@ export function ColorSelector({ currentColor, onColorChange, editable }: ColorSe
   const presetColors = Object.values(COLOR_THEMES);
 
   const view = <button
-    className="w-5 h-5 cursor-pointer rounded border-2 hover:border-foreground transition-colors shrink-0"
+    className="w-4 h-4 cursor-pointer p-1 rounded-md hover:border-foreground transition-colors shrink-0"
     style={{
       backgroundColor: currentColor || '#ffffff',
-      borderColor: getThemeByBg(currentColor)?.border || '#e5e7eb'
+      // borderColor: getThemeByBg(currentColor)?.border || '#e5e7eb'
     }}
     aria-label="Change section color"
   />
@@ -77,10 +107,9 @@ export function ColorSelector({ currentColor, onColorChange, editable }: ColorSe
           {presetColors.map((theme) => (
             <button
               key={theme.bg}
-              className="w-5 h-5 cursor-pointer rounded border-2 hover:border-foreground transition-colors"
+              className="w-5 h-5 cursor-pointer rounded hover:border-foreground transition-colors"
               style={{
                 backgroundColor: theme.bg,
-                borderColor: theme.border
               }}
               onClick={() => onColorChange(theme.bg)}
               aria-label={`Set color theme`}
@@ -88,7 +117,7 @@ export function ColorSelector({ currentColor, onColorChange, editable }: ColorSe
           ))}
           {/* White/Reset option */}
           <button
-            className="w-5 h-5 cursor-pointer rounded border-2 border-border hover:border-foreground transition-colors"
+            className="w-5 h-5 cursor-pointer rounded border-1 border-border hover:border-foreground transition-colors"
             style={{ backgroundColor: '#ffffff' }}
             onClick={() => onColorChange(undefined)}
             aria-label="Reset color"

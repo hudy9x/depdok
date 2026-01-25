@@ -57,7 +57,7 @@ export function TodoPreview({ content, onContentChange, editable = false }: Todo
           return (
             <Card
               key={sectionIndex}
-              className="w-80 pb-0 pt-4 flex-shrink-0 max-h-full flex flex-col gap-2 bg-board border-board-border"
+              className="w-80 pb-0 pt-4 rounded-sm flex-shrink-0 max-h-full flex flex-col gap-2 bg-board border-board-border"
               style={{
                 // backgroundColor: bgColor,
                 // borderColor: theme?.border,

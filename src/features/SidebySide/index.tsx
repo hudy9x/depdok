@@ -24,7 +24,7 @@ export function SideBySide({ initialContent }: SideBySideProps) {
 
   return (
     <PanelGroup direction="horizontal" className="flex-1">
-      <Panel defaultSize={50} minSize={30}>
+      <Panel defaultSize={40} minSize={20}>
         <MonacoEditor
           initialContent={initialContent}
           language={language}
@@ -34,7 +34,7 @@ export function SideBySide({ initialContent }: SideBySideProps) {
 
       <PanelResizeHandle className="w-1 bg-border hover:bg-primary/50 transition-colors" />
 
-      <Panel defaultSize={50} minSize={30}>
+      <Panel defaultSize={60} minSize={20}>
         <PreviewPanel
           content={content}
           fileExtension={editorState.fileExtension}

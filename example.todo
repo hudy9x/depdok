@@ -1,0 +1,34 @@
+---
+title: Weekly Todo
+assignees:
+  - alias: hudy
+    name: Hudy Nguyen
+    avatar: /assets/hudy.png
+  - alias: john
+    name: John Doe
+    avatar: /assets/john.png
+priorities:
+  high:
+    color: '#ef4444'
+    icon: '🔴'
+  medium:
+    color: '#f59e0b'
+    icon: '🟡'
+  low:
+    color: '#10b981'
+    icon: '🟢'
+defaults:
+  priority: medium
+---
+
+# Todo {bg: "#3b82f6", order: 1}
+[ ] Buy milk {assignee: "hudy", priority: "high", due: "2024-01-30"}
+[ ] Call dentist {assignee: "john", priority: "medium"}
+[ ] Review PR
+
+# In Progress {bg: "#eab308", order: 2}
+[ ] Write code {assignee: "hudy", priority: "high"}
+[x] Fix bug {assignee: "john", priority: "low"}
+
+# Done {bg: "#22c55e", order: 3}
+[x] Deploy app {assignee: "john", priority: "high"}

@@ -1,0 +1,32 @@
+---
+mode: week
+title: Week View Test
+assignees:
+  - alias: hudy
+    name: Hudy Nguyen
+    avatar: /assets/hudy.png
+  - alias: alice
+    name: Alice Smith
+    avatar: /assets/alice.png
+priorities:
+  high:
+    color: '#ef4444'
+    icon: '🔴'
+  medium:
+    color: '#f59e0b'
+    icon: '🟡'
+  low:
+    color: '#10b981'
+    icon: '🟢'
+---
+
+# Todo {bg: "#3b82f6", order: 1}
+[ ] Task for today {assignee: "hudy", priority: "high", due: "2026-01-25"}
+[ ] Another task for today {assignee: "alice", priority: "medium", due: "2026-01-25"}
+[ ] Task without date
+[ ] Tomorrow's task {assignee: "hudy", priority: "low", due: "2026-01-26"}
+[x] Completed task for today {assignee: "alice", priority: "high", due: "2026-01-25"}
+
+# In Progress {bg: "#eab308", order: 2}
+[ ] Task for next week {assignee: "hudy", priority: "medium", due: "2026-01-27"}
+[ ] Another future task {assignee: "alice", priority: "high", due: "2026-01-28"}

@@ -56,10 +56,10 @@ export function EditorLeftActions() {
           </TooltipTrigger>
           <TooltipContent className="max-w-[500px]">
             <p style={{ lineBreak: 'anywhere' }} >{editorState.filePath}</p>
-            <p className="text-[9px] mt-2 text-foreground/60">
-              <code className="text-foreground">Click</code> - copy filename
+            <p className="text-[9px] mt-2 text-primary-foreground/60">
+              <code className="text-primary-foreground">Click</code> - copy filename
               <br />
-              <code className="text-foreground">Double-click</code> - copy full path
+              <code className="text-primary-foreground">Double-click</code> - copy full path
             </p>
             {/* <p className="text-[9px]">
               <KbdGroup>

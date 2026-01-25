@@ -9,7 +9,12 @@ import { editorStateAtom, markAsDirtyAtom, markAsSavedAtom } from "@/stores/Edit
 import { autoSaveEnabledAtom, autoSaveDelayAtom } from "@/stores/SettingsStore";
 import { draftService } from "@/lib/indexeddb";
 import { setupMermaidTheme } from '@/lib/monaco-theme';
-import { registerFormatAction } from '@/lib/monaco-actions';
+import {
+  registerFormatAction,
+  registerDuplicateLineAction,
+  registerToggleTodoAction
+} from '@/lib/monaco-actions';
+import { registerTodoSnippets, registerDateSnippets } from '@/lib/monaco-snippets';
 
 
 interface MonacoEditorProps {
@@ -66,16 +71,34 @@ export function MonacoEditor({ initialContent, language, onContentChange }: Mona
     monacoRef.current = monaco;
     setupMermaidTheme(monaco);
 
+    // Register snippets
+    if (language === 'markdown') {
+      registerTodoSnippets(monaco, language);
+      registerDateSnippets(monaco, language);
+    }
+
   };
 
   const handleEditorDidMount: OnMount = (editor, monaco) => {
     editorRef.current = editor;
-    // Register format action with Shift+Alt+F
-    const handleFormat = (formattedCode: string) => {
-      setContent(formattedCode);
-    };
 
-    registerFormatAction(editor, monaco, handleFormat);
+    // Action registration - Start ==================
+    if (language === 'mermaid') {
+      // 1. Auto format on Shift+Alt+F
+      const handleFormat = (formattedCode: string) => {
+        setContent(formattedCode);
+      };
+
+      registerFormatAction(editor, monaco, handleFormat);
+    }
+
+    // 2. Duplicate line on Shift+Alt+D
+    registerDuplicateLineAction(editor, monaco);
+
+    // 3. Toggle todo checkbox on Shift+Alt+X
+    registerToggleTodoAction(editor, monaco);
+
+    // Action registration - End ==================
 
   };
 

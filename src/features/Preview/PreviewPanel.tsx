@@ -1,6 +1,7 @@
 import { MarkdownPreview } from "./MarkdownPreview";
 import { MermaidPreview } from "./MermaidPreview";
 import { PlantUMLPreview } from "./PlantUMLPreview";
+import { TodoPreview } from "../PreviewTodo/TodoPreview";
 
 interface PreviewPanelProps {
   content: string;
@@ -40,6 +41,16 @@ export function PreviewPanel({
 
   if (["puml", "pu"].includes(fileExtension)) {
     return <PlantUMLPreview content={content} />;
+  }
+
+  if (fileExtension === "todo") {
+    return (
+      <TodoPreview
+        content={content}
+        editable={editable}
+        onContentChange={onContentChange}
+      />
+    );
   }
 
   return (

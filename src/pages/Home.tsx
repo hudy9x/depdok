@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { FileText, FilePlus } from "lucide-react";
 import { toast } from "sonner";
 
+const supportedFileTypes = ["md", "mmd", "txt", "pu", "puml", "todo"];
+
 export default function Home() {
   const [isVisible, setIsVisible] = useState(false);
   const navigate = useNavigate();
@@ -23,7 +25,7 @@ export default function Home() {
         filters: [
           {
             name: "Documentation Files",
-            extensions: ["md", "mmd", "txt", "pu", "puml"],
+            extensions: supportedFileTypes,
           },
         ],
       });
@@ -44,7 +46,7 @@ export default function Home() {
         filters: [
           {
             name: "Documentation Files",
-            extensions: ["md", "mmd", "txt", "pu", "puml"],
+            extensions: supportedFileTypes,
           },
         ],
       });

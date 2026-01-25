@@ -3,16 +3,12 @@
  * Provides quick insertion of todo items
  */
 export function registerTodoSnippets(monaco: any, language: string) {
+
   console.log('🎯 Registering todo snippets...');
 
-  monaco.languages.registerCompletionItemProvider('markdown', {
+  monaco.languages.registerCompletionItemProvider(language, {
     triggerCharacters: ['t', 'o', 'd'],
     provideCompletionItems: (model: any, position: any) => {
-      // Only provide snippets for .todo files
-
-      if (language !== 'markdown') {
-        return { suggestions: [] };
-      }
 
       const word = model.getWordUntilPosition(position);
       const range = {

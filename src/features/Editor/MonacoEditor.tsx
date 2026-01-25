@@ -14,7 +14,7 @@ import {
   registerDuplicateLineAction,
   registerToggleTodoAction
 } from '@/lib/monaco-actions';
-import { registerTodoSnippets } from '@/lib/monaco-snippets';
+import { registerTodoSnippets, registerDateSnippets } from '@/lib/monaco-snippets';
 
 
 interface MonacoEditorProps {
@@ -72,7 +72,10 @@ export function MonacoEditor({ initialContent, language, onContentChange }: Mona
     setupMermaidTheme(monaco);
 
     // Register snippets
-    registerTodoSnippets(monaco, language);
+    if (language === 'markdown') {
+      registerTodoSnippets(monaco, language);
+      registerDateSnippets(monaco, language);
+    }
 
   };
 
@@ -80,12 +83,14 @@ export function MonacoEditor({ initialContent, language, onContentChange }: Mona
     editorRef.current = editor;
 
     // Action registration - Start ==================
-    // 1. Auto format on Shift+Alt+F
-    const handleFormat = (formattedCode: string) => {
-      setContent(formattedCode);
-    };
+    if (language === 'mermaid') {
+      // 1. Auto format on Shift+Alt+F
+      const handleFormat = (formattedCode: string) => {
+        setContent(formattedCode);
+      };
 
-    registerFormatAction(editor, monaco, handleFormat);
+      registerFormatAction(editor, monaco, handleFormat);
+    }
 
     // 2. Duplicate line on Shift+Alt+D
     registerDuplicateLineAction(editor, monaco);

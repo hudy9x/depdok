@@ -1,4 +1,4 @@
-import { ScrollArea } from "@/components/ui/scroll-area";
+// import { ScrollArea } from "@/components/ui/scroll-area";
 import { TodoDocument, TodoItemMetadata } from "../todoRenderer";
 import { groupTasksByDate } from "./utils";
 import { DaySection } from "./DaySection";

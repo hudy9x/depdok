@@ -14,6 +14,7 @@ import {
   registerDuplicateLineAction,
   registerToggleTodoAction
 } from '@/lib/monaco-actions';
+import { registerTodoSnippets } from '@/lib/monaco-snippets';
 
 
 interface MonacoEditorProps {
@@ -69,6 +70,9 @@ export function MonacoEditor({ initialContent, language, onContentChange }: Mona
   const handleBeforeMount: BeforeMount = (monaco) => {
     monacoRef.current = monaco;
     setupMermaidTheme(monaco);
+
+    // Register snippets
+    registerTodoSnippets(monaco, language);
 
   };
 

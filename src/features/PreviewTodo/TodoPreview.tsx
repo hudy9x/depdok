@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTodoDocument } from "./useTodoDocument";
 import { TodoItem } from "./TodoItem";
-import { ColorSelector, getThemeByBg } from "./ColorSelector";
+import { ColorSelector } from "./ColorSelector";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -52,7 +52,7 @@ export function TodoPreview({ content, onContentChange, editable = false }: Todo
           // Find the original index for updates
           const sectionIndex = document.sections.indexOf(section);
           const bgColor = section.metadata?.bg;
-          const theme = getThemeByBg(bgColor);
+          // const theme = getThemeByBg(bgColor);
 
           return (
             <Card

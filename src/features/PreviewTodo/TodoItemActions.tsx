@@ -12,7 +12,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { MoreHorizontal, Calendar as CalendarIcon, User, Flag } from "lucide-react";
 import { TodoItemMetadata, TodoConfig } from "./todoRenderer";

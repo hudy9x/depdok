@@ -20,7 +20,7 @@ export const COLOR_THEMES: Record<string, ColorTheme> = {
   },
   orange: {
     bg: '#f0d194',
-    border: '#fb923c',
+    border: '#f4aa6dff',
     shadow: '#fdba74',
   },
   purple: {
@@ -73,11 +73,11 @@ export function ColorSelector({ currentColor, onColorChange, editable }: ColorSe
         {view}
       </PopoverTrigger>
       <PopoverContent className="w-auto p-2" align="start">
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-6 gap-2">
           {presetColors.map((theme) => (
             <button
               key={theme.bg}
-              className="w-10 h-10 rounded border-2 hover:border-foreground transition-colors"
+              className="w-5 h-5 cursor-pointer rounded border-2 hover:border-foreground transition-colors"
               style={{
                 backgroundColor: theme.bg,
                 borderColor: theme.border
@@ -88,7 +88,7 @@ export function ColorSelector({ currentColor, onColorChange, editable }: ColorSe
           ))}
           {/* White/Reset option */}
           <button
-            className="w-10 h-10 rounded border-2 border-border hover:border-foreground transition-colors"
+            className="w-5 h-5 cursor-pointer rounded border-2 border-border hover:border-foreground transition-colors"
             style={{ backgroundColor: '#ffffff' }}
             onClick={() => onColorChange(undefined)}
             aria-label="Reset color"

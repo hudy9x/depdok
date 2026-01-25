@@ -109,8 +109,8 @@ export function TodoPreview({ content, onContentChange, editable = false }: Todo
                 </ScrollArea>
                 {editable && (
                   <Button
-                    variant="outline"
-                    className="w-full justify-start mt-1 border-none"
+                    variant="ghost"
+                    className="w-full justify-start mt-1 hover:bg-transparent text-muted-foreground"
                     onClick={() => handleAddItem(sectionIndex)}
                   >
                     <Plus className="h-4 w-4" /> Add Item

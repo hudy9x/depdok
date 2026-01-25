@@ -13,6 +13,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { MoreHorizontal, Calendar as CalendarIcon, User, Flag } from "lucide-react";
 import { TodoItemMetadata, TodoConfig } from "./todoRenderer";
 
@@ -66,6 +67,12 @@ export function TodoItemActions({
                 className="text-xs"
                 onClick={() => onMetadataChange("assignee", assignee.alias)}
               >
+                <Avatar className="h-4 w-4 mr-2">
+                  <AvatarImage src={assignee.avatar} alt={assignee.name} />
+                  <AvatarFallback className="text-[8px]">
+                    {assignee.name.substring(0, 2).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
                 {assignee.name}
               </DropdownMenuItem>
             ))}
@@ -86,24 +93,40 @@ export function TodoItemActions({
               className="text-xs"
               onClick={() => onMetadataChange("priority", undefined)}
             >
+              <Flag className="mr-2 h-3 w-3 text-muted-foreground" />
               None
             </DropdownMenuItem>
             <DropdownMenuItem
               className="text-xs"
               onClick={() => onMetadataChange("priority", "high")}
             >
+              <Flag
+                className="mr-2 h-3 w-3"
+                style={{ color: config?.priorities?.high?.color || '#ef4444' }}
+                fill={config?.priorities?.high?.color || '#ef4444'}
+              />
               High
             </DropdownMenuItem>
             <DropdownMenuItem
               className="text-xs"
               onClick={() => onMetadataChange("priority", "medium")}
             >
+              <Flag
+                className="mr-2 h-3 w-3"
+                style={{ color: config?.priorities?.medium?.color || '#f59e0b' }}
+                fill={config?.priorities?.medium?.color || '#f59e0b'}
+              />
               Medium
             </DropdownMenuItem>
             <DropdownMenuItem
               className="text-xs"
               onClick={() => onMetadataChange("priority", "low")}
             >
+              <Flag
+                className="mr-2 h-3 w-3"
+                style={{ color: config?.priorities?.low?.color || '#10b981' }}
+                fill={config?.priorities?.low?.color || '#10b981'}
+              />
               Low
             </DropdownMenuItem>
           </DropdownMenuSubContent>

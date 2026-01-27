@@ -8,6 +8,7 @@ import Home from './pages/Home';
 import Editor from './pages/Editor';
 import { Layout } from './components/Layout';
 import Empty from './pages/Empty';
+import { AppMenuListener } from './components/AppMenuListener';
 
 function App() {
   const savedTheme = settingsService.getSettings().theme;
@@ -16,6 +17,7 @@ function App() {
     <ThemeProvider attribute="class" defaultTheme={savedTheme} enableSystem>
       <>
         <BrowserRouter>
+          <AppMenuListener />
           <Layout>
             <Toaster position="bottom-right" richColors />
             <Routes>

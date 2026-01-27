@@ -8,6 +8,8 @@ import { PreviewPanel } from "@/features/Preview/PreviewPanel";
 import { editorStateAtom } from "@/stores/EditorStore";
 import { getMonacoLanguage } from "@/lib/utils/getMonacoLanguage";
 
+import { useAutoSave } from "@/features/Editor/useAutoSave";
+
 interface SideBySideProps {
   initialContent: string;
 }
@@ -15,10 +17,16 @@ interface SideBySideProps {
 export function SideBySide({ initialContent }: SideBySideProps) {
   const [content, setContent] = useState(initialContent);
   const editorState = useAtomValue(editorStateAtom);
+  const { handleContentChange: handleAutoSave } = useAutoSave();
 
   const handleEditorChange = useCallback((newContent: string) => {
     setContent(newContent);
   }, []);
+
+  const handlePreviewChange = useCallback((newContent: string) => {
+    setContent(newContent);
+    handleAutoSave(newContent);
+  }, [handleAutoSave]);
 
   const language = getMonacoLanguage(editorState.fileExtension);
 
@@ -26,7 +34,7 @@ export function SideBySide({ initialContent }: SideBySideProps) {
     <PanelGroup direction="horizontal" className="flex-1">
       <Panel defaultSize={40} minSize={20}>
         <MonacoEditor
-          initialContent={initialContent}
+          initialContent={content} // Use state content to sync back changes from Preview
           language={language}
           onContentChange={handleEditorChange}
         />
@@ -38,6 +46,8 @@ export function SideBySide({ initialContent }: SideBySideProps) {
         <PreviewPanel
           content={content}
           fileExtension={editorState.fileExtension}
+          editable={true} // Allow editing in side-by-side
+          onContentChange={handlePreviewChange}
         />
       </Panel>
     </PanelGroup>

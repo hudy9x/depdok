@@ -1,6 +1,7 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 use std::sync::Mutex;
-use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
+use tauri::{Manager, WebviewUrl, WebviewWindowBuilder, Emitter};
+use tauri::menu::{MenuBuilder, SubmenuBuilder};
 
 // Global state to store the opened file path
 struct OpenedFilePath(Mutex<Option<String>>);
@@ -54,6 +55,28 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_os::init())
         .setup(|app| {
+            // Create menu
+            let file_submenu = SubmenuBuilder::new(app, "File")
+                .text("open_file", "Open File")
+                .build()?;
+            
+            let menu = MenuBuilder::new(app)
+                .item(&file_submenu)
+                .build()?;
+            
+            app.set_menu(menu)?;
+            
+            // Handle menu events
+            app.on_menu_event(move |app_handle, event| {
+                match event.id().0.as_str() {
+                    "open_file" => {
+                        // Emit event to frontend
+                        let _ = app_handle.emit("menu://open-file", ());
+                    }
+                    _ => {}
+                }
+            });
+
             let win_builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
                 .title("Transparent Titlebar Window")
                 .inner_size(740.0, 850.0)

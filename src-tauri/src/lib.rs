@@ -58,6 +58,8 @@ pub fn run() {
             // Create menu
             let file_submenu = SubmenuBuilder::new(app, "File")
                 .text("open_file", "Open File")
+                .separator()
+                .text("quit", "Quit")
                 .build()?;
             
             let menu = MenuBuilder::new(app)
@@ -72,6 +74,9 @@ pub fn run() {
                     "open_file" => {
                         // Emit event to frontend
                         let _ = app_handle.emit("menu://open-file", ());
+                    }
+                    "quit" => {
+                        app_handle.exit(0);
                     }
                     _ => {}
                 }

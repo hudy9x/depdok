@@ -1,17 +1,28 @@
 import { useEffect, useState } from "react";
+import { useSetAtom } from "jotai";
 import { useNavigate } from "react-router-dom";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { writeTextFile } from "@tauri-apps/plugin-fs";
 import { cn } from "@/lib/utils";
 import { Titlebar } from "@/features/Titlebar";
 import { Button } from "@/components/ui/button";
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import { FileText, FilePlus } from "lucide-react";
 import { toast } from "sonner";
+import { createTabAtom } from "@/stores/TabStore";
 
 const supportedFileTypes = ["md", "mmd", "txt", "pu", "puml", "todo"];
 
 export default function Home() {
   const [isVisible, setIsVisible] = useState(false);
+  const createTab = useSetAtom(createTabAtom);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -31,8 +42,11 @@ export default function Home() {
       });
 
       if (selected && typeof selected === "string") {
-        // Navigate to editor with file path
-        navigate(`/editor?path=${encodeURIComponent(selected)}`);
+        // Add to tab store and switch to it
+        const fileName = selected.split("/").pop() || "Untitled";
+        createTab({ filePath: selected, fileName, switchTo: true });
+        // Navigate to editor
+        navigate("/editor");
       }
     } catch (error) {
       console.error("Error opening file:", error);
@@ -55,8 +69,12 @@ export default function Home() {
         // Create empty file
         await writeTextFile(selected, "");
 
-        // Navigate to editor with file path
-        navigate(`/editor?path=${encodeURIComponent(selected)}`);
+        // Add to tab store and switch to it
+        const fileName = selected.split("/").pop() || "Untitled";
+        createTab({ filePath: selected, fileName, switchTo: true });
+
+        // Navigate to editor
+        navigate("/editor");
 
         toast.success("File created successfully");
       }
@@ -76,41 +94,31 @@ export default function Home() {
     >
       <Titlebar />
 
-      <div className="flex flex-col items-center gap-8 max-w-2xl px-8">
-        <div className="text-center space-y-4">
-          <h1 className="text-5xl font-bold tracking-tight bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent">
-            Depdok
-          </h1>
-          <p className="text-muted-foreground text-lg">
-            A documentation editor for developers who write technical docs
-          </p>
-        </div>
-
-        <div className="flex gap-4 mt-4">
-          <Button
-            size="lg"
-            onClick={handleOpenFile}
-            className="gap-2 px-8"
-          >
+      <Empty>
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <FileText className="w-12 h-12" />
+          </EmptyMedia>
+          <EmptyTitle className="text-2xl font-bold">Welcome to Depdok</EmptyTitle>
+          <EmptyDescription className="w-[440px]">
+            A documentation editor for developers who write technical docs.
+            Get started by opening an existing file or creating a new one.
+          </EmptyDescription>
+        </EmptyHeader>
+        <EmptyContent className="flex-row justify-center gap-3">
+          <Button size="lg" onClick={handleOpenFile} className="gap-2">
             <FileText className="w-5 h-5" />
             Open File
           </Button>
-
-          <Button
-            size="lg"
-            variant="outline"
-            onClick={handleCreateNew}
-            className="gap-2 px-8"
-          >
+          <Button size="lg" variant="outline" onClick={handleCreateNew} className="gap-2">
             <FilePlus className="w-5 h-5" />
             Create New
           </Button>
-        </div>
-
-        <div className="text-sm text-muted-foreground mt-8">
+        </EmptyContent>
+        <p className="text-sm text-muted-foreground mt-4">
           Supports Markdown, Mermaid, PlantUML, and Text files
-        </div>
-      </div>
+        </p>
+      </Empty>
     </main>
   );
 }

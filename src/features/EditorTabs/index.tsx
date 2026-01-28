@@ -13,7 +13,7 @@ export function EditorTabs() {
   return (
     <div className="ml-[65px] flex items-center h-[35px] w-full overflow-hidden" data-tauri-drag-region>
       {/* Back button on the left */}
-      <Link to="/">
+      <Link to="/home">
         <ChevronLeft className={styleBackButton} />
       </Link>
 

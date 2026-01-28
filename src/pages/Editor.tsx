@@ -1,6 +1,6 @@
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useSetAtom, useAtomValue, useAtom } from "jotai";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 import { Titlebar } from "@/features/Titlebar";
 import { MonacoEditor } from "@/features/Editor/MonacoEditor";
@@ -40,17 +40,25 @@ export default function Editor() {
 
   const filePath = searchParams.get("path") || "";
 
+  // Track if this is the initial mount to avoid redirecting during hydration
+  const isInitialMount = useRef(true);
+
 
 
   // 1. Sync Active Tab -> URL
   // When active tab changes (e.g. user clicks tab, or closes active tab), update URL
   useEffect(() => {
+    // Skip redirect on initial mount to allow hydration
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+
     if (activeTab && activeTab.filePath !== filePath) {
       navigate(`/editor?path=${encodeURIComponent(activeTab.filePath)}`, { replace: true });
-    } else if (!activeTab && tabs.length === 0 && filePath) {
-      // If no tabs left but URL has path, clear it or go home?
-      // navigate('/'); // Optional: Go home if all tabs closed
-      // For now, let it be, but the "No file loaded" screen will show.
+    } else if (!activeTab && tabs.length === 0) {
+      // If no tabs left, go home (only after initial mount)
+      navigate('/home', { replace: true });
     }
   }, [activeTab, filePath, navigate, tabs.length]);
 
@@ -90,22 +98,12 @@ export default function Editor() {
     }
   }, [activeTab, loadFileMetadata]);
 
-  // Use active tab's file path, fallback to URL param
-  const currentFilePath = activeTab?.filePath || filePath;
+  // Use active tab's file path, only if we have an active tab
+  const currentFilePath = activeTab?.filePath;
 
+  // If no file path, return null (we'll redirect to home via useEffect)
   if (!currentFilePath) {
-    return (
-      <>
-        <Titlebar
-          left={null}
-          center={<EditorTabs />}
-          right={<EditorRightActions />}
-        />
-        <div className="fixed top-[35px] h-[calc(100vh-35px)] left-0 w-full flex items-center justify-center bg-secondary">
-          <p className="text-muted-foreground">No file loaded</p>
-        </div>
-      </>
-    );
+    return null;
   }
 
   return (

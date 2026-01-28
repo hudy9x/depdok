@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
-import { useSetAtom } from "jotai";
+import { useSetAtom, useAtomValue } from "jotai";
 import { useNavigate } from "react-router-dom";
-import { open, save } from "@tauri-apps/plugin-dialog";
-import { writeTextFile } from "@tauri-apps/plugin-fs";
+import { open } from "@tauri-apps/plugin-dialog";
 import { cn } from "@/lib/utils";
 import { Titlebar } from "@/features/Titlebar";
 import { Button } from "@/components/ui/button";
@@ -14,15 +13,17 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
-import { FileText, FilePlus } from "lucide-react";
+import { FileText, Edit3 } from "lucide-react";
 import { toast } from "sonner";
-import { createTabAtom } from "@/stores/TabStore";
+import { createTabAtom, createUntitledTabAtom, tabsAtom } from "@/stores/TabStore";
 
 const supportedFileTypes = ["md", "mmd", "txt", "pu", "puml", "todo"];
 
 export default function Home() {
   const [isVisible, setIsVisible] = useState(false);
   const createTab = useSetAtom(createTabAtom);
+  const createUntitledTab = useSetAtom(createUntitledTabAtom);
+  const tabs = useAtomValue(tabsAtom);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -54,33 +55,17 @@ export default function Home() {
     }
   };
 
-  const handleCreateNew = async () => {
-    try {
-      const selected = await save({
-        filters: [
-          {
-            name: "Documentation Files",
-            extensions: supportedFileTypes,
-          },
-        ],
-      });
 
-      if (selected) {
-        // Create empty file
-        await writeTextFile(selected, "");
 
-        // Add to tab store and switch to it
-        const fileName = selected.split("/").pop() || "Untitled";
-        createTab({ filePath: selected, fileName, switchTo: true });
-
-        // Navigate to editor
-        navigate("/editor");
-
-        toast.success("File created successfully");
-      }
-    } catch (error) {
-      console.error("Error creating file:", error);
-      toast.error("Failed to create file");
+  const handleStartWriting = () => {
+    // If there are existing tabs, just navigate to editor
+    // The editor will show the last active tab
+    if (tabs.length > 0) {
+      navigate("/editor");
+    } else {
+      // No tabs - create an untitled markdown file
+      createUntitledTab("Untitled.md");
+      navigate("/editor");
     }
   };
 
@@ -106,13 +91,13 @@ export default function Home() {
           </EmptyDescription>
         </EmptyHeader>
         <EmptyContent className="flex-row justify-center gap-3">
-          <Button size="lg" onClick={handleOpenFile} className="gap-2">
+          <Button size="lg" onClick={handleStartWriting} className="gap-2">
+            <Edit3 className="w-5 h-5" />
+            Start Writing
+          </Button>
+          <Button size="lg" variant="outline" onClick={handleOpenFile} className="gap-2">
             <FileText className="w-5 h-5" />
             Open File
-          </Button>
-          <Button size="lg" variant="outline" onClick={handleCreateNew} className="gap-2">
-            <FilePlus className="w-5 h-5" />
-            Create New
           </Button>
         </EmptyContent>
         <p className="text-sm text-muted-foreground mt-4">

@@ -1,8 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import MonacoEditorReact, { BeforeMount, OnMount } from "@monaco-editor/react";
-import { useAtomValue, useSetAtom } from "jotai";
-import { useDebouncedCallback } from "use-debounce";
-import { writeTextFile } from "@tauri-apps/plugin-fs";
+import { useAtomValue } from "jotai";
 
 import { useTheme } from "next-themes";
 

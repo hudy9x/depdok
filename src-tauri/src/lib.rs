@@ -56,8 +56,19 @@ pub fn run() {
         .plugin(tauri_plugin_os::init())
         .setup(|app| {
             // Create menu
+            let new_file_submenu = SubmenuBuilder::new(app, "New file")
+                .text("new_file_md", "Markdown")
+                .text("new_file_mmd", "Mermaid")
+                .text("new_file_todo", "Todo")
+                .text("new_file_pu", "PlantUML")
+                .text("new_file_txt", "Text")
+                .build()?;
+            
             let file_submenu = SubmenuBuilder::new(app, "File")
+                .item(&new_file_submenu)
                 .text("open_file", "Open File")
+                .separator()
+                .text("back", "Back")
                 .separator()
                 .text("quit", "Quit")
                 .build()?;
@@ -71,9 +82,27 @@ pub fn run() {
             // Handle menu events
             app.on_menu_event(move |app_handle, event| {
                 match event.id().0.as_str() {
+                    "new_file_md" => {
+                        let _ = app_handle.emit("menu://new-file-md", ());
+                    }
+                    "new_file_mmd" => {
+                        let _ = app_handle.emit("menu://new-file-mmd", ());
+                    }
+                    "new_file_todo" => {
+                        let _ = app_handle.emit("menu://new-file-todo", ());
+                    }
+                    "new_file_pu" => {
+                        let _ = app_handle.emit("menu://new-file-pu", ());
+                    }
+                    "new_file_txt" => {
+                        let _ = app_handle.emit("menu://new-file-txt", ());
+                    }
                     "open_file" => {
                         // Emit event to frontend
                         let _ = app_handle.emit("menu://open-file", ());
+                    }
+                    "back" => {
+                        let _ = app_handle.emit("menu://back", ());
                     }
                     "quit" => {
                         app_handle.exit(0);

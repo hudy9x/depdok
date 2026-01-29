@@ -179,9 +179,9 @@ pub fn run() {
                                 let width = physical_size.width as f64 / scale_factor;
                                 let height = physical_size.height as f64 / scale_factor;
                                 
-                                #[cfg(debug_assertions)]
-                                println!("Window resized - Physical: {}x{}, Scale: {}, Logical: {}x{}", 
-                                    physical_size.width, physical_size.height, scale_factor, width, height);
+                                // #[cfg(debug_assertions)]
+                                // println!("Window resized - Physical: {}x{}, Scale: {}, Logical: {}x{}", 
+                                //     physical_size.width, physical_size.height, scale_factor, width, height);
                                 
                                 // Save logical window size to store
                                 if let Ok(store) = app_handle.store("store.json") {

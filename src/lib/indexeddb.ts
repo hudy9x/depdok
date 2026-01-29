@@ -41,6 +41,16 @@ class DraftService {
     if (!this.db) await this.init();
     await this.db!.delete('drafts', filePath);
   }
+
+  // Rename draft when file is renamed
+  async renameDraft(oldPath: string, newPath: string) {
+    if (!this.db) await this.init();
+    const draft = await this.getDraft(oldPath);
+    if (draft) {
+      await this.saveDraft(newPath, draft.content);
+      await this.removeDraft(oldPath);
+    }
+  }
 }
 
 export const draftService = new DraftService();

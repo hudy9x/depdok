@@ -175,3 +175,20 @@ export const updateTabPathAtom = atom(
     });
   }
 );
+
+// Action: Close all tabs except the specified one
+export const closeOtherTabsAtom = atom(null, (get, set, tabId: string) => {
+  const tabs = get(tabsAtom);
+  const tabToKeep = tabs.find((t) => t.id === tabId);
+
+  if (!tabToKeep) return;
+
+  set(tabsAtom, [tabToKeep]);
+  set(activeTabIdAtom, tabId);
+});
+
+// Action: Close all tabs
+export const closeAllTabsAtom = atom(null, (_get, set) => {
+  set(tabsAtom, []);
+  set(activeTabIdAtom, null);
+});

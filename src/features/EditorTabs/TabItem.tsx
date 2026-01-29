@@ -13,6 +13,7 @@ import {
 } from '@/stores/TabStore';
 import { CloseTabWarning } from './CloseTabWarning';
 import { FileIcon } from '@/components/FileIcon';
+import { TabContextMenu } from './TabContextMenu';
 
 interface TabItemProps {
   tab: Tab;
@@ -65,46 +66,48 @@ export function TabItem({ tab }: TabItemProps) {
 
   return (
     <>
-      <div
-        className={cn(
-          'flex items-center gap-2 px-3 h-[35px] cursor-pointer border-r border-border group relative',
-          'hover:bg-background/50 transition-colors',
-          'min-w-[120px] max-w-[200px]',
-          isActive && 'bg-background border-b-2 border-b-primary'
-        )}
-        onClick={handleClick}
-        data-tauri-drag-region
-      >
-        {/* File Icon */}
-        <span className="flex-shrink-0 opacity-70">
-          <FileIcon filename={displayName} />
-        </span>
-
-        <span className="text-xs truncate flex-1" data-tauri-drag-region>{displayName}</span>
-
-        {/* Right side interactions: Dirty Indicator + Close Button */}
-        <div className="relative w-4 h-4 flex items-center justify-center">
-          {/* Dirty Indicator (visible when dirty, hidden on hover to show close button) */}
-          {tab.isDirty && (
-            <div
-              className="w-2 h-2 rounded-full bg-orange-500 absolute transition-opacity group-hover:opacity-0"
-              title="Unsaved changes"
-            />
+      <TabContextMenu tab={tab}>
+        <div
+          className={cn(
+            'flex items-center gap-2 px-3 h-[35px] cursor-pointer border-r border-border group relative',
+            'hover:bg-background/50 transition-colors',
+            'min-w-[120px] max-w-[200px]',
+            isActive && 'bg-background border-b-2 border-b-primary'
           )}
+          onClick={handleClick}
+          data-tauri-drag-region
+        >
+          {/* File Icon */}
+          <span className="flex-shrink-0 opacity-70">
+            <FileIcon filename={displayName} />
+          </span>
 
-          {/* Close Button (visible on hover) */}
-          <button
-            className={cn(
-              "absolute inset-0 flex items-center justify-center rounded hover:bg-muted transition-opacity",
-              "opacity-0 group-hover:opacity-100"
+          <span className="text-xs truncate flex-1" data-tauri-drag-region>{displayName}</span>
+
+          {/* Right side interactions: Dirty Indicator + Close Button */}
+          <div className="relative w-4 h-4 flex items-center justify-center">
+            {/* Dirty Indicator (visible when dirty, hidden on hover to show close button) */}
+            {tab.isDirty && (
+              <div
+                className="w-2 h-2 rounded-full bg-orange-500 absolute transition-opacity group-hover:opacity-0"
+                title="Unsaved changes"
+              />
             )}
-            onClick={handleClose}
-            title="Close"
-          >
-            <X className="w-3 h-3" />
-          </button>
+
+            {/* Close Button (visible on hover) */}
+            <button
+              className={cn(
+                "absolute inset-0 flex items-center justify-center rounded hover:bg-muted transition-opacity",
+                "opacity-0 group-hover:opacity-100"
+              )}
+              onClick={handleClose}
+              title="Close"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          </div>
         </div>
-      </div>
+      </TabContextMenu>
 
       {showCloseWarning && (
         <CloseTabWarning

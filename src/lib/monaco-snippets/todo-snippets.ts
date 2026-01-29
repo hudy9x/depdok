@@ -37,6 +37,37 @@ export function registerTodoSnippets(monaco: any, language: string) {
           range: range,
           sortText: '0todox', // Ensure it appears first
         },
+        {
+          label: 'todoconfig',
+          kind: monaco.languages.CompletionItemKind.Snippet,
+          documentation: 'Insert todo configuration section',
+          insertText: [
+            '---',
+            'title: ${1:Project Title}',
+            'assignees:',
+            '  - alias: ${2:user}',
+            '    name: ${3:User Name}',
+            '    avatar: ${4:/avatar.png}',
+            'priorities:',
+            '  high:',
+            '    color: \'#ef4444\'',
+            '    icon: \'🔴\'',
+            '  medium:',
+            '    color: \'#f59e0b\'',
+            '    icon: \'🟡\'',
+            '  low:',
+            '    color: \'#10b981\'',
+            '    icon: \'🟢\'',
+            'defaults:',
+            '  priority: medium',
+            '---',
+            '',
+            '$0'
+          ].join('\n'),
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          range: range,
+          sortText: '0todoconfig',
+        },
       ];
 
       return { suggestions };

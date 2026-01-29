@@ -6,8 +6,10 @@ import { Toaster } from "@/components/ui/sonner"
 import { settingsService } from '@/lib/settings';
 import Home from './pages/Home';
 import Editor from './pages/Editor';
+import Checking from './pages/Checking';
 import { Layout } from './components/Layout';
 import Empty from './pages/Empty';
+import { AppMenuListener } from './components/AppMenuListener';
 
 function App() {
   const savedTheme = settingsService.getSettings().theme;
@@ -16,10 +18,12 @@ function App() {
     <ThemeProvider attribute="class" defaultTheme={savedTheme} enableSystem>
       <>
         <BrowserRouter>
+          <AppMenuListener />
           <Layout>
             <Toaster position="bottom-right" richColors />
             <Routes>
-              <Route path="/" element={<Home />} />
+              <Route path="/" element={<Checking />} />
+              <Route path="/home" element={<Home />} />
               <Route path="/editor" element={<Editor />} />
               <Route path="/empty" element={<Empty />} />
             </Routes>

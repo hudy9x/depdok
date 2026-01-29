@@ -1,14 +1,14 @@
 import { useState, useRef, useEffect } from "react";
 import MonacoEditorReact, { BeforeMount, OnMount } from "@monaco-editor/react";
-import { useAtomValue, useSetAtom } from "jotai";
-import { useDebouncedCallback } from "use-debounce";
-import { writeTextFile } from "@tauri-apps/plugin-fs";
-import { MonacoThemeLoader } from "./MonacoThemeLoader";
+import { useAtomValue } from "jotai";
 
-import { editorStateAtom, markAsDirtyAtom, markAsSavedAtom } from "@/stores/EditorStore";
-import { autoSaveEnabledAtom, autoSaveDelayAtom } from "@/stores/SettingsStore";
-import { draftService } from "@/lib/indexeddb";
+import { useTheme } from "next-themes";
+
+import { MonacoThemeLoader, getMonacoThemeName } from "./MonacoThemeLoader";
+
+import { editorThemeAtom } from "@/stores/SettingsStore";
 import { setupMermaidTheme } from '@/lib/monaco-theme';
+import { useAutoSave } from "./useAutoSave";
 import {
   registerFormatAction,
   registerDuplicateLineAction,
@@ -25,11 +25,15 @@ interface MonacoEditorProps {
 
 export function MonacoEditor({ initialContent, language, onContentChange }: MonacoEditorProps) {
   const [content, setContent] = useState(initialContent);
-  const editorState = useAtomValue(editorStateAtom);
-  const autoSaveEnabled = useAtomValue(autoSaveEnabledAtom);
-  const autoSaveDelay = useAtomValue(autoSaveDelayAtom);
-  const markAsDirty = useSetAtom(markAsDirtyAtom);
-  const markAsSaved = useSetAtom(markAsSavedAtom);
+
+  // Theme logic
+  const themeName = useAtomValue(editorThemeAtom);
+  const { theme: systemTheme } = useTheme();
+  // Calculate theme synchronously for initial render
+  const currentTheme = getMonacoThemeName(themeName, systemTheme);
+
+  const { handleContentChange } = useAutoSave();
+
   const editorRef = useRef<any>(null);
   const monacoRef = useRef<any>(null);
 
@@ -38,33 +42,12 @@ export function MonacoEditor({ initialContent, language, onContentChange }: Mona
     setContent(initialContent);
   }, [initialContent]);
 
-  // Debounced IndexedDB draft save (always happens)
-  const debouncedSaveDraft = useDebouncedCallback(async (newContent: string) => {
-    if (!editorState.filePath) return;
-    await draftService.saveDraft(editorState.filePath, newContent);
-    markAsDirty();
-  }, 500);
-
-  // Debounced auto-save to file (only if enabled)
-  const debouncedAutoSave = useDebouncedCallback(async (newContent: string) => {
-    if (!editorState.filePath || !autoSaveEnabled) return;
-
-    try {
-      await writeTextFile(editorState.filePath, newContent);
-      await draftService.removeDraft(editorState.filePath);
-      markAsSaved();
-    } catch (error) {
-      console.error("Auto-save failed:", error);
-    }
-  }, autoSaveDelay);
-
   const handleChange = (value: string | undefined) => {
     if (value === undefined) return;
 
     setContent(value);
     onContentChange?.(value); // Notify parent
-    debouncedSaveDraft(value); // Always save draft
-    debouncedAutoSave(value);  // Auto-save if enabled
+    handleContentChange(value); // Save draft and update dirty state
   };
 
   const handleBeforeMount: BeforeMount = (monaco) => {
@@ -102,16 +85,13 @@ export function MonacoEditor({ initialContent, language, onContentChange }: Mona
 
   };
 
-  // Determine Monaco theme based on system theme and language
-
   return (
     <div className="w-full h-full">
       <MonacoThemeLoader>
         <MonacoEditorReact
           value={content}
           language={language}
-          // Theme is handled by MonacoThemeLoader
-          // theme={getMonacoTheme()} 
+          theme={currentTheme}
           onChange={handleChange}
           beforeMount={handleBeforeMount}
           onMount={handleEditorDidMount}

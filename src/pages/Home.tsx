@@ -1,17 +1,29 @@
 import { useEffect, useState } from "react";
+import { useSetAtom, useAtomValue } from "jotai";
 import { useNavigate } from "react-router-dom";
-import { open, save } from "@tauri-apps/plugin-dialog";
-import { writeTextFile } from "@tauri-apps/plugin-fs";
+import { open } from "@tauri-apps/plugin-dialog";
 import { cn } from "@/lib/utils";
 import { Titlebar } from "@/features/Titlebar";
 import { Button } from "@/components/ui/button";
-import { FileText, FilePlus } from "lucide-react";
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
+import { FileText, Edit3 } from "lucide-react";
 import { toast } from "sonner";
+import { createTabAtom, createUntitledTabAtom, tabsAtom } from "@/stores/TabStore";
 
 const supportedFileTypes = ["md", "mmd", "txt", "pu", "puml", "todo"];
 
 export default function Home() {
   const [isVisible, setIsVisible] = useState(false);
+  const createTab = useSetAtom(createTabAtom);
+  const createUntitledTab = useSetAtom(createUntitledTabAtom);
+  const tabs = useAtomValue(tabsAtom);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -31,8 +43,11 @@ export default function Home() {
       });
 
       if (selected && typeof selected === "string") {
-        // Navigate to editor with file path
-        navigate(`/editor?path=${encodeURIComponent(selected)}`);
+        // Add to tab store and switch to it
+        const fileName = selected.split("/").pop() || "Untitled";
+        createTab({ filePath: selected, fileName, switchTo: true });
+        // Navigate to editor
+        navigate("/editor");
       }
     } catch (error) {
       console.error("Error opening file:", error);
@@ -40,29 +55,17 @@ export default function Home() {
     }
   };
 
-  const handleCreateNew = async () => {
-    try {
-      const selected = await save({
-        filters: [
-          {
-            name: "Documentation Files",
-            extensions: supportedFileTypes,
-          },
-        ],
-      });
 
-      if (selected) {
-        // Create empty file
-        await writeTextFile(selected, "");
 
-        // Navigate to editor with file path
-        navigate(`/editor?path=${encodeURIComponent(selected)}`);
-
-        toast.success("File created successfully");
-      }
-    } catch (error) {
-      console.error("Error creating file:", error);
-      toast.error("Failed to create file");
+  const handleStartWriting = () => {
+    // If there are existing tabs, just navigate to editor
+    // The editor will show the last active tab
+    if (tabs.length > 0) {
+      navigate("/editor");
+    } else {
+      // No tabs - create an untitled markdown file
+      createUntitledTab("Untitled.md");
+      navigate("/editor");
     }
   };
 
@@ -76,41 +79,31 @@ export default function Home() {
     >
       <Titlebar />
 
-      <div className="flex flex-col items-center gap-8 max-w-2xl px-8">
-        <div className="text-center space-y-4">
-          <h1 className="text-5xl font-bold tracking-tight bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent">
-            Depdok
-          </h1>
-          <p className="text-muted-foreground text-lg">
-            A documentation editor for developers who write technical docs
-          </p>
-        </div>
-
-        <div className="flex gap-4 mt-4">
-          <Button
-            size="lg"
-            onClick={handleOpenFile}
-            className="gap-2 px-8"
-          >
+      <Empty>
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <FileText className="w-12 h-12" />
+          </EmptyMedia>
+          <EmptyTitle className="text-2xl font-bold">Welcome to Depdok</EmptyTitle>
+          <EmptyDescription className="w-[440px]">
+            A documentation editor for developers who write technical docs.
+            Get started by opening an existing file or creating a new one.
+          </EmptyDescription>
+        </EmptyHeader>
+        <EmptyContent className="flex-row justify-center gap-3">
+          <Button size="lg" onClick={handleStartWriting} className="gap-2">
+            <Edit3 className="w-5 h-5" />
+            Start Writing
+          </Button>
+          <Button size="lg" variant="outline" onClick={handleOpenFile} className="gap-2">
             <FileText className="w-5 h-5" />
             Open File
           </Button>
-
-          <Button
-            size="lg"
-            variant="outline"
-            onClick={handleCreateNew}
-            className="gap-2 px-8"
-          >
-            <FilePlus className="w-5 h-5" />
-            Create New
-          </Button>
-        </div>
-
-        <div className="text-sm text-muted-foreground mt-8">
+        </EmptyContent>
+        <p className="text-sm text-muted-foreground mt-4">
           Supports Markdown, Mermaid, PlantUML, and Text files
-        </div>
-      </div>
+        </p>
+      </Empty>
     </main>
   );
 }

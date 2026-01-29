@@ -33,18 +33,27 @@ export function LoadFileContent({
     const loadFile = async () => {
       setIsLoading(true);
       try {
-        // 1. Load file from disk
-        const loadedFileContent = await readTextFile(filePath);
+        let loadedFileContent = "";
+        const isUntitled = filePath.startsWith("UNTITLED://");
         const extension = filePath.split(".").pop()?.toLowerCase() || "";
+
+        if (!isUntitled) {
+          // 1. Load real file from disk
+          loadedFileContent = await readTextFile(filePath);
+        }
 
         // 2. Check for draft in IndexedDB
         const draft = await draftService.getDraft(filePath);
 
         // If draft exists and differs from file, use draft content
-        // Otherwise, use file content
-        const contentToLoad = draft && draft.content !== loadedFileContent
-          ? draft.content
-          : loadedFileContent;
+        // For untitled files, ALWAYS use draft content (or empty string if no draft)
+        let contentToLoad = loadedFileContent;
+
+        if (draft) {
+          if (isUntitled || draft.content !== loadedFileContent) {
+            contentToLoad = draft.content;
+          }
+        }
 
         setContent(contentToLoad);
 
@@ -53,12 +62,14 @@ export function LoadFileContent({
           onMetadataLoad({
             path: filePath,
             extension,
-            isDirty: !!draft,
+            isDirty: !!draft, // Untitled files always start as dirty if they have content? Or just if draft exists.
           });
         }
       } catch (error) {
         console.error("Error loading file:", error);
         toast.error("Failed to load file");
+        // Reset content on error to avoid showing stale data
+        setContent("");
       } finally {
         setIsLoading(false);
       }

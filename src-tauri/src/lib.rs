@@ -1,6 +1,8 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 use std::sync::Mutex;
-use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
+use tauri::{Manager, WebviewUrl, WebviewWindowBuilder, Emitter};
+use tauri::menu::{MenuBuilder, SubmenuBuilder};
+use tauri_plugin_store::StoreExt;
 
 // Global state to store the opened file path
 struct OpenedFilePath(Mutex<Option<String>>);
@@ -53,10 +55,83 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_os::init())
+        .plugin(tauri_plugin_store::Builder::default().build())
         .setup(|app| {
+            // Load saved window size from store
+            let store = app.store("store.json").expect("Failed to get store");
+            
+            let default_width = 740.0;
+            let default_height = 850.0;
+            
+            let width = store.get("window_width")
+                .and_then(|v| v.as_f64())
+                .unwrap_or(default_width);
+            
+            let height = store.get("window_height")
+                .and_then(|v| v.as_f64())
+                .unwrap_or(default_height);
+            
+            #[cfg(debug_assertions)]
+            println!("Loading window size: {}x{}", width, height);
+            // Create menu
+            let new_file_submenu = SubmenuBuilder::new(app, "New file")
+                .text("new_file_md", "Markdown")
+                .text("new_file_mmd", "Mermaid")
+                .text("new_file_todo", "Todo")
+                .text("new_file_pu", "PlantUML")
+                .text("new_file_txt", "Text")
+                .build()?;
+            
+            let file_submenu = SubmenuBuilder::new(app, "File")
+                .item(&new_file_submenu)
+                .text("open_file", "Open File")
+                .separator()
+                .text("back", "Back")
+                .separator()
+                .text("quit", "Quit")
+                .build()?;
+            
+            let menu = MenuBuilder::new(app)
+                .item(&file_submenu)
+                .build()?;
+            
+            app.set_menu(menu)?;
+            
+            // Handle menu events
+            app.on_menu_event(move |app_handle, event| {
+                match event.id().0.as_str() {
+                    "new_file_md" => {
+                        let _ = app_handle.emit("menu://new-file-md", ());
+                    }
+                    "new_file_mmd" => {
+                        let _ = app_handle.emit("menu://new-file-mmd", ());
+                    }
+                    "new_file_todo" => {
+                        let _ = app_handle.emit("menu://new-file-todo", ());
+                    }
+                    "new_file_pu" => {
+                        let _ = app_handle.emit("menu://new-file-pu", ());
+                    }
+                    "new_file_txt" => {
+                        let _ = app_handle.emit("menu://new-file-txt", ());
+                    }
+                    "open_file" => {
+                        // Emit event to frontend
+                        let _ = app_handle.emit("menu://open-file", ());
+                    }
+                    "back" => {
+                        let _ = app_handle.emit("menu://back", ());
+                    }
+                    "quit" => {
+                        app_handle.exit(0);
+                    }
+                    _ => {}
+                }
+            });
+
             let win_builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
                 .title("Transparent Titlebar Window")
-                .inner_size(740.0, 850.0)
+                .inner_size(width, height)
                 .decorations(false)
                 .transparent(true)
                 .disable_drag_drop_handler(); // Disable Tauri's file drop to allow browser handling
@@ -87,13 +162,38 @@ pub fn run() {
                     .expect("Unsupported platform! 'apply_vibrancy' is only supported on macOS");
             }
 
-            // Register cleanup handler for when the app is closing
+            // Register window resize handler to save size
             let window = app
                 .get_webview_window("main")
                 .expect("Failed to get main window");
+            
+            let app_handle = app.app_handle().clone();
+            let window_clone = window.clone();
             window.on_window_event(
                 move |event| {
-                    if let tauri::WindowEvent::CloseRequested { .. } = event {}
+                    match event {
+                        tauri::WindowEvent::Resized(_) => {
+                            // Get physical size and scale factor
+                            if let (Ok(physical_size), Ok(scale_factor)) = (window_clone.inner_size(), window_clone.scale_factor()) {
+                                // Convert physical pixels to logical pixels
+                                let width = physical_size.width as f64 / scale_factor;
+                                let height = physical_size.height as f64 / scale_factor;
+                                
+                                #[cfg(debug_assertions)]
+                                println!("Window resized - Physical: {}x{}, Scale: {}, Logical: {}x{}", 
+                                    physical_size.width, physical_size.height, scale_factor, width, height);
+                                
+                                // Save logical window size to store
+                                if let Ok(store) = app_handle.store("store.json") {
+                                    let _ = store.set("window_width", serde_json::json!(width));
+                                    let _ = store.set("window_height", serde_json::json!(height));
+                                    let _ = store.save();
+                                }
+                            }
+                        }
+                        tauri::WindowEvent::CloseRequested { .. } => {}
+                        _ => {}
+                    }
                 },
             );
             Ok(())

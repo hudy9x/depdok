@@ -33,7 +33,7 @@ export function EditorTabs() {
           {/* Create button on the right */}
           <CreateTabButton />
         </div>
-        <ScrollBar orientation="horizontal" />
+        <ScrollBar orientation="horizontal" className='h-1.5 hover:bg-background/50' />
       </ScrollArea>
 
     </div>

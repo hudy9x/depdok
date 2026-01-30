@@ -1,6 +1,6 @@
 import { MarkdownPreview } from "./MarkdownPreview";
 import { MermaidPreview } from "./MermaidPreview";
-import { PlantUMLPreview } from "./PlantUMLPreview";
+import { PlantUMLPreview } from "../PreviewPlantUML";
 import { TodoPreview } from "../PreviewTodo/TodoPreview";
 
 interface PreviewPanelProps {

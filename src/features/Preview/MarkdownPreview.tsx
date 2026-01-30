@@ -191,13 +191,18 @@ export function MarkdownPreview({
         },
         onPaste: (currentEditor, files, htmlContent) => {
           console.log('[FileHandler] onPaste triggered', { files, htmlContent });
-          files.forEach(async (file) => {
-            if (htmlContent) {
-              // If there is htmlContent, stop manual insertion & let other extensions handle insertion
-              console.log('[FileHandler] htmlContent present, skipping manual insertion');
-              return false;
-            }
 
+          if (htmlContent) {
+            // If there is htmlContent, stop manual insertion & let other extensions handle insertion
+            console.log('[FileHandler] htmlContent present, skipping manual insertion');
+            return false;
+          }
+
+          if (files.length === 0) {
+            return false;
+          }
+
+          files.forEach(async (file) => {
             console.log('[FileHandler] Processing pasted file:', file.name, file.type);
 
             // Insert placeholder skeleton immediately
@@ -317,6 +322,7 @@ export function MarkdownPreview({
       },
     },
     onUpdate: ({ editor }) => {
+      console.log('onUpdate')
       if (editable && !isUpdatingRef.current) {
         // Get markdown content using getMarkdown from @tiptap/markdown v3.14.0
         const markdownContent = editor.getMarkdown();
@@ -353,23 +359,23 @@ export function MarkdownPreview({
     if (!container) return;
 
     const handleDragEnter = (e: DragEvent) => {
-      console.log('[Native] dragenter event', e);
+      console.log('[Native] dragenter event', e.target);
       e.preventDefault();
       e.stopPropagation();
     };
 
     const handleDragOver = (e: DragEvent) => {
-      console.log('[Native] dragover event', e);
+      console.log('[Native] dragover event', e.target);
       e.preventDefault();
       e.stopPropagation();
     };
 
     const handleDragLeave = (e: DragEvent) => {
-      console.log('[Native] dragleave event', e);
+      console.log('[Native] dragleave event', e.target);
     };
 
     const handleDrop = (e: DragEvent) => {
-      console.log('[Native] drop event', e);
+      console.log('[Native] drop event', e.target);
       console.log('[Native] drop files:', e.dataTransfer?.files);
       // Don't prevent default - let TipTap handle it
     };

@@ -91,8 +91,19 @@ pub fn run() {
                 .text("quit", "Quit")
                 .build()?;
             
+            let edit_submenu = SubmenuBuilder::new(app, "Edit")
+                .undo()
+                .redo()
+                .separator()
+                .cut()
+                .copy()
+                .paste()
+                .select_all()
+                .build()?;
+
             let menu = MenuBuilder::new(app)
                 .item(&file_submenu)
+                .item(&edit_submenu)
                 .build()?;
             
             app.set_menu(menu)?;

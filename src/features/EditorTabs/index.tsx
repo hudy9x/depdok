@@ -4,6 +4,7 @@ import { ChevronLeft } from 'lucide-react';
 import { tabsAtom } from '@/stores/TabStore';
 import { TabItem } from './TabItem';
 import { CreateTabButton } from './CreateTabButton';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 
 export function EditorTabs() {
   const [tabs] = useAtom(tabsAtom);
@@ -18,16 +19,22 @@ export function EditorTabs() {
       </Link>
 
       {/* Tabs in the middle with horizontal scroll */}
-      <div className="flex items-center flex-1 overflow-x-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent" data-tauri-drag-region>
-        {tabs.map((tab) => (
-          <div key={tab.id} className="group flex-shrink-0" data-tauri-drag-region>
-            <TabItem tab={tab} />
-          </div>
-        ))}
-        {/* Create button on the right */}
-        <CreateTabButton />
-
-      </div>
+      <ScrollArea
+        className="h-[35px] whitespace-nowrap overflow-hidden"
+        style={{ width: 'calc(100vw - 280px)' }}
+        data-tauri-drag-region
+      >
+        <div className="flex w-max space-x-0 h-full" data-tauri-drag-region>
+          {tabs.map((tab) => (
+            <div key={tab.id} className="group flex-shrink-0" data-tauri-drag-region>
+              <TabItem tab={tab} />
+            </div>
+          ))}
+          {/* Create button on the right */}
+          <CreateTabButton />
+        </div>
+        <ScrollBar orientation="horizontal" />
+      </ScrollArea>
 
     </div>
   );

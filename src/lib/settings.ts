@@ -5,6 +5,7 @@ interface AppSettings {
   theme: 'light' | 'dark' | 'system';
   editorTheme: string;
   assetsFolder: string; // folder name for markdown assets
+  plantUmlServerUrl: string; // custom PlantUML server URL (empty = use default)
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -14,6 +15,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   theme: 'system',
   editorTheme: 'vs-dark',
   assetsFolder: '',
+  plantUmlServerUrl: '',
 };
 
 class SettingsService {

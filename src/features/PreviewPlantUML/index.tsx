@@ -17,7 +17,8 @@ export function PlantUMLPreview({ content }: PlantUMLPreviewProps) {
 
   const { containerRef, zoom, zoomIn, zoomOut, reset } = useSvgPanZoom({
     content: svgContent,
-    minZoom: 0.05
+    minZoom: 0.05,
+    initialZoom: 0.7
   });
 
   useEffect(() => {
@@ -61,7 +62,7 @@ export function PlantUMLPreview({ content }: PlantUMLPreviewProps) {
       )}
       <div
         ref={containerRef}
-        className="w-full h-full flex items-center justify-center p-4 bg-background"
+        className="w-full h-full flex items-center justify-center p-0 bg-background"
         dangerouslySetInnerHTML={{ __html: svgContent }}
       />
 

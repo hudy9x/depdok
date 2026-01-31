@@ -7,7 +7,6 @@ import { TabItem } from './TabItem';
 import { CreateTabButton } from './CreateTabButton';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { useWindowDrag } from '@/hooks/useWindowDrag';
-import './tab.css';
 
 export function EditorTabs() {
   const [tabs] = useAtom(tabsAtom);

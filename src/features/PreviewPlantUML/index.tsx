@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { useDebounce } from "use-debounce";
 import { useTheme } from "next-themes";
 import { useAtomValue } from "jotai";
-import { useSvgPanZoom, ZoomControls } from "@/components/SvgZoom";
+import { ZoomPanContainer } from "@/components/ZoomPanContainer";
 import { plantUmlServerUrlAtom } from "@/stores/SettingsStore";
 
 interface PlantUMLPreviewProps {
@@ -18,11 +18,7 @@ export function PlantUMLPreview({ content }: PlantUMLPreviewProps) {
   const [debouncedContent] = useDebounce(content, 800);
   const plantUmlServerUrl = useAtomValue(plantUmlServerUrlAtom);
 
-  const { containerRef, zoom, zoomIn, zoomOut, reset } = useSvgPanZoom({
-    content: svgContent,
-    minZoom: 0.05,
-    initialZoom: 0.7
-  });
+  // No longer using useSvgPanZoom hook
 
   useEffect(() => {
     if (!debouncedContent) {
@@ -72,19 +68,19 @@ export function PlantUMLPreview({ content }: PlantUMLPreviewProps) {
           Rendering...
         </div>
       )}
-      <div
-        ref={containerRef}
-        className="w-full h-full flex items-center justify-center p-0 bg-background"
-        dangerouslySetInnerHTML={{ __html: svgContent }}
-      />
 
-      {/* Zoom controls */}
-      <ZoomControls
-        onZoomIn={zoomIn}
-        onZoomOut={zoomOut}
-        onReset={reset}
-        zoom={zoom}
-      />
+      <ZoomPanContainer
+        className="w-full h-full"
+        config={{
+          minZoom: 0.1,
+          maxZoom: 5,
+          initialZoom: 0.8
+        }}
+      >
+        <g
+          dangerouslySetInnerHTML={{ __html: svgContent }}
+        />
+      </ZoomPanContainer>
     </div>
   );
 }

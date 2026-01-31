@@ -8,6 +8,7 @@ import { MonacoThemeLoader, getMonacoThemeName } from "./MonacoThemeLoader";
 
 import { editorThemeAtom } from "@/stores/SettingsStore";
 import { setupMermaidTheme } from '@/lib/monaco-theme';
+import { setupPlantUMLTheme } from '@/lib/monaco-theme';
 import { useAutoSave } from "./useAutoSave";
 import {
   registerFormatAction,
@@ -27,10 +28,14 @@ export function MonacoEditor({ initialContent, language, onContentChange }: Mona
   const [content, setContent] = useState(initialContent);
 
   // Theme logic
+  // Theme logic
   const themeName = useAtomValue(editorThemeAtom);
   const { theme: systemTheme } = useTheme();
+
   // Calculate theme synchronously for initial render
-  const currentTheme = getMonacoThemeName(themeName, systemTheme);
+  let currentTheme = getMonacoThemeName(themeName, systemTheme);
+
+
 
   const { handleContentChange } = useAutoSave();
 
@@ -52,13 +57,18 @@ export function MonacoEditor({ initialContent, language, onContentChange }: Mona
 
   const handleBeforeMount: BeforeMount = (monaco) => {
     monacoRef.current = monaco;
-    setupMermaidTheme(monaco);
 
-    // Register snippets
-    if (language === 'markdown') {
-      registerTodoSnippets(monaco, language);
-      registerDateSnippets(monaco, language);
-    }
+    setTimeout(() => {
+      setupMermaidTheme(monaco);
+      setupPlantUMLTheme(monaco);
+
+      // Register snippets
+      if (language === 'markdown') {
+        registerTodoSnippets(monaco, language);
+        registerDateSnippets(monaco, language);
+      }
+
+    }, 500);
 
   };
 

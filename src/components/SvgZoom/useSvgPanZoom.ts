@@ -6,6 +6,7 @@ interface UseSvgPanZoomProps {
   minZoom?: number;
   maxZoom?: number;
   zoomScaleSensitivity?: number;
+  initialZoom?: number;
 }
 
 export function useSvgPanZoom({
@@ -13,6 +14,7 @@ export function useSvgPanZoom({
   minZoom = 0.5,
   maxZoom = 10,
   zoomScaleSensitivity = 0.3,
+  initialZoom,
 }: UseSvgPanZoomProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const panZoomInstance = useRef<SvgPanZoom.Instance | null>(null);
@@ -46,14 +48,22 @@ export function useSvgPanZoom({
           },
         });
 
+        if (initialZoom) {
+          panZoomInstance.current.zoom(initialZoom);
+          panZoomInstance.current.center(); // Re-center after zoom
+        }
+
         setZoom(Math.round(panZoomInstance.current.getZoom() * 100));
 
         // Handle resizing
         const resizeObserver = new ResizeObserver(() => {
           if (panZoomInstance.current) {
             panZoomInstance.current.resize();
-            panZoomInstance.current.fit();
-            panZoomInstance.current.center();
+            // Only fit and center if no initial zoom was specified
+            if (!initialZoom) {
+              panZoomInstance.current.fit();
+              panZoomInstance.current.center();
+            }
           }
         });
 

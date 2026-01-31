@@ -48,3 +48,12 @@ export const editorThemeAtom = atom(
     settingsService.updateSettings(settings);
   }
 );
+
+export const plantUmlServerUrlAtom = atom(
+  (get) => get(settingsAtom).plantUmlServerUrl,
+  (get, set, value: string) => {
+    const settings = { ...get(settingsAtom), plantUmlServerUrl: value };
+    set(settingsAtom, settings);
+    settingsService.updateSettings(settings);
+  }
+);

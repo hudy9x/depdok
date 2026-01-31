@@ -15,6 +15,7 @@ import { autoSaveEnabledAtom, autoSaveDelayAtom, themeAtom } from "@/stores/Sett
 import { Monitor, Moon, Sun } from "lucide-react";
 import { AssetsFolderSetting } from "./AssetsFolderSetting";
 import { MonacoThemeSetting } from "./MonacoThemeSetting";
+import { PlantUmlServerSetting } from "./PlantUmlServerSetting";
 
 interface SettingsDialogProps {
   open: boolean;
@@ -135,6 +136,9 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
               />
             </div>
           )}
+
+          {/* PlantUML Server Setting */}
+          <PlantUmlServerSetting />
 
           {/* Assets Folder Setting */}
           <AssetsFolderSetting />

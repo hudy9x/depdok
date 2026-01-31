@@ -3,7 +3,9 @@ import { encode } from "plantuml-encoder";
 import { toast } from "sonner";
 import { useDebounce } from "use-debounce";
 import { useTheme } from "next-themes";
+import { useAtomValue } from "jotai";
 import { useSvgPanZoom, ZoomControls } from "@/components/SvgZoom";
+import { plantUmlServerUrlAtom } from "@/stores/SettingsStore";
 
 interface PlantUMLPreviewProps {
   content: string;
@@ -14,6 +16,7 @@ export function PlantUMLPreview({ content }: PlantUMLPreviewProps) {
   const { theme } = useTheme();
   const [loading, setLoading] = useState(false);
   const [debouncedContent] = useDebounce(content, 800);
+  const plantUmlServerUrl = useAtomValue(plantUmlServerUrlAtom);
 
   const { containerRef, zoom, zoomIn, zoomOut, reset } = useSvgPanZoom({
     content: svgContent,
@@ -31,7 +34,16 @@ export function PlantUMLPreview({ content }: PlantUMLPreviewProps) {
       setLoading(true);
       try {
         const encoded = encode(debouncedContent);
-        const url = `https://img.plantuml.biz/plantuml/${theme === 'dark' ? 'd' : ''}svg/${encoded}`;
+
+        // Use custom server URL if provided, otherwise use default
+        let url: string;
+        if (plantUmlServerUrl) {
+          // Custom server: don't use dark mode parameter (may not be supported)
+          url = `${plantUmlServerUrl}/svg/${encoded}`;
+        } else {
+          // Default server: use dark mode parameter
+          url = `https://img.plantuml.biz/plantuml/${theme === 'dark' ? 'd' : ''}svg/${encoded}`;
+        }
 
         const res = await fetch(url);
         if (!res.ok) {
@@ -49,7 +61,7 @@ export function PlantUMLPreview({ content }: PlantUMLPreviewProps) {
     };
 
     fetchDiagram();
-  }, [debouncedContent, theme]);
+  }, [debouncedContent, theme, plantUmlServerUrl]);
 
 
 

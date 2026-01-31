@@ -22,8 +22,8 @@ export function ZoomPanContainer({
 }: ZoomPanContainerProps) {
   const config = { ...defaultZoomConfig, ...userConfig };
 
-  const containerRef = useRef<HTMLDivElement>(null);
-  const contentRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<SVGSVGElement>(null);
+  // const contentRef = useRef<HTMLDivElement>(null); // Unused in SVG implementation
 
   // Initialize from persisted state, or use config default
   const [zoom, setZoom] = useState(() => zoomPanState.zoom || config.initialZoom);
@@ -141,24 +141,19 @@ export function ZoomPanContainer({
   }, [isDragging, handleMouseMove, handleMouseUp]);
 
   return (
-    <div
-      ref={containerRef}
-      className={`relative overflow-hidden ${className}`}
-      onMouseDown={handleMouseDown}
-      style={{ cursor: isDragging ? 'grabbing' : 'grab', width: '100%', height: '100%' }}
-    >
-      <div
-        ref={contentRef}
-        style={{
-          width: '100%',
-          height: '100%',
-          transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
-          transformOrigin: '0 0',
-          transition: isDragging ? 'none' : 'transform 0.1s ease-out',
-        }}
+    <div className={`relative overflow-hidden ${className}`} style={{ width: '100%', height: '100%' }}>
+      <svg
+        ref={containerRef as any}
+        onMouseDown={handleMouseDown}
+        style={{ cursor: isDragging ? 'grabbing' : 'grab', width: '100%', height: '100%', display: 'block' }}
       >
-        {children}
-      </div>
+        <g
+          transform={`translate(${pan.x} ${pan.y}) scale(${zoom})`}
+          style={{ transition: isDragging ? 'none' : 'transform 0.1s ease-out' }}
+        >
+          {children}
+        </g>
+      </svg>
 
       {/* Zoom controls overlay */}
       <div className="absolute bottom-4 right-4 flex flex-col items-center gap-2 z-20">

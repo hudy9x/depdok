@@ -3,6 +3,7 @@ import { encode } from "plantuml-encoder";
 import { toast } from "sonner";
 import { useDebounce } from "use-debounce";
 import { useTheme } from "next-themes";
+import { useSvgPanZoom, ZoomControls } from "@/components/SvgZoom";
 
 interface PlantUMLPreviewProps {
   content: string;
@@ -13,6 +14,11 @@ export function PlantUMLPreview({ content }: PlantUMLPreviewProps) {
   const { theme } = useTheme();
   const [loading, setLoading] = useState(false);
   const [debouncedContent] = useDebounce(content, 800);
+
+  const { containerRef, zoom, zoomIn, zoomOut, reset } = useSvgPanZoom({
+    content: svgContent,
+    minZoom: 0.05
+  });
 
   useEffect(() => {
     if (!debouncedContent) {
@@ -44,16 +50,27 @@ export function PlantUMLPreview({ content }: PlantUMLPreviewProps) {
     fetchDiagram();
   }, [debouncedContent, theme]);
 
+
+
   return (
-    <div className="w-full h-full p-4 overflow-auto bg-background relative">
+    <div className="w-full h-full bg-background relative overflow-hidden">
       {loading && (
-        <div className="absolute top-2 right-2 text-xs text-muted-foreground bg-background/80 px-2 py-1 rounded">
+        <div className="absolute top-2 right-2 text-xs text-muted-foreground bg-background/80 px-2 py-1 rounded z-50">
           Rendering...
         </div>
       )}
       <div
-        className="flex min-h-full items-center justify-center p-4"
+        ref={containerRef}
+        className="w-full h-full flex items-center justify-center p-4 bg-background"
         dangerouslySetInnerHTML={{ __html: svgContent }}
+      />
+
+      {/* Zoom controls */}
+      <ZoomControls
+        onZoomIn={zoomIn}
+        onZoomOut={zoomOut}
+        onReset={reset}
+        zoom={zoom}
       />
     </div>
   );

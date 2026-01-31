@@ -59,6 +59,7 @@
     "@tiptap/react": "^3.14.0",
     "@tiptap/starter-kit": "^3.14.0",
     "@types/js-yaml": "^4.0.9",
+    "@types/svg-pan-zoom": "^3.4.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",

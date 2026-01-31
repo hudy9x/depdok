@@ -72,7 +72,7 @@ export function TabItem({ tab }: TabItemProps) {
             'flex items-center gap-2 px-3 h-[35px] cursor-pointer border-r border-border group relative',
             'hover:bg-background/50 transition-colors',
             'min-w-[120px] max-w-[200px]',
-            isActive && 'bg-background border-b-2 border-b-primary'
+            isActive ? 'bg-background' : 'text-muted-foreground'
           )}
           onClick={handleClick}
           data-tauri-drag-region

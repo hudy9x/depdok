@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import svgPanZoom from "svg-pan-zoom";
 
 interface UseSvgPanZoomProps {
-  content: string; // The SVG content or key to trigger initialization
+  content?: string; // The SVG content or key to trigger initialization
   minZoom?: number;
   maxZoom?: number;
   zoomScaleSensitivity?: number;
@@ -20,13 +20,19 @@ export function useSvgPanZoom({
   const panZoomInstance = useRef<SvgPanZoom.Instance | null>(null);
   const [zoom, setZoom] = useState<number>(100);
 
-  useEffect(() => {
-    if (!content || !containerRef.current) return;
+  const cachedZoomRef = useRef<number | null>(null);
+  const cachedPanRef = useRef<{ x: number; y: number } | null>(null);
+  const cachedInitialZoomRef = useRef<boolean>(false);
 
-    if (panZoomInstance.current) {
-      panZoomInstance.current.destroy();
-      panZoomInstance.current = null;
-    }
+  const createPanZoom = ({
+    content,
+    minZoom,
+    maxZoom,
+    zoomScaleSensitivity,
+    initialZoom
+  }: UseSvgPanZoomProps, isContentUpdated: boolean = false) => {
+
+    if (!content || !containerRef.current) return;
 
     // Use a small timeout to ensure the DOM is updated with the SVG content
     const timeoutId = setTimeout(() => {
@@ -35,36 +41,63 @@ export function useSvgPanZoom({
         svgElement.style.width = "100%";
         svgElement.style.height = "100%";
 
-        panZoomInstance.current = svgPanZoom(svgElement, {
-          zoomEnabled: true,
-          controlIconsEnabled: false,
-          fit: true,
-          center: true,
-          minZoom,
-          maxZoom,
-          zoomScaleSensitivity,
-          onZoom: (scale: number) => {
-            setZoom(Math.round(scale * 100));
-          },
-        });
+        if (!cachedInitialZoomRef.current || isContentUpdated) {
+          panZoomInstance.current = svgPanZoom(svgElement, {
+            zoomEnabled: true,
+            controlIconsEnabled: false,
+            fit: true,
+            center: true,
+            minZoom,
+            maxZoom,
+            zoomScaleSensitivity,
+            onZoom: (scale: number) => {
+              setZoom(Math.round(scale * 100));
+              cachedZoomRef.current = scale;
+              console.log('cachedZoomRef', cachedZoomRef.current)
+            },
+            onPan: (pan: { x: number; y: number }) => {
+              cachedPanRef.current = pan;
+              console.log('cachedPanRef', cachedPanRef.current)
+            }
+          });
 
-        if (initialZoom) {
-          panZoomInstance.current.zoom(initialZoom);
-          panZoomInstance.current.center(); // Re-center after zoom
         }
 
-        setZoom(Math.round(panZoomInstance.current.getZoom() * 100));
+        const _panZoomInstance = panZoomInstance.current;
+
+        if (!_panZoomInstance) return;
+
+        console.log('cached Zoom', cachedZoomRef.current, _panZoomInstance.getZoom())
+        console.log('cached Pan', cachedPanRef.current, _panZoomInstance.getPan())
+
+
+
+        if (initialZoom && !cachedInitialZoomRef.current) {
+          console.log('initial zoom')
+          _panZoomInstance.zoom(initialZoom);
+          _panZoomInstance.center(); // Re-center after zoom
+          cachedInitialZoomRef.current = true;
+        }
+
+        if (cachedInitialZoomRef.current) {
+          cachedZoomRef.current && _panZoomInstance.zoom(cachedZoomRef.current);
+          cachedPanRef.current && _panZoomInstance.pan(cachedPanRef.current);
+        }
+
+
+        setZoom(Math.round(_panZoomInstance.getZoom() * 100));
 
         // Handle resizing
         const resizeObserver = new ResizeObserver(() => {
-          if (panZoomInstance.current) {
-            panZoomInstance.current.resize();
-            // Only fit and center if no initial zoom was specified
-            if (!initialZoom) {
-              panZoomInstance.current.fit();
-              panZoomInstance.current.center();
-            }
-          }
+          console.log('handle resize')
+          // if (panZoomInstance.current) {
+          //   panZoomInstance.current.resize();
+          //   // Only fit and center if no initial zoom was specified
+          //   if (!initialZoom) {
+          //     panZoomInstance.current.fit();
+          //     panZoomInstance.current.center();
+          //   }
+          // }
         });
 
         if (containerRef.current) {
@@ -74,20 +107,14 @@ export function useSvgPanZoom({
         // Store observer for cleanup
         (panZoomInstance.current as any).resizeObserver = resizeObserver;
       }
-    }, 0);
+    }, 100);
+  }
 
-    return () => {
-      clearTimeout(timeoutId);
-      if (panZoomInstance.current) {
-        const resizeObserver = (panZoomInstance.current as any).resizeObserver as ResizeObserver;
-        if (resizeObserver) {
-          resizeObserver.disconnect();
-        }
-        panZoomInstance.current.destroy();
-        panZoomInstance.current = null;
-      }
-    };
-  }, [content, minZoom, maxZoom, zoomScaleSensitivity]);
+  useEffect(() => {
+    createPanZoom({ content, minZoom, maxZoom, zoomScaleSensitivity, initialZoom }, true);
+  }, [content]);
+
+
 
   const zoomIn = () => panZoomInstance.current?.zoomIn();
   const zoomOut = () => panZoomInstance.current?.zoomOut();

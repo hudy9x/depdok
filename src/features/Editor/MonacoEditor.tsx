@@ -101,6 +101,7 @@ export function MonacoEditor({ initialContent, language, onContentChange }: Mona
         <MonacoEditorReact
           value={content}
           language={language}
+          loading=""
           theme={currentTheme}
           onChange={handleChange}
           beforeMount={handleBeforeMount}

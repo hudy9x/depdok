@@ -21,7 +21,13 @@ export function useWindowDrag(selector?: string) {
     const handleMouseDown = (e: Event) => {
       const mouseEvent = e as MouseEvent;
       // Prevent dragging if clicking on interactive elements (like close buttons or tabs)
-      if ((mouseEvent.target as HTMLElement).closest('[data-tauri-drag-region="false"]')) {
+      // Also prevent dragging on scrollbar components
+      const target = mouseEvent.target as HTMLElement;
+      if (
+        target.closest('[data-tauri-drag-region="false"]') ||
+        target.closest('[data-slot="scroll-area-thumb"]') ||
+        target.closest('[data-slot="scroll-area-scrollbar"]')
+      ) {
         return;
       }
 

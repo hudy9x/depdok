@@ -80,7 +80,6 @@
     "react-resizable-panels": "^3.0.3",
     "react-router-dom": "^7.6.3",
     "sonner": "^2.0.5",
-    "svg-pan-zoom": "^3.6.2",
     "tailwind-merge": "^3.3.1",
     "tailwindcss": "^4.1.11",
     "tiptap-markdown": "^0.9.0",

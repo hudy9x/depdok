@@ -13,7 +13,7 @@ interface PlantUMLPreviewProps {
 
 export function PlantUMLPreview({ content }: PlantUMLPreviewProps) {
   const [svgContent, setSvgContent] = useState("");
-  const { theme } = useTheme();
+  const { resolvedTheme } = useTheme();
   const [loading, setLoading] = useState(false);
   const [debouncedContent] = useDebounce(content, 800);
   const plantUmlServerUrl = useAtomValue(plantUmlServerUrlAtom);
@@ -38,7 +38,9 @@ export function PlantUMLPreview({ content }: PlantUMLPreviewProps) {
           url = `${plantUmlServerUrl}/svg/${encoded}`;
         } else {
           // Default server: use dark mode parameter
-          url = `https://img.plantuml.biz/plantuml/${theme === 'dark' ? 'd' : ''}svg/${encoded}`;
+          // Use resolvedTheme to handle 'system' preference correctly
+          const isDark = resolvedTheme === 'dark';
+          url = `https://img.plantuml.biz/plantuml/${isDark ? 'd' : ''}svg/${encoded}`;
         }
 
         const res = await fetch(url);
@@ -57,7 +59,7 @@ export function PlantUMLPreview({ content }: PlantUMLPreviewProps) {
     };
 
     fetchDiagram();
-  }, [debouncedContent, theme, plantUmlServerUrl]);
+  }, [debouncedContent, resolvedTheme, plantUmlServerUrl]);
 
 
 
@@ -74,7 +76,8 @@ export function PlantUMLPreview({ content }: PlantUMLPreviewProps) {
         config={{
           minZoom: 0.1,
           maxZoom: 5,
-          initialZoom: 0.8
+          initialZoom: 0.8,
+          centerOnLoad: true
         }}
       >
         <g

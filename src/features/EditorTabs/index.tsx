@@ -28,11 +28,10 @@ export function EditorTabs() {
       <ScrollArea
         className="h-[35px] whitespace-nowrap overflow-hidden"
         style={{ width: 'calc(100vw - 280px)' }}
-        data-tauri-drag-region
       >
-        <div id="tab-content-wrapper" className="flex w-max space-x-0 h-full" data-tauri-drag-region>
+        <div id="tab-content-wrapper" className="flex w-max space-x-0 h-full">
           {tabs.map((tab) => (
-            <div key={tab.id} className="group flex-shrink-0" data-tauri-drag-region>
+            <div key={tab.id} className="group flex-shrink-0">
               <TabItem tab={tab} />
             </div>
           ))}

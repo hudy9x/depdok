@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import MonacoEditorReact, { BeforeMount, OnMount } from "@monaco-editor/react";
+import { listen } from '@tauri-apps/api/event';
 import { useAtomValue } from "jotai";
 
 import { useTheme } from "next-themes";
@@ -41,6 +42,7 @@ export function MonacoEditor({ initialContent, language, onContentChange }: Mona
 
   const editorRef = useRef<any>(null);
   const monacoRef = useRef<any>(null);
+  const menuListenersCleanupRef = useRef<(() => void) | null>(null);
 
   // Sync content when initialContent changes
   useEffect(() => {
@@ -93,7 +95,44 @@ export function MonacoEditor({ initialContent, language, onContentChange }: Mona
 
     // Action registration - End ==================
 
+    // Setup menu event listeners
+    const unlisteners: Promise<() => void>[] = [];
+
+    const register = (event: string, action: string) => {
+      unlisteners.push(listen(event, () => {
+        editor.trigger('menu', action, {});
+        editor.focus(); // Ensure editor has focus
+      }));
+    }
+
+    register('menu://selection/select-all', 'editor.action.selectAll');
+    register('menu://selection/expand', 'editor.action.smartSelect.expand');
+    register('menu://selection/shrink', 'editor.action.smartSelect.shrink');
+    register('menu://selection/copy-line-up', 'editor.action.copyLinesUpAction');
+    register('menu://selection/copy-line-down', 'editor.action.copyLinesDownAction');
+    register('menu://selection/move-line-up', 'editor.action.moveLinesUpAction');
+    register('menu://selection/move-line-down', 'editor.action.moveLinesDownAction');
+    register('menu://selection/duplicate', 'editor.action.duplicateSelection');
+    register('menu://selection/add-cursor-above', 'editor.action.insertCursorAbove');
+    register('menu://selection/add-cursor-below', 'editor.action.insertCursorBelow');
+    register('menu://selection/add-cursors-to-line-ends', 'editor.action.insertCursorAtEndOfEachLineSelected');
+    register('menu://selection/add-next-occurrence', 'editor.action.addSelectionToNextFindMatch');
+    register('menu://selection/add-previous-occurrence', 'editor.action.addSelectionToPreviousFindMatch');
+    register('menu://selection/select-all-occurrences', 'editor.action.selectHighlights');
+    register('menu://selection/column-selection-mode', 'editor.action.toggleColumnSelection');
+
+    // Store cleanup function
+    menuListenersCleanupRef.current = () => {
+      unlisteners.forEach(p => p.then(u => u()));
+    };
   };
+
+  // Cleanup listeners on unmount
+  useEffect(() => {
+    return () => {
+      menuListenersCleanupRef.current?.();
+    };
+  }, []);
 
   return (
     <div className="w-full h-full">

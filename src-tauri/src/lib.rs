@@ -1,7 +1,6 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 use std::sync::Mutex;
-use tauri::{Manager, WebviewUrl, WebviewWindowBuilder, Emitter};
-use tauri::menu::{MenuBuilder, SubmenuBuilder};
+use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
 use tauri_plugin_store::StoreExt;
 
 // Global state to store the opened file path
@@ -43,6 +42,7 @@ fn close_devtools(app: tauri::AppHandle) {
 }
 
 mod commands;
+mod menu;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -73,75 +73,11 @@ pub fn run() {
             
             #[cfg(debug_assertions)]
             println!("Loading window size: {}x{}", width, height);
-            // Create menu
-            let new_file_submenu = SubmenuBuilder::new(app, "New file")
-                .text("new_file_md", "Markdown")
-                .text("new_file_mmd", "Mermaid")
-                .text("new_file_todo", "Todo")
-                .text("new_file_pu", "PlantUML")
-                .text("new_file_txt", "Text")
-                .build()?;
-            
-            let file_submenu = SubmenuBuilder::new(app, "File")
-                .item(&new_file_submenu)
-                .text("open_file", "Open File")
-                .separator()
-                .text("back", "Back")
-                .separator()
-                .text("quit", "Quit")
-                .build()?;
-            
-            let edit_submenu = SubmenuBuilder::new(app, "Edit")
-                .undo()
-                .redo()
-                .separator()
-                .cut()
-                .copy()
-                .paste()
-                .select_all()
-                .build()?;
-
-            let menu = MenuBuilder::new(app)
-                .item(&file_submenu)
-                .item(&edit_submenu)
-                .build()?;
-            
-            app.set_menu(menu)?;
-            
-            // Handle menu events
-            app.on_menu_event(move |app_handle, event| {
-                match event.id().0.as_str() {
-                    "new_file_md" => {
-                        let _ = app_handle.emit("menu://new-file-md", ());
-                    }
-                    "new_file_mmd" => {
-                        let _ = app_handle.emit("menu://new-file-mmd", ());
-                    }
-                    "new_file_todo" => {
-                        let _ = app_handle.emit("menu://new-file-todo", ());
-                    }
-                    "new_file_pu" => {
-                        let _ = app_handle.emit("menu://new-file-pu", ());
-                    }
-                    "new_file_txt" => {
-                        let _ = app_handle.emit("menu://new-file-txt", ());
-                    }
-                    "open_file" => {
-                        // Emit event to frontend
-                        let _ = app_handle.emit("menu://open-file", ());
-                    }
-                    "back" => {
-                        let _ = app_handle.emit("menu://back", ());
-                    }
-                    "quit" => {
-                        app_handle.exit(0);
-                    }
-                    _ => {}
-                }
-            });
+            // Initialize menu
+            menu::init(app)?;
 
             let win_builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
-                .title("Transparent Titlebar Window")
+                .title("Depdok")
                 .inner_size(width, height)
                 .decorations(false)
                 .transparent(true)

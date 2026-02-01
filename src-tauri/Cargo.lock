@@ -3,6 +3,27 @@
 version = 4
 
 [[package]]
+name = "Depdok"
+version = "0.0.1"
+dependencies = [
+ "chrono",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-clipboard-manager",
+ "tauri-plugin-dialog",
+ "tauri-plugin-fs",
+ "tauri-plugin-opener",
+ "tauri-plugin-os",
+ "tauri-plugin-process",
+ "tauri-plugin-shell",
+ "tauri-plugin-store",
+ "tauri-plugin-updater",
+ "window-vibrancy 0.7.1",
+]
+
+[[package]]
 name = "addr2line"
 version = "0.24.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -741,27 +762,6 @@ dependencies = [
  "darling_core",
  "quote",
  "syn 2.0.104",
-]
-
-[[package]]
-name = "depdok"
-version = "0.0.1"
-dependencies = [
- "chrono",
- "serde",
- "serde_json",
- "tauri",
- "tauri-build",
- "tauri-plugin-clipboard-manager",
- "tauri-plugin-dialog",
- "tauri-plugin-fs",
- "tauri-plugin-opener",
- "tauri-plugin-os",
- "tauri-plugin-process",
- "tauri-plugin-shell",
- "tauri-plugin-store",
- "tauri-plugin-updater",
- "window-vibrancy 0.7.1",
 ]
 
 [[package]]

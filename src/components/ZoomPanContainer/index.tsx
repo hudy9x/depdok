@@ -41,6 +41,38 @@ export function ZoomPanContainer({
     zoomPanState.pan = pan;
   }, [pan]);
 
+  // Center content on load if configured
+  useEffect(() => {
+    if (config.centerOnLoad && containerRef.current) {
+      // use setTimeout to ensure the DOM is fully rendered
+      setTimeout(() => {
+        const svg = containerRef.current;
+        if (!svg) return;
+
+        const g = svg.querySelector('g');
+        if (!g) return;
+
+        try {
+          const bbox = g.getBBox();
+          const containerRect = svg.getBoundingClientRect();
+
+          if (bbox.width === 0 || bbox.height === 0) return;
+
+          const scale = config.initialZoom;
+          // Calculate centered position
+          // center of container - center of content (scaled)
+          const x = (containerRect.width - bbox.width * scale) / 2 - bbox.x * scale;
+          const y = (containerRect.height - bbox.height * scale) / 2 - bbox.y * scale;
+
+          setPan({ x, y });
+          setZoom(scale);
+        } catch (e) {
+          console.error("Failed to center SVG content:", e);
+        }
+      }, 50);
+    }
+  }, [config.centerOnLoad, config.initialZoom, children]); // Re-run when children change
+
   // Clamp zoom value within min/max bounds
   const clampZoom = useCallback((value: number) => {
     return Math.min(Math.max(value, config.minZoom), config.maxZoom);

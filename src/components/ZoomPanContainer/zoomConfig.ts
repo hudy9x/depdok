@@ -4,6 +4,7 @@ export interface ZoomConfig {
   zoomStep: number;
   initialZoom: number;
   wheelZoomSpeed: number;
+  centerOnLoad?: boolean;
 }
 
 export const defaultZoomConfig: ZoomConfig = {
@@ -12,4 +13,5 @@ export const defaultZoomConfig: ZoomConfig = {
   zoomStep: 0.1,
   initialZoom: 1,
   wheelZoomSpeed: 0.001,
+  centerOnLoad: false,
 };

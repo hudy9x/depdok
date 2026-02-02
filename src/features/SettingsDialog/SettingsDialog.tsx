@@ -11,7 +11,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { autoSaveEnabledAtom, autoSaveDelayAtom, themeAtom } from "@/stores/SettingsStore";
+import { autoSaveEnabledAtom, /*autoSaveDelayAtom,*/ themeAtom } from "@/stores/SettingsStore";
 import { Monitor, Moon, Sun } from "lucide-react";
 import { AssetsFolderSetting } from "./AssetsFolderSetting";
 import { MonacoThemeSetting } from "./MonacoThemeSetting";
@@ -24,7 +24,7 @@ interface SettingsDialogProps {
 
 export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   const [autoSaveEnabled, setAutoSaveEnabled] = useAtom(autoSaveEnabledAtom);
-  const [autoSaveDelay, setAutoSaveDelay] = useAtom(autoSaveDelayAtom);
+  // const [autoSaveDelay, setAutoSaveDelay] = useAtom(autoSaveDelayAtom);
   const [selectedTheme, setSelectedTheme] = useAtom(themeAtom);
   const { setTheme } = useTheme();
 
@@ -118,7 +118,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
           </div>
 
           {/* Auto-save delay (only shown when enabled) */}
-          {autoSaveEnabled && (
+          {/* {autoSaveEnabled && (
             <div className="space-y-2">
               <Label htmlFor="delay">Auto-save delay</Label>
               <p className="text-sm text-muted-foreground">
@@ -135,7 +135,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                 className="w-full accent-primary"
               />
             </div>
-          )}
+          )} */}
 
           {/* PlantUML Server Setting */}
           <PlantUmlServerSetting />

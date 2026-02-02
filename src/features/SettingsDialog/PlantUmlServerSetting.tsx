@@ -47,7 +47,7 @@ export function PlantUmlServerSetting() {
           : <CircleCheck className="size-4 text-green-300 dark:text-green-500" />}
       </Label>
       <p className="text-sm text-muted-foreground">
-        Custom PlantUML server URL (leave empty to use default: https://img.plantuml.biz/plantuml)
+        Custom PlantUML server URL
       </p>
       <Input
         id="plantuml-server"
@@ -61,7 +61,7 @@ export function PlantUmlServerSetting() {
         <p className="text-sm text-destructive">{urlError}</p>
       )}
       <p className="text-xs text-muted-foreground italic">
-        Note: Custom servers may not support dark mode theming
+        Note: Default server is <a className="text-blue-500 hover:text-blue-700" href="https://img.plantuml.biz/plantuml" target="_blank" rel="noopener noreferrer">https://img.plantuml.biz/plantuml</a>
       </p>
     </div>
   );

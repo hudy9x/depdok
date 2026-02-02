@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTheme } from "next-themes";
-import mermaid from "mermaid";
+import { renderMermaid } from "beautiful-mermaid";
 import { ZoomPanContainer } from "@/components/ZoomPanContainer";
 
 interface MermaidPreviewProps {
@@ -13,16 +13,6 @@ export function MermaidPreview({ content }: MermaidPreviewProps) {
   const [svg, setSvg] = useState<string>("");
 
   useEffect(() => {
-    // Initialize Mermaid with theme
-    mermaid.initialize({
-      startOnLoad: false,
-      theme: theme === "dark" ? "dark" : "default",
-      securityLevel: "loose",
-      fontFamily: "system-ui, -apple-system, sans-serif",
-    });
-  }, [theme]);
-
-  useEffect(() => {
     if (!content.trim()) {
       setSvg("");
       setError(null);
@@ -32,10 +22,36 @@ export function MermaidPreview({ content }: MermaidPreviewProps) {
     const renderDiagram = async () => {
       try {
         setError(null);
-        const { svg: renderedSvg } = await mermaid.render(
-          `mermaid-${Date.now()}`,
-          content
-        );
+
+        // Configure colors based on theme
+        const colors = theme === "dark"
+          ? {
+            bg: "#09090b",      // zinc-950
+            fg: "#fafafa",      // zinc-50
+            line: "#52525b",    // zinc-600
+            accent: "#a1a1aa",  // zinc-400
+            muted: "#71717a",   // zinc-500
+            surface: "#18181b", // zinc-900
+            border: "#3f3f46",  // zinc-700
+          }
+          : {
+            bg: "#ffffff",      // white
+            fg: "#18181b",      // zinc-900
+            line: "#a1a1aa",    // zinc-400
+            accent: "#52525b",  // zinc-600
+            muted: "#71717a",   // zinc-500
+            surface: "#fafafa", // zinc-50
+            border: "#d4d4d8",  // zinc-300
+          };
+
+        const renderedSvg = await renderMermaid(content, {
+          ...colors,
+          font: "system-ui, -apple-system, sans-serif",
+          padding: 40,
+          nodeSpacing: 24,
+          layerSpacing: 40,
+        });
+
         setSvg(renderedSvg);
       } catch (err) {
         console.error("Mermaid rendering error:", err);

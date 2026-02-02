@@ -25,7 +25,7 @@ export function getMonacoThemeName(themeName: string, systemTheme: string | unde
 export function MonacoThemeLoader({ children }: { children: React.ReactNode }) {
   const monaco = useMonaco();
   const themeName = useAtomValue(editorThemeAtom);
-  const { theme: systemTheme } = useTheme();
+  const { resolvedTheme: systemTheme } = useTheme();
 
   useEffect(() => {
     if (!monaco) return;

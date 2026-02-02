@@ -70,9 +70,9 @@ export function TabItem({ tab }: TabItemProps) {
         <div
           className={cn(
             'flex items-center gap-2 px-3 h-[35px] cursor-pointer border-r border-border group relative',
-            'hover:bg-background/50 transition-colors',
+            'hover:bg-accent/70 transition-colors',
             'min-w-[120px] max-w-[200px]',
-            isActive ? 'bg-background' : 'text-muted-foreground'
+            isActive ? 'bg-accent text-muted-foreground' : 'text-muted-foreground'
           )}
           onClick={handleClick}
           data-tauri-drag-region

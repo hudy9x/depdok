@@ -24,6 +24,7 @@ import {
 import { getMonacoLanguage } from "@/lib/utils/getMonacoLanguage";
 
 import { useAutoSave } from "@/features/Editor/useAutoSave";
+import { FileSearchDialog } from "@/features/FileSearchDialog";
 
 export default function Editor() {
   const [searchParams] = useSearchParams();
@@ -108,6 +109,7 @@ export default function Editor() {
 
   return (
     <>
+      <FileSearchDialog />
       <Titlebar
         left={null}
         center={<EditorTabs />}

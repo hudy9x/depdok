@@ -39,7 +39,7 @@ export function FileSearchDialog() {
       <CommandInput placeholder="Search tabs..." />
       <CommandList>
         <CommandEmpty>No tabs found.</CommandEmpty>
-        <CommandGroup heading="Open Tabs">
+        <CommandGroup heading="Open file">
           {tabs.map((tab) => (
             <CommandItem
               key={tab.id}

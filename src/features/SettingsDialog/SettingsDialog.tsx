@@ -55,7 +55,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
             <RadioGroup
               value={selectedTheme}
               onValueChange={(value) => setSelectedTheme(value as 'light' | 'dark' | 'system')}
-              className="grid grid-cols-3 gap-0 bg-muted p-1 rounded-md text-muted-foreground"
+              className="grid grid-cols-3 gap-0 bg-muted p-1 rounded-lg text-muted-foreground"
             >
               <div className="">
                 <RadioGroupItem
@@ -65,7 +65,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                 />
                 <Label
                   htmlFor="light"
-                  className="flex items-center rounded-sm justify-center p-2 hover:text-accent-foreground peer-data-[state=checked]:bg-background peer-data-[state=checked]:text-foreground peer-data-[state=checked]:shadow-sm cursor-pointer"
+                  className="flex items-center rounded justify-center p-2 hover:text-accent-foreground peer-data-[state=checked]:bg-background peer-data-[state=checked]:text-foreground peer-data-[state=checked]:shadow-sm cursor-pointer"
                 >
                   <Sun className="w-4 h-4" />
                 </Label>
@@ -78,7 +78,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                 />
                 <Label
                   htmlFor="dark"
-                  className="flex items-center rounded-sm justify-center p-2 hover:text-accent-foreground peer-data-[state=checked]:bg-background peer-data-[state=checked]:text-foreground peer-data-[state=checked]:shadow-sm cursor-pointer"
+                  className="flex items-center rounded justify-center p-2 hover:text-accent-foreground peer-data-[state=checked]:bg-background peer-data-[state=checked]:text-foreground peer-data-[state=checked]:shadow-sm cursor-pointer"
                 >
                   <Moon className="w-4 h-4" />
                 </Label>
@@ -91,7 +91,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                 />
                 <Label
                   htmlFor="system"
-                  className="flex items-center rounded-sm justify-center p-2 hover:text-accent-foreground peer-data-[state=checked]:bg-background peer-data-[state=checked]:text-foreground peer-data-[state=checked]:shadow-sm cursor-pointer"
+                  className="flex items-center rounded justify-center p-2 hover:text-accent-foreground peer-data-[state=checked]:bg-background peer-data-[state=checked]:text-foreground peer-data-[state=checked]:shadow-sm cursor-pointer"
                 >
                   <Monitor className="w-4 h-4" />
                 </Label>

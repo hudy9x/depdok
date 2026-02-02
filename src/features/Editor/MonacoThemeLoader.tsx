@@ -35,6 +35,7 @@ export function MonacoThemeLoader({ children }: { children: React.ReactNode }) {
 
     // Handle default VS Code themes natively
     if (targetTheme === 'vs' || targetTheme === 'vs-dark') {
+      console.log("Load default theme", targetTheme)
       monaco.editor.setTheme(targetTheme);
       return;
     }
@@ -42,6 +43,7 @@ export function MonacoThemeLoader({ children }: { children: React.ReactNode }) {
     // Dynamic import
     import(`@/themes/${targetTheme}.json`)
       .then((data) => {
+        console.log("Load custom theme", targetTheme)
         monaco.editor.defineTheme(targetTheme, data);
         monaco.editor.setTheme(targetTheme);
       })

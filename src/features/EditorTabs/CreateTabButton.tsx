@@ -33,7 +33,7 @@ export function CreateTabButton() {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <div
-          className="h-[35px] w-8 p-0 rounded-none border-x border-border hover:bg-background cursor-pointer flex items-center justify-center"
+          className="h-[35px] w-8 p-0 rounded-none border-r border-border hover:bg-background cursor-pointer flex items-center justify-center"
           title="Create new file"
           data-tauri-drag-region="false"
         >

@@ -9,8 +9,9 @@ export function registerPlantUMLLanguage(monaco: Monaco) {
     tokenizer: {
       root: [
         // Comments (single line ' and block /' '/ )
-        [/'/, 'comment', '@comment'],
-        [/\/'/, 'comment', '@comment_block'],
+        // Comments (single line ' and block /' '/ )
+        [/^\s*'.*$/, 'comment'],
+        // [/\/'/, 'comment', '@comment_block'],
 
         // Preprocessor
         [/[\@]startuml/, 'keyword'],

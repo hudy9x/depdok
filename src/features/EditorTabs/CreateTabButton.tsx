@@ -1,13 +1,16 @@
-import { Plus, FileText, CheckSquare, Image, Code } from 'lucide-react';
+import { Plus, FileText, CheckSquare, Image, Code, FolderOpen } from 'lucide-react';
 import { useSetAtom } from 'jotai';
 import { useNavigate } from 'react-router-dom';
+import { open } from '@tauri-apps/plugin-dialog';
+import { toast } from 'sonner';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
-import { createUntitledTabAtom } from '@/stores/TabStore';
+import { createUntitledTabAtom, createTabAtom } from '@/stores/TabStore';
 
 const fileTypes = [
   { extension: 'md', label: 'Markdown', icon: FileText, color: 'text-yellow-500' },
@@ -19,7 +22,33 @@ const fileTypes = [
 
 export function CreateTabButton() {
   const createUntitledTab = useSetAtom(createUntitledTabAtom);
+  const createTab = useSetAtom(createTabAtom);
   const navigate = useNavigate();
+
+  const handleOpenFile = async () => {
+    try {
+      const selected = await open({
+        multiple: false,
+        filters: [
+          {
+            name: "Documentation Files",
+            extensions: ["md", "mmd", "txt", "pu", "puml", "todo"],
+          },
+        ],
+      });
+
+      if (selected && typeof selected === "string") {
+        const fileName = selected.split("/").pop() || "Untitled";
+        createTab({ filePath: selected, fileName, switchTo: true });
+        if (window.location.pathname !== '/editor') {
+          navigate('/editor');
+        }
+      }
+    } catch (error) {
+      console.error("Error opening file:", error);
+      toast.error("Failed to open file");
+    }
+  };
 
   const handleCreateFile = (extension: string) => {
     createUntitledTab(`Untitled.${extension}`);
@@ -41,6 +70,11 @@ export function CreateTabButton() {
         </div>
       </DropdownMenuTrigger>
       <DropdownMenuContent side="bottom" align="start" className="w-48 z-[9999]">
+        <DropdownMenuItem onClick={handleOpenFile} className="cursor-pointer">
+          <FolderOpen className="w-4 h-4 mr-2 text-blue-500" />
+          <span>Open File...</span>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
         {fileTypes.map((type) => {
           const IconComponent = type.icon;
           return (

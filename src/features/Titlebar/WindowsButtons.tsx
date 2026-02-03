@@ -37,7 +37,7 @@ export function WindowsButtons() {
         className={`cursor-pointer w-[46px] h-full flex items-center justify-center text-foreground hover:bg-accent transition-colors ${!isFocused ? 'opacity-50' : ''
           }`}
       >
-        <Minus size={16} />
+        <Minus size={14} />
       </button>
       <button
         onClick={handleMaximize}
@@ -46,7 +46,7 @@ export function WindowsButtons() {
         className={`cursor-pointer w-[46px] h-full flex items-center justify-center text-foreground hover:bg-accent transition-colors ${!isFocused ? 'opacity-50' : ''
           }`}
       >
-        <Square size={14} />
+        <Square size={12} />
       </button>
       <button
         onClick={handleClose}
@@ -55,7 +55,7 @@ export function WindowsButtons() {
         className={`cursor-pointer w-[46px] h-full flex items-center justify-center text-foreground hover:bg-[#e81123] hover:text-white active:bg-[#c50f1f] transition-colors ${!isFocused ? 'opacity-50' : ''
           }`}
       >
-        <X size={16} />
+        <X size={14} />
       </button>
     </div>
   );

@@ -18,7 +18,7 @@ export function MacOSTitlebar({ left, center, right }: MacOSTitlebarProps) {
       </div>
 
       {/* Center - Tabs area */}
-      <div data-tauri-drag-region className="flex items-center justify-center h-full px-3 flex-1">
+      <div data-tauri-drag-region className="ml-[65px] flex items-center justify-center h-full px-3 flex-1">
         {/* {center || <span className="text-[13px] font-medium text-foreground/70 pointer-events-none">Depdok</span>} */}
         {center}
       </div>

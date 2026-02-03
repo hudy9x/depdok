@@ -28,9 +28,11 @@ export function Titlebar({ left, center, right }: TitlebarProps) {
 
   // Render platform-specific titlebar
   if (currentPlatform === 'macos') {
+    // For debugging: Force Windows titlebar
     return <MacOSTitlebar left={left} center={center} right={right} />;
+    // return <WindowsTitlebar left={left} center={center} right={right} />;
   }
 
   // Default to Windows titlebar for Windows and Linux
-  return <WindowsTitlebar />;
+  return <WindowsTitlebar left={left} center={center} right={right} />;
 }

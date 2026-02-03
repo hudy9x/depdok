@@ -18,7 +18,7 @@ export function EditorTabs() {
   useWindowDrag('[data-radix-scroll-area-viewport]');
 
   return (
-    <div className="ml-[65px] flex items-center h-[35px] w-full overflow-hidden" data-tauri-drag-region>
+    <div className="flex items-center h-[35px] w-full overflow-hidden" data-tauri-drag-region>
       {/* Back button on the left */}
       <Link to="/home">
         <ChevronLeft className={styleBackButton} />

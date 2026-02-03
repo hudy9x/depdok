@@ -72,7 +72,7 @@ export default function Home() {
   return (
     <main
       className={cn(
-        "fixed top-0 left-0 z-50 w-full h-full flex flex-col items-center justify-center bg-secondary",
+        "fixed top-0 left-0 z-50 w-full h-full flex flex-col items-center justify-center bg-background",
         "transition-opacity duration-600 delay-[200ms] ease-in-out fill-mode-forwards",
         isVisible ? "opacity-100" : "opacity-0"
       )}
@@ -81,8 +81,8 @@ export default function Home() {
 
       <Empty>
         <EmptyHeader>
-          <EmptyMedia variant="icon">
-            <FileText className="w-12 h-12" />
+          <EmptyMedia>
+            <img src="/app-icon.png" alt="App Icon" className="w-24 h-24 rounded-none" />
           </EmptyMedia>
           <EmptyTitle className="text-2xl font-bold">Welcome to Depdok</EmptyTitle>
           <EmptyDescription className="w-[440px]">

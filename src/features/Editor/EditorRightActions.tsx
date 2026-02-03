@@ -4,6 +4,12 @@ import { Settings, Columns2, Code, Eye } from "lucide-react";
 import { viewModeAtom } from "@/stores/EditorStore";
 import { viewModeSettingAtom } from "@/stores/SettingsStore";
 import { SettingsDialog } from "@/features/SettingsDialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export function EditorRightActions() {
   const [viewMode, setViewMode] = useAtom(viewModeAtom);
@@ -42,10 +48,29 @@ export function EditorRightActions() {
       <div className="flex items-center rounded-md divide-x divide-border">
 
         {/* View mode switcher */}
-
-        <Columns2 onClick={onSelectSidebySide} className={styleButtons + (isSidebySide ? 'opacity-100 bg-background/50' : '')} />
-        <Code onClick={onSelectEditorOnly} className={styleButtons + (isEditorOnly ? 'opacity-100 bg-background/50' : '')} />
-        <Eye onClick={onSelectPreviewOnly} className={styleButtons + (isPreviewOnly ? 'opacity-100 bg-background/50' : '')} />
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <div className={`${styleButtons} opacity-100 flex items-center justify-center`} title="Change View Mode">
+              {isSidebySide && <Columns2 className="w-4 h-4" />}
+              {isEditorOnly && <Code className="w-4 h-4" />}
+              {isPreviewOnly && <Eye className="w-4 h-4" />}
+            </div>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={onSelectSidebySide} className="gap-2 cursor-pointer">
+              <Columns2 className="w-4 h-4" />
+              <span>Side by Side</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={onSelectEditorOnly} className="gap-2 cursor-pointer">
+              <Code className="w-4 h-4" />
+              <span>Editor Only</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={onSelectPreviewOnly} className="gap-2 cursor-pointer">
+              <Eye className="w-4 h-4" />
+              <span>Preview Only</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
 
 
       </div>

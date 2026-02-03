@@ -82,7 +82,7 @@ export default function Editor() {
       // This prevents the effect from running when 'tabs' array changes (e.g. on close)
       // unless the URL ALSO changed.
 
-      const fileName = filePath.split("/").pop() || "Untitled";
+      const fileName = filePath.split(/[/\\]/).pop() || "Untitled";
       createTab({ filePath, fileName, switchTo: true });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

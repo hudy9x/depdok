@@ -162,7 +162,7 @@ export const updateTabPathAtom = atom(
   null,
   (_get, set, payload: { tabId: string; newPath: string }) => {
     const { tabId, newPath } = payload;
-    const fileName = newPath.split('/').pop() || 'Untitled';
+    const fileName = newPath.split(/[/\\]/).pop() || 'Untitled';
     const fileExtension = getFileExtension(fileName);
 
     set(updateTabAtom, {

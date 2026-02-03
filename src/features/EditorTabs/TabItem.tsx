@@ -62,7 +62,7 @@ export function TabItem({ tab }: TabItemProps) {
 
   const displayName = isDummyPath(tab.filePath)
     ? extractFilenameFromDummyPath(tab.filePath)
-    : tab.fileName;
+    : (tab.fileName?.split(/[/\\]/).pop() || tab.fileName);
 
   return (
     <>

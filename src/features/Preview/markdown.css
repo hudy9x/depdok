@@ -201,7 +201,7 @@
 
 .prose ol li::before {
   content: counter(my-item-counter);
-  color: var(--foreground);
+  color: var(--secondary-foreground);
   font-weight: 400;
   margin-right: 0.5rem;
   position: relative;
@@ -215,6 +215,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
 .prose ol li p {

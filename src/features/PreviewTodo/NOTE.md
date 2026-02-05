@@ -26,6 +26,7 @@ priorities:
     icon: '🟢'
 defaults:
   priority: medium
+mode: kanban
 ---
 
 # Todo {bg: "#3b82f6", order: 1}
@@ -94,6 +95,7 @@ priorities:
 defaults:
   priority: medium
   assignee: hudy
+mode: kanban
 ---
 ```
 
@@ -103,6 +105,7 @@ defaults:
 |-------|------|-------------|
 | `title` | string | Document title |
 | `description` | string | Document description |
+| `mode` | string | View mode: `kanban` or `week` |
 | `assignees` | array | List of assignee definitions |
 | `priorities` | object | Priority level definitions |
 | `defaults` | object | Default values for items |

@@ -12,9 +12,10 @@ import { useAutoSave } from "@/features/Editor/useAutoSave";
 
 interface SideBySideProps {
   initialContent: string;
+  enableFileWatcher?: boolean; // Enable file watcher in the editor panel
 }
 
-export function SideBySide({ initialContent }: SideBySideProps) {
+export function SideBySide({ initialContent, enableFileWatcher = false }: SideBySideProps) {
   const [content, setContent] = useState(initialContent);
   const editorState = useAtomValue(editorStateAtom);
   const { handleContentChange: handleAutoSave } = useAutoSave();
@@ -37,6 +38,7 @@ export function SideBySide({ initialContent }: SideBySideProps) {
           initialContent={content} // Use state content to sync back changes from Preview
           language={language}
           onContentChange={handleEditorChange}
+          enableFileWatcher={enableFileWatcher}
         />
       </Panel>
 

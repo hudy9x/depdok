@@ -25,9 +25,10 @@ interface MonacoEditorProps {
   initialContent: string;
   language: string;
   onContentChange?: (content: string) => void;
+  enableFileWatcher?: boolean; // Enable file watcher to detect external changes
 }
 
-export function MonacoEditor({ initialContent, language, onContentChange }: MonacoEditorProps) {
+export function MonacoEditor({ initialContent, language, onContentChange, enableFileWatcher = false }: MonacoEditorProps) {
   const [content, setContent] = useState(initialContent);
   const editorState = useAtomValue(editorStateAtom);
 
@@ -56,11 +57,14 @@ export function MonacoEditor({ initialContent, language, onContentChange }: Mona
   const handleContentReload = useCallback((newContent: string) => {
     setContent(newContent);
     onContentChange?.(newContent);
-  }, []);
+  }, [onContentChange]);
 
+  // Only enable file watcher if explicitly requested
+  // Editor mode: auto-reload without confirmation
   useFileWatcher({
-    filePath: editorState.filePath || "",
+    filePath: enableFileWatcher ? (editorState.filePath || "") : "",
     onContentReload: handleContentReload,
+    autoReload: true, // Always auto-reload in editor mode
   });
 
   const handleChange = (value: string | undefined) => {

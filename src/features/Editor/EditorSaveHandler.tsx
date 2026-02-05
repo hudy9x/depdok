@@ -5,6 +5,7 @@ import { save } from "@tauri-apps/plugin-dialog";
 import { toast } from "sonner";
 
 import { editorStateAtom, markAsSavedAtom } from "@/stores/EditorStore";
+import { isSavingAtom } from "@/stores/FileWatchStore";
 import { draftService } from "@/lib/indexeddb";
 import {
   activeTabAtom,
@@ -22,6 +23,7 @@ export function EditorSave() {
   const markAsSaved = useSetAtom(markAsSavedAtom);
   const updateTabPath = useSetAtom(updateTabPathAtom);
   const markTabAsSaved = useSetAtom(markTabAsSavedAtom);
+  const setIsSaving = useSetAtom(isSavingAtom);
 
   const handleSaveAs = async (currentPath: string) => {
     try {
@@ -51,6 +53,9 @@ export function EditorSave() {
         return;
       }
 
+      // Set flag to prevent file watcher from reacting
+      setIsSaving(true);
+
       // Write to new location
       await writeTextFile(selected, draft.content);
 
@@ -67,9 +72,13 @@ export function EditorSave() {
       markAsSaved();
 
       toast.success("File saved successfully");
+
+      // Clear flag after delay
+      setTimeout(() => setIsSaving(false), 1000);
     } catch (error) {
       console.error("Error in save-as:", error);
       toast.error("Failed to save file");
+      setIsSaving(false);
     }
   };
 
@@ -98,6 +107,9 @@ export function EditorSave() {
         contentToSave?.substring(0, 100)
       );
 
+      // Set flag to prevent file watcher from reacting
+      setIsSaving(true);
+
       await writeTextFile(editorState.filePath, contentToSave);
       await draftService.removeDraft(editorState.filePath);
 
@@ -108,9 +120,13 @@ export function EditorSave() {
       }
 
       // toast.success("File saved");
+
+      // Clear flag after delay
+      setTimeout(() => setIsSaving(false), 1000);
     } catch (error) {
       console.error("Error saving file:", error);
       toast.error("Failed to save file");
+      setIsSaving(false);
     }
   };
 

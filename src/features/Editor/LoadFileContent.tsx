@@ -62,7 +62,7 @@ export function LoadFileContent({
           onMetadataLoad({
             path: filePath,
             extension,
-            isDirty: !!draft, // Untitled files always start as dirty if they have content? Or just if draft exists.
+            isDirty: !!draft,
           });
         }
       } catch (error) {

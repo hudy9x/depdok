@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import MonacoEditorReact, { BeforeMount, OnMount } from "@monaco-editor/react";
 import { listen } from '@tauri-apps/api/event';
 import { useAtomValue } from "jotai";
@@ -11,6 +11,8 @@ import { editorThemeAtom } from "@/stores/SettingsStore";
 import { setupMermaidTheme } from '@/lib/monaco-theme';
 import { setupPlantUMLTheme } from '@/lib/monaco-theme';
 import { useAutoSave } from "./useAutoSave";
+import { useFileWatcher } from "@/hooks/useFileWatcher";
+import { editorStateAtom } from "@/stores/EditorStore";
 import {
   registerFormatAction,
   registerDuplicateLineAction,
@@ -27,6 +29,7 @@ interface MonacoEditorProps {
 
 export function MonacoEditor({ initialContent, language, onContentChange }: MonacoEditorProps) {
   const [content, setContent] = useState(initialContent);
+  const editorState = useAtomValue(editorStateAtom);
 
   // Theme logic
   // Theme logic
@@ -48,6 +51,17 @@ export function MonacoEditor({ initialContent, language, onContentChange }: Mona
   useEffect(() => {
     setContent(initialContent);
   }, [initialContent]);
+
+  // File watcher hook - reloads content when file changes externally
+  const handleContentReload = useCallback((newContent: string) => {
+    setContent(newContent);
+    onContentChange?.(newContent);
+  }, []);
+
+  useFileWatcher({
+    filePath: editorState.filePath || "",
+    onContentReload: handleContentReload,
+  });
 
   const handleChange = (value: string | undefined) => {
     if (value === undefined) return;

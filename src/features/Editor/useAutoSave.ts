@@ -1,3 +1,23 @@
+/**
+ * VISUAL FLOW: How isSaving flag prevents file watcher feedback loop
+ * 
+ * When app saves:
+ * 1. isSaving = true          ← Set flag
+ * 2. Write to disk            ← File changes
+ * 3. File watcher fires       ← Detects change
+ * 4. Check: isSaving? YES     ← See flag is true
+ * 5. Return early             ← IGNORE the event
+ * 6. (1 second later)
+ * 7. isSaving = false         ← Clear flag
+ * 
+ * When external app saves:
+ * 1. isSaving = false         ← Flag is false
+ * 2. External write to disk   ← File changes
+ * 3. File watcher fires       ← Detects change
+ * 4. Check: isSaving? NO      ← Flag is false
+ * 5. Proceed to reload        ← HANDLE the event
+ */
+
 import { useAtomValue, useSetAtom } from "jotai";
 import { useDebouncedCallback } from "use-debounce";
 import { writeTextFile } from "@tauri-apps/plugin-fs";
@@ -5,6 +25,7 @@ import { writeTextFile } from "@tauri-apps/plugin-fs";
 import { editorStateAtom, markAsDirtyAtom, markAsSavedAtom } from "@/stores/EditorStore";
 import { activeTabAtom, markTabAsDirtyAtom, markTabAsSavedAtom } from "@/stores/TabStore";
 import { autoSaveEnabledAtom, autoSaveDelayAtom } from "@/stores/SettingsStore";
+import { isSavingAtom } from "@/stores/FileWatchStore";
 import { draftService } from "@/lib/indexeddb";
 
 export function useAutoSave() {
@@ -17,6 +38,7 @@ export function useAutoSave() {
   const markAsSaved = useSetAtom(markAsSavedAtom);
   const markTabAsDirty = useSetAtom(markTabAsDirtyAtom);
   const markTabAsSaved = useSetAtom(markTabAsSavedAtom);
+  const setIsSaving = useSetAtom(isSavingAtom);
 
   // Debounced IndexedDB draft save (always happens)
   const debouncedSaveDraft = useDebouncedCallback(async (newContent: string) => {
@@ -35,6 +57,9 @@ export function useAutoSave() {
     if (!editorState.filePath || !autoSaveEnabled) return;
 
     try {
+      // Set flag to prevent file watcher from reacting to our own save
+      setIsSaving(true);
+
       await writeTextFile(editorState.filePath, newContent);
       await draftService.removeDraft(editorState.filePath);
       markAsSaved();
@@ -43,8 +68,14 @@ export function useAutoSave() {
       if (activeTab) {
         markTabAsSaved(activeTab.id);
       }
+
+      // Clear flag after a short delay to ensure file system events have settled
+      setTimeout(() => {
+        setIsSaving(false);
+      }, 1000);
     } catch (error) {
       console.error("Auto-save failed:", error);
+      setIsSaving(false);
     }
   }, autoSaveDelay);
 

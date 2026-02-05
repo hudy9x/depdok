@@ -57,6 +57,9 @@ pub fn run() {
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_store::Builder::default().build())
         .setup(|app| {
+            // Initialize file watcher state
+            app.manage(commands::file_watcher::init());
+            
             // Load saved window size from store
             let store = app.store("store.json").expect("Failed to get store");
             
@@ -164,6 +167,8 @@ pub fn run() {
             commands::git::switch_branch,
             commands::git::get_git_status,
             commands::git::git_pull,
+            commands::file_watcher::start_watching,
+            commands::file_watcher::stop_watching,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

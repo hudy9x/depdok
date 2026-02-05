@@ -53,8 +53,8 @@ pub fn start_watching(path: String, app: AppHandle) -> Result<(), String> {
                     match result {
                         Ok(events) => {
                             for event in events {
-                                // Check if this is a modify event
-                                if matches!(event.kind, EventKind::Modify(_)) {
+                                // Check if this is a relevant event (Modify, Create, or Remove)
+                                if matches!(event.kind, EventKind::Modify(_) | EventKind::Create(_) | EventKind::Remove(_)) {
                                     for event_path in &event.paths {
                                         // Check if this path matches our currently watched file
                                         let current_watched = current_path_clone.lock().ok()

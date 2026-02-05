@@ -5,6 +5,7 @@ import { useEffect, useRef } from "react";
 import { Titlebar } from "@/features/Titlebar";
 import { MonacoEditor } from "@/features/Editor/MonacoEditor";
 import { PreviewPanel } from "@/features/Preview/PreviewPanel";
+import { PreviewFileWatcher } from "@/features/Preview/PreviewFileWatcher";
 import { SideBySide } from "@/features/SidebySide";
 import { EditorRightActions } from "@/features/Editor/EditorRightActions";
 import { EditorTabs } from "@/features/EditorTabs";
@@ -20,6 +21,7 @@ import {
   createTabAtom,
   tabsAtom,
   switchTabAtom,
+  markTabAsSavedAtom,
 } from "@/stores/TabStore";
 import { getMonacoLanguage } from "@/lib/utils/getMonacoLanguage";
 
@@ -38,6 +40,16 @@ export default function Editor() {
   const [tabs] = useAtom(tabsAtom);
 
   const { handleContentChange: handleSaveContent } = useAutoSave();
+  const markTabAsSaved = useSetAtom(markTabAsSavedAtom);
+
+  // Handle external file changes (from file watcher)
+  // Just mark the tab as saved, DO NOT save back to disk (prevents loop)
+  // The content update is handled by the component's internal state
+  const handleExternalReload = (newContent: string) => {
+    if (activeTab) {
+      markTabAsSaved(activeTab.id);
+    }
+  };
 
   const filePath = searchParams.get("path") || "";
 
@@ -122,23 +134,35 @@ export default function Editor() {
           <div className="fixed top-[35px] h-[calc(100vh-35px)] left-0 w-full flex flex-col px-1.5 pb-1.5 bg-background">
             <div className="h-full w-full bg-background border border-border rounded-lg overflow-hidden shadow-lg">
               {viewMode === 'side-by-side' && (
-                <SideBySide initialContent={initialContent} />
+                <SideBySide
+                  initialContent={initialContent}
+                  enableFileWatcher={true}
+                />
               )}
 
               {viewMode === 'editor-only' && (
                 <MonacoEditor
                   initialContent={initialContent}
                   language={getMonacoLanguage(editorState.fileExtension)}
+                  enableFileWatcher={true}
                 />
               )}
 
               {viewMode === 'preview-only' && (
-                <PreviewPanel
+                <PreviewFileWatcher
                   content={initialContent}
-                  fileExtension={editorState.fileExtension}
-                  editable={true}
-                  onContentChange={handleSaveContent}
-                />
+                  enableFileWatcher={true}
+                  onContentReload={handleExternalReload}
+                >
+                  {(content) => (
+                    <PreviewPanel
+                      content={content}
+                      fileExtension={editorState.fileExtension}
+                      editable={true}
+                      onContentChange={handleSaveContent}
+                    />
+                  )}
+                </PreviewFileWatcher>
               )}
             </div>
 

@@ -60,7 +60,7 @@ export function DaySection({
             />
           ))
         ) : (
-          <p className="mt-3 text-sm text-muted-foreground italic px-4 py-4 bg-secondary border border-border border-dashed rounded-lg">
+          <p className="mt-3 text-sm text-muted-foreground italic px-4 py-4 bg-accent border border-border border-dashed rounded-lg">
             No tasks for this day
           </p>
         )}

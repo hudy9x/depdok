@@ -169,6 +169,7 @@ pub fn run() {
             commands::git::git_pull,
             commands::file_watcher::start_watching,
             commands::file_watcher::stop_watching,
+            commands::file_explorer::open_folder_dialog,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

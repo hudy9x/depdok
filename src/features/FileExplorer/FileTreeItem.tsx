@@ -63,9 +63,9 @@ export function FileTreeItem({
       <span className="flex-shrink-0 w-4 h-4 flex items-center justify-center">
         {node.isFolder ? (
           node.isOpen ? (
-            <FolderOpen fill='' className="w-4 h-4 text-blue-500" />
+            <FolderOpen fill='var(--accent)' className="w-4 h-4 text-primary" />
           ) : (
-            <Folder fill='' className="w-4 h-4 text-blue-500" />
+            <Folder fill='var(--primary)' className="w-4 h-4 text-primary" />
           )
         ) : (
           <FileIcon filename={node.name} className={`w-4 h-4 group-hover/file-tree-item:grayscale-0 ${isActive ? '' : 'grayscale'}`} />

@@ -36,6 +36,7 @@ export function FileTreeItem({
 
   return (
     <div
+      data-tauri-drag-region="false"
       className={cn(
         'group/file-tree-item flex items-center gap-2 px-2 py-1 cursor-pointer select-none text-sm',
         'hover:bg-accent/50 transition-colors text-muted-foreground',

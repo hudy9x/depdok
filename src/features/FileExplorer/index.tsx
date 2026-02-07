@@ -9,6 +9,7 @@ import { createTabAtom } from '@/stores/TabStore';
 import { Button } from '@/components/ui/button';
 
 import { useNavigate } from 'react-router-dom';
+import { useWindowDrag } from '@/hooks/useWindowDrag';
 
 export function FileExplorer() {
   const workspaceRoot = useAtomValue(workspaceRootAtom);
@@ -18,6 +19,7 @@ export function FileExplorer() {
   const createTab = useSetAtom(createTabAtom);
   const navigate = useNavigate();
   const hasLoadedRef = useRef(false);
+  const dragRef = useWindowDrag();
 
   // Auto-load persisted workspace on mount
   useEffect(() => {
@@ -88,7 +90,7 @@ export function FileExplorer() {
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div ref={dragRef as React.RefObject<HTMLDivElement>} className="flex flex-col h-full">
       <FileTree onFileOpen={handleFileOpen} />
     </div>
   );

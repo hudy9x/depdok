@@ -94,11 +94,11 @@ export function FileExplorer() {
 
   return (
     <div ref={dragRef as React.RefObject<HTMLDivElement>} className="flex flex-col h-full">
-      <FileContextMenu path={workspaceRoot} isFolder={true}>
-        <div className="flex-1">
-          <FileTree onFileOpen={handleFileOpen} />
-        </div>
-      </FileContextMenu>
+      {/* <FileContextMenu path={workspaceRoot} isFolder={true}> */}
+      <div className="flex-1">
+        <FileTree onFileOpen={handleFileOpen} />
+      </div>
+      {/* </FileContextMenu> */}
       <FileOperationDialogs />
     </div>
   );

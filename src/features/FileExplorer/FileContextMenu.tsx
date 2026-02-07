@@ -3,9 +3,6 @@ import {
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuSeparator,
-  ContextMenuSub,
-  ContextMenuSubContent,
-  ContextMenuSubTrigger,
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
 import {
@@ -17,12 +14,13 @@ import {
   ExternalLink,
   ClipboardCopy,
 } from 'lucide-react';
-import { useSetAtom } from 'jotai';
+import { useSetAtom, useAtomValue } from 'jotai';
 import {
   openRenameDialogAtom,
   openCreateDialogAtom,
   openDeleteDialogAtom,
   refreshDirectoryAtom,
+  workspaceRootAtom,
 } from './store';
 import { copyNode, revealFile } from './api';
 import { writeText } from '@tauri-apps/plugin-clipboard-manager';
@@ -66,16 +64,35 @@ export function FileContextMenu({ path, isFolder, children }: FileContextMenuPro
     }
   };
 
+  /* eslint-disable @typescript-eslint/no-unused-vars */
+  const workspaceRoot = useAtomValue(workspaceRootAtom);
+  /* eslint-enable @typescript-eslint/no-unused-vars */
+
   const handleCopyPath = async () => {
     await writeText(path);
     toast.success('Path copied to clipboard');
   };
 
   const handleCopyRelativePath = async () => {
-    // Ideally we subtract workspace root, but for now just copy filename or full path
-    // Let's implement full path copy for now as consistent behavior
-    await writeText(path);
-    toast.success('Path copied to clipboard');
+    if (!workspaceRoot) {
+      // Fallback to full path if no workspace root
+      await writeText(path);
+      toast.success('Path copied to clipboard');
+      return;
+    }
+
+    // specific relative path logic
+    let relativePath = path;
+    if (path.startsWith(workspaceRoot)) {
+      relativePath = path.substring(workspaceRoot.length);
+      // Remove leading slash/backslash if present
+      if (relativePath.startsWith('/') || relativePath.startsWith('\\')) {
+        relativePath = relativePath.substring(1);
+      }
+    }
+
+    await writeText(relativePath);
+    toast.success('Relative path copied to clipboard');
   };
 
   const handleReveal = async () => {
@@ -113,18 +130,14 @@ export function FileContextMenu({ path, isFolder, children }: FileContextMenuPro
           Reveal in Folder
         </ContextMenuItem>
         <ContextMenuSeparator />
-        <ContextMenuSub>
-          <ContextMenuSubTrigger>
-            <ClipboardCopy className="mr-2 h-4 w-4" />
-            Copy Path
-          </ContextMenuSubTrigger>
-          <ContextMenuSubContent>
-            <ContextMenuItem onClick={handleCopyPath}>
-              Copy Full Path
-            </ContextMenuItem>
-            {/* Add Relative Path logic if workspace root is available contextually */}
-          </ContextMenuSubContent>
-        </ContextMenuSub>
+        <ContextMenuItem onClick={handleCopyRelativePath}>
+          <ClipboardCopy className="mr-2 h-4 w-4" />
+          Copy Relative Path
+        </ContextMenuItem>
+        <ContextMenuItem onClick={handleCopyPath}>
+          <ClipboardCopy className="mr-2 h-4 w-4" />
+          Copy Full Path
+        </ContextMenuItem>
         <ContextMenuSeparator />
         <ContextMenuItem
           onClick={() => openDeleteDialog(path)}

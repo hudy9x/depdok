@@ -18,27 +18,37 @@ export async function openFolderDialog(): Promise<string | null> {
 }
 
 export async function listDirectory(path: string): Promise<FileEntry[]> {
-  try {
-    const result = await invoke<FileEntry[]>('list_dir', { path });
-    return result;
-  } catch (error) {
-    console.error('Failed to list directory:', error);
-    throw error;
-  }
+  return await invoke('list_dir', { path });
+}
+
+export async function readFileContent(path: string): Promise<string> {
+  return await invoke('read_file_content', { path });
+}
+
+export async function writeFileContent(path: string, content: string): Promise<void> {
+  return await invoke('write_file_content', { path, content });
+}
+
+export async function createDirectory(path: string): Promise<void> {
+  return await invoke('create_directory', { path });
 }
 
 export async function createFile(path: string): Promise<void> {
-  await invoke('create_file', { path });
-}
-
-export async function createFolder(path: string): Promise<void> {
-  await invoke('create_directory', { path });
+  return await invoke('create_file', { path });
 }
 
 export async function deleteNode(path: string): Promise<void> {
-  await invoke('delete_node', { path });
+  return await invoke('delete_node', { path });
 }
 
 export async function renameNode(oldPath: string, newPath: string): Promise<void> {
-  await invoke('rename_node', { oldPath, newPath });
+  return await invoke('rename_node', { oldPath, newPath });
+}
+
+export async function copyNode(source: string, destination: string): Promise<void> {
+  return await invoke('copy_node', { source, destination });
+}
+
+export async function revealFile(path: string): Promise<void> {
+  return await invoke('reveal_file', { path });
 }

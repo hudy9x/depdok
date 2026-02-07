@@ -162,6 +162,8 @@ pub fn run() {
             commands::files::create_file,
             commands::files::delete_node,
             commands::files::rename_node,
+            commands::files::copy_node,
+            commands::files::reveal_file,
             commands::git::get_current_branch,
             commands::git::get_all_branches,
             commands::git::switch_branch,

@@ -1,6 +1,26 @@
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
+use std::process::Command;
+use fs_extra;
+
+#[cfg(target_os = "macos")]
+fn show_in_finder(path: &str) {
+    Command::new("open")
+        .arg("-R")
+        .arg(path)
+        .spawn()
+        .unwrap();
+}
+
+#[cfg(target_os = "windows")]
+fn show_in_explorer(path: &str) {
+    Command::new("explorer")
+        .arg("/select,")
+        .arg(path)
+        .spawn()
+        .unwrap();
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FileEntry {
@@ -8,6 +28,15 @@ pub struct FileEntry {
     path: String,
     is_dir: bool,
     children: Option<Vec<FileEntry>>,
+}
+
+#[tauri::command]
+pub fn reveal_file(path: &str) -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    show_in_finder(path);
+    #[cfg(target_os = "windows")]
+    show_in_explorer(path);
+    Ok(())
 }
 
 #[tauri::command]
@@ -96,4 +125,18 @@ pub fn delete_node(path: &str) -> Result<(), String> {
 #[tauri::command]
 pub fn rename_node(old_path: &str, new_path: &str) -> Result<(), String> {
     fs::rename(old_path, new_path).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn copy_node(source: &str, destination: &str) -> Result<(), String> {
+    let source_path = Path::new(source);
+    if source_path.is_dir() {
+        // Recursive copy for directory
+        let options = fs_extra::dir::CopyOptions::new().content_only(true);
+        fs_extra::dir::copy(source, destination, &options).map_err(|e| e.to_string())?;
+    } else {
+        // File copy
+        fs::copy(source, destination).map_err(|e| e.to_string())?;
+    }
+    Ok(())
 }

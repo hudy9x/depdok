@@ -39,10 +39,36 @@ export const flattenedTreeAtom = atom<FlatTreeNode[]>((get) => {
   const treeData = get(fileTreeDataAtom);
 
   if (!root || !treeData[root]) {
+    // Return just the root node if no children yet (or empty)
+    if (root) {
+      const rootName = root.split(/[/\\]/).pop() || root;
+      return [{
+        id: root,
+        name: rootName,
+        path: root,
+        depth: 0,
+        isFolder: true,
+        isOpen: true,
+        parentPath: null,
+      }];
+    }
     return [];
   }
 
-  return flattenTree(treeData[root], expandedFolders, treeData);
+  const rootName = root.split(/[/\\]/).pop() || root;
+  const rootNode: FlatTreeNode = {
+    id: root,
+    name: rootName,
+    path: root,
+    depth: 0,
+    isFolder: true,
+    isOpen: true, // Always expanded for now, or use expandedFolders.has(root)
+    parentPath: null,
+  };
+
+  // We shift depths of children by 1 because root is now depth 0
+  const children = flattenTree(treeData[root], expandedFolders, treeData, 1, root);
+  return [rootNode, ...children];
 });
 
 // Action: Open workspace
@@ -122,3 +148,27 @@ export const isFileExplorerVisibleAtom = atomWithStorage<boolean>(
   'depdok-file-explorer-visible',
   true
 );
+
+// Dialog States
+export type FileOperation = {
+  isOpen: boolean;
+  path: string | null; // The path of the node being operated on
+  type?: 'file' | 'folder'; // For create operations
+};
+
+export const renamingNodeAtom = atom<FileOperation>({ isOpen: false, path: null });
+export const creatingNodeAtom = atom<FileOperation>({ isOpen: false, path: null }); // path is the parent folder
+export const deletingNodeAtom = atom<FileOperation>({ isOpen: false, path: null });
+
+// Helper actions to open dialogs
+export const openRenameDialogAtom = atom(null, (_get, set, path: string) => {
+  set(renamingNodeAtom, { isOpen: true, path });
+});
+
+export const openCreateDialogAtom = atom(null, (_get, set, { path, type }: { path: string; type: 'file' | 'folder' }) => {
+  set(creatingNodeAtom, { isOpen: true, path, type });
+});
+
+export const openDeleteDialogAtom = atom(null, (_get, set, path: string) => {
+  set(deletingNodeAtom, { isOpen: true, path });
+});

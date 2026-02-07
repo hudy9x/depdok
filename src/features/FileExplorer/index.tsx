@@ -10,6 +10,8 @@ import { Button } from '@/components/ui/button';
 
 import { useNavigate } from 'react-router-dom';
 import { useWindowDrag } from '@/hooks/useWindowDrag';
+import { FileOperationDialogs } from './FileOperationDialogs';
+import { FileContextMenu } from './FileContextMenu';
 
 export function FileExplorer() {
   const workspaceRoot = useAtomValue(workspaceRootAtom);
@@ -20,6 +22,7 @@ export function FileExplorer() {
   const navigate = useNavigate();
   const hasLoadedRef = useRef(false);
   const dragRef = useWindowDrag();
+
 
   // Auto-load persisted workspace on mount
   useEffect(() => {
@@ -91,7 +94,12 @@ export function FileExplorer() {
 
   return (
     <div ref={dragRef as React.RefObject<HTMLDivElement>} className="flex flex-col h-full">
-      <FileTree onFileOpen={handleFileOpen} />
+      <FileContextMenu path={workspaceRoot} isFolder={true}>
+        <div className="flex-1">
+          <FileTree onFileOpen={handleFileOpen} />
+        </div>
+      </FileContextMenu>
+      <FileOperationDialogs />
     </div>
   );
 }

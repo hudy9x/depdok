@@ -2,6 +2,7 @@ import { ChevronRight, ChevronDown, Folder, FolderOpen } from 'lucide-react';
 import { FlatTreeNode } from './utils';
 import { cn } from '@/lib/utils';
 import { FileIcon } from '@/components/FileIcon';
+import { FileContextMenu } from './FileContextMenu';
 
 interface FileTreeItemProps {
   node: FlatTreeNode;
@@ -35,46 +36,48 @@ export function FileTreeItem({
   };
 
   return (
-    <div
-      data-tauri-drag-region="false"
-      className={cn(
-        'group/file-tree-item flex items-center gap-2 px-2 py-1 cursor-pointer select-none text-sm',
-        'hover:bg-accent/50 transition-colors text-muted-foreground',
-        // isSelected && 'bg-accent text-foreground',
-        isActive && 'bg-primary/20 text-foreground'
-      )}
-      style={{ paddingLeft: `${node.depth * 16 + 8}px` }}
-      onClick={handleClick}
-      onDoubleClick={handleDoubleClick}
-    >
-      {/* Chevron for folders */}
-      {node.isFolder ? (
-        <span className="flex-shrink-0 w-4 h-4">
-          {node.isOpen ? (
-            <ChevronDown className="w-4 h-4" />
+    <FileContextMenu path={node.path} isFolder={node.isFolder}>
+      <div
+        data-tauri-drag-region="false"
+        className={cn(
+          'group/file-tree-item flex items-center gap-2 px-2 py-1 cursor-pointer select-none text-sm',
+          'hover:bg-accent/50 transition-colors text-muted-foreground',
+          // isSelected && 'bg-accent text-foreground',
+          isActive && 'bg-primary/20 text-foreground'
+        )}
+        style={{ paddingLeft: `${node.depth * 16 + 8}px` }}
+        onClick={handleClick}
+        onDoubleClick={handleDoubleClick}
+      >
+        {/* Chevron for folders */}
+        {node.isFolder ? (
+          <span className="flex-shrink-0 w-4 h-4">
+            {node.isOpen ? (
+              <ChevronDown className="w-4 h-4" />
+            ) : (
+              <ChevronRight className="w-4 h-4" />
+            )}
+          </span>
+        ) : (
+          <span className="flex-shrink-0 w-4 h-4" />
+        )}
+
+        {/* Icon */}
+        <span className="flex-shrink-0 w-4 h-4 flex items-center justify-center">
+          {node.isFolder ? (
+            node.isOpen ? (
+              <FolderOpen fill='var(--accent)' className="w-4 h-4 text-primary" />
+            ) : (
+              <Folder fill='var(--primary)' className="w-4 h-4 text-primary" />
+            )
           ) : (
-            <ChevronRight className="w-4 h-4" />
+            <FileIcon filename={node.name} className={`w-4 h-4 group-hover/file-tree-item:grayscale-0 ${isActive ? '' : 'grayscale'}`} />
           )}
         </span>
-      ) : (
-        <span className="flex-shrink-0 w-4 h-4" />
-      )}
 
-      {/* Icon */}
-      <span className="flex-shrink-0 w-4 h-4 flex items-center justify-center">
-        {node.isFolder ? (
-          node.isOpen ? (
-            <FolderOpen fill='var(--accent)' className="w-4 h-4 text-primary" />
-          ) : (
-            <Folder fill='var(--primary)' className="w-4 h-4 text-primary" />
-          )
-        ) : (
-          <FileIcon filename={node.name} className={`w-4 h-4 group-hover/file-tree-item:grayscale-0 ${isActive ? '' : 'grayscale'}`} />
-        )}
-      </span>
-
-      {/* Name */}
-      <span className="truncate">{node.name}</span>
-    </div>
+        {/* Name */}
+        <span className="truncate">{node.name}</span>
+      </div>
+    </FileContextMenu>
   );
 }

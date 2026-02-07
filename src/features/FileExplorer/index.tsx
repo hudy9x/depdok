@@ -8,12 +8,15 @@ import { openFolderDialog } from './api';
 import { createTabAtom } from '@/stores/TabStore';
 import { Button } from '@/components/ui/button';
 
+import { useNavigate } from 'react-router-dom';
+
 export function FileExplorer() {
   const workspaceRoot = useAtomValue(workspaceRootAtom);
   const isLoading = useAtomValue(isLoadingAtom);
   const fileTreeData = useAtomValue(fileTreeDataAtom);
   const openWorkspace = useSetAtom(openWorkspaceAtom);
   const createTab = useSetAtom(createTabAtom);
+  const navigate = useNavigate();
   const hasLoadedRef = useRef(false);
 
   // Auto-load persisted workspace on mount
@@ -48,6 +51,7 @@ export function FileExplorer() {
   const handleFileOpen = (filePath: string) => {
     const fileName = filePath.split(/[/\\]/).pop() || 'Untitled';
     createTab({ filePath, fileName, switchTo: true });
+    navigate('/editor');
   };
 
   const handleOpenFolder = async () => {

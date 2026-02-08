@@ -2,7 +2,7 @@ name: Handle New Release
 
 on:
   release:
-    types: [published] # Triggers when a release is officially published
+    types: [published]
 
 jobs:
   do-something:

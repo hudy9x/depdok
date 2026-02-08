@@ -60,6 +60,9 @@ pub fn run() {
             // Initialize file watcher state
             app.manage(commands::file_watcher::init());
             
+            // Initialize file search state
+            app.manage(commands::file_search::init());
+            
             // Load saved window size from store
             let store = app.store("store.json").expect("Failed to get store");
             
@@ -172,6 +175,8 @@ pub fn run() {
             commands::file_watcher::start_watching,
             commands::file_watcher::stop_watching,
             commands::file_explorer::open_folder_dialog,
+            commands::file_search::index_workspace_files,
+            commands::file_search::fuzzy_search_files,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -163,15 +163,19 @@ export function FileContextMenu({ path, isFolder, children }: FileContextMenuPro
     <ContextMenu>
       <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
       <ContextMenuContent className="w-56">
-        <ContextMenuItem onClick={handleCreateFile}>
-          <FilePlus className="mr-2 h-4 w-4" />
-          New File
-        </ContextMenuItem>
-        <ContextMenuItem onClick={handleCreateFolder}>
-          <FolderPlus className="mr-2 h-4 w-4" />
-          New Folder
-        </ContextMenuItem>
-        <ContextMenuSeparator />
+        {isFolder && (
+          <>
+            <ContextMenuItem onClick={handleCreateFile}>
+              <FilePlus className="mr-2 h-4 w-4" />
+              New File
+            </ContextMenuItem>
+            <ContextMenuItem onClick={handleCreateFolder}>
+              <FolderPlus className="mr-2 h-4 w-4" />
+              New Folder
+            </ContextMenuItem>
+            <ContextMenuSeparator />
+          </>
+        )}
         <ContextMenuItem onClick={() => openRenameDialog(path)}>
           <Pencil className="mr-2 h-4 w-4" />
           Rename

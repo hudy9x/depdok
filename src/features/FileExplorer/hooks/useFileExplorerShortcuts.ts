@@ -2,6 +2,8 @@ import { useAtomValue, useSetAtom } from 'jotai';
 import {
   workspaceRootAtom,
   selectedPathsAtom,
+  renamingNodeAtom,
+  creatingNodeAtom,
 } from '../store';
 import { useFileOperations } from '../useFileOperations';
 
@@ -9,9 +11,16 @@ export function useFileExplorerShortcuts() {
   const workspaceRoot = useAtomValue(workspaceRootAtom);
   const selectedPaths = useAtomValue(selectedPathsAtom);
   const setSelectedPaths = useSetAtom(selectedPathsAtom);
+  const renaming = useAtomValue(renamingNodeAtom);
+  const creating = useAtomValue(creatingNodeAtom);
   const { cut, copy, paste, deleteItems, clearClipboard } = useFileOperations();
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    // If a dialog is open (renaming or creating), don't trigger shortcuts
+    if (renaming.isOpen || creating.isOpen) {
+      return;
+    }
+
     // Check modifiers
     const isCmdOrCtrl = e.metaKey || e.ctrlKey;
 

@@ -1,5 +1,5 @@
 import { useAtomValue, useSetAtom } from 'jotai';
-import { FilePlus, FolderPlus, ListCollapse } from 'lucide-react';
+import { FilePlus, FolderPlus, SquareEqual } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   workspaceRootAtom,
@@ -43,7 +43,7 @@ export function ExplorerHeader() {
           <FolderPlus className="h-3.5 w-3.5" />
         </Button>
         <Button variant="ghost" size="icon" className="h-6 w-6" onClick={handleCollapseAll} title="Collapse All">
-          <ListCollapse className="h-3.5 w-3.5" />
+          <SquareEqual className="h-3.5 w-3.5" />
         </Button>
       </div>
     </div>

@@ -2,10 +2,14 @@
 
 This comprehensive guide will teach you how to build a fully functional file explorer from scratch using Tauri and React. We will avoid complex virtualization libraries like `react-virtuoso` and use simple, understandable React components.
 
+
+
 ## Prerequisites
 - Basic knowledge of Rust and React.
 - A Tauri project set up (`npm create tauri-app@latest`).
 - State management library: `jotai` (Simple, flexible, and atomic).
+
+
 
 ## Overview
 
@@ -35,9 +39,9 @@ We will build a File Explorer that bridges the gap between the OS file system (R
 ## Outline
 
 1.  **[Part 1: Architecture & State Management](#part-1-architecture--state-management-global-config)**
-    -   Setting up global stores for selection, expansion, and clipboard.
+-   Setting up global stores for selection, expansion, and clipboard.
 2.  **[Part 2: Backend Setup (Rust)](#part-2-backend-setup-rust)**
-    -   Implementing secure filesystem commands.
+-   Implementing secure filesystem commands.
 3.  **[Part 3: The Recursive File Tree (Frontend)](#part-3-the-recursive-file-tree-frontend)**
     -   Building a component that can render infinite folders.
 4.  **[Part 4: File Operations (CRUD)](#part-4-file-operations-crud)**

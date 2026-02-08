@@ -39,36 +39,11 @@ export const flattenedTreeAtom = atom<FlatTreeNode[]>((get) => {
   const treeData = get(fileTreeDataAtom);
 
   if (!root || !treeData[root]) {
-    // Return just the root node if no children yet (or empty)
-    if (root) {
-      const rootName = root.split(/[/\\]/).pop() || root;
-      return [{
-        id: root,
-        name: rootName,
-        path: root,
-        depth: 0,
-        isFolder: true,
-        isOpen: true,
-        parentPath: null,
-      }];
-    }
     return [];
   }
 
-  const rootName = root.split(/[/\\]/).pop() || root;
-  const rootNode: FlatTreeNode = {
-    id: root,
-    name: rootName,
-    path: root,
-    depth: 0,
-    isFolder: true,
-    isOpen: true, // Always expanded for now, or use expandedFolders.has(root)
-    parentPath: null,
-  };
-
-  // We shift depths of children by 1 because root is now depth 0
-  const children = flattenTree(treeData[root], expandedFolders, treeData, 1, root);
-  return [rootNode, ...children];
+  // Flatten the children of the root folder, starting at depth 0
+  return flattenTree(treeData[root], expandedFolders, treeData, 0, root);
 });
 
 // Action: Open workspace

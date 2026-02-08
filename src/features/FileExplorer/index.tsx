@@ -1,32 +1,26 @@
 import { useEffect, useRef } from 'react';
 import { useAtomValue, useSetAtom } from 'jotai';
 import { listen } from '@tauri-apps/api/event';
-import { FolderOpen } from 'lucide-react';
-import { FileTree } from './FileTree';
 import {
   workspaceRootAtom,
   openWorkspaceAtom,
   isLoadingAtom,
   fileTreeDataAtom,
-  selectedPathsAtom
+  selectedPathsAtom,
 } from './store';
 import { openFolderDialog } from './api';
-import { createTabAtom } from '@/stores/TabStore';
-import { Button } from '@/components/ui/button';
 
-import { useNavigate } from 'react-router-dom';
 import { useWindowDrag } from '@/hooks/useWindowDrag';
 import { FileOperationDialogs } from './FileOperationDialogs';
-import { FileContextMenu } from './FileContextMenu';
 import { useFileOperations } from './useFileOperations';
+import { EmptyExplorer } from './EmptyExplorer';
+import { ExplorerView } from './ExplorerView';
 
 export function FileExplorer() {
   const workspaceRoot = useAtomValue(workspaceRootAtom);
   const isLoading = useAtomValue(isLoadingAtom);
   const fileTreeData = useAtomValue(fileTreeDataAtom);
   const openWorkspace = useSetAtom(openWorkspaceAtom);
-  const createTab = useSetAtom(createTabAtom);
-  const navigate = useNavigate();
   const hasLoadedRef = useRef(false);
   const dragRef = useWindowDrag();
 
@@ -64,23 +58,6 @@ export function FileExplorer() {
     };
   }, [openWorkspace]);
 
-  const handleFileOpen = (filePath: string, options?: { isPreview?: boolean }) => {
-    const fileName = filePath.split(/[/\\]/).pop() || 'Untitled';
-    createTab({ filePath, fileName, switchTo: true, isPreview: options?.isPreview });
-    navigate('/editor');
-  };
-
-  const handleOpenFolder = async () => {
-    const folderPath = await openFolderDialog();
-    if (folderPath) {
-      try {
-        await openWorkspace(folderPath);
-      } catch (error) {
-        console.error('Failed to open workspace:', error);
-      }
-    }
-  };
-
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -90,17 +67,7 @@ export function FileExplorer() {
   }
 
   if (!workspaceRoot) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full gap-4 p-4">
-        <FolderOpen className="w-12 h-12 text-muted-foreground" />
-        <p className="text-sm text-muted-foreground text-center">
-          No folder opened
-        </p>
-        <Button onClick={handleOpenFolder} variant="outline" size="sm">
-          Open Folder
-        </Button>
-      </div>
-    );
+    return <EmptyExplorer />;
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -187,11 +154,10 @@ export function FileExplorer() {
       onKeyDown={handleKeyDown}
     >
       {/* <FileContextMenu path={workspaceRoot} isFolder={true}> */}
-      <div className="flex-1">
-        <FileTree onFileOpen={handleFileOpen} />
-      </div>
+      <ExplorerView />
       {/* </FileContextMenu> */}
       <FileOperationDialogs />
     </div>
   );
 }
+

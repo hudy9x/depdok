@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 import { TodoItem, TodoConfig, TodoItemMetadata } from "../todoRenderer";
 import { TodoItemActions } from "../TodoItemActions";
 import { Flag } from "lucide-react";
-import { format } from "date-fns";
+// import { format } from "date-fns";
 
 interface WeekTaskItemProps {
   item: TodoItem;
@@ -31,9 +31,7 @@ export function WeekTaskItem({
   onRemove,
 }: WeekTaskItemProps) {
   // Extract time from due date if available
-  const timeStr = item.metadata?.due
-    ? format(new Date(item.metadata.due), "HH:mm")
-    : "";
+
 
   // Get priority info
   const priority = item.metadata?.priority;

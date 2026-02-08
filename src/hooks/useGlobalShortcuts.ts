@@ -3,7 +3,7 @@ import { useAtom } from 'jotai';
 import { isFileExplorerVisibleAtom } from '@/features/FileExplorer/store';
 
 export function useGlobalShortcuts() {
-  const [isFileExplorerVisible, setIsFileExplorerVisible] = useAtom(isFileExplorerVisibleAtom);
+  const [, setIsFileExplorerVisible] = useAtom(isFileExplorerVisibleAtom);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

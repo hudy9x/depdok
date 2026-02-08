@@ -74,9 +74,9 @@ pub fn start_watching(path: String, app: AppHandle) -> Result<(), String> {
                                 }
                             }
                         }
-                        Err(errors) => {
+                        Err(_errors) => {
                             #[cfg(debug_assertions)]
-                            eprintln!("Watch error: {:?}", errors);
+                            eprintln!("Watch error: {:?}", _errors);
                         }
                     }
                 },
@@ -120,9 +120,9 @@ pub fn stop_watching(app: AppHandle) -> Result<(), String> {
     
     let mut current = state.current_path.lock().map_err(|e| e.to_string())?;
     
-    if let Some(path) = current.take() {
+    if let Some(_path) = current.take() {
         #[cfg(debug_assertions)]
-        println!("Stopped watching: {}", path);
+        println!("Stopped watching: {}", _path);
     }
     
     Ok(())

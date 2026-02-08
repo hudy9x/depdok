@@ -54,7 +54,7 @@ export default function Editor() {
   // Handle external file changes (from file watcher)
   // Just mark the tab as saved, DO NOT save back to disk (prevents loop)
   // The content update is handled by the component's internal state
-  const handleExternalReload = (newContent: string) => {
+  const handleExternalReload = (_newContent: string) => {
     if (activeTab) {
       markTabAsSaved(activeTab.id);
     }

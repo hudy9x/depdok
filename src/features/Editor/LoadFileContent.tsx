@@ -1,7 +1,7 @@
 import { useEffect, useState, ReactNode } from "react";
 import { readTextFile } from "@tauri-apps/plugin-fs";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+// import { Loader2 } from "lucide-react";
 import { draftService } from "@/lib/indexeddb";
 
 interface LoadFileContentProps {

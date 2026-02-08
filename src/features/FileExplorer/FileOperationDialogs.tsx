@@ -16,7 +16,6 @@ import {
   creatingNodeAtom,
   deletingNodeAtom,
   refreshDirectoryAtom,
-  openWorkspaceAtom,
   workspaceRootAtom,
 } from './store';
 import {
@@ -33,7 +32,7 @@ export function FileOperationDialogs() {
   const [deleting, setDeleting] = useAtom(deletingNodeAtom);
   const refreshDirectory = useSetAtom(refreshDirectoryAtom);
   const [workspaceRoot] = useAtom(workspaceRootAtom);
-  const openWorkspace = useSetAtom(openWorkspaceAtom);
+  // const openWorkspace = useSetAtom(openWorkspaceAtom);
   const [tabs] = useAtom(tabsAtom);
   const closeTab = useSetAtom(closeTabAtom);
 

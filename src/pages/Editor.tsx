@@ -30,6 +30,7 @@ import { getMonacoLanguage } from "@/lib/utils/getMonacoLanguage";
 
 import { useAutoSave } from "@/features/Editor/useAutoSave";
 import { FileSearchDialog } from "@/features/FileSearchDialog";
+import { useGlobalShortcuts } from "@/hooks/useGlobalShortcuts";
 
 export default function Editor() {
   const [searchParams] = useSearchParams();
@@ -43,6 +44,9 @@ export default function Editor() {
   const [tabs] = useAtom(tabsAtom);
   const isFileExplorerVisible = useAtomValue(isFileExplorerVisibleAtom);
   const fileExplorerPanelRef = useRef<ImperativePanelHandle>(null);
+
+  // Initialize global shortcuts (e.g. Cmd+B to toggle explorer)
+  useGlobalShortcuts();
 
   const { handleContentChange: handleSaveContent } = useAutoSave();
   const markTabAsSaved = useSetAtom(markTabAsSavedAtom);

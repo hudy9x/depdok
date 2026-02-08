@@ -3,7 +3,7 @@ import { Virtuoso } from 'react-virtuoso';
 import { FileTreeItem } from './FileTreeItem';
 import {
   flattenedTreeAtom,
-  selectedItemAtom,
+  selectedPathsAtom,
   toggleFolderAtom,
   selectItemAtom,
 } from './store';
@@ -15,7 +15,10 @@ interface FileTreeProps {
 
 export function FileTree({ onFileOpen }: FileTreeProps) {
   const flatTree = useAtomValue(flattenedTreeAtom);
-  const selectedItem = useAtomValue(selectedItemAtom);
+  /* eslint-disable @typescript-eslint/no-unused-vars */
+  const selectedPaths = useAtomValue(selectedPathsAtom);
+  /* eslint-enable @typescript-eslint/no-unused-vars */
+
   const activeTab = useAtomValue(activeTabAtom);
   const toggleFolder = useSetAtom(toggleFolderAtom);
   const selectItem = useSetAtom(selectItemAtom);
@@ -24,8 +27,10 @@ export function FileTree({ onFileOpen }: FileTreeProps) {
     toggleFolder(path);
   };
 
-  const handleSelect = (path: string) => {
-    selectItem(path);
+  const handleSelect = (path: string, event?: React.MouseEvent) => {
+    const multiSelect = event?.metaKey || event?.ctrlKey; // Command on Mac, Ctrl on Windows
+    const rangeSelect = event?.shiftKey;
+    selectItem({ path, multiSelect, rangeSelect });
   };
 
   const handleDoubleClick = (path: string) => {
@@ -50,7 +55,7 @@ export function FileTree({ onFileOpen }: FileTreeProps) {
           <FileTreeItem
             key={node.id}
             node={node}
-            isSelected={selectedItem === node.path}
+            isSelected={selectedPaths.has(node.path)}
             isActive={activeTab?.filePath === node.path}
             onToggle={handleToggle}
             onSelect={handleSelect}

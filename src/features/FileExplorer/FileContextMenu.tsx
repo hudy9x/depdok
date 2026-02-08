@@ -13,18 +13,21 @@ import {
   Copy,
   ExternalLink,
   ClipboardCopy,
+  Scissors,
+  ClipboardPaste,
 } from 'lucide-react';
 import { useSetAtom, useAtomValue } from 'jotai';
 import {
   openRenameDialogAtom,
   openCreateDialogAtom,
-  openDeleteDialogAtom,
   refreshDirectoryAtom,
   workspaceRootAtom,
+  selectedPathsAtom,
 } from './store';
 import { copyNode, revealFile } from './api';
 import { writeText } from '@tauri-apps/plugin-clipboard-manager';
 import { toast } from 'sonner';
+import { useFileOperations } from './useFileOperations';
 
 interface FileContextMenuProps {
   path: string;
@@ -35,11 +38,16 @@ interface FileContextMenuProps {
 export function FileContextMenu({ path, isFolder, children }: FileContextMenuProps) {
   const openRenameDialog = useSetAtom(openRenameDialogAtom);
   const openCreateDialog = useSetAtom(openCreateDialogAtom);
-  const openDeleteDialog = useSetAtom(openDeleteDialogAtom);
   const refreshDirectory = useSetAtom(refreshDirectoryAtom);
+  const selectedPaths = useAtomValue(selectedPathsAtom);
+  const workspaceRoot = useAtomValue(workspaceRootAtom);
+
+  const { cut, copy, paste, deleteItems, clipboard } = useFileOperations();
+
+  const isMultiSelect = selectedPaths.size > 1 && selectedPaths.has(path);
+  const effectivePaths = isMultiSelect ? Array.from(selectedPaths) : [path];
 
   const handleCreateFile = () => {
-    // If folder, create inside. If file, create in parent.
     const parentPath = isFolder ? path : path.split(/[/\\]/).slice(0, -1).join('/');
     openCreateDialog({ path: parentPath, type: 'file' });
   };
@@ -64,10 +72,6 @@ export function FileContextMenu({ path, isFolder, children }: FileContextMenuPro
     }
   };
 
-  /* eslint-disable @typescript-eslint/no-unused-vars */
-  const workspaceRoot = useAtomValue(workspaceRootAtom);
-  /* eslint-enable @typescript-eslint/no-unused-vars */
-
   const handleCopyPath = async () => {
     await writeText(path);
     toast.success('Path copied to clipboard');
@@ -75,17 +79,14 @@ export function FileContextMenu({ path, isFolder, children }: FileContextMenuPro
 
   const handleCopyRelativePath = async () => {
     if (!workspaceRoot) {
-      // Fallback to full path if no workspace root
       await writeText(path);
       toast.success('Path copied to clipboard');
       return;
     }
 
-    // specific relative path logic
     let relativePath = path;
     if (path.startsWith(workspaceRoot)) {
       relativePath = path.substring(workspaceRoot.length);
-      // Remove leading slash/backslash if present
       if (relativePath.startsWith('/') || relativePath.startsWith('\\')) {
         relativePath = relativePath.substring(1);
       }
@@ -103,6 +104,60 @@ export function FileContextMenu({ path, isFolder, children }: FileContextMenuPro
       toast.error('Failed to reveal file');
     }
   };
+
+  // --- Clipboard Operations ---
+
+  // --- Clipboard Operations ---
+
+  const handleCut = () => {
+    cut(effectivePaths);
+  };
+
+  const handleCopy = () => {
+    copy(effectivePaths);
+  };
+
+  const handlePaste = () => {
+    const destinationFolder = isFolder ? path : path.split(/[/\\]/).slice(0, -1).join('/');
+    paste(destinationFolder);
+  };
+
+  const handleDelete = () => {
+    deleteItems(effectivePaths);
+  };
+
+
+  if (isMultiSelect) {
+    return (
+      <ContextMenu>
+        <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
+        <ContextMenuContent className="w-56">
+          <ContextMenuItem disabled>
+            <Copy className="mr-2 h-4 w-4" />
+            {effectivePaths.length} items selected
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+          <ContextMenuItem onClick={handleCut}>
+            <Scissors className="mr-2 h-4 w-4" />
+            Cut
+          </ContextMenuItem>
+          <ContextMenuItem onClick={handleCopy}>
+            <Copy className="mr-2 h-4 w-4" />
+            Copy
+          </ContextMenuItem>
+          <ContextMenuItem onClick={handlePaste} disabled={!clipboard}>
+            <ClipboardPaste className="mr-2 h-4 w-4" />
+            Paste
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+          <ContextMenuItem onClick={handleDelete} className="text-red-600 focus:text-red-600">
+            <Trash2 className="mr-2 h-4 w-4" />
+            Delete
+          </ContextMenuItem>
+        </ContextMenuContent>
+      </ContextMenu>
+    );
+  }
 
   return (
     <ContextMenu>
@@ -130,6 +185,19 @@ export function FileContextMenu({ path, isFolder, children }: FileContextMenuPro
           Reveal in Folder
         </ContextMenuItem>
         <ContextMenuSeparator />
+        <ContextMenuItem onClick={handleCut}>
+          <Scissors className="mr-2 h-4 w-4" />
+          Cut
+        </ContextMenuItem>
+        <ContextMenuItem onClick={handleCopy}>
+          <Copy className="mr-2 h-4 w-4" />
+          Copy
+        </ContextMenuItem>
+        <ContextMenuItem onClick={handlePaste} disabled={!clipboard}>
+          <ClipboardPaste className="mr-2 h-4 w-4" />
+          Paste
+        </ContextMenuItem>
+        <ContextMenuSeparator />
         <ContextMenuItem onClick={handleCopyRelativePath}>
           <ClipboardCopy className="mr-2 h-4 w-4" />
           Copy Relative Path
@@ -140,7 +208,7 @@ export function FileContextMenu({ path, isFolder, children }: FileContextMenuPro
         </ContextMenuItem>
         <ContextMenuSeparator />
         <ContextMenuItem
-          onClick={() => openDeleteDialog(path)}
+          onClick={handleDelete}
           className="text-red-600 focus:text-red-600"
         >
           <Trash2 className="mr-2 h-4 w-4" />

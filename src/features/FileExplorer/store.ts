@@ -123,10 +123,71 @@ export const toggleFolderAtom = atom(
   }
 );
 
-// Action: Select item
-export const selectItemAtom = atom(null, (_get, set, itemPath: string | null) => {
-  set(selectedItemAtom, itemPath);
-});
+// Currently selected items paths
+export const selectedPathsAtom = atom<Set<string>>(new Set<string>());
+// Last selected item path (anchor for shift-selection)
+export const lastSelectedPathAtom = atom<string | null>(null);
+
+// Clipboard state
+export type ClipboardOperation = 'cut' | 'copy';
+export interface ClipboardState {
+  paths: string[];
+  op: ClipboardOperation;
+}
+export const clipboardAtom = atom<ClipboardState | null>(null);
+
+// Action: Select item(s)
+export const selectItemAtom = atom(
+  null,
+  (get, set, { path, multiSelect, rangeSelect }: { path: string | null, multiSelect?: boolean, rangeSelect?: boolean }) => {
+    if (!path) {
+      set(selectedPathsAtom, new Set());
+      set(lastSelectedPathAtom, null);
+      return;
+    }
+
+    const currentSelection = new Set(get(selectedPathsAtom));
+    const lastPath = get(lastSelectedPathAtom);
+
+    if (rangeSelect && lastPath) {
+      // Handle Shift+Click range selection
+      const flatTree = get(flattenedTreeAtom);
+      const lastIndex = flatTree.findIndex(n => n.path === lastPath);
+      const currentIndex = flatTree.findIndex(n => n.path === path);
+
+      if (lastIndex !== -1 && currentIndex !== -1) {
+        const start = Math.min(lastIndex, currentIndex);
+        const end = Math.max(lastIndex, currentIndex);
+
+        // If ctrl/cmd is NOT held, we might want to clear previous selection, 
+        // but typically shift+click extends from the anchor.
+        // Standard behavior: Shift+Click clears selection except anchor and adds range.
+        if (!multiSelect) {
+          currentSelection.clear();
+        }
+
+        for (let i = start; i <= end; i++) {
+          currentSelection.add(flatTree[i].path);
+        }
+      }
+    } else if (multiSelect) {
+      // Handle Ctrl/Cmd+Click toggle
+      if (currentSelection.has(path)) {
+        currentSelection.delete(path);
+      } else {
+        currentSelection.add(path);
+      }
+      set(lastSelectedPathAtom, path);
+    } else {
+      // Single click select
+      currentSelection.clear();
+      currentSelection.add(path);
+      set(lastSelectedPathAtom, path);
+    }
+
+    set(selectedPathsAtom, currentSelection);
+  }
+);
 
 // Action: Refresh directory
 export const refreshDirectoryAtom = atom(
@@ -152,7 +213,8 @@ export const isFileExplorerVisibleAtom = atomWithStorage<boolean>(
 // Dialog States
 export type FileOperation = {
   isOpen: boolean;
-  path: string | null; // The path of the node being operated on
+  path: string | null; // The path of the node being operated on (for single item ops)
+  paths?: string[]; // For multi-item ops like delete
   type?: 'file' | 'folder'; // For create operations
 };
 

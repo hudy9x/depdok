@@ -25,6 +25,7 @@ import {
   renameNode,
   deleteNode,
 } from './api';
+import { tabsAtom, closeTabAtom } from '@/stores/TabStore';
 
 export function FileOperationDialogs() {
   const [renaming, setRenaming] = useAtom(renamingNodeAtom);
@@ -33,6 +34,8 @@ export function FileOperationDialogs() {
   const refreshDirectory = useSetAtom(refreshDirectoryAtom);
   const [workspaceRoot] = useAtom(workspaceRootAtom);
   const openWorkspace = useSetAtom(openWorkspaceAtom);
+  const [tabs] = useAtom(tabsAtom);
+  const closeTab = useSetAtom(closeTabAtom);
 
   const [nameInput, setNameInput] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -117,22 +120,49 @@ export function FileOperationDialogs() {
 
   // --- Delete Dialog ---
   const handleDelete = async () => {
-    if (!deleting.path) return;
+    const pathsToDelete = deleting.paths || (deleting.path ? [deleting.path] : []);
+    if (pathsToDelete.length === 0) return;
+
     setIsSubmitting(true);
 
     try {
-      await deleteNode(deleting.path);
-      toast.success('Deleted successfully');
+      // Execute all deletes
+      await Promise.all(pathsToDelete.map(path => deleteNode(path)));
 
-      // Refresh parent directory
-      const pathParts = deleting.path.split(/[/\\]/);
-      pathParts.pop();
-      const parentPath = pathParts.join('/');
+      // Close tabs for deleted files/folders
+      const idsToClose = new Set<string>();
+      pathsToDelete.forEach(path => {
+        tabs.forEach(t => {
+          // Check for exact match or if it's a child of the deleted folder
+          // simplistic check: if path is prefix. 
+          // Normalize checks to handle potential slash differences if needed, 
+          // but keeping it simple for now as per project convention (mostly forward slash).
+          if (t.filePath === path || t.filePath.startsWith(`${path}/`)) {
+            idsToClose.add(t.id);
+          }
+        });
+      });
 
-      if (parentPath) {
-        await refreshDirectory(parentPath);
-      } else if (workspaceRoot) {
-        await refreshDirectory(workspaceRoot);
+      idsToClose.forEach(id => closeTab(id));
+
+      toast.success(pathsToDelete.length > 1
+        ? `Deleted ${pathsToDelete.length} items`
+        : 'Deleted successfully'
+      );
+
+      // Refresh parent directories
+      // We collect unique parent paths to refresh
+      const parentsToRefresh = new Set<string>();
+      if (workspaceRoot) parentsToRefresh.add(workspaceRoot); // Always refresh root to be safe or intelligent
+
+      for (const path of pathsToDelete) {
+        const parent = path.split(/[/\\]/).slice(0, -1).join('/');
+        if (parent) parentsToRefresh.add(parent);
+      }
+
+      // Refresh them
+      for (const parent of parentsToRefresh) {
+        await refreshDirectory(parent);
       }
 
       setDeleting({ ...deleting, isOpen: false });
@@ -207,9 +237,15 @@ export function FileOperationDialogs() {
             <DialogTitle>Are you sure?</DialogTitle>
             <DialogDescription>
               This action cannot be undone. This will permanently delete
-              <span className="font-semibold block mt-1 break-all">
-                {deleting.path?.split(/[/\\]/).pop()}
-              </span>
+              {deleting.paths && deleting.paths.length > 1 ? (
+                <span className="font-semibold block mt-1">
+                  {deleting.paths.length} items
+                </span>
+              ) : (
+                <span className="font-semibold block mt-1 break-all">
+                  {deleting.path?.split(/[/\\]/).pop()}
+                </span>
+              )}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

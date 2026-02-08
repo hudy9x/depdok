@@ -182,7 +182,7 @@ export const refreshDirectoryAtom = atom(
 // Persisted FileExplorer visibility state
 export const isFileExplorerVisibleAtom = atomWithStorage<boolean>(
   'depdok-file-explorer-visible',
-  true
+  false
 );
 
 // Dialog States

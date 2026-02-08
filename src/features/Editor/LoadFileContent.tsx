@@ -81,12 +81,7 @@ export function LoadFileContent({
   return (
     <>
       {isLoading ? (
-        <div className="fixed top-[35px] h-[calc(100vh-35px)] left-0 w-full flex items-center justify-center bg-background">
-          <div className="flex items-center gap-2">
-            <Loader2 className="h-4 w-4 animate-spin text-primary" />
-            <p className="text-sm text-muted-foreground">Loading file...</p>
-          </div>
-        </div>
+        null
       ) : (
         children(content)
       )}

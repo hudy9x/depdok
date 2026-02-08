@@ -7,6 +7,7 @@ import {
   activeTabIdAtom,
   switchTabAtom,
   closeTabAtom,
+  updateTabAtom,
   isDummyPath,
   extractFilenameFromDummyPath,
   type Tab,
@@ -24,6 +25,7 @@ export function TabItem({ tab }: TabItemProps) {
   const [activeTabId] = useAtom(activeTabIdAtom);
   const switchTab = useSetAtom(switchTabAtom);
   const closeTab = useSetAtom(closeTabAtom);
+  const updateTab = useSetAtom(updateTabAtom);
   const [showCloseWarning, setShowCloseWarning] = useState(false);
 
   const isActive = tab.id === activeTabId;
@@ -33,6 +35,12 @@ export function TabItem({ tab }: TabItemProps) {
       switchTab(tab.id);
       // Navigate to the file path to trigger content reload
       navigate(`/editor?path=${encodeURIComponent(tab.filePath)}`);
+    }
+  };
+
+  const handleDoubleClick = () => {
+    if (tab.isPreview) {
+      updateTab({ tabId: tab.id, updates: { isPreview: false } });
     }
   };
 
@@ -72,9 +80,11 @@ export function TabItem({ tab }: TabItemProps) {
             'flex items-center gap-2 px-3 h-[35px] cursor-pointer border-r border-border group relative',
             'hover:bg-accent/70 transition-colors',
             'min-w-[120px] max-w-[200px]',
-            isActive ? 'bg-accent text-muted-foreground' : 'text-muted-foreground'
+            isActive ? 'bg-accent text-muted-foreground' : 'text-muted-foreground',
+            tab.isPreview && 'italic'
           )}
           onClick={handleClick}
+          onDoubleClick={handleDoubleClick}
           data-tauri-drag-region
         >
           {/* File Icon */}

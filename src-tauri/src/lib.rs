@@ -162,6 +162,8 @@ pub fn run() {
             commands::files::create_file,
             commands::files::delete_node,
             commands::files::rename_node,
+            commands::files::copy_node,
+            commands::files::reveal_file,
             commands::git::get_current_branch,
             commands::git::get_all_branches,
             commands::git::switch_branch,
@@ -169,6 +171,7 @@ pub fn run() {
             commands::git::git_pull,
             commands::file_watcher::start_watching,
             commands::file_watcher::stop_watching,
+            commands::file_explorer::open_folder_dialog,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

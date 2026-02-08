@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { ChevronLeft } from 'lucide-react';
 
 import { tabsAtom } from '@/stores/TabStore';
+import { ToggleButton } from '@/features/FileExplorer/ToggleButton';
 import { TabItem } from './TabItem';
 import { CreateTabButton } from './CreateTabButton';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
@@ -10,8 +11,6 @@ import { useWindowDrag } from '@/hooks/useWindowDrag';
 
 export function EditorTabs() {
   const [tabs] = useAtom(tabsAtom);
-
-
 
   const styleBackButton = `w-8 h-[35px] p-2 cursor-pointer hover:opacity-90 hover:bg-background/100 opacity-90 border-x border-border flex-shrink-0`;
 
@@ -23,6 +22,9 @@ export function EditorTabs() {
       <Link to="/home">
         <ChevronLeft className={styleBackButton} />
       </Link>
+
+      {/* FileExplorer toggle button */}
+      <ToggleButton />
 
       {/* Tabs in the middle with horizontal scroll */}
       <ScrollArea
@@ -38,7 +40,7 @@ export function EditorTabs() {
           {/* Create button on the right */}
           <CreateTabButton />
         </div>
-        <ScrollBar orientation="horizontal" className='h-2 hover:bg-background/50' />
+        <ScrollBar orientation="horizontal" className='h-1.5 hover:bg-background/50' />
       </ScrollArea>
 
     </div>

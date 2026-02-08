@@ -1,6 +1,7 @@
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useSetAtom, useAtomValue, useAtom } from "jotai";
 import { useEffect, useRef } from "react";
+import { Panel, PanelGroup, PanelResizeHandle, ImperativePanelHandle } from "react-resizable-panels";
 
 import { Titlebar } from "@/features/Titlebar";
 import { MonacoEditor } from "@/features/Editor/MonacoEditor";
@@ -11,6 +12,8 @@ import { EditorRightActions } from "@/features/Editor/EditorRightActions";
 import { EditorTabs } from "@/features/EditorTabs";
 import { LoadFileContent } from "@/features/Editor/LoadFileContent";
 import { EditorSave } from "@/features/Editor/EditorSaveHandler";
+import { FileExplorer } from "@/features/FileExplorer";
+import { isFileExplorerVisibleAtom } from "@/features/FileExplorer/store";
 import {
   editorStateAtom,
   loadFileMetadataAtom,
@@ -27,6 +30,7 @@ import { getMonacoLanguage } from "@/lib/utils/getMonacoLanguage";
 
 import { useAutoSave } from "@/features/Editor/useAutoSave";
 import { FileSearchDialog } from "@/features/FileSearchDialog";
+import { useGlobalShortcuts } from "@/hooks/useGlobalShortcuts";
 
 export default function Editor() {
   const [searchParams] = useSearchParams();
@@ -38,6 +42,11 @@ export default function Editor() {
   const createTab = useSetAtom(createTabAtom);
   const switchTab = useSetAtom(switchTabAtom);
   const [tabs] = useAtom(tabsAtom);
+  const isFileExplorerVisible = useAtomValue(isFileExplorerVisibleAtom);
+  const fileExplorerPanelRef = useRef<ImperativePanelHandle>(null);
+
+  // Initialize global shortcuts (e.g. Cmd+B to toggle explorer)
+  useGlobalShortcuts();
 
   const { handleContentChange: handleSaveContent } = useAutoSave();
   const markTabAsSaved = useSetAtom(markTabAsSavedAtom);
@@ -56,6 +65,16 @@ export default function Editor() {
   // Track if this is the initial mount to avoid redirecting during hydration
   const isInitialMount = useRef(true);
 
+  // Control panel collapse/expand
+  useEffect(() => {
+    if (fileExplorerPanelRef.current) {
+      if (isFileExplorerVisible) {
+        fileExplorerPanelRef.current.expand();
+      } else {
+        fileExplorerPanelRef.current.collapse();
+      }
+    }
+  }, [isFileExplorerVisible]);
 
 
   // 1. Sync Active Tab -> URL
@@ -129,46 +148,72 @@ export default function Editor() {
       />
       <EditorSave />
 
-      <LoadFileContent filePath={currentFilePath} onMetadataLoad={loadFileMetadata}>
-        {(initialContent) => (
-          <div className="fixed top-[35px] h-[calc(100vh-35px)] left-0 w-full flex flex-col px-1.5 pb-1.5 bg-background">
-            <div className="h-full w-full bg-background border border-border rounded-lg overflow-hidden shadow-lg">
-              {viewMode === 'side-by-side' && (
-                <SideBySide
-                  initialContent={initialContent}
-                  enableFileWatcher={true}
-                />
-              )}
+      <div className="fixed top-[35px] h-[calc(100vh-35px)] left-0 w-full flex flex-col px-1.5 pb-1.5 bg-background">
+        <div className="h-full w-full bg-background border border-border rounded-lg overflow-hidden shadow-lg">
+          <PanelGroup direction="horizontal" id="editor-layout" autoSaveId="depdok-editor-layout">
+            {/* File Explorer Panel - collapsible */}
+            <Panel
+              ref={fileExplorerPanelRef}
+              defaultSize={20}
+              minSize={15}
+              maxSize={40}
+              id="file-explorer"
+              collapsible={true}
+              collapsedSize={0}
+            >
+              <div className="h-full border-r border-border">
+                <FileExplorer />
+              </div>
+            </Panel>
 
-              {viewMode === 'editor-only' && (
-                <MonacoEditor
-                  initialContent={initialContent}
-                  language={getMonacoLanguage(editorState.fileExtension)}
-                  enableFileWatcher={true}
-                />
-              )}
+            {isFileExplorerVisible && (
+              <PanelResizeHandle className="w-1 bg-border hover:bg-primary/50 transition-colors" />
+            )}
 
-              {viewMode === 'preview-only' && (
-                <PreviewFileWatcher
-                  content={initialContent}
-                  enableFileWatcher={true}
-                  onContentReload={handleExternalReload}
-                >
-                  {(content) => (
-                    <PreviewPanel
-                      content={content}
-                      fileExtension={editorState.fileExtension}
-                      editable={true}
-                      onContentChange={handleSaveContent}
-                    />
-                  )}
-                </PreviewFileWatcher>
-              )}
-            </div>
+            {/* Editor Panel */}
+            <Panel defaultSize={80} id="editor-content">
+              <LoadFileContent filePath={currentFilePath} onMetadataLoad={loadFileMetadata}>
+                {(initialContent) => (
+                  <>
+                    {viewMode === 'side-by-side' && (
+                      <SideBySide
+                        initialContent={initialContent}
+                        enableFileWatcher={true}
+                      />
+                    )}
 
-          </div>
-        )}
-      </LoadFileContent>
+                    {viewMode === 'editor-only' && (
+                      <MonacoEditor
+                        initialContent={initialContent}
+                        language={getMonacoLanguage(editorState.fileExtension)}
+                        enableFileWatcher={true}
+                      />
+                    )}
+
+                    {viewMode === 'preview-only' && (
+                      <PreviewFileWatcher
+                        content={initialContent}
+                        enableFileWatcher={true}
+                        onContentReload={handleExternalReload}
+                      >
+                        {(content) => (
+                          <PreviewPanel
+                            content={content}
+                            fileExtension={editorState.fileExtension}
+                            editable={true}
+                            onContentChange={handleSaveContent}
+                          />
+                        )}
+                      </PreviewFileWatcher>
+                    )}
+                  </>
+                )}
+              </LoadFileContent>
+            </Panel>
+          </PanelGroup>
+        </div>
+      </div>
     </>
   );
 }
+

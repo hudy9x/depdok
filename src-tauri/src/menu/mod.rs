@@ -16,6 +16,7 @@ pub fn init(app: &mut App) -> tauri::Result<()> {
     let file_submenu = SubmenuBuilder::new(handle, "File")
         .item(&new_file_submenu)
         .text("open_file", "Open File")
+        .text("open_folder", "Open Folder")
         .separator()
         .text("back", "Back")
         .separator()
@@ -100,6 +101,7 @@ pub fn init(app: &mut App) -> tauri::Result<()> {
             "new_file_pu" => { let _ = app_handle.emit("menu://new-file-pu", ()); }
             "new_file_txt" => { let _ = app_handle.emit("menu://new-file-txt", ()); }
             "open_file" => { let _ = app_handle.emit("menu://open-file", ()); }
+            "open_folder" => { let _ = app_handle.emit("menu://open-folder", ()); }
             "back" => { let _ = app_handle.emit("menu://back", ()); }
             "quit" => { app_handle.exit(0); }
 

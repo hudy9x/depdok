@@ -66,11 +66,11 @@ export function WeekTaskItem({
       />
 
       <div className="flex-1 flex items-baseline gap-2 min-w-0">
-        {timeStr && (
+        {/* {timeStr && (
           <span className="text-sm font-medium text-destructive shrink-0">
             {timeStr}
           </span>
-        )}
+        )} */}
 
         {editable ? (
           <Input

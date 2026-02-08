@@ -8,6 +8,7 @@ export interface Tab {
   fileExtension: string | null;
   isDirty: boolean;
   isActive: boolean;
+  isPreview: boolean;
 }
 
 // Helper function to check if path is a dummy path
@@ -51,9 +52,9 @@ export const activeTabAtom = atom((get) => {
 // Action: Create a new tab
 export const createTabAtom = atom(
   null,
-  (get, set, payload: { filePath: string; fileName: string; switchTo?: boolean }) => {
+  (get, set, payload: { filePath: string; fileName: string; switchTo?: boolean; isPreview?: boolean }) => {
     const tabs = get(tabsAtom);
-    const { filePath, fileName, switchTo = true } = payload;
+    const { filePath, fileName, switchTo = true, isPreview = false } = payload;
 
     // Check if tab already exists
     const existingTab = tabs.find((tab) => tab.filePath === filePath);
@@ -61,7 +62,39 @@ export const createTabAtom = atom(
       if (switchTo) {
         set(activeTabIdAtom, existingTab.id);
       }
+      // If we are opening permanently (isPreview=false) and it was preview, pin it.
+      if (!isPreview && existingTab.isPreview) {
+        const newTabs = tabs.map(t => t.id === existingTab.id ? { ...t, isPreview: false } : t);
+        set(tabsAtom, newTabs);
+      }
       return existingTab.id;
+    }
+
+    // Check if we can recycle an existing preview tab
+    // Only recycle if we are not creating a dirty/untitled tab (usually those are distinct)
+    // But here we just get filePath.
+    // If there is a preview tab, and it is not dirty (implied by isPreview=true usually, but let's be safe), replace it.
+    const previewTab = tabs.find(t => t.isPreview);
+
+    // Logic: If we are creating a NEW tab (path not found), and there is a preview tab, reuse it.
+    // Regardless of whether new request is preview or not.
+    if (previewTab) {
+      const updatedTab: Tab = {
+        ...previewTab,
+        filePath,
+        fileName,
+        fileExtension: getFileExtension(fileName),
+        isPreview: isPreview, // updates to new state (e.g. might remain preview or become pinned)
+        isActive: switchTo,
+      };
+
+      const newTabs = tabs.map(t => t.id === previewTab.id ? updatedTab : t);
+      set(tabsAtom, newTabs);
+
+      if (switchTo) {
+        set(activeTabIdAtom, previewTab.id);
+      }
+      return previewTab.id;
     }
 
     const newTab: Tab = {
@@ -71,6 +104,7 @@ export const createTabAtom = atom(
       fileExtension: getFileExtension(fileName),
       isDirty: false,
       isActive: switchTo,
+      isPreview,
     };
 
     set(tabsAtom, [...tabs, newTab]);
@@ -94,6 +128,7 @@ export const createUntitledTabAtom = atom(
       filePath: dummyPath,
       fileName: filename,
       switchTo: true,
+      isPreview: false, // Untitled tabs are always permanent/dirty-ready
     });
 
     set(nextUntitledCounterAtom, counter + 1);
@@ -149,7 +184,7 @@ export const updateTabAtom = atom(
 
 // Action: Mark tab as dirty
 export const markTabAsDirtyAtom = atom(null, (_get, set, tabId: string) => {
-  set(updateTabAtom, { tabId, updates: { isDirty: true } });
+  set(updateTabAtom, { tabId, updates: { isDirty: true, isPreview: false } });
 });
 
 // Action: Mark tab as saved

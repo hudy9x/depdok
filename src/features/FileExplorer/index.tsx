@@ -64,9 +64,9 @@ export function FileExplorer() {
     };
   }, [openWorkspace]);
 
-  const handleFileOpen = (filePath: string) => {
+  const handleFileOpen = (filePath: string, options?: { isPreview?: boolean }) => {
     const fileName = filePath.split(/[/\\]/).pop() || 'Untitled';
-    createTab({ filePath, fileName, switchTo: true });
+    createTab({ filePath, fileName, switchTo: true, isPreview: options?.isPreview });
     navigate('/editor');
   };
 

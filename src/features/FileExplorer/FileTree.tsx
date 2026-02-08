@@ -10,7 +10,7 @@ import {
 import { activeTabAtom } from '@/stores/TabStore';
 
 interface FileTreeProps {
-  onFileOpen: (filePath: string) => void;
+  onFileOpen: (filePath: string, options?: { isPreview?: boolean }) => void;
 }
 
 export function FileTree({ onFileOpen }: FileTreeProps) {
@@ -31,10 +31,18 @@ export function FileTree({ onFileOpen }: FileTreeProps) {
     const multiSelect = event?.metaKey || event?.ctrlKey; // Command on Mac, Ctrl on Windows
     const rangeSelect = event?.shiftKey;
     selectItem({ path, multiSelect, rangeSelect });
+
+    // Single click on file opens in preview
+    // Find node to check if it's a file
+    const node = flatTree.find(n => n.path === path);
+    if (node && !node.isFolder) {
+      onFileOpen(path, { isPreview: true });
+    }
   };
 
   const handleDoubleClick = (path: string) => {
-    onFileOpen(path);
+    // Double click on file opens permanently (pins)
+    onFileOpen(path, { isPreview: false });
   };
 
   if (flatTree.length === 0) {

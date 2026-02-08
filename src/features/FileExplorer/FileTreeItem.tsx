@@ -30,14 +30,15 @@ export function FileTreeItem({
     onSelect(node.path, e);
     if (node.isFolder) {
       onToggle(node.path);
-    } else {
-      onDoubleClick(node.path);
     }
+    // Single click for files handled by onSelect in parent (which triggers preview)
   };
 
-  const handleDoubleClick = () => {
-    // Double click handled by single click for files now
-    // We could keep it for folders if needed, but toggle is on click
+  const handleDoubleClick = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent triggering selection again if needed?
+    if (!node.isFolder) {
+      onDoubleClick(node.path);
+    }
   };
 
   return (

@@ -2,6 +2,7 @@ import { atom } from 'jotai';
 import { atomWithStorage } from 'jotai/utils';
 import { FileEntry, listDirectory } from './api';
 import { FlatTreeNode, flattenTree } from './utils';
+import { indexWorkspaceFiles } from '@/features/FileSearchDialog/api';
 
 // Persisted workspace root path
 export const workspaceRootAtom = atomWithStorage<string | null>(
@@ -60,6 +61,15 @@ export const openWorkspaceAtom = atom(
       const expanded = get(expandedFoldersAtom);
       expanded.add(rootPath);
       set(expandedFoldersAtom, new Set(expanded));
+
+      // Index workspace files for search
+      try {
+        await indexWorkspaceFiles(rootPath);
+        console.log('Workspace files indexed successfully');
+      } catch (indexError) {
+        console.error('Failed to index workspace files:', indexError);
+        // Don't fail the workspace open if indexing fails
+      }
     } catch (error) {
       console.error('Failed to open workspace:', error);
       throw error;

@@ -221,7 +221,7 @@ export function ContentSearchDialog() {
             <Virtuoso
               style={{ height: '100%' }}
               data={virtualizedItems}
-              className="mt-2"
+              className=""
               itemContent={renderItem}
             />
           )}

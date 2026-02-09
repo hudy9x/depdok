@@ -43,7 +43,7 @@ export function ResultItem({ result, searchQuery, onSelect, isSelected }: Result
       <>
         {prefix}
         {visibleContent.slice(0, adjustedMatchIndex)}
-        <span className="bg-green-500 dark:bg-green-800 text-foreground">
+        <span className="bg-green-200 dark:bg-green-800 text-foreground">
           {visibleContent.slice(adjustedMatchIndex, adjustedMatchIndex + searchQuery.length)}
         </span>
         {visibleContent.slice(adjustedMatchIndex + searchQuery.length)}

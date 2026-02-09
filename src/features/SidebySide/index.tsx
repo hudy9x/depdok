@@ -13,9 +13,10 @@ import { useAutoSave } from "@/features/Editor/useAutoSave";
 interface SideBySideProps {
   initialContent: string;
   enableFileWatcher?: boolean; // Enable file watcher in the editor panel
+  lineNumber?: number; // Line number to jump to in the editor
 }
 
-export function SideBySide({ initialContent, enableFileWatcher = false }: SideBySideProps) {
+export function SideBySide({ initialContent, enableFileWatcher = false, lineNumber }: SideBySideProps) {
   const [content, setContent] = useState(initialContent);
   const editorState = useAtomValue(editorStateAtom);
   const { handleContentChange: handleAutoSave } = useAutoSave();
@@ -39,6 +40,7 @@ export function SideBySide({ initialContent, enableFileWatcher = false }: SideBy
           language={language}
           onContentChange={handleEditorChange}
           enableFileWatcher={enableFileWatcher}
+          lineNumber={lineNumber}
         />
       </Panel>
 

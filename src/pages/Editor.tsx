@@ -181,6 +181,7 @@ export default function Editor() {
                       <SideBySide
                         initialContent={initialContent}
                         enableFileWatcher={true}
+                        lineNumber={activeTab?.lineNumber}
                       />
                     )}
 

@@ -6,7 +6,7 @@ on:
       public_repo:
         description: 'Public repository (format: owner/repo-name)'
         required: true
-        default: 'hudy9x/depdok-releases'
+        default: 'hudy9x/depdok-ladi'
 
 jobs:
   download-and-push:

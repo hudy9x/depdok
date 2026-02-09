@@ -2,16 +2,182 @@ name: Trigger Download Release
 
 on:
   workflow_dispatch:
+    inputs:
+      public_repo:
+        description: 'Public repository (format: owner/repo-name)'
+        required: true
+        default: 'hudy9x/depdok-releases'
 
 jobs:
-  trigger-download-release:
+  download-and-push:
     runs-on: ubuntu-latest
     steps:
       - name: Get latest release info
+        id: release_info
         run: |
-          # Get the latest release tag using GitHub API
-          LATEST_TAG=$(curl -s \
-            -H "Accept: application/vnd.github.v3+json" \
-            https://api.github.com/repos/${{ github.repository }}/releases/latest | jq -r '.tag_name')
+          echo "================================"
+          echo "📦 Fetching latest release info"
+          echo "================================"
           
-          echo "The latest release version is: $LATEST_TAG"
+          # Get the latest release information
+          RELEASE_DATA=$(curl -s \
+            -H "Accept: application/vnd.github.v3+json" \
+            -H "Authorization: Bearer ${{ secrets.REPO_DEPDOK_GITHUB_TOKEN }}" \
+            https://api.github.com/repos/${{ github.repository }}/releases/latest)
+          
+          LATEST_TAG=$(echo "$RELEASE_DATA" | jq -r '.tag_name')
+          RELEASE_ID=$(echo "$RELEASE_DATA" | jq -r '.id')
+          RELEASE_NAME=$(echo "$RELEASE_DATA" | jq -r '.name')
+          RELEASE_BODY=$(echo "$RELEASE_DATA" | jq -r '.body')
+          
+          echo "✅ Release Tag: $LATEST_TAG"
+          echo "✅ Release ID: $RELEASE_ID"
+          echo "✅ Release Name: $RELEASE_NAME"
+          echo ""
+          
+          # Save to environment
+          echo "LATEST_TAG=$LATEST_TAG" >> $GITHUB_ENV
+          echo "RELEASE_ID=$RELEASE_ID" >> $GITHUB_ENV
+          echo "RELEASE_NAME=$RELEASE_NAME" >> $GITHUB_ENV
+          echo "RELEASE_BODY<<EOF" >> $GITHUB_ENV
+          echo "$RELEASE_BODY" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
+      - name: Download release assets
+        run: |
+          echo "================================"
+          echo "⬇️  Downloading release assets"
+          echo "================================"
+          
+          # Create download directory
+          mkdir -p release-assets
+          cd release-assets
+          
+          # Get list of assets
+          ASSETS=$(curl -s \
+            -H "Accept: application/vnd.github.v3+json" \
+            -H "Authorization: Bearer ${{ secrets.REPO_DEPDOK_GITHUB_TOKEN }}" \
+            https://api.github.com/repos/${{ github.repository }}/releases/${{ env.RELEASE_ID }}/assets)
+          
+          ASSET_COUNT=$(echo "$ASSETS" | jq '. | length')
+          echo "📊 Found $ASSET_COUNT assets to download"
+          echo ""
+          
+          # Download each asset
+          echo "$ASSETS" | jq -c '.[]' | while read -r asset; do
+            ASSET_NAME=$(echo "$asset" | jq -r '.name')
+            ASSET_URL=$(echo "$asset" | jq -r '.url')
+            ASSET_SIZE=$(echo "$asset" | jq -r '.size')
+            
+            echo "📥 Downloading: $ASSET_NAME ($(numfmt --to=iec-i --suffix=B $ASSET_SIZE))"
+            echo "   URL: $ASSET_URL"
+            
+            curl -L -H "Accept: application/octet-stream" \
+              -H "Authorization: Bearer ${{ secrets.REPO_DEPDOK_GITHUB_TOKEN }}" \
+              -o "$ASSET_NAME" \
+              "$ASSET_URL"
+            
+            if [ -f "$ASSET_NAME" ]; then
+              DOWNLOADED_SIZE=$(stat -f%z "$ASSET_NAME" 2>/dev/null || stat -c%s "$ASSET_NAME" 2>/dev/null)
+              echo "   ✅ Downloaded successfully ($(numfmt --to=iec-i --suffix=B $DOWNLOADED_SIZE))"
+            else
+              echo "   ❌ Failed to download $ASSET_NAME"
+            fi
+            echo ""
+          done
+          
+          echo "================================"
+          echo "📋 Downloaded files:"
+          ls -lh
+          echo "================================"
+
+      - name: Setup Git for public repo
+        run: |
+          echo "================================"
+          echo "🔧 Configuring Git"
+          echo "================================"
+          
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          
+          echo "✅ Git configured"
+
+      - name: Create release in public repository
+        env:
+          GH_TOKEN: ${{ secrets.PUBLIC_REPO_TOKEN }}
+        run: |
+          echo "================================"
+          echo "🚀 Creating release in public repo"
+          echo "================================"
+          
+          PUBLIC_REPO="${{ github.event.inputs.public_repo }}"
+          echo "📍 Target repository: $PUBLIC_REPO"
+          echo "📍 Release tag: ${{ env.LATEST_TAG }}"
+          echo "📍 Release name: ${{ env.RELEASE_NAME }}"
+          echo ""
+          
+          # Check if release already exists
+          EXISTING_RELEASE=$(gh release view "${{ env.LATEST_TAG }}" --repo "$PUBLIC_REPO" --json id 2>/dev/null || echo "")
+          
+          if [ -n "$EXISTING_RELEASE" ]; then
+            echo "⚠️  Release ${{ env.LATEST_TAG }} already exists in $PUBLIC_REPO"
+            echo "🗑️  Deleting existing release..."
+            gh release delete "${{ env.LATEST_TAG }}" --repo "$PUBLIC_REPO" --yes
+            echo "✅ Existing release deleted"
+            echo ""
+          fi
+          
+          # Create new release
+          echo "📝 Creating new release..."
+          gh release create "${{ env.LATEST_TAG }}" \
+            --repo "$PUBLIC_REPO" \
+            --title "${{ env.RELEASE_NAME }}" \
+            --notes "${{ env.RELEASE_BODY }}" \
+            release-assets/*
+          
+          if [ $? -eq 0 ]; then
+            echo ""
+            echo "================================"
+            echo "✅ Release created successfully!"
+            echo "================================"
+            echo "🔗 View release: https://github.com/$PUBLIC_REPO/releases/tag/${{ env.LATEST_TAG }}"
+          else
+            echo ""
+            echo "================================"
+            echo "❌ Failed to create release"
+            echo "================================"
+            exit 1
+          fi
+
+      - name: Verify upload
+        env:
+          GH_TOKEN: ${{ secrets.PUBLIC_REPO_TOKEN }}
+        run: |
+          echo "================================"
+          echo "🔍 Verifying uploaded assets"
+          echo "================================"
+          
+          PUBLIC_REPO="${{ github.event.inputs.public_repo }}"
+          
+          # List assets in the new release
+          UPLOADED_ASSETS=$(gh release view "${{ env.LATEST_TAG }}" --repo "$PUBLIC_REPO" --json assets --jq '.assets[].name')
+          
+          echo "📦 Uploaded assets:"
+          echo "$UPLOADED_ASSETS"
+          echo ""
+          
+          # Count assets
+          UPLOADED_COUNT=$(echo "$UPLOADED_ASSETS" | wc -l | tr -d ' ')
+          LOCAL_COUNT=$(ls -1 release-assets | wc -l | tr -d ' ')
+          
+          echo "📊 Local files: $LOCAL_COUNT"
+          echo "📊 Uploaded files: $UPLOADED_COUNT"
+          
+          if [ "$UPLOADED_COUNT" -eq "$LOCAL_COUNT" ]; then
+            echo ""
+            echo "✅ All assets uploaded successfully!"
+          else
+            echo ""
+            echo "⚠️  Asset count mismatch! Some files may not have been uploaded."
+            exit 1
+          fi

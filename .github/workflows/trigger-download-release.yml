@@ -1,8 +1,7 @@
 name: Trigger Download Release
 
 on:
-  repository_dispatch:
-    types: [trigger-download-release]
+  workflow_dispatch:
 
 jobs:
   trigger-download-release:

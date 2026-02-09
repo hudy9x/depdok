@@ -15,6 +15,7 @@ import { setupPlantUMLTheme } from '@/lib/monaco-theme';
 import { useAutoSave } from "./useAutoSave";
 import { useFileWatcher } from "@/hooks/useFileWatcher";
 import { useLineJump } from "./useLineJump";
+import { configureMonacoLanguages } from "./configureMonacoLanguages";
 import { editorStateAtom } from "@/stores/EditorStore";
 import {
   registerFormatAction,
@@ -97,6 +98,9 @@ export function MonacoEditor({ initialContent, language, onContentChange, enable
 
   const handleBeforeMount: BeforeMount = (monaco) => {
     monacoRef.current = monaco;
+
+    // Configure language settings (TypeScript, JavaScript, CSS)
+    configureMonacoLanguages(monaco);
 
     setTimeout(() => {
       setupMermaidTheme(monaco);
@@ -223,6 +227,8 @@ export function MonacoEditor({ initialContent, language, onContentChange, enable
 
   // Handle line jumping
   useLineJump({ editorRef, lineNumber });
+
+  console.log("MonacoEditorReact language", language)
 
   return (
     <div className="w-full h-full">

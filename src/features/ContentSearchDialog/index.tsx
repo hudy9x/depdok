@@ -56,6 +56,14 @@ export function ContentSearchDialog() {
     }
   }, [results]);
 
+  // Selected index for keyboard navigation
+  const [selectedIndex, setSelectedIndex] = useState(0);
+
+  // Reset selected index when results change
+  useEffect(() => {
+    setSelectedIndex(0);
+  }, [results]);
+
   const handleSelect = (result: ContentSearchResult) => {
     if (!workspaceRoot) return;
 
@@ -125,6 +133,35 @@ export function ContentSearchDialog() {
     return items;
   }, [groupedResults, expandedFiles]);
 
+  // Keyboard navigation (only when dialog is open)
+  useEffect(() => {
+    if (!open) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Get only result items (not headers)
+      const resultItems = virtualizedItems.filter(item => item.type === 'result');
+
+      if (resultItems.length === 0) return;
+
+      if (e.key === 'ArrowDown' || (e.key === 'Tab' && !e.shiftKey)) {
+        e.preventDefault();
+        setSelectedIndex(prev => (prev + 1) % resultItems.length);
+      } else if (e.key === 'ArrowUp' || (e.key === 'Tab' && e.shiftKey)) {
+        e.preventDefault();
+        setSelectedIndex(prev => (prev - 1 + resultItems.length) % resultItems.length);
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        const selectedResult = resultItems[selectedIndex]?.data as ContentSearchResult;
+        if (selectedResult) {
+          handleSelect(selectedResult);
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [open, virtualizedItems, selectedIndex]);
+
   // Render virtualized item
   const renderItem = (_index: number, item: VirtualItem) => {
     if (item.type === 'header') {
@@ -139,20 +176,25 @@ export function ContentSearchDialog() {
       );
     }
 
-    // Result item
+    // Result item - calculate if selected
     const result = item.data as ContentSearchResult;
+    const resultItems = virtualizedItems.filter(i => i.type === 'result');
+    const resultIndex = resultItems.findIndex(i => i.data === item.data);
+    const isSelected = resultIndex === selectedIndex;
+
     return (
       <ResultItem
         result={result}
         searchQuery={searchQuery}
         onSelect={handleSelect}
+        isSelected={isSelected}
       />
     );
   };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="max-w-3xl max-h-[80vh] p-0 gap-0">
+      <DialogContent className="max-w-3xl h-[80vh] p-0 gap-0 flex flex-col bg-transparent shadow-none border-0">
         <SearchInput
           value={searchQuery}
           onChange={setSearchQuery}
@@ -161,24 +203,25 @@ export function ContentSearchDialog() {
           workspaceRoot={workspaceRoot ?? undefined}
         />
 
-        {/* Results List with Virtuoso */}
-        <div className="flex-1 overflow-hidden">
+        {/* Results List with Virtuoso - Fixed height container */}
+        <div className="flex-1 min-h-0 overflow-hidden">
           {!workspaceRoot && (
-            <div className="py-12 text-center text-sm text-muted-foreground">
+            <div className="py-12 text-center text-sm text-muted-foreground bg-background rounded-md border border-border mt-2">
               Please open a workspace to search content.
             </div>
           )}
 
           {workspaceRoot && !isSearching && results.length === 0 && searchQuery && (
-            <div className="py-12 text-center text-sm text-muted-foreground">
+            <div className="py-12 text-center text-sm text-muted-foreground bg-background rounded-md border border-border mt-2">
               No results found.
             </div>
           )}
 
           {workspaceRoot && results.length > 0 && (
             <Virtuoso
-              style={{ height: '60vh' }}
+              style={{ height: '100%' }}
               data={virtualizedItems}
+              className="mt-2"
               itemContent={renderItem}
             />
           )}

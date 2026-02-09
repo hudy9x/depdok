@@ -10,7 +10,7 @@ interface SearchInputProps {
 
 export function SearchInput({ value, onChange, disabled, isSearching, workspaceRoot }: SearchInputProps) {
   return (
-    <div className="flex items-center gap-3 border-b px-4 py-3">
+    <div className="flex items-center gap-3 border-b px-4 py-3 bg-background border border-border rounded-md">
       <Search className="h-4 w-4 text-muted-foreground flex-shrink-0" />
       <input
         type="text"

@@ -156,6 +156,19 @@ pub fn search_content(
                 if let Some(file_type) = entry.file_type() {
                     if file_type.is_file() {
                         let path = entry.path();
+                        
+                        // Skip image files
+                        if let Some(extension) = path.extension() {
+                            let ext = extension.to_string_lossy().to_lowercase();
+                            let image_extensions = [
+                                "png", "jpg", "jpeg", "gif", "bmp", "svg", "ico", "webp",
+                                "tiff", "tif", "psd", "raw", "heif", "heic", "avif"
+                            ];
+                            if image_extensions.contains(&ext.as_str()) {
+                                continue;
+                            }
+                        }
+                        
                         files_searched += 1;
                         
                         // Create searcher

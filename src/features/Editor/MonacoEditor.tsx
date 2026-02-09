@@ -14,6 +14,7 @@ import { setupMermaidTheme } from '@/lib/monaco-theme';
 import { setupPlantUMLTheme } from '@/lib/monaco-theme';
 import { useAutoSave } from "./useAutoSave";
 import { useFileWatcher } from "@/hooks/useFileWatcher";
+import { useLineJump } from "./useLineJump";
 import { editorStateAtom } from "@/stores/EditorStore";
 import {
   registerFormatAction,
@@ -28,9 +29,10 @@ interface MonacoEditorProps {
   language: string;
   onContentChange?: (content: string) => void;
   enableFileWatcher?: boolean; // Enable file watcher to detect external changes
+  lineNumber?: number; // Optional line number to jump to when opening
 }
 
-export function MonacoEditor({ initialContent, language, onContentChange, enableFileWatcher = false }: MonacoEditorProps) {
+export function MonacoEditor({ initialContent, language, onContentChange, enableFileWatcher = false, lineNumber }: MonacoEditorProps) {
   const [content, setContent] = useState(initialContent);
   const editorState = useAtomValue(editorStateAtom);
 
@@ -218,6 +220,9 @@ export function MonacoEditor({ initialContent, language, onContentChange, enable
       menuListenersCleanupRef.current?.();
     };
   }, []);
+
+  // Handle line jumping
+  useLineJump({ editorRef, lineNumber });
 
   return (
     <div className="w-full h-full">

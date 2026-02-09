@@ -23,5 +23,11 @@ export function getMonacoLanguage(fileExtension: string | null | undefined): str
     return "mermaid";
   }
 
+  if (["tsx", "ts", "jsx", "js"].includes(ext)) {
+    return ext;
+  }
+
+  console.log("fileExtension", fileExtension)
+
   return "plaintext";
 }

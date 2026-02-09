@@ -9,6 +9,7 @@ export interface Tab {
   isDirty: boolean;
   isActive: boolean;
   isPreview: boolean;
+  lineNumber?: number; // Optional line number to jump to when opening
 }
 
 // Helper function to check if path is a dummy path
@@ -52,7 +53,7 @@ export const activeTabAtom = atom((get) => {
 // Action: Create a new tab
 export const createTabAtom = atom(
   null,
-  (get, set, payload: { filePath: string; fileName: string; switchTo?: boolean; isPreview?: boolean }) => {
+  (get, set, payload: { filePath: string; fileName: string; switchTo?: boolean; isPreview?: boolean; lineNumber?: number }) => {
     const tabs = get(tabsAtom);
     const { filePath, fileName, switchTo = true, isPreview = false } = payload;
 
@@ -64,8 +65,19 @@ export const createTabAtom = atom(
       }
       // If we are opening permanently (isPreview=false) and it was preview, pin it.
       if (!isPreview && existingTab.isPreview) {
-        const newTabs = tabs.map(t => t.id === existingTab.id ? { ...t, isPreview: false } : t);
+        const newTabs = tabs.map(t => t.id === existingTab.id ? { ...t, isPreview: false, lineNumber: payload.lineNumber } : t);
         set(tabsAtom, newTabs);
+      } else if (payload.lineNumber !== undefined) {
+        // Update lineNumber even if tab exists - set it temporarily, will be cleared after jump
+        const newTabs = tabs.map(t => t.id === existingTab.id ? { ...t, lineNumber: payload.lineNumber } : t);
+        set(tabsAtom, newTabs);
+
+        // Clear lineNumber after a short delay to allow the effect to trigger
+        setTimeout(() => {
+          const currentTabs = get(tabsAtom);
+          const clearedTabs = currentTabs.map(t => t.id === existingTab.id ? { ...t, lineNumber: undefined } : t);
+          set(tabsAtom, clearedTabs);
+        }, 500);
       }
       return existingTab.id;
     }
@@ -86,6 +98,7 @@ export const createTabAtom = atom(
         fileExtension: getFileExtension(fileName),
         isPreview: isPreview, // updates to new state (e.g. might remain preview or become pinned)
         isActive: switchTo,
+        lineNumber: payload.lineNumber,
       };
 
       const newTabs = tabs.map(t => t.id === previewTab.id ? updatedTab : t);
@@ -105,6 +118,7 @@ export const createTabAtom = atom(
       isDirty: false,
       isActive: switchTo,
       isPreview,
+      lineNumber: payload.lineNumber,
     };
 
     set(tabsAtom, [...tabs, newTab]);

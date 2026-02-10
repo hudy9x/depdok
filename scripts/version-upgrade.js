@@ -51,7 +51,7 @@ function saveLastProcessedCommit() {
 // Get commits since last processed commit
 function getNewCommits() {
   const lastProcessedCommit = getLastProcessedCommit();
-  
+
   try {
     if (lastProcessedCommit) {
       // Get commits since last processed commit, excluding the last processed commit itself
@@ -105,7 +105,7 @@ function analyzeCommits(commits) {
   let tempMajor = major;
   let tempMinor = minor;
   let tempPatch = patch;
-  
+
   console.log('\nAnalyzing commits with potential version changes:');
   commits.forEach(commit => {
     const lowerCommit = commit.toLowerCase();
@@ -115,7 +115,7 @@ function analyzeCommits(commits) {
     if (lowerCommit.startsWith('skip') || lowerCommit.includes('bump new version') || lowerCommit.includes('skip:')) {
       return;
     }
-    
+
     // Check for breaking changes - highest priority
     if (lowerCommit.includes('breaking change') || lowerCommit.includes('!:')) {
       commitBumpType = 'major';
@@ -128,7 +128,7 @@ function analyzeCommits(commits) {
     }
     // Check for features - medium priority
     else if (
-      lowerCommit.startsWith('feat:') || 
+      lowerCommit.startsWith('feat:') ||
       lowerCommit.startsWith('feature:') ||
       featureVerbs.some(verb => firstWord === verb)
     ) {
@@ -176,8 +176,9 @@ function analyzeCommits(commits) {
 
 // Update version based on commit analysis
 function updateVersion() {
-  const commits = getNewCommits();
-  
+  const _commits = getNewCommits();
+  const commits = _commits.reverse()
+
   if (commits.length === 0) {
     console.log('No new commits to analyze');
     return null;
@@ -218,13 +219,13 @@ if (newVersion) {
   // Update package.json
   packageJson.version = newVersion;
   writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2) + '\n');
-  
+
   // Update Tauri config version
   updateTauriConfig(newVersion);
-  
+
   // Save the current commit as last processed
   saveLastProcessedCommit();
-  
+
   console.log(`Version upgraded to ${newVersion}`);
   console.log('Last processed commit saved to .version-lock');
 } 

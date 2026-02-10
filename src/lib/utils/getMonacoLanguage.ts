@@ -23,5 +23,37 @@ export function getMonacoLanguage(fileExtension: string | null | undefined): str
     return "mermaid";
   }
 
+  // TypeScript/JavaScript files
+  // Monaco Editor uses 'typescript' for both .ts and .tsx
+  // and 'javascript' for both .js and .jsx
+  if (["tsx", "ts"].includes(ext)) {
+    return "typescript";
+  }
+
+  if (["jsx", "js"].includes(ext)) {
+    return "javascript";
+  }
+
+  // Web languages
+  if (ext === "html" || ext === "htm") {
+    return "html";
+  }
+
+  if (ext === "css") {
+    return "css";
+  }
+
+  // Python files
+  if (ext === "py") {
+    return "python";
+  }
+
+  // JSON files
+  if (ext === "json") {
+    return "json";
+  }
+
+  console.log("fileExtension", fileExtension);
+
   return "plaintext";
 }

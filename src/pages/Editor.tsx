@@ -30,6 +30,7 @@ import { getMonacoLanguage } from "@/lib/utils/getMonacoLanguage";
 
 import { useAutoSave } from "@/features/Editor/useAutoSave";
 import { FileSearchDialog } from "@/features/FileSearchDialog";
+import { ContentSearchDialog } from "@/features/ContentSearchDialog";
 import { useGlobalShortcuts } from "@/hooks/useGlobalShortcuts";
 
 export default function Editor() {
@@ -141,6 +142,7 @@ export default function Editor() {
   return (
     <>
       <FileSearchDialog />
+      <ContentSearchDialog />
       <Titlebar
         left={null}
         center={<EditorTabs />}
@@ -179,6 +181,7 @@ export default function Editor() {
                       <SideBySide
                         initialContent={initialContent}
                         enableFileWatcher={true}
+                        lineNumber={activeTab?.lineNumber}
                       />
                     )}
 
@@ -187,6 +190,7 @@ export default function Editor() {
                         initialContent={initialContent}
                         language={getMonacoLanguage(editorState.fileExtension)}
                         enableFileWatcher={true}
+                        lineNumber={activeTab?.lineNumber}
                       />
                     )}
 

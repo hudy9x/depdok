@@ -1,8 +1,8 @@
 import { useEffect, useState, ReactNode } from "react";
-import { readTextFile } from "@tauri-apps/plugin-fs";
 import { toast } from "sonner";
 // import { Loader2 } from "lucide-react";
 import { draftService } from "@/lib/indexeddb";
+import { readFileContent } from "@/lib/fileOperations";
 
 interface LoadFileContentProps {
   filePath: string;
@@ -39,7 +39,7 @@ export function LoadFileContent({
 
         if (!isUntitled) {
           // 1. Load real file from disk
-          loadedFileContent = await readTextFile(filePath);
+          loadedFileContent = await readFileContent(filePath);
         }
 
         // 2. Check for draft in IndexedDB

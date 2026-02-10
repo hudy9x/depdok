@@ -41,3 +41,12 @@ export async function deleteNode(path: string): Promise<void> {
 export async function createFile(path: string): Promise<void> {
   await invoke('create_file', { path });
 }
+
+/**
+ * Read file content as text
+ * @param path - Path of the file to read
+ * @returns The file content as a string
+ */
+export async function readFileContent(path: string): Promise<string> {
+  return await invoke<string>('read_file_content', { path });
+}

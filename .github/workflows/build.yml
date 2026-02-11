@@ -117,3 +117,23 @@ jobs:
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
+
+  trigger-download-release:
+    needs: publish-tauri
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - name: Trigger download release workflow
+        env:
+          GH_TOKEN: ${{ secrets.REPO_DEPDOK_GITHUB_TOKEN }}
+        run: |
+          echo "================================"
+          echo "🚀 Triggering download release workflow"
+          echo "================================"
+          
+          gh workflow run trigger-download-release.yml \
+            --repo ${{ github.repository }} \
+            --field public_repo="hudy9x/depdok-ladi"
+          
+          echo "✅ Workflow triggered successfully!"

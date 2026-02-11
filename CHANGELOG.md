@@ -1,9 +1,12 @@
 ## What's Changed
 
+✨ Features
+
+- Implement auto-hide functionality for the file explorer sidebar, showing it on mouse hover near the left edge when collapsed. ([a2d2ff0](../../commit/a2d2ff0))
+
 🔨 Other Changes
 
-- Hotfix: abstract file content reading into a new `readFileContent` utility function. ([76b9837](../../commit/76b9837))
-- Upgrade to v0.14.0 ([a3032d0](../../commit/a3032d0))
+- Hotfix, the loadfile handler not working in windows ([d186551](../../commit/d186551))
 
 
-📋 Full Changelog: [a3032d0...76b9837](../../compare/a3032d0...76b9837)
+📋 Full Changelog: [d186551...a2d2ff0](../../compare/d186551...a2d2ff0)

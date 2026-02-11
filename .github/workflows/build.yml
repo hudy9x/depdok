@@ -122,8 +122,45 @@ jobs:
     needs: publish-tauri
     runs-on: ubuntu-latest
     permissions:
+      contents: write
       actions: write
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Get version from package.json
+        id: get_version
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "VERSION=v$VERSION" >> $GITHUB_ENV
+          echo "version=v$VERSION" >> $GITHUB_OUTPUT
+          echo "📦 Version: v$VERSION"
+
+      - name: Publish draft release
+        env:
+          GH_TOKEN: ${{ secrets.REPO_DEPDOK_GITHUB_TOKEN }}
+        run: |
+          echo "================================"
+          echo "📝 Publishing draft release"
+          echo "================================"
+          
+          # Get the draft release
+          DRAFT_RELEASE=$(gh release view "${{ env.VERSION }}" --json isDraft,id,tagName)
+          IS_DRAFT=$(echo "$DRAFT_RELEASE" | jq -r '.isDraft')
+          
+          if [ "$IS_DRAFT" = "true" ]; then
+            echo "✅ Found draft release: ${{ env.VERSION }}"
+            echo "📤 Publishing release as latest..."
+            
+            gh release edit "${{ env.VERSION }}" \
+              --draft=false \
+              --latest
+            
+            echo "✅ Release published successfully!"
+          else
+            echo "ℹ️  Release ${{ env.VERSION }} is already published"
+          fi
+
       - name: Trigger download release workflow
         env:
           GH_TOKEN: ${{ secrets.REPO_DEPDOK_GITHUB_TOKEN }}

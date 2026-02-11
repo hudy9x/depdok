@@ -13,7 +13,8 @@ import { EditorTabs } from "@/features/EditorTabs";
 import { LoadFileContent } from "@/features/Editor/LoadFileContent";
 import { EditorSave } from "@/features/Editor/EditorSaveHandler";
 import { FileExplorer } from "@/features/FileExplorer";
-import { isFileExplorerVisibleAtom } from "@/features/FileExplorer/store";
+import { isFileExplorerVisibleAtom, isFileExplorerAutoHoverAtom } from "@/features/FileExplorer/store";
+import { useAutoHideSidebar } from "@/features/FileExplorer/hooks/useAutoHideSidebar";
 import {
   editorStateAtom,
   loadFileMetadataAtom,
@@ -44,7 +45,11 @@ export default function Editor() {
   const switchTab = useSetAtom(switchTabAtom);
   const [tabs] = useAtom(tabsAtom);
   const isFileExplorerVisible = useAtomValue(isFileExplorerVisibleAtom);
+  const isAutoHover = useAtomValue(isFileExplorerAutoHoverAtom);
   const fileExplorerPanelRef = useRef<ImperativePanelHandle>(null);
+
+  // Auto-hide sidebar hook
+  const { sidebarRef } = useAutoHideSidebar();
 
   // Initialize global shortcuts (e.g. Cmd+B to toggle explorer)
   useGlobalShortcuts();
@@ -153,7 +158,7 @@ export default function Editor() {
       <div className="fixed top-[35px] h-[calc(100vh-35px)] left-0 w-full flex flex-col px-1.5 pb-1.5 bg-background">
         <div className="h-full w-full bg-background border border-border rounded-lg overflow-hidden shadow-lg">
           <PanelGroup direction="horizontal" id="editor-layout" autoSaveId="depdok-editor-layout">
-            {/* File Explorer Panel - collapsible */}
+            {/* File Explorer Panel - always rendered, controlled by collapse state */}
             <Panel
               ref={fileExplorerPanelRef}
               defaultSize={20}
@@ -163,9 +168,11 @@ export default function Editor() {
               collapsible={true}
               collapsedSize={0}
             >
-              <div className="h-full border-r border-border">
-                <FileExplorer />
-              </div>
+              {isFileExplorerVisible && (
+                <div className="h-full border-r border-border">
+                  <FileExplorer />
+                </div>
+              )}
             </Panel>
 
             {isFileExplorerVisible && (
@@ -215,6 +222,21 @@ export default function Editor() {
               </LoadFileContent>
             </Panel>
           </PanelGroup>
+
+          {/* Auto-hide overlay FileExplorer - only when hidden */}
+          {!isFileExplorerVisible && (
+            <div
+              ref={sidebarRef}
+              className={`
+                fixed top-10 left-3 h-[calc(100vh-50px)] w-[300px] bg-background rounded-md border border-border
+                transition-transform duration-300 ease-in-out z-50
+                ${isAutoHover ? 'translate-x-0' : '-translate-x-[350px]'}
+              `}
+              style={{ boxShadow: isAutoHover ? '4px 0 12px rgba(0, 0, 0, 0.1)' : 'none' }}
+            >
+              <FileExplorer />
+            </div>
+          )}
         </div>
       </div>
     </>

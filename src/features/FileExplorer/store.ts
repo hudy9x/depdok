@@ -195,6 +195,10 @@ export const isFileExplorerVisibleAtom = atomWithStorage<boolean>(
   false
 );
 
+// Auto-hide hover state (not persisted, runtime only)
+// When FileExplorer is hidden, this tracks if it should show due to mouse proximity
+export const isFileExplorerAutoHoverAtom = atom<boolean>(false);
+
 // Dialog States
 export type FileOperation = {
   isOpen: boolean;

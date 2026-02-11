@@ -2,8 +2,8 @@
 
 🔨 Other Changes
 
-- Add job to trigger download release workflow in an external repository. ([61947af](../../commit/61947af))
-- Upgrade to v0.15.0 ([ec89c12](../../commit/ec89c12))
+- Publish draft release as latest after build. ([15d3f7b](../../commit/15d3f7b))
+- Upgrade version 0.15.2 ([682dc1d](../../commit/682dc1d))
 
 
-📋 Full Changelog: [ec89c12...61947af](../../compare/ec89c12...61947af)
+📋 Full Changelog: [682dc1d...15d3f7b](../../compare/682dc1d...15d3f7b)

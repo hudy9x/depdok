@@ -223,3 +223,54 @@ export const openCreateDialogAtom = atom(null, (_get, set, { path, type }: { pat
 export const openDeleteDialogAtom = atom(null, (_get, set, path: string) => {
   set(deletingNodeAtom, { isOpen: true, path });
 });
+
+// Action: Reveal file in explorer (expand parents and select)
+export const revealFileAtom = atom(
+  null,
+  async (get, set, filePath: string) => {
+    const workspaceRoot = get(workspaceRootAtom);
+    if (!workspaceRoot) return;
+
+    // Get all parent directories
+    const parentDirs: string[] = [];
+    let currentPath = filePath;
+
+    // Extract parent directories from the file path
+    while (currentPath !== workspaceRoot && currentPath.length > workspaceRoot.length) {
+      const lastSlash = currentPath.lastIndexOf('/');
+      if (lastSlash === -1) break;
+
+      currentPath = currentPath.substring(0, lastSlash);
+      if (currentPath.length >= workspaceRoot.length) {
+        parentDirs.unshift(currentPath);
+      }
+    }
+
+    // Expand all parent directories
+    const expandedFolders = get(expandedFoldersAtom);
+    const treeData = get(fileTreeDataAtom);
+
+    for (const dirPath of parentDirs) {
+      if (!expandedFolders.has(dirPath)) {
+        // Load directory if not already loaded
+        if (!treeData[dirPath]) {
+          try {
+            const entries = await listDirectory(dirPath);
+            set(fileTreeDataAtom, { ...get(fileTreeDataAtom), [dirPath]: entries });
+          } catch (error) {
+            console.error('Failed to load directory:', error);
+            continue;
+          }
+        }
+
+        expandedFolders.add(dirPath);
+      }
+    }
+
+    // Update expanded folders
+    set(expandedFoldersAtom, new Set(expandedFolders));
+
+    // Select the file
+    set(selectItemAtom, { path: filePath });
+  }
+);

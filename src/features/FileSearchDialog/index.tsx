@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { useAtomValue, useSetAtom } from "jotai";
 import { tabsAtom, switchTabAtom, createTabAtom } from "@/stores/TabStore";
-import { workspaceRootAtom } from "@/features/FileExplorer/store";
+import { workspaceRootAtom, revealFileAtom } from "@/features/FileExplorer/store";
 import { FileIcon } from "@/components/FileIcon";
 import {
   CommandDialog,
@@ -30,6 +30,7 @@ export function FileSearchDialog() {
   const workspaceRoot = useAtomValue(workspaceRootAtom);
   const switchTab = useSetAtom(switchTabAtom);
   const createTab = useSetAtom(createTabAtom);
+  const revealFile = useSetAtom(revealFileAtom);
 
   // Register Cmd/Ctrl+P keyboard shortcut
   useEffect(() => {
@@ -110,6 +111,8 @@ export function FileSearchDialog() {
   const handleSelect = (result: CombinedResult) => {
     if (result.type === "tab" && result.tabId) {
       switchTab(result.tabId);
+      // Reveal the tab's file in FileExplorer
+      revealFile(result.path);
     } else if (result.type === "workspace" && workspaceRoot) {
       const fullPath = `${workspaceRoot}/${result.path}`;
       createTab({
@@ -118,6 +121,8 @@ export function FileSearchDialog() {
         switchTo: true,
         isPreview: true,
       });
+      // Reveal the file in FileExplorer
+      revealFile(fullPath);
     }
     setOpen(false);
   };

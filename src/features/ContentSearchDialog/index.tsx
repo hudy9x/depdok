@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { useAtomValue, useSetAtom } from "jotai";
 import { createTabAtom } from "@/stores/TabStore";
-import { workspaceRootAtom } from "@/features/FileExplorer/store";
+import { workspaceRootAtom, revealFileAtom } from "@/features/FileExplorer/store";
 import { Virtuoso } from "react-virtuoso";
 import {
   Dialog,
@@ -23,6 +23,7 @@ export function ContentSearchDialog() {
   const [expandedFiles, setExpandedFiles] = useState<Set<string>>(new Set());
   const workspaceRoot = useAtomValue(workspaceRootAtom);
   const createTab = useSetAtom(createTabAtom);
+  const revealFile = useSetAtom(revealFileAtom);
 
   const { searchQuery, setSearchQuery, results, isSearching } = useContentSearch(workspaceRoot ?? undefined);
 
@@ -79,6 +80,9 @@ export function ContentSearchDialog() {
       isPreview: false, // Changed to false to ensure tab stays open
       lineNumber: result.line_number,
     });
+
+    // Reveal the file in FileExplorer
+    revealFile(fullPath);
 
     setOpen(false);
   };

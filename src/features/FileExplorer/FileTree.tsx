@@ -1,5 +1,6 @@
 import { useAtomValue, useSetAtom } from 'jotai';
-import { Virtuoso } from 'react-virtuoso';
+import { Virtuoso, VirtuosoHandle } from 'react-virtuoso';
+import { useRef, useEffect } from 'react';
 import { FileTreeItem } from './FileTreeItem';
 import {
   flattenedTreeAtom,
@@ -15,13 +16,31 @@ interface FileTreeProps {
 
 export function FileTree({ onFileOpen }: FileTreeProps) {
   const flatTree = useAtomValue(flattenedTreeAtom);
-  /* eslint-disable @typescript-eslint/no-unused-vars */
   const selectedPaths = useAtomValue(selectedPathsAtom);
-  /* eslint-enable @typescript-eslint/no-unused-vars */
+  const virtuosoRef = useRef<VirtuosoHandle>(null);
 
   const activeTab = useAtomValue(activeTabAtom);
   const toggleFolder = useSetAtom(toggleFolderAtom);
   const selectItem = useSetAtom(selectItemAtom);
+
+  // Scroll to selected file when selection changes
+  useEffect(() => {
+    if (selectedPaths.size === 1 && virtuosoRef.current) {
+      const selectedPath = Array.from(selectedPaths)[0];
+      const index = flatTree.findIndex(node => node.path === selectedPath);
+
+      if (index !== -1) {
+        // Use a small delay to ensure the tree has been updated
+        setTimeout(() => {
+          virtuosoRef.current?.scrollToIndex({
+            index,
+            align: 'center',
+            behavior: 'smooth',
+          });
+        }, 100);
+      }
+    }
+  }, [selectedPaths, flatTree]);
 
   const handleToggle = (path: string) => {
     toggleFolder(path);
@@ -55,6 +74,7 @@ export function FileTree({ onFileOpen }: FileTreeProps) {
 
   return (
     <Virtuoso
+      ref={virtuosoRef}
       style={{ height: '100%' }}
       totalCount={flatTree.length}
       itemContent={(index) => {

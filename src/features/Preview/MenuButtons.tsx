@@ -46,6 +46,31 @@ export function FormatButtons({ editor }: FormatButtonsProps) {
   return (
     <>
       <MenuButton
+        onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
+        isActive={editor.isActive('heading', { level: 1 })}
+        title="Heading 1"
+        icon={<Heading1 className="w-4 h-4" />}
+      />
+      <MenuButton
+        onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+        isActive={editor.isActive('heading', { level: 2 })}
+        title="Heading 2"
+        icon={<Heading2 className="w-4 h-4" />}
+      />
+      <MenuButton
+        onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
+        isActive={editor.isActive('heading', { level: 3 })}
+        title="Heading 3"
+        icon={<Heading3 className="w-4 h-4" />}
+      />
+      <MenuButton
+        onClick={() => editor.chain().focus().toggleHeading({ level: 4 }).run()}
+        isActive={editor.isActive('heading', { level: 4 })}
+        title="Heading 4"
+        icon={<Heading4 className="w-4 h-4" />}
+      />
+      <div className="w-[1px] h-4 bg-border mx-1" />
+      <MenuButton
         onClick={() => editor.chain().focus().toggleBold().run()}
         isActive={editor.isActive('bold')}
         title="Bold"

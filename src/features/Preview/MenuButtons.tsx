@@ -12,7 +12,8 @@ import {
   List,
   ListOrdered,
   FileCode,
-  Image
+  Image,
+  Trash
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
@@ -138,6 +139,15 @@ export function BlockButtons({ editor }: FormatButtonsProps) {
           </div>
         </PopoverContent>
       </Popover>
+      <MenuButton
+        onClick={() => {
+          const { $from } = editor.state.selection;
+          editor.commands.deleteNode($from.parent.type.name);
+        }}
+        isActive={false}
+        title="Delete"
+        icon={<Trash className="w-4 h-4" />}
+      />
     </>
   );
 }

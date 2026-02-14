@@ -1,5 +1,37 @@
 @import "tailwindcss";
 
+:root {
+  /* Light Theme */
+  --code-background: #eeeff0;
+  --code-text: #24292f;
+  --code-keyword: #cf222e;
+  --code-function: #8250df;
+  --code-string: #0a3069;
+  --code-comment: #6e7781;
+  --code-tag: #116329;
+  --code-attribute: #0550ae;
+  --code-selector: #24292f;
+  --code-operator: #cf222e;
+  --code-variable: #953800;
+  --code-number: #0550ae;
+}
+
+.dark {
+  /* Dark Theme */
+  --code-background: #211f23;
+  --code-text: #c9d1d9;
+  --code-keyword: #ff7b72;
+  --code-function: #d2a8ff;
+  --code-string: #a5d6ff;
+  --code-comment: #8b949e;
+  --code-tag: #7ee787;
+  --code-attribute: #79c0ff;
+  --code-selector: #c9d1d9;
+  --code-operator: #ff7b72;
+  --code-variable: #ffa657;
+  --code-number: #79c0ff;
+}
+
 /* Markdown Prose Styles */
 .prose {
   color: var(--foreground);
@@ -123,7 +155,7 @@
 
 /* Code Blocks */
 .prose pre {
-  background-color: #211f23 !important;
+  background-color: var(--code-background) !important;
   border-radius: 0.5rem;
   padding: 1em 1.5em;
   overflow-x: auto;
@@ -136,7 +168,7 @@
   background-color: transparent;
   padding: 0;
   font-size: 0.875em;
-  color: white;
+  /* color: white; */
   border-radius: 0;
   font-weight: 400;
 }
@@ -388,9 +420,7 @@
   border: 1px solid rgba(255, 159, 74, 0.2);
 }
 
-.dark .prose pre {
-  background-color: #1e1e1e !important;
-}
+
 
 .dark .prose blockquote {
   border-left-color: var(--border);
@@ -416,4 +446,55 @@
   background-size: 100% 100%;
   background-position: center;
   background-repeat: no-repeat;
+}
+
+/* HLJS Overrides */
+.hljs {
+  background: transparent !important;
+  color: var(--code-text) !important;
+}
+
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-built_in,
+.hljs-name,
+.hljs-tag {
+  color: var(--code-keyword) !important;
+}
+
+.hljs-comment,
+.hljs-quote {
+  color: var(--code-comment) !important;
+}
+
+.hljs-string,
+.hljs-literal,
+.hljs-type,
+.hljs-symbol,
+.hljs-bullet,
+.hljs-addition {
+  color: var(--code-string) !important;
+}
+
+.hljs-title,
+.hljs-section,
+.hljs-function {
+  color: var(--code-function) !important;
+}
+
+.hljs-attr,
+.hljs-attribute,
+.hljs-variable,
+.hljs-template-variable {
+  color: var(--code-variable) !important;
+}
+
+.hljs-number,
+.hljs-deletion {
+  color: var(--code-number) !important;
+}
+
+.hljs-operator,
+.hljs-punctuation {
+  color: var(--code-operator) !important;
 }

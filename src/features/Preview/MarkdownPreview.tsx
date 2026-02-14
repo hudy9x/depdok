@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { useEditor, EditorContent } from "@tiptap/react";
+import { useEditor, EditorContent, ReactNodeViewRenderer } from "@tiptap/react";
 import { useAtomValue, useSetAtom } from "jotai";
 import { invoke } from "@tauri-apps/api/core";
 import StarterKit from "@tiptap/starter-kit";
@@ -18,6 +18,7 @@ import { MarkdownBubbleMenu } from "./MarkdownBubbleMenu";
 import { MarkdownFloatingMenu } from "./MarkdownFloatingMenu";
 
 import { createTauriImage } from "./TauriImage";
+import { CodeBlockNodeView } from "./CodeBlockNodeView";
 import { editorStateAtom, markAsDirtyAtom } from "@/stores/EditorStore";
 import { draftService } from "@/lib/indexeddb";
 import { toast } from "sonner";
@@ -63,6 +64,10 @@ export function MarkdownPreview({
       }),
       CodeBlockLowlight.configure({
         lowlight,
+      }).extend({
+        addNodeView() {
+          return ReactNodeViewRenderer(CodeBlockNodeView);
+        },
       }),
       Markdown,
       TauriImage,

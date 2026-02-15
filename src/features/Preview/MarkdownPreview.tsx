@@ -24,7 +24,7 @@ import { draftService } from "@/lib/indexeddb";
 import { toast } from "sonner";
 import { MarkdownOutline } from "./MarkdownOutline";
 import { Button } from "@/components/ui/button";
-import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { PanelRightClose, PanelRightOpen } from "lucide-react";
 import Heading from "@tiptap/extension-heading";
 import { HeadingNodeView } from "./HeadingNodeView";
 
@@ -45,7 +45,7 @@ export function MarkdownPreview({
   const markAsDirty = useSetAtom(markAsDirtyAtom);
   const TauriImage = createTauriImage(editorState.filePath);
   const isUpdatingRef = useRef(false);
-  const [isOutlineOpen, setIsOutlineOpen] = useState(true);
+  const [isOutlineOpen, setIsOutlineOpen] = useState(false);
 
   // Function to get assets folder from localStorage
   const getAssetsFolder = () => {
@@ -412,33 +412,16 @@ export function MarkdownPreview({
 
   return (
     <div className="w-full h-full overflow-hidden bg-background flex" ref={containerRef}>
-      {isOutlineOpen && (
-        <div className="w-48 xl:w-64 border-r bg-muted/10 h-full flex-shrink-0 flex flex-col transition-all duration-300 ease-in-out">
-          <div className="p-2 border-b flex items-center justify-between shrink-0">
-            <span className="text-sm font-medium text-muted-foreground pl-2">Outline</span>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              onClick={() => setIsOutlineOpen(false)}
-            >
-              <PanelLeftClose className="h-4 w-4" />
-            </Button>
-          </div>
-          <MarkdownOutline editor={editor} className="flex-1" />
-        </div>
-      )}
-
       <div className="flex-1 h-full relative min-w-0 flex flex-col">
         {!isOutlineOpen && (
-          <div className="absolute top-2 left-2 z-10">
+          <div className="absolute top-2 right-2 z-10">
             <Button
               variant="outline"
               size="icon"
               className="h-8 w-8 bg-background/80 backdrop-blur-sm"
               onClick={() => setIsOutlineOpen(true)}
             >
-              <PanelLeftOpen className="h-4 w-4" />
+              <PanelRightOpen className="h-4 w-4" />
             </Button>
           </div>
         )}
@@ -453,6 +436,23 @@ export function MarkdownPreview({
           <EditorContent editor={editor} className="min-h-full" />
         </ScrollArea>
       </div>
+
+      {isOutlineOpen && (
+        <div className="w-48 xl:w-64 border-l border-border bg-muted/10 h-full flex-shrink-0 flex flex-col transition-all duration-300 ease-in-out">
+          <div className="p-2 border-b border-border flex items-center justify-between shrink-0">
+            <span className="text-sm font-medium text-muted-foreground pl-2">Outline</span>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => setIsOutlineOpen(false)}
+            >
+              <PanelRightClose className="h-4 w-4" />
+            </Button>
+          </div>
+          <MarkdownOutline editor={editor} className="flex-1" />
+        </div>
+      )}
     </div>
   );
 }

@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { useEditor, EditorContent, ReactNodeViewRenderer } from "@tiptap/react";
 import { useAtomValue, useSetAtom } from "jotai";
 import { invoke } from "@tauri-apps/api/core";
+import { useLocalStorage } from "@/hooks/useLocalStorage";
 import StarterKit from "@tiptap/starter-kit";
 import { Markdown } from "@tiptap/markdown";
 import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
@@ -45,7 +46,7 @@ export function MarkdownPreview({
   const markAsDirty = useSetAtom(markAsDirtyAtom);
   const TauriImage = createTauriImage(editorState.filePath);
   const isUpdatingRef = useRef(false);
-  const [isOutlineOpen, setIsOutlineOpen] = useState(false);
+  const [isOutlineOpen, setIsOutlineOpen] = useLocalStorage('markdown-outline-open', false);
 
   // Function to get assets folder from localStorage
   const getAssetsFolder = () => {

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useEditor, EditorContent, ReactNodeViewRenderer } from "@tiptap/react";
 import { useAtomValue, useSetAtom } from "jotai";
 import { invoke } from "@tauri-apps/api/core";
@@ -22,6 +22,11 @@ import { CodeBlockNodeView } from "./CodeBlockNodeView";
 import { editorStateAtom, markAsDirtyAtom } from "@/stores/EditorStore";
 import { draftService } from "@/lib/indexeddb";
 import { toast } from "sonner";
+import { MarkdownOutline } from "./MarkdownOutline";
+import { Button } from "@/components/ui/button";
+import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import Heading from "@tiptap/extension-heading";
+import { HeadingNodeView } from "./HeadingNodeView";
 
 const lowlight = createLowlight(common);
 
@@ -40,6 +45,7 @@ export function MarkdownPreview({
   const markAsDirty = useSetAtom(markAsDirtyAtom);
   const TauriImage = createTauriImage(editorState.filePath);
   const isUpdatingRef = useRef(false);
+  const [isOutlineOpen, setIsOutlineOpen] = useState(true);
 
   // Function to get assets folder from localStorage
   const getAssetsFolder = () => {
@@ -61,6 +67,7 @@ export function MarkdownPreview({
     extensions: [
       StarterKit.configure({
         codeBlock: false, // Disable default code block
+        heading: false, // Disable default heading
       }),
       CodeBlockLowlight.configure({
         lowlight,
@@ -68,6 +75,11 @@ export function MarkdownPreview({
         addNodeView() {
           return ReactNodeViewRenderer(CodeBlockNodeView);
         },
+      }),
+      Heading.extend({
+        addNodeView() {
+          return ReactNodeViewRenderer(HeadingNodeView);
+        }
       }),
       Markdown,
       TauriImage,
@@ -399,16 +411,48 @@ export function MarkdownPreview({
   }, []);
 
   return (
-    <div className="w-full h-full overflow-hidden bg-background" ref={containerRef}>
-      <ScrollArea className="w-full h-full">
-        {editable && (
-          <>
-            <MarkdownBubbleMenu editor={editor} />
-            <MarkdownFloatingMenu editor={editor} />
-          </>
+    <div className="w-full h-full overflow-hidden bg-background flex" ref={containerRef}>
+      {isOutlineOpen && (
+        <div className="w-48 xl:w-64 border-r bg-muted/10 h-full flex-shrink-0 flex flex-col transition-all duration-300 ease-in-out">
+          <div className="p-2 border-b flex items-center justify-between shrink-0">
+            <span className="text-sm font-medium text-muted-foreground pl-2">Outline</span>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => setIsOutlineOpen(false)}
+            >
+              <PanelLeftClose className="h-4 w-4" />
+            </Button>
+          </div>
+          <MarkdownOutline editor={editor} className="flex-1" />
+        </div>
+      )}
+
+      <div className="flex-1 h-full relative min-w-0 flex flex-col">
+        {!isOutlineOpen && (
+          <div className="absolute top-2 left-2 z-10">
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8 bg-background/80 backdrop-blur-sm"
+              onClick={() => setIsOutlineOpen(true)}
+            >
+              <PanelLeftOpen className="h-4 w-4" />
+            </Button>
+          </div>
         )}
-        <EditorContent editor={editor} />
-      </ScrollArea>
+
+        <ScrollArea className="w-full h-full">
+          {editable && (
+            <>
+              <MarkdownBubbleMenu editor={editor} />
+              <MarkdownFloatingMenu editor={editor} />
+            </>
+          )}
+          <EditorContent editor={editor} className="min-h-full" />
+        </ScrollArea>
+      </div>
     </div>
   );
 }

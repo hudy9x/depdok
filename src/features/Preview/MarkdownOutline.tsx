@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { Editor } from '@tiptap/react';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -10,6 +10,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { useActiveHeading } from '@/hooks/useActiveHeading';
 
 interface MarkdownOutlineProps {
   editor: Editor | null;
@@ -55,6 +56,17 @@ export const MarkdownOutline: React.FC<MarkdownOutlineProps> = ({
 }) => {
   const [headingTree, setHeadingTree] = useState<HeadingNode[]>([]);
   const [collapsedIds, setCollapsedIds] = useState<Set<string>>(new Set());
+
+  // Extract all heading IDs for the active heading hook
+  const headingIds = useMemo(() => {
+    const extractIds = (nodes: HeadingNode[]): string[] => {
+      return nodes.flatMap(node => [node.id, ...extractIds(node.children)]);
+    };
+    return extractIds(headingTree);
+  }, [headingTree]);
+
+  // Track which heading is currently active (visible in viewport)
+  const activeHeadingId = useActiveHeading(headingIds);
 
   useEffect(() => {
     if (!editor) return;
@@ -134,12 +146,14 @@ export const MarkdownOutline: React.FC<MarkdownOutlineProps> = ({
   const renderNode = (node: HeadingNode) => {
     const hasChildren = node.children.length > 0;
     const isCollapsed = collapsedIds.has(node.id);
+    const isActive = activeHeadingId === node.id;
 
     return (
       <div key={node.id} className="flex flex-col">
         <div className={cn(
           "flex items-center gap-1 hover:bg-accent hover:text-accent-foreground rounded-sm px-2 py-1 transition-colors group",
-          node.level === 1 && "font-semibold"
+          node.level === 1 && "font-semibold",
+          isActive && "bg-primary/20"
         )}>
           {hasChildren ? (
             <button

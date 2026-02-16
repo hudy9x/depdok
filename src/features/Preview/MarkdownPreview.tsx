@@ -419,7 +419,7 @@ export function MarkdownPreview({
             <Button
               variant="outline"
               size="icon"
-              className="h-8 w-8 bg-background/80 backdrop-blur-sm"
+              className="h-8 w-8 bg-background/80  backdrop-blur-sm"
               onClick={() => setIsOutlineOpen(true)}
             >
               <PanelRightOpen className="h-4 w-4" />
@@ -439,8 +439,8 @@ export function MarkdownPreview({
       </div>
 
       {isOutlineOpen && (
-        <div className="w-48 xl:w-64 border-l border-border bg-muted/10 h-full flex-shrink-0 flex flex-col transition-all duration-300 ease-in-out">
-          <div className="p-2 border-b border-border flex items-center justify-between shrink-0">
+        <div className="w-48 xl:w-64 border-l rounded-tl-md rounded-bl-md border-border bg-muted h-full flex-shrink-0 flex flex-col transition-all duration-300 ease-in-out">
+          <div className="p-2 py-1 border-b border-border flex items-center justify-between shrink-0">
             <span className="text-sm font-medium text-muted-foreground pl-2">Outline</span>
             <Button
               variant="ghost"

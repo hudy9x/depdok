@@ -2,15 +2,19 @@
 
 ✨ Features
 
-- Introduce `useLocalStorage` hook and persist `MarkdownPreview`'s outline state. ([98bbbcb](../../commit/98bbbcb))
-- Focus selected file after searching (#18) ([0c94105](../../commit/0c94105))
+- Markdown outline (#20) ([645ebd2](../../commit/645ebd2))
+
+🐛 Bug Fixes
+
+- Load previously expanded folders during file explorer initialization and handle loading errors. ([feced3e](../../commit/feced3e))
+
+♻️ Refactoring
+
+- Add `useActiveHeading` hook to detect visible headings and highlight the active one in the Markdown outline. ([69f8bf4](../../commit/69f8bf4))
 
 🔨 Other Changes
 
-- Move outline to right + add tooltip + style something ([ed73402](../../commit/ed73402))
-- Add outline ([0e3368e](../../commit/0e3368e))
-- Delete image + add headings buttons + delete line + fix subtitle style (#19) ([dbfd883](../../commit/dbfd883))
-- Upgrade version 0.15.4 ([36ca867](../../commit/36ca867))
+- Update preview and outline UI elements for better visual consistency and interactivity. ([18be44e](../../commit/18be44e))
 
 
-📋 Full Changelog: [36ca867...98bbbcb](../../compare/36ca867...98bbbcb)
+📋 Full Changelog: [645ebd2...69f8bf4](../../compare/645ebd2...69f8bf4)

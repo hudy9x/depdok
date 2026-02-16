@@ -62,6 +62,29 @@ export const openWorkspaceAtom = atom(
       expanded.add(rootPath);
       set(expandedFoldersAtom, new Set(expanded));
 
+      // Load all previously expanded folders
+      const expandedFolders = Array.from(expanded);
+      const treeData: Record<string, FileEntry[]> = { [rootPath]: entries };
+
+      for (const folderPath of expandedFolders) {
+        // Skip root as it's already loaded
+        if (folderPath === rootPath) continue;
+
+        try {
+          const folderEntries = await listDirectory(folderPath);
+          treeData[folderPath] = folderEntries;
+        } catch (error) {
+          console.error(`Failed to load expanded folder ${folderPath}:`, error);
+          // Remove from expanded set if it can't be loaded
+          expanded.delete(folderPath);
+        }
+      }
+
+      // Update tree data with all loaded folders
+      set(fileTreeDataAtom, { ...get(fileTreeDataAtom), ...treeData });
+      // Update expanded folders (may have removed some that failed to load)
+      set(expandedFoldersAtom, new Set(expanded));
+
       // Index workspace files for search
       try {
         await indexWorkspaceFiles(rootPath);

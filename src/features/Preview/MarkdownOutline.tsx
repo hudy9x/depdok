@@ -144,7 +144,7 @@ export const MarkdownOutline: React.FC<MarkdownOutlineProps> = ({
           {hasChildren ? (
             <button
               onClick={(e) => toggleCollapse(node.id, e)}
-              className="h-4 w-4 shrink-0 hover:bg-muted rounded flex items-center justify-center text-muted-foreground transition-colors"
+              className="h-4 w-4 cursor-pointer shrink-0 hover:bg-muted rounded flex items-center justify-center text-muted-foreground transition-colors"
             >
               {isCollapsed ? <ChevronRight className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
             </button>
@@ -159,12 +159,12 @@ export const MarkdownOutline: React.FC<MarkdownOutlineProps> = ({
               <TooltipTrigger asChild>
                 <button
                   onClick={() => handleHeadingClick(node.id, node.pos)}
-                  className={`text-left text-xs truncate w-full flex-1 min-w-0 ${hasChildren ? "" : "opacity-50"}`}
+                  className={`text-left text-xs cursor-pointer truncate w-full flex-1 min-w-0 ${hasChildren ? "" : "opacity-50"}`}
                 >
                   {node.text || 'Untitled'}
                 </button>
               </TooltipTrigger>
-              <TooltipContent side="right" sideOffset={10}>
+              <TooltipContent side="top" sideOffset={10}>
                 <p>{node.text}</p>
               </TooltipContent>
             </Tooltip>

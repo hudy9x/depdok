@@ -3,22 +3,19 @@ trigger: always_on
 ---
 
 ## Global Rules
-- Alway use pnpm 
+- Always use **pnpm**.
 
 ## Frontend UI/UX
-- Must use shadcn-ui for all ui block in `./src` folder
-- Must use tailwind css for all styling 
-- Must create localStorage, indexDB, cached in /lib folder and use the interface. Do not use them directly
+- **UI Components**: Use `shadcn/ui` for everything in `./src`.
+- **Styling**: Use Tailwind CSS exclusively.
+- **Storage**: Abstract `localStorage`, `IndexedDB`, and caching in `./lib`. Use the interface; do not access them directly.
 
-## Coding Principle
-- Must decouple the logic for easy to maintain. 
-- Place features with stores, hooks, component in the same folder for management with ease
+## Coding Principles
+- **Decouple Logic**: Keep logic separate for better maintainability.
+- **Co-location**: Group feature-specific stores, hooks, and components in the same folder.
 
-## Frontend Guard
-- Refer `./docs/license-guard.md`
+## Integration (Tauri)
+- **API Client**: Wrap `@tauri-apps/api` calls (`invoke`, `listen`) in `./src/api-client`. Do not call them directly.
 
-
-
-## Communicate between frontend and backend (Rust)
-- Do not call `invoke` and `listen` from  `@tauri-apps/api` directly, but create files, function in `./src/api-client` folder
--
+## Security
+- Follow guidelines in `./docs/license-guard.md`.

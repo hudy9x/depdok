@@ -7,6 +7,9 @@ trigger: always_on
 - Must use tailwind css for all styling 
 - Must create localStorage, indexDB, cached in /lib folder and use the interface. Do not use them directly
 
+## Frontend Guard
+- Refer `./docs/license-guard.md`
+
 
 
 ## Communicate between frontend and backend (Rust)

@@ -12,8 +12,6 @@ import {
 } from "@/components/ui/tooltip"
 import { useActiveHeading } from '@/hooks/useActiveHeading';
 import { Button } from '@/components/ui/button';
-import { LicenseGuard } from '@/components/LicenseGuard';
-import { useLocalStorage } from '@/hooks/useLocalStorage';
 
 interface MarkdownOutlineProps {
   editor: Editor | null;

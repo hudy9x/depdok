@@ -10,8 +10,8 @@ export const licensePopoverDismissedAtom = atomWithStorage('license-popover-dism
 // Action to show popover (respects dismissed state)
 export const showLicensePopoverAtom = atom(
   null,
-  (get, set) => {
-    const dismissed = get(licensePopoverDismissedAtom);
+  (_get, set) => {
+    const dismissed = _get(licensePopoverDismissedAtom);
     if (!dismissed) {
       set(licensePopoverOpenAtom, true);
     }
@@ -21,7 +21,7 @@ export const showLicensePopoverAtom = atom(
 // Action to dismiss popover (sets both closed and dismissed)
 export const dismissLicensePopoverAtom = atom(
   null,
-  (get, set) => {
+  (_get, set) => {
     set(licensePopoverOpenAtom, false);
     set(licensePopoverDismissedAtom, true);
   }
@@ -30,7 +30,7 @@ export const dismissLicensePopoverAtom = atom(
 // Action to reset dismissed state (for testing or when user wants to see it again)
 export const resetPopoverDismissedAtom = atom(
   null,
-  (get, set) => {
+  (_get, set) => {
     set(licensePopoverDismissedAtom, false);
   }
 );

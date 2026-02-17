@@ -25,7 +25,7 @@ import { draftService } from "@/lib/indexeddb";
 import { toast } from "sonner";
 import { MarkdownOutlineWrapper } from "./MarkdownOutline";
 import { Button } from "@/components/ui/button";
-import { PanelRightClose, PanelRightOpen } from "lucide-react";
+import { PanelRightOpen } from "lucide-react";
 import Heading from "@tiptap/extension-heading";
 import { HeadingNodeView } from "./HeadingNodeView";
 import { LicenseGuard } from "@/components/LicenseGuard";

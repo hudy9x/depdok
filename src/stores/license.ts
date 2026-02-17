@@ -32,7 +32,7 @@ export const daysRemainingAtom = atom((get) => {
 // Action atoms
 export const refreshLicenseStatusAtom = atom(
   null,
-  async (get, set) => {
+  async (_get, set) => {
     set(isLoadingLicenseAtom, true);
     set(licenseErrorAtom, null);
 
@@ -65,7 +65,7 @@ export const refreshLicenseStatusAtom = atom(
 
 export const activateLicenseAtom = atom(
   null,
-  async (get, set, licenseKey: string) => {
+  async (_get, set, licenseKey: string) => {
     set(isLoadingLicenseAtom, true);
     set(licenseErrorAtom, null);
 
@@ -99,7 +99,7 @@ export const activateLicenseAtom = atom(
 
 export const removeLicenseAtom = atom(
   null,
-  async (get, set) => {
+  async (_get, set) => {
     set(isLoadingLicenseAtom, true);
     set(licenseErrorAtom, null);
 
@@ -127,7 +127,7 @@ export const removeLicenseAtom = atom(
 // Check if licensed (simple boolean check)
 export const checkIsLicensedAtom = atom(
   null,
-  async (get, set) => {
+  async (_get, _set) => {
     try {
       const isLicensed = await licenseApi.isLicensed();
       return isLicensed;

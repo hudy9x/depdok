@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useAtom, useAtomValue, useSetAtom } from 'jotai';
+import { useAtomValue, useSetAtom } from 'jotai';
 import { BadgeCheck, Clock, BadgeX } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
@@ -17,7 +17,7 @@ import { licensePopoverOpenAtom } from '../stores/license-popover';
 export function LicenseStatusBadge() {
   const licenseStatus = useAtomValue(licenseStatusAtom);
   const gracePeriodInfo = useAtomValue(gracePeriodInfoAtom);
-  const [popoverOpen, setPopoverOpen] = useAtom(licensePopoverOpenAtom);
+  const setPopoverOpen = useSetAtom(licensePopoverOpenAtom);
   const refreshStatus = useSetAtom(refreshLicenseStatusAtom);
 
   // Refresh license status on mount

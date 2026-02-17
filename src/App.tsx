@@ -10,9 +10,19 @@ import Checking from './pages/Checking';
 import { Layout } from './components/Layout';
 import Empty from './pages/Empty';
 import { AppMenuListener } from './components/AppMenuListener';
+import { LicensePopover } from './features/LicensePopover';
+import { useEffect } from 'react';
+import { useSetAtom } from 'jotai';
+import { refreshLicenseStatusAtom } from './stores/license';
 
 function App() {
   const savedTheme = settingsService.getSettings().theme;
+  const refreshLicenseStatus = useSetAtom(refreshLicenseStatusAtom);
+
+  // Check license status on app startup
+  useEffect(() => {
+    refreshLicenseStatus();
+  }, [refreshLicenseStatus]);
 
   return (
     <ThemeProvider attribute="class" defaultTheme={savedTheme} enableSystem>
@@ -21,6 +31,7 @@ function App() {
           <AppMenuListener />
           <Layout>
             <Toaster position="bottom-right" richColors />
+            <LicensePopover />
             <Routes>
               <Route path="/" element={<Checking />} />
               <Route path="/home" element={<Home />} />

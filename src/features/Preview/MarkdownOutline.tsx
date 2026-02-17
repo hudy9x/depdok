@@ -3,7 +3,7 @@ import { Editor } from '@tiptap/react';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { slugify } from './HeadingNodeView';
-import { ChevronRight, ChevronDown, Hash } from 'lucide-react';
+import { ChevronRight, ChevronDown, Hash, PanelRightClose } from 'lucide-react';
 import {
   Tooltip,
   TooltipContent,
@@ -11,6 +11,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { useActiveHeading } from '@/hooks/useActiveHeading';
+import { Button } from '@/components/ui/button';
 
 interface MarkdownOutlineProps {
   editor: Editor | null;
@@ -210,3 +211,27 @@ export const MarkdownOutline: React.FC<MarkdownOutlineProps> = ({
     </ScrollArea>
   );
 };
+
+export const MarkdownOutlineWrapper: React.FC<{ editor: Editor | null, visible: boolean, onToggle: () => void }> = ({ editor, visible, onToggle }) => {
+
+  if (!visible) {
+    return null;
+  }
+
+  return (
+    <div className="w-48 xl:w-64 border-l rounded-tl-md rounded-bl-md border-border bg-muted h-full flex-shrink-0 flex flex-col transition-all duration-300 ease-in-out">
+      <div className="p-2 py-1 border-b border-border flex items-center justify-between shrink-0">
+        <span className="text-sm font-medium text-muted-foreground pl-2">Outline</span>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8"
+          onClick={onToggle}
+        >
+          <PanelRightClose className="h-4 w-4" />
+        </Button>
+      </div>
+      <MarkdownOutline editor={editor} className="flex-1" />
+    </div>
+  )
+}

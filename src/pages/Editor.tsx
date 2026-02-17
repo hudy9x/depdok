@@ -33,6 +33,7 @@ import { useAutoSave } from "@/features/Editor/useAutoSave";
 import { FileSearchDialog } from "@/features/FileSearchDialog";
 import { ContentSearchDialog } from "@/features/ContentSearchDialog";
 import { useGlobalShortcuts } from "@/hooks/useGlobalShortcuts";
+import { LicenseStatusBadge } from "@/components/LicenseStatusBadge";
 
 export default function Editor() {
   const [searchParams] = useSearchParams();
@@ -151,7 +152,12 @@ export default function Editor() {
       <Titlebar
         left={null}
         center={<EditorTabs />}
-        right={<EditorRightActions />}
+        right={
+          <div className="flex items-center gap-2">
+            <LicenseStatusBadge />
+            <EditorRightActions />
+          </div>
+        }
       />
       <EditorSave />
 

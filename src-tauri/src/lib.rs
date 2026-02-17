@@ -43,9 +43,69 @@ fn close_devtools(app: tauri::AppHandle) {
 
 mod commands;
 mod menu;
+mod license_manager;
+mod keychain;
+
+// License commands
+#[tauri::command]
+async fn validate_license(key: String, org_id: String, app_handle: tauri::AppHandle) -> Result<license_manager::LicenseStatus, String> {
+    let status = license_manager::validate_license_key(&key, &org_id).await?;
+    
+    // Cache the result
+    if let Ok(app_data_dir) = app_handle.path().app_data_dir() {
+        let _ = license_manager::cache_validation_result(&status, &app_data_dir);
+    }
+    
+    Ok(status)
+}
+
+#[tauri::command]
+async fn get_license_status(app_handle: tauri::AppHandle) -> Result<license_manager::LicenseStatus, String> {
+    let app_data_dir = app_handle.path().app_data_dir()
+        .map_err(|e| format!("Failed to get app data dir: {}", e))?;
+    license_manager::get_license_status(&app_data_dir).await
+}
+
+#[tauri::command]
+fn save_license_key(key: String) -> Result<(), String> {
+    keychain::save_license_key(&key)
+}
+
+#[tauri::command]
+fn remove_license_key(app: tauri::AppHandle) -> Result<(), String> {
+    // Remove from keychain
+    keychain::delete_license_key()?;
+    
+    // Also remove cached validation
+    let app_data_dir = app.path().app_data_dir()
+        .map_err(|e| format!("Failed to get app data dir: {}", e))?;
+    
+    let cache_file = app_data_dir.join("license_cache.json");
+    if cache_file.exists() {
+        std::fs::remove_file(&cache_file)
+            .map_err(|e| format!("Failed to remove cache file: {}", e))?;
+    }
+    
+    Ok(())
+}
+
+#[tauri::command]
+fn is_licensed(app_handle: tauri::AppHandle) -> Result<bool, String> {
+    let app_data_dir = app_handle.path().app_data_dir()
+        .map_err(|e| format!("Failed to get app data dir: {}", e))?;
+    license_manager::is_licensed(&app_data_dir)
+}
+
+#[tauri::command]
+fn get_grace_period_info() -> Result<license_manager::GracePeriodInfo, String> {
+    license_manager::get_grace_period_info()
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Load .env file (ignore errors if file doesn't exist)
+    let _ = dotenvy::dotenv();
+    
     tauri::Builder::default()
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_process::init())
@@ -182,6 +242,13 @@ pub fn run() {
             commands::file_search::fuzzy_search_files,
             commands::content_search::search_content,
             commands::content_search::set_content_search_workspace,
+            // License commands
+            validate_license,
+            get_license_status,
+            save_license_key,
+            remove_license_key,
+            is_licensed,
+            get_grace_period_info,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

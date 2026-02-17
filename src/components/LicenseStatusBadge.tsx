@@ -1,6 +1,8 @@
 import { useEffect } from 'react';
-import { useAtom, useAtomValue } from 'jotai';
+import { useAtom, useAtomValue, useSetAtom } from 'jotai';
+import { BadgeCheck, Clock, BadgeX } from 'lucide-react';
 import { Badge } from './ui/badge';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 import {
   licenseStatusAtom,
   gracePeriodInfoAtom,
@@ -13,15 +15,15 @@ import { licensePopoverOpenAtom } from '../stores/license-popover';
  * Shows current license status with color coding
  */
 export function LicenseStatusBadge() {
-  const [licenseStatus, setLicenseStatus] = useAtom(licenseStatusAtom);
+  const licenseStatus = useAtomValue(licenseStatusAtom);
   const gracePeriodInfo = useAtomValue(gracePeriodInfoAtom);
   const [popoverOpen, setPopoverOpen] = useAtom(licensePopoverOpenAtom);
-  const refreshStatus = useAtomValue(refreshLicenseStatusAtom);
+  const refreshStatus = useSetAtom(refreshLicenseStatusAtom);
 
   // Refresh license status on mount
   useEffect(() => {
-    refreshStatus;
-  }, []);
+    refreshStatus();
+  }, [refreshStatus]);
 
   if (!licenseStatus) {
     return null;
@@ -34,13 +36,22 @@ export function LicenseStatusBadge() {
   // Licensed status
   if (licenseStatus.status === 'licensed') {
     return (
-      <Badge
-        variant="default"
-        className="cursor-pointer bg-green-600 hover:bg-green-700 text-white"
-        onClick={handleClick}
-      >
-        ✅ Licensed
-      </Badge>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Badge
+              variant="outline"
+              className="cursor-pointer hover:bg-accent border-0"
+              onClick={handleClick}
+            >
+              <BadgeCheck className="h-4 w-4 text-green-600" />
+            </Badge>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Licensed</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
     );
   }
 
@@ -48,24 +59,42 @@ export function LicenseStatusBadge() {
   if (licenseStatus.status === 'grace_period' && gracePeriodInfo) {
     const daysLeft = gracePeriodInfo.days_remaining;
     return (
-      <Badge
-        variant="secondary"
-        className="cursor-pointer bg-yellow-500 hover:bg-yellow-600 text-white"
-        onClick={handleClick}
-      >
-        ⏳ {daysLeft} {daysLeft === 1 ? 'day' : 'days'}
-      </Badge>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Badge
+              variant="outline"
+              className="cursor-pointer hover:bg-accent border-0"
+              onClick={handleClick}
+            >
+              <Clock className="h-4 w-4 text-yellow-600" />
+            </Badge>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>{daysLeft} {daysLeft === 1 ? 'day' : 'days'} remaining</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
     );
   }
 
   // Expired
   return (
-    <Badge
-      variant="destructive"
-      className="cursor-pointer"
-      onClick={handleClick}
-    >
-      ❌ Expired
-    </Badge>
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Badge
+            variant="outline"
+            className="cursor-pointer hover:bg-accent border-0"
+            onClick={handleClick}
+          >
+            <BadgeX className="h-4 w-4 text-red-600" />
+          </Badge>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>License Expired</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 }

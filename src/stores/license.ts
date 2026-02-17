@@ -7,9 +7,9 @@ import { cacheLicenseStatus, getCachedLicenseStatus } from '../lib/license-cache
 // Polar.sh organization ID from environment
 const POLAR_ORG_ID = import.meta.env.VITE_POLAR_ORG_ID || '';
 
-// License state atoms
-export const licenseStatusAtom = atom<LicenseStatus | null>(null);
-export const gracePeriodInfoAtom = atom<GracePeriodInfo | null>(null);
+// License state atoms - persisted in localStorage for quick initial display
+export const licenseStatusAtom = atomWithStorage<LicenseStatus | null>('depdok_license_status', null);
+export const gracePeriodInfoAtom = atomWithStorage<GracePeriodInfo | null>('depdok_grace_period', null);
 export const isLoadingLicenseAtom = atom(false);
 export const licenseErrorAtom = atom<string | null>(null);
 
@@ -111,10 +111,8 @@ export const removeLicenseAtom = atom(
       const { clearLicenseCache } = await import('../lib/license-cache');
       await clearLicenseCache();
 
-      // Clear state
-      set(licenseStatusAtom, null);
-
-      // Refresh to get grace period status
+      // Don't set to null - immediately refresh to get grace period status
+      // This ensures localStorage gets the correct grace period state
       await set(refreshLicenseStatusAtom);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to remove license';

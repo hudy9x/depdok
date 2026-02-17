@@ -23,11 +23,12 @@ import { CodeBlockNodeView } from "./CodeBlockNodeView";
 import { editorStateAtom, markAsDirtyAtom } from "@/stores/EditorStore";
 import { draftService } from "@/lib/indexeddb";
 import { toast } from "sonner";
-import { MarkdownOutline } from "./MarkdownOutline";
+import { MarkdownOutlineWrapper } from "./MarkdownOutline";
 import { Button } from "@/components/ui/button";
 import { PanelRightClose, PanelRightOpen } from "lucide-react";
 import Heading from "@tiptap/extension-heading";
 import { HeadingNodeView } from "./HeadingNodeView";
+import { LicenseGuard } from "@/components/LicenseGuard";
 
 const lowlight = createLowlight(common);
 
@@ -438,22 +439,11 @@ export function MarkdownPreview({
         </ScrollArea>
       </div>
 
-      {isOutlineOpen && (
-        <div className="w-48 xl:w-64 border-l rounded-tl-md rounded-bl-md border-border bg-muted h-full flex-shrink-0 flex flex-col transition-all duration-300 ease-in-out">
-          <div className="p-2 py-1 border-b border-border flex items-center justify-between shrink-0">
-            <span className="text-sm font-medium text-muted-foreground pl-2">Outline</span>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              onClick={() => setIsOutlineOpen(false)}
-            >
-              <PanelRightClose className="h-4 w-4" />
-            </Button>
-          </div>
-          <MarkdownOutline editor={editor} className="flex-1" />
-        </div>
-      )}
+      <LicenseGuard className="fixed top-12 right-6" title="" tooltipTitle="Enable Markdown Outline">
+        <MarkdownOutlineWrapper editor={editor}
+          visible={isOutlineOpen}
+          onToggle={() => setIsOutlineOpen(!isOutlineOpen)} />
+      </LicenseGuard>
     </div>
   );
 }

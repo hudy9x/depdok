@@ -3,9 +3,18 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 
-const GRACE_PERIOD_DAYS: i64 = 30;
+// Default grace period if not set in environment
+const DEFAULT_GRACE_PERIOD_DAYS: i64 = 30;
 const OFFLINE_CACHE_DAYS: i64 = 7;
 const INSTALL_FILE_NAME: &str = ".depdok-install";
+
+/// Get grace period days from environment or use default
+fn get_grace_period_days() -> i64 {
+    std::env::var("TAURI_GRACE_PERIOD_DAYS")
+        .ok()
+        .and_then(|s| s.parse::<i64>().ok())
+        .unwrap_or(DEFAULT_GRACE_PERIOD_DAYS)
+}
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct LicenseStatus {
@@ -138,15 +147,15 @@ pub fn get_days_since_installation() -> Result<u32, String> {
 /// Check if within grace period
 pub fn is_within_grace_period() -> Result<bool, String> {
     let days = get_days_since_installation()?;
-    Ok(days < GRACE_PERIOD_DAYS as u32)
+    Ok(days < get_grace_period_days() as u32)
 }
 
 /// Get grace period info
 pub fn get_grace_period_info() -> Result<GracePeriodInfo, String> {
     let days_since = get_days_since_installation()?;
-    let is_in_grace = days_since < GRACE_PERIOD_DAYS as u32;
+    let is_in_grace = days_since < get_grace_period_days() as u32;
     let days_remaining = if is_in_grace {
-        GRACE_PERIOD_DAYS as u32 - days_since
+        get_grace_period_days() as u32 - days_since
     } else {
         0
     };

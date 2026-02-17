@@ -103,6 +103,9 @@ fn get_grace_period_info() -> Result<license_manager::GracePeriodInfo, String> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Load .env file (ignore errors if file doesn't exist)
+    let _ = dotenvy::dotenv();
+    
     tauri::Builder::default()
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_process::init())

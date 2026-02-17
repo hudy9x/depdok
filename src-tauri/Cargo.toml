@@ -30,6 +30,7 @@ tauri-plugin-shell = "2"
 tauri-plugin-os = "2"
 tauri-plugin-store = "2"
 chrono = { version = "0.4", features = ["serde"] }
+dotenvy = "0.15"
 notify-debouncer-full = "0.7.0"
 fs_extra = "1.3.0"
 nucleo-matcher = "0.3"

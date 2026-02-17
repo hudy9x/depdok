@@ -112,7 +112,7 @@ export function LicenseActivationDialog({ open, onOpenChange, isGracePeriod }: L
             {isLoading ? 'Validating...' : 'Activate'}
           </Button>
           <Button variant="outline">
-            <a href="https://depdok.com" target="_blank">
+            <a href="https://buy.polar.sh/polar_cl_U3UBP2JYQwZI8so7QUvd6JcCMKr1ie6Fr9THW3I1T7m" target="_blank">
               Buy License
             </a>
           </Button>

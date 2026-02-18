@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useAtomValue, useSetAtom } from "jotai";
 import { useDebouncedCallback } from "use-debounce";
-import { TodoDocument, todoRender, todoSerializer } from "./todoRenderer";
+import { TodoDocument, todoRender, todoSerializer, TodoSection } from "./todoRenderer";
 import { editorStateAtom, markAsDirtyAtom } from "@/stores/EditorStore";
 import { draftService } from "@/lib/indexeddb";
 
@@ -142,6 +142,47 @@ export function useTodoDocument({ content, editable, onContentChange }: UseTodoD
     updateContent(newDocument);
   };
 
+  /**
+   * Update the order of all sections (boards).
+   * Takes the new visual order of sections, updates their `order` metadata, and saves.
+   */
+  const handleSetSectionsOrder = (newSections: TodoSection[]) => {
+    if (!editable) return;
+    const newDocument = { ...document };
+
+    // Update order metadata to match the new visual order
+    newDocument.sections = newSections.map((section, idx) => ({
+      ...section,
+      metadata: { ...section.metadata, order: idx + 1 },
+    }));
+
+    updateContent(newDocument);
+  };
+
+  /**
+   * Move a todo item within or across sections.
+   * targetItemIndex is the index BEFORE which the item will be inserted.
+   */
+  const handleMoveItem = (
+    sourceSectionIndex: number,
+    sourceItemIndex: number,
+    targetSectionIndex: number,
+    targetItemIndex: number
+  ) => {
+    if (!editable) return;
+    const newDocument = { ...document };
+    newDocument.sections = newDocument.sections.map(s => ({ ...s, items: [...s.items] }));
+
+    const sourceItems = newDocument.sections[sourceSectionIndex].items;
+    const [movedItem] = sourceItems.splice(sourceItemIndex, 1);
+
+    const targetItems = newDocument.sections[targetSectionIndex].items;
+    const clampedIndex = Math.min(targetItemIndex, targetItems.length);
+    targetItems.splice(clampedIndex, 0, movedItem);
+
+    updateContent(newDocument);
+  };
+
   const handleModeChange = (mode: 'kanban' | 'week') => {
     if (!editable) return;
     const newDocument = { ...document };
@@ -164,5 +205,7 @@ export function useTodoDocument({ content, editable, onContentChange }: UseTodoD
     handleSectionTitleChange,
     handleSectionColorChange,
     handleModeChange,
+    handleSetSectionsOrder,
+    handleMoveItem,
   };
 }

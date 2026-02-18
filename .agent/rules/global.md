@@ -7,6 +7,10 @@ trigger: always_on
 - Must use tailwind css for all styling 
 - Must create localStorage, indexDB, cached in /lib folder and use the interface. Do not use them directly
 
+## Coding Principle
+- Must decouple the logic for easy to maintain. 
+- Place features with stores, hooks, component in the same folder for management with ease
+
 ## Frontend Guard
 - Refer `./docs/license-guard.md`
 

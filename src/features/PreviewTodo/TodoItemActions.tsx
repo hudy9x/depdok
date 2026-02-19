@@ -144,6 +144,7 @@ export function TodoItemActions({
               {metadata?.due && (
                 <span className="ml-auto text-[10px] text-muted-foreground">{metadata.due}</span>
               )}
+
             </button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="start">
@@ -165,6 +166,24 @@ export function TodoItemActions({
             />
           </PopoverContent>
         </Popover>
+
+        {/* Remove actions */}
+        {(metadata?.due || metadata?.priority || metadata?.assignee) && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel className="text-xs">Remove</DropdownMenuLabel>
+
+            {metadata?.due && (
+              <DropdownMenuItem
+                className="text-xs"
+                onClick={() => onRemoveMetadata("due")}
+              >
+                <CalendarIcon className="mr-2 h-3 w-3 text-muted-foreground" />
+                Remove Due Date
+              </DropdownMenuItem>
+            )}
+          </>
+        )}
 
         {/* Delete action */}
         {onDelete && (

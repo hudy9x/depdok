@@ -2,6 +2,9 @@
 trigger: always_on
 ---
 
+## Global Rules
+- Alway use pnpm 
+
 ## Frontend UI/UX
 - Must use shadcn-ui for all ui block in `./src` folder
 - Must use tailwind css for all styling 

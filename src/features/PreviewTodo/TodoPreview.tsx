@@ -28,7 +28,14 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { GripVertical, Plus, Trash2 } from "lucide-react";
+import { GripVertical, Plus, Trash2, MoreHorizontal, Pencil } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import { TodoSection, TodoItem as TodoItemType, TodoConfig } from "./todoRenderer";
 
 interface TodoPreviewProps {
@@ -117,6 +124,9 @@ function SortableBoard({
     isDragging,
   } = useSortable({ id: section._id });
 
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+
+
   return (
     <div
       ref={setNodeRef}
@@ -124,7 +134,7 @@ function SortableBoard({
       className="flex-shrink-0 w-80"
     >
       <Card
-        className={`pb-0 pt-4 shadow-none border-dashed rounded-sm flex flex-col gap-2 bg-board border-board-border max-h-full ${isDragging ? "opacity-40" : ""}`}
+        className={`pb-0 pt-4 shadow-none border-dashed rounded-sm flex flex-col gap-2 max-h-full ${isDragging ? "opacity-40" : ""}`}
       >
         <CardHeader className="px-4 flex flex-row items-center justify-between space-y-0 group">
           {editable && (
@@ -144,22 +154,63 @@ function SortableBoard({
             onColorChange={(color) => onSectionColorChange(docSectionIndex, color)}
             editable={editable}
           />
-          <Input
-            value={section.title}
-            onChange={(e) => onSectionTitleChange(docSectionIndex, e.target.value)}
-            style={{ backgroundColor: "transparent" }}
-            className="font-semibold text-lg bg-transparent shadow-none border-transparent focus:border-input h-auto p-1 py-0"
-            disabled={!editable}
-          />
+
+          <div className="flex-1 min-w-0 flex items-center gap-2 group/title">
+            {isEditingTitle && editable ? (
+              <Input
+                value={section.title}
+                onChange={(e) => onSectionTitleChange(docSectionIndex, e.target.value)}
+                autoFocus
+                onBlur={() => setIsEditingTitle(false)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") setIsEditingTitle(false);
+                  if (e.key === "Escape") setIsEditingTitle(false);
+                }}
+                className="font-semibold text-lg bg-background shadow-sm h-8 py-1 px-2"
+              />
+            ) : (
+              <div
+                className="flex items-center gap-2 font-semibold text-lg px-1 py-0.5 cursor-default truncate"
+                onDoubleClick={() => editable && setIsEditingTitle(true)}
+              >
+                <span className="truncate">{section.title}</span>
+                <span className="text-muted-foreground text-sm font-normal">
+                  {section.items.length}
+                </span>
+
+              </div>
+            )}
+          </div>
+
           {editable && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
-              onClick={() => onRemoveSection(docSectionIndex)}
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground data-[state=open]:opacity-100"
+                  >
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </div>
+
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setIsEditingTitle(true)}>
+                  <Pencil className="mr-2 h-4 w-4" />
+                  Edit
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="text-destructive focus:text-destructive"
+                  onClick={() => onRemoveSection(docSectionIndex)}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           )}
         </CardHeader>
 
@@ -186,13 +237,16 @@ function SortableBoard({
             </SortableContext>
           </ScrollArea>
           {editable && (
-            <Button
-              variant="ghost"
-              className="w-full justify-start mt-1 hover:bg-transparent text-muted-foreground"
-              onClick={() => onAddItem(docSectionIndex)}
-            >
-              <Plus className="h-4 w-4" /> Add Item
-            </Button>
+            <div className="pl-5 pr-1">
+              <Button
+                variant="ghost"
+                className="w-full justify-start mt-1 hover:bg-transparent text-muted-foreground"
+                onClick={() => onAddItem(docSectionIndex)}
+              >
+                <Plus className="h-4 w-4" /> Add Item
+              </Button>
+            </div>
+
           )}
         </CardContent>
       </Card>
@@ -475,7 +529,7 @@ export function TodoPreview({ content, onContentChange, editable = false }: Todo
                     ) : (
                       <Button
                         variant="outline"
-                        className="w-full h-auto py-3 border-dashed"
+                        className="w-full h-auto mt-3 py-2 border-dashed"
                         onClick={() => setIsAddingSection(true)}
                       >
                         <Plus className="mr-2 h-4 w-4" /> Add Section
@@ -490,7 +544,7 @@ export function TodoPreview({ content, onContentChange, editable = false }: Todo
           {/* Drag Overlay */}
           <DragOverlay dropAnimation={null}>
             {activeBoardSection && (
-              <Card className="w-80 pb-0 pt-4 shadow-xl border-dashed rounded-sm opacity-90 bg-board border-primary rotate-1">
+              <Card className="w-80 pb-0 pt-4 shadow-xl border-dashed rounded-sm opacity-90 border-primary rotate-1">
                 <CardHeader className="px-4 flex flex-row items-center gap-2 space-y-0">
                   <GripVertical className="w-4 h-4 text-muted-foreground" />
                   <span className="font-semibold text-lg">{activeBoardSection.title}</span>

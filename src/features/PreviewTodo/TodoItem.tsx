@@ -1,9 +1,23 @@
+import { useState, useRef, useEffect } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { TodoItem as TodoItemType, TodoConfig, TodoItemMetadata } from "./todoRenderer";
+import { DueDateDisplay, AssigneeDisplay, PriorityDisplay } from "./TodoItemMetadataDisplay";
 import { TodoItemActions } from "./TodoItemActions";
-import { TodoItemMetadataDisplay } from "./TodoItemMetadataDisplay";
+
+// Simple hook to auto-resize textarea
+const useAutosizeTextArea = (
+  textAreaRef: HTMLTextAreaElement | null,
+  value: string
+) => {
+  useEffect(() => {
+    if (textAreaRef) {
+      textAreaRef.style.height = "0px";
+      const scrollHeight = textAreaRef.scrollHeight;
+      textAreaRef.style.height = scrollHeight + "px";
+    }
+  }, [textAreaRef, value]);
+};
 
 interface TodoItemProps {
   item: TodoItemType;
@@ -28,6 +42,21 @@ export function TodoItem({
   onUpdateMetadata,
   onRemove,
 }: TodoItemProps) {
+  const [isEditing, setIsEditing] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Focus textarea when entering edit mode
+  useEffect(() => {
+    if (isEditing && textareaRef.current) {
+      textareaRef.current.focus();
+      // Place cursor at end of text
+      textareaRef.current.setSelectionRange(
+        textareaRef.current.value.length,
+        textareaRef.current.value.length
+      );
+    }
+  }, [isEditing]);
+
   const handleMetadataChange = (field: keyof TodoItemMetadata, value: any) => {
     const newMetadata = { ...item.metadata, [field]: value };
     onUpdateMetadata(sectionIndex, itemIndex, newMetadata);
@@ -39,33 +68,96 @@ export function TodoItem({
     onUpdateMetadata(sectionIndex, itemIndex, newMetadata);
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      setIsEditing(false);
+    }
+    if (e.key === "Escape") {
+      setIsEditing(false);
+    }
+  };
+
+  // Auto-resize textarea when value changes
+  useAutosizeTextArea(textareaRef.current, item.title);
+
   return (
-    <div className={`group relative flex flex-col gap-1 p-2 shadow-xs rounded-lg border border-border bg-card hover:shadow-lg hover:opacity-90 transition-all ${item.checked && "opacity-60"}`}>
-      <div className="flex relative items-start gap-2 px-1">
+    <div className={`group relative flex flex-row items-start gap-3 p-4 shadow-sm rounded-xl border border-border bg-accent hover:shadow-md transition-all ${item.checked && "opacity-60"}`}>
+
+      {/* Left: Checkbox */}
+      <div className="pt-0.5">
         <Checkbox
           checked={item.checked}
           onCheckedChange={() => onToggle(sectionIndex, itemIndex)}
           disabled={!editable}
-          className="mt-1"
+          className="rounded-md data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
         />
-        <Input
-          value={item.title}
-          onChange={(e) => onUpdateTitle(sectionIndex, itemIndex, e.target.value)}
-          className={cn(
-            "flex-1 h-auto p-0 border-0 bg-transparent shadow-none focus-visible:ring-0 px-1 min-h-[1.5rem] text-sm",
-            item.checked && "line-through text-muted-foreground"
+      </div>
+
+      {/* Middle: Content */}
+      <div className="flex-1 flex flex-col min-w-0 gap-1.5">
+        {/* Title */}
+        <div className="w-full">
+          {isEditing && editable ? (
+            <textarea
+              ref={textareaRef}
+              rows={1}
+              value={item.title}
+              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => onUpdateTitle(sectionIndex, itemIndex, e.target.value)}
+              onBlur={() => setIsEditing(false)}
+              onKeyDown={handleKeyDown}
+              className="w-full resize-none bg-transparent border-none p-0 text-sm font-medium focus:ring-0 focus:outline-none placeholder:text-muted-foreground/50 overflow-hidden leading-normal"
+              spellCheck={false}
+            />
+          ) : (
+            <div
+              className={cn(
+                "text-sm font-medium break-words cursor-pointer leading-normal",
+                item.checked && "line-through text-muted-foreground"
+              )}
+              onDoubleClick={() => editable && setIsEditing(true)}
+              onClick={() => editable && setIsEditing(true)}
+              title={item.title}
+            >
+              {item.title}
+            </div>
           )}
-          style={{ backgroundColor: "transparent" }}
-          disabled={!editable}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              e.currentTarget.blur();
-            }
-          }}
-        />
+        </div>
+
+        {/* Subtitle / Metadata Row */}
+        {(item.metadata?.due || item.metadata?.priority || (editable && isEditing)) && (
+          <div className="flex gap-1">
+            {item.metadata?.due && (
+              <DueDateDisplay
+                due={item.metadata.due}
+                editable={editable}
+                onUpdate={(val) => handleMetadataChange("due", val)}
+              />
+            )}
+
+            {item.metadata?.priority && (
+              <PriorityDisplay
+                priority={item.metadata.priority}
+                config={config}
+              />
+            )}
+
+            {/* If we want to allow adding metadata here when empty, we could add a trigger */}
+          </div>
+        )}
+      </div>
+
+      {/* Right: Avatar & Actions */}
+      <div className="flex items-center gap-2 shrink-0 self-start">
+        {item.metadata?.assignee && (
+          <AssigneeDisplay
+            assignee={item.metadata.assignee}
+            config={config}
+          />
+        )}
+
         {editable && (
-          <>
-            {/* Three-dot metadata menu */}
+          <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
             <TodoItemActions
               metadata={item.metadata}
               config={config}
@@ -73,18 +165,9 @@ export function TodoItem({
               onRemoveMetadata={handleRemoveMetadata}
               onDelete={() => onRemove(sectionIndex, itemIndex)}
             />
-          </>
+          </div>
         )}
       </div>
-
-      {/* Metadata display */}
-      <TodoItemMetadataDisplay
-        metadata={item.metadata}
-        config={config}
-        editable={editable}
-        onMetadataChange={handleMetadataChange}
-        onRemoveMetadata={handleRemoveMetadata}
-      />
     </div>
   );
 }

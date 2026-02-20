@@ -148,16 +148,18 @@ export function TodoItem({
       </div>
 
       {/* Right: Avatar & Actions */}
-      <div className="flex items-center gap-2 shrink-0 self-start">
+      <div className="relative flex items-center justify-end shrink-0 self-start min-w-[20px]">
         {item.metadata?.assignee && (
-          <AssigneeDisplay
-            assignee={item.metadata.assignee}
-            config={config}
-          />
+          <div className="absolute right-0 top-3 -translate-y-1/2 transition-opacity group-hover:opacity-0">
+            <AssigneeDisplay
+              assignee={item.metadata.assignee}
+              config={config}
+            />
+          </div>
         )}
 
         {editable && (
-          <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+          <div className="absolute right-0 top-3 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 z-10">
             <TodoItemActions
               metadata={item.metadata}
               config={config}

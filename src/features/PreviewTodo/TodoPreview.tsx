@@ -137,13 +137,13 @@ function SortableBoard({
       <Card
         className={`pb-0 pt-4 shadow-none border-dashed rounded-sm flex flex-col gap-2 max-h-full ${isDragging ? "opacity-40" : ""}`}
       >
-        <CardHeader className="px-4 flex flex-row items-center justify-between space-y-0 group">
+        <CardHeader className="px-4 -ml-0.5 flex flex-row items-center justify-between space-y-0 group">
           {editable && (
             <button
               ref={setActivatorNodeRef}
               {...attributes}
               {...listeners}
-              className="flex-shrink-0 flex items-center justify-center w-5 h-6 mr-1 rounded text-muted-foreground/40 hover:text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing focus:outline-none"
+              className="flex-shrink-0 flex items-center justify-center w-5 h-6 mr-1 rounded text-muted-foreground/40 hover:text-muted-foreground opacity-100 transition-opacity cursor-grabbing focus:outline-none"
               tabIndex={-1}
               aria-label="Drag to reorder board"
             >

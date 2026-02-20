@@ -146,7 +146,7 @@ export function TableNodeView({ editor, node, getPos }: TableNodeViewProps) {
             >
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <div className={`table-handle h-2 w-8 bg-muted rounded-full cursor-pointer hover:bg-primary/50 flex items-center justify-center ${hoveredCol === colIndex ? 'bg-primary/50' : ''}`}>
+                  <div className={`table-handle h-2 w-8 bg-muted rounded-full cursor-pointer hover:bg-primary/50 flex items-center justify-center`}>
                     <GripHorizontal className={`w-3 h-3 text-muted-foreground ${hoveredCol === colIndex ? 'block' : 'hidden'} hover:block`} />
                   </div>
                 </DropdownMenuTrigger>
@@ -178,7 +178,7 @@ export function TableNodeView({ editor, node, getPos }: TableNodeViewProps) {
             >
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <div className={`table-handle w-2 h-8 bg-muted rounded-full cursor-pointer hover:bg-primary/50 flex items-center justify-center ${hoveredRow === rowIndex ? 'bg-primary/50' : ''}`}>
+                  <div className={`table-handle w-2 h-8 bg-muted rounded-full cursor-pointer hover:bg-primary/50 flex items-center justify-center`}>
                     <GripVertical className={`w-3 h-3 text-muted-foreground ${hoveredRow === rowIndex ? 'block' : 'hidden'} hover:block`} />
                   </div>
                 </DropdownMenuTrigger>

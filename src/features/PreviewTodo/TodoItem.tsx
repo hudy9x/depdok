@@ -112,7 +112,7 @@ export function TodoItem({
           ) : (
             <div
               className={cn(
-                "text-sm font-medium break-words cursor-pointer leading-normal",
+                "text-sm font-medium break-words cursor-pointer leading-normal line-clamp-4",
                 item.checked && "line-through text-muted-foreground"
               )}
               onDoubleClick={() => editable && setIsEditing(true)}

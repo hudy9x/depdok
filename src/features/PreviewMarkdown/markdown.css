@@ -286,7 +286,11 @@
 /* Tables */
 .prose table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  overflow: hidden;
   margin-top: 0;
   margin-bottom: 0;
   font-size: 0.875em;
@@ -297,12 +301,35 @@
   border-color: var(--border);
 }
 
+.prose table th,
+.prose tbody td {
+  border: 1px solid var(--border);
+}
+
+/* Remove outer borders from cells to avoid double-borders with the table wrapper */
+.prose table tr:first-child th {
+  border-top: none;
+}
+
+.prose table tr:last-child td {
+  border-bottom: none;
+}
+
+.prose table tr th:first-child,
+.prose table tr td:first-child {
+  border-left: none;
+}
+
+.prose table tr th:last-child,
+.prose table tr td:last-child {
+  border-right: none;
+}
+
 .prose table th {
   font-weight: 600;
   padding: 0.75em 1em;
   text-align: left;
   color: var(--foreground);
-  border: 1px solid var(--border);
   background-color: transparent;
 }
 
@@ -312,7 +339,6 @@
 
 .prose tbody td {
   padding: 0.75em 1em;
-  border: 1px solid var(--border);
 }
 
 .prose table p {

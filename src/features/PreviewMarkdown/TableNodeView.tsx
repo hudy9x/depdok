@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { NodeViewWrapper, NodeViewContent, Editor } from "@tiptap/react";
 import { Node as ProseMirrorNode } from "@tiptap/pm/model";
-import { GripHorizontal, GripVertical, Plus, Trash2, ArrowLeftFromLine, ArrowRightFromLine, ArrowUpFromLine, ArrowDownFromLine } from "lucide-react";
+import { GripHorizontal, GripVertical, Plus, Trash2, ArrowUpFromLine, ArrowDownFromLine, MoveLeft, MoveRight, ArrowLeftFromLine, ArrowRightFromLine } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -72,6 +72,53 @@ export function TableNodeView({ editor, node, getPos }: TableNodeViewProps) {
     // Focus any row, last column
     focusCell(0, cols - 1);
     (editor.chain().focus() as any).addColumnAfter().run();
+  };
+
+  const handleMoveColLeft = (colIndex: number) => {
+    if (colIndex <= 0) return;
+
+    const tablePos = getPos();
+    if (tablePos === undefined) return;
+
+    let tr = editor.state.tr;
+    // Iterate through all rows from the bottom up (to prevent position shifting from affecting earlier replacements in the same row)
+    for (let r = rows - 1; r >= 0; r--) {
+      const rowNode = node.child(r);
+
+      // Calculate position of the row
+      let rowPos = tablePos + 1; // start inside table
+      for (let i = 0; i < r; i++) {
+        rowPos += node.child(i).nodeSize;
+      }
+
+      // Calculate positions of the two cells to swap
+      let leftCellPos = rowPos + 1; // start inside row
+      for (let i = 0; i < colIndex - 1; i++) {
+        leftCellPos += rowNode.child(i).nodeSize;
+      }
+      const leftCell = rowNode.child(colIndex - 1);
+
+      let rightCellPos = leftCellPos + leftCell.nodeSize;
+      const rightCell = rowNode.child(colIndex);
+
+      // Clone the nodes to insert them back
+      const newLeft = rightCell.type.createAndFill(rightCell.attrs, rightCell.content) || rightCell;
+      const newRight = leftCell.type.createAndFill(leftCell.attrs, leftCell.content) || leftCell;
+
+      // Replace the right cell with the left's clone
+      tr = tr.replaceWith(rightCellPos, rightCellPos + rightCell.nodeSize, newRight);
+      // Replace the left cell with the right's clone
+      tr = tr.replaceWith(leftCellPos, leftCellPos + leftCell.nodeSize, newLeft);
+    }
+
+    editor.view.dispatch(tr);
+    focusCell(0, colIndex - 1); // Follow the column
+  };
+
+  const handleMoveColRight = (colIndex: number) => {
+    if (colIndex >= cols - 1) return;
+    handleMoveColLeft(colIndex + 1); // Moving right is just moving the next column left
+    focusCell(0, colIndex + 1); // Follow the column
   };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -157,6 +204,17 @@ export function TableNodeView({ editor, node, getPos }: TableNodeViewProps) {
                   <DropdownMenuItem onClick={() => { focusCell(0, colIndex); (editor.chain().focus() as any).addColumnAfter().run(); }}>
                     <ArrowRightFromLine className="w-4 h-4 mr-2" /> Insert Right
                   </DropdownMenuItem>
+                  <div className="h-px bg-border my-1" />
+                  {colIndex > 0 && (
+                    <DropdownMenuItem onClick={() => handleMoveColLeft(colIndex)}>
+                      <MoveLeft className="w-4 h-4 mr-2" /> Move Left
+                    </DropdownMenuItem>
+                  )}
+                  {colIndex < cols - 1 && (
+                    <DropdownMenuItem onClick={() => handleMoveColRight(colIndex)}>
+                      <MoveRight className="w-4 h-4 mr-2" /> Move Right
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem onClick={() => { focusCell(0, colIndex); (editor.chain().focus() as any).deleteColumn().run(); }} className="text-destructive">
                     <Trash2 className="w-4 h-4 mr-2" /> Delete Column
                   </DropdownMenuItem>

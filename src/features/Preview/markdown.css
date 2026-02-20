@@ -100,7 +100,7 @@
 }
 
 /* Subtitle style - only work with the first p */
-.prose p:first-of-type {
+.prose>p:first-of-type {
   /* color: blue; */
   color: var(--muted-foreground);
   font-size: 1.35rem;

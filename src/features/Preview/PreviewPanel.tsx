@@ -1,4 +1,4 @@
-import { MarkdownPreview } from "./MarkdownPreview";
+import { MarkdownPreview } from "../PreviewMarkdown/MarkdownPreview";
 import { MermaidPreview } from "./MermaidPreview";
 import { PlantUMLPreview } from "../PreviewPlantUML";
 import { TodoPreview } from "../PreviewTodo/TodoPreview";

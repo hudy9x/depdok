@@ -13,7 +13,8 @@ import {
   ListOrdered,
   FileCode,
   Image,
-  Trash
+  Trash,
+  Table as TableIcon
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
@@ -144,6 +145,23 @@ export function BlockButtons({ editor }: FormatButtonsProps) {
         isActive={editor.isActive('codeBlock')}
         title="Code Block"
         icon={<FileCode className="w-4 h-4" />}
+      />
+      <MenuButton
+        onClick={() => editor.chain().focus().insertContent(`
+          <table style="width:100%">
+            <tr>
+              <th>Heading 1</th>
+              <th>Heading 2</th>
+            </tr>
+            <tr>
+              <td></td>
+              <td></td>
+            </tr>
+          </table>
+        `).run()}
+        isActive={editor.isActive('table')}
+        title="Insert Table"
+        icon={<TableIcon className="w-4 h-4" />}
       />
       <Popover open={imagePopoverOpen} onOpenChange={setImagePopoverOpen}>
         <PopoverTrigger asChild>

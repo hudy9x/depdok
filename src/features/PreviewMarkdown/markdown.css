@@ -287,33 +287,36 @@
 .prose table {
   width: 100%;
   border-collapse: collapse;
-  margin-top: 2em;
-  margin-bottom: 2em;
+  margin-top: 0;
+  margin-bottom: 0;
   font-size: 0.875em;
   line-height: 1.7142;
 }
 
-.prose thead {
-  border-bottom: 1px solid var(--border);
+.prose table * {
+  border-color: var(--border);
 }
 
-.prose thead th {
+.prose table th {
   font-weight: 600;
-  padding: 0.5714em;
+  padding: 0.75em 1em;
   text-align: left;
   color: var(--foreground);
+  border: 1px solid var(--border);
+  background-color: transparent;
 }
 
-.prose tbody tr {
-  border-bottom: 1px solid var(--border);
+.prose table tr {
+  width: 100%;
 }
 
 .prose tbody td {
-  padding: 0.5714em;
+  padding: 0.75em 1em;
+  border: 1px solid var(--border);
 }
 
-.prose tbody tr:last-child {
-  border-bottom: 0;
+.prose table p {
+  margin: 0;
 }
 
 /* Images */
@@ -431,12 +434,9 @@
   border-top-color: var(--border);
 }
 
-.dark .prose thead {
-  border-bottom-color: var(--border);
-}
-
-.dark .prose tbody tr {
-  border-bottom-color: var(--border);
+.dark .prose table th,
+.dark .prose tbody td {
+  border-color: var(--border);
 }
 
 .dark .prose ul[data-type="taskList"] input[type="checkbox"]:checked {

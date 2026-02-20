@@ -1,4 +1,4 @@
-import { TodoSection, TodoItem as TodoItemType } from "./todoRenderer";
+import { TodoSection, TodoItem as TodoItemType } from "../todoRenderer";
 
 // ─── Live types ───────────────────────────────────────────────────────────────
 // Each live section/item carries:

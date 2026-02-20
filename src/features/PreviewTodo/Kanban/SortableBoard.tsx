@@ -15,10 +15,10 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 import { LiveSection } from "./dndTypes";
-import { TodoConfig } from "./todoRenderer";
-import { DraggableTodoItem } from "./DraggableTodoItem";
+import { TodoConfig } from "../todoRenderer";
+import { DraggableTodoItem } from "../DraggableTodoItem";
 import { KanbanCreateTaskButton } from "./KanbanCreateTaskButton";
-import { ColorSelector } from "./ColorSelector";
+import { ColorSelector } from "../ColorSelector";
 
 export interface SortableBoardProps {
   section: LiveSection;

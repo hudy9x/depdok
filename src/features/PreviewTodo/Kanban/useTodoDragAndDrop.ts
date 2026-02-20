@@ -2,7 +2,7 @@ import { useState, useCallback } from "react";
 import { DragEndEvent, DragOverEvent, DragStartEvent } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
 import { LiveSection, LiveItem, buildLiveSections } from "./dndTypes";
-import { TodoSection } from "./todoRenderer";
+import { TodoSection } from "../todoRenderer";
 
 interface UseTodoDragAndDropProps {
   sortedSections: TodoSection[];

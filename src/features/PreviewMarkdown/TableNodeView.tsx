@@ -19,7 +19,11 @@ export function TableNodeView({ editor, node, getPos }: TableNodeViewProps) {
   const isEditable = editor.isEditable;
   const [hoveredRow, setHoveredRow] = useState<number | null>(null);
   const [hoveredCol, setHoveredCol] = useState<number | null>(null);
+  const [colWidths, setColWidths] = useState<number[]>([]);
+  const [rowHeights, setRowHeights] = useState<number[]>([]);
+
   const hideTimeoutRef = useRef<NodeJS.Timeout>();
+  const tableRef = useRef<HTMLTableElement>(null);
 
   useEffect(() => {
     return () => {
@@ -87,6 +91,17 @@ export function TableNodeView({ editor, node, getPos }: TableNodeViewProps) {
       // Find the robust position of this cell by scanning the NodeView's table wrapper
       const table = cell.closest('table');
       if (table) {
+        // Measure and update geometries
+        if (tableRef.current) {
+          const firstRow = tableRef.current.querySelector('tr');
+          if (firstRow) {
+            const cells = Array.from(firstRow.children) as HTMLElement[];
+            setColWidths(cells.map(c => c.offsetWidth));
+          }
+          const allRowsNode = Array.from(tableRef.current.querySelectorAll('tr'));
+          setRowHeights(allRowsNode.map(r => r.offsetHeight));
+        }
+
         // Collect all rows, skipping rows in nested tables if any
         const allRows = Array.from(table.querySelectorAll('tr'));
         const tr = cell.closest('tr') as HTMLTableRowElement | null;
@@ -122,11 +137,12 @@ export function TableNodeView({ editor, node, getPos }: TableNodeViewProps) {
     >
       {/* Top handles for columns */}
       {isEditable && (
-        <div className="absolute -top-3 left-0 right-0 h-3 flex pointer-events-none z-10">
+        <div className="absolute -top-3 left-0 h-3 flex pointer-events-none z-10" style={{ width: tableRef.current?.offsetWidth || '100%' }}>
           {Array.from({ length: cols }).map((_, colIndex) => (
             <div
               key={`col-${colIndex}`}
-              className={`flex-1 flex justify-center items-end pb-1 transition-opacity duration-200 ${hoveredCol === colIndex ? 'opacity-100 pointer-events-auto' : 'opacity-0'}`}
+              style={{ width: colWidths[colIndex] ? `${colWidths[colIndex]}px` : `${100 / cols}%` }}
+              className={`flex-none flex justify-center items-end pb-1 transition-opacity duration-200 ${hoveredCol === colIndex ? 'opacity-100 pointer-events-auto' : 'opacity-0'}`}
             >
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -153,11 +169,12 @@ export function TableNodeView({ editor, node, getPos }: TableNodeViewProps) {
 
       {/* Left handles for rows */}
       {isEditable && (
-        <div className="absolute top-0 bottom-0 -left-3 w-3 flex flex-col pointer-events-none z-10">
+        <div className="absolute top-0 -left-3 w-3 flex flex-col pointer-events-none z-10" style={{ height: tableRef.current?.offsetHeight || '100%' }}>
           {Array.from({ length: rows }).map((_, rowIndex) => (
             <div
               key={`row-${rowIndex}`}
-              className={`flex-1 flex items-center justify-end pr-1 transition-opacity duration-200 ${hoveredRow === rowIndex ? 'opacity-100 pointer-events-auto' : 'opacity-0'}`}
+              style={{ height: rowHeights[rowIndex] ? `${rowHeights[rowIndex]}px` : `${100 / rows}%` }}
+              className={`flex-none flex items-center justify-end pr-1 transition-opacity duration-200 ${hoveredRow === rowIndex ? 'opacity-100 pointer-events-auto' : 'opacity-0'}`}
             >
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -184,7 +201,7 @@ export function TableNodeView({ editor, node, getPos }: TableNodeViewProps) {
 
       {/* The actual table content */}
       <div className="overflow-x-auto w-full rounded-sm">
-        <table className="w-full m-0 border-collapse relative">
+        <table ref={tableRef} className="w-full m-0 border-collapse top-0 left-0 relative">
           <NodeViewContent as={"tbody" as any} />
         </table>
       </div>

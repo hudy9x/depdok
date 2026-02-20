@@ -148,17 +148,10 @@ export function BlockButtons({ editor }: FormatButtonsProps) {
       />
       <MenuButton
         onClick={() => editor.chain().focus().insertContent(`
-          <table style="width:100%">
-            <tr>
-              <th>Heading 1</th>
-              <th>Heading 2</th>
-            </tr>
-            <tr>
-              <td></td>
-              <td></td>
-            </tr>
-          </table>
-        `).run()}
+| Heading 1     | Heading 2              |
+| ------------- | ---------------------- |
+| Content 1     | Content 2              |
+        `, { contentType: 'markdown' }).run()}
         isActive={editor.isActive('table')}
         title="Insert Table"
         icon={<TableIcon className="w-4 h-4" />}

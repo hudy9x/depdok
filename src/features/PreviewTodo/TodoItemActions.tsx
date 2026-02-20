@@ -37,7 +37,7 @@ export function TodoItemActions({
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button
-          className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 inline-flex items-center justify-center rounded-md hover:bg-accent hover:text-accent-foreground"
+          className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 inline-flex items-center justify-center rounded-md hover:bg-accent/20 hover:text-accent-foreground"
         >
           <MoreHorizontal className="h-3 w-3" />
         </button>

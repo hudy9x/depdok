@@ -3,11 +3,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Plus } from "lucide-react";
 
-interface CreateTaskButtonProps {
+interface KanbanCreateTaskButtonProps {
   onCreateTask: (title: string) => void;
+  className?: string;
 }
 
-export function CreateTaskButton({ onCreateTask }: CreateTaskButtonProps) {
+export function KanbanCreateTaskButton({ onCreateTask, className = "" }: KanbanCreateTaskButtonProps) {
   const [isCreating, setIsCreating] = useState(false);
   const [title, setTitle] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -43,7 +44,7 @@ export function CreateTaskButton({ onCreateTask }: CreateTaskButtonProps) {
   if (isCreating) {
     return (
       <div
-        className="flex items-center gap-2 mt-1 w-full"
+        className={`flex items-center gap-2 mt-1 w-full ${className}`}
         onBlur={handleBlur}
       >
         <Input
@@ -51,7 +52,7 @@ export function CreateTaskButton({ onCreateTask }: CreateTaskButtonProps) {
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Task title..."
+          placeholder="New Item..."
           className="h-8 flex-1 text-sm bg-background/50 border-dashed focus-visible:ring-1"
           autoFocus
         />
@@ -70,12 +71,10 @@ export function CreateTaskButton({ onCreateTask }: CreateTaskButtonProps) {
   return (
     <Button
       variant="ghost"
-      size="sm"
-      className="w-full justify-start text-muted-foreground hover:text-foreground mt-1"
+      className={`w-full justify-start mt-1 hover:bg-transparent text-muted-foreground ${className}`}
       onClick={() => setIsCreating(true)}
     >
-      <Plus className="h-4 w-4 mr-1" />
-      Create
+      <Plus className="h-4 w-4 ml-1 mr-1" /> Add Item
     </Button>
   );
 }

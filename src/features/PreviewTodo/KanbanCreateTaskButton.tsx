@@ -74,7 +74,7 @@ export function KanbanCreateTaskButton({ onCreateTask, className = "" }: KanbanC
       className={`w-full justify-start mt-1 hover:bg-transparent text-muted-foreground ${className}`}
       onClick={() => setIsCreating(true)}
     >
-      <Plus className="h-4 w-4 mr-1" /> Add Item
+      <Plus className="h-4 w-4 ml-1 mr-1" /> Add Item
     </Button>
   );
 }

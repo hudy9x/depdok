@@ -139,7 +139,9 @@ export function useFileWatcher({
           // Standard behavior (Editor / SideBySide)
           if (activeTab.isDirty) {
             // If dirty, we MUST warn to prevent data loss
-            handleShowToast();
+            setTimeout(() => {
+              handleShowToast();
+            }, 500);
           } else {
             // If clean, we can auto-reload
             reloadFileContent();

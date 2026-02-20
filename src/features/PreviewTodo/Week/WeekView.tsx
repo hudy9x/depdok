@@ -11,7 +11,7 @@ interface WeekViewProps {
   onUpdateItemTitle: (sectionIndex: number, itemIndex: number, newTitle: string) => void;
   onUpdateItemMetadata: (sectionIndex: number, itemIndex: number, metadata: TodoItemMetadata) => void;
   onRemoveItem: (sectionIndex: number, itemIndex: number) => void;
-  onAddItem: (sectionIndex: number, metadata?: TodoItemMetadata) => void;
+  onAddItem: (sectionIndex: number, metadata?: TodoItemMetadata, title?: string) => void;
 }
 
 export function WeekView({
@@ -25,7 +25,7 @@ export function WeekView({
 }: WeekViewProps) {
   const dayTasksArray = groupTasksByDate(document.sections);
 
-  const handleCreateTask = (date: Date) => {
+  const handleCreateTask = (date: Date, title: string) => {
     // Find or create a default section to add the task to
     // For simplicity, we'll add to the first section or create "Todo" section
     let targetSectionIndex = 0;
@@ -39,7 +39,7 @@ export function WeekView({
 
     // Add task with due date metadata
     const dueDate = format(date, "yyyy-MM-dd");
-    onAddItem(targetSectionIndex, { due: dueDate });
+    onAddItem(targetSectionIndex, { due: dueDate }, title);
   };
 
   return (

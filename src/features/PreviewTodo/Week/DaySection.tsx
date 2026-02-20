@@ -12,7 +12,7 @@ interface DaySectionProps {
   onUpdateTitle: (sectionIndex: number, itemIndex: number, newTitle: string) => void;
   onUpdateMetadata: (sectionIndex: number, itemIndex: number, metadata: TodoItemMetadata) => void;
   onRemove: (sectionIndex: number, itemIndex: number) => void;
-  onCreateTask: (date: Date) => void;
+  onCreateTask: (date: Date, title: string) => void;
   isLast?: boolean;
 }
 
@@ -69,7 +69,7 @@ export function DaySection({
       {/* Create button */}
       {editable && (
         <div className="mt-2 px-2">
-          <CreateTaskButton onCreateTask={() => onCreateTask(dayTasks.date)} />
+          <CreateTaskButton onCreateTask={(title) => onCreateTask(dayTasks.date, title)} />
         </div>
       )}
 

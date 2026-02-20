@@ -19,3 +19,10 @@ trigger: always_on
 
 ## Security
 - Follow guidelines in `./docs/license-guard.md`.
+
+## React Refactoring
+- **Functional Components**: Use arrow functions and strictly follow Hooks rules.
+- **Prop Drilling**: Avoid deep nesting; use Context API or a State Manager for shared data.
+- **Component Size**: Break down large components (>150 lines) into smaller, reusable atoms.
+- **Performance**: Use `useMemo` and `useCallback` only when necessary to prevent expensive re-renders.
+- **Clean JSX**: Keep logic out of the return statement; use helper functions or variables for complex conditions.

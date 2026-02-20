@@ -80,14 +80,14 @@ export function useTodoDocument({ content, editable, onContentChange }: UseTodoD
     updateContent(newDocument);
   };
 
-  const handleAddItem = (sectionIndex: number, metadata?: any) => {
+  const handleAddItem = (sectionIndex: number, metadata?: any, title?: string) => {
     if (!editable) return;
     const newDocument = { ...document };
     newDocument.sections = [...newDocument.sections];
     newDocument.sections[sectionIndex] = { ...newDocument.sections[sectionIndex] };
     newDocument.sections[sectionIndex].items = [...newDocument.sections[sectionIndex].items];
     newDocument.sections[sectionIndex].items.push({
-      title: "New Item",
+      title: title || "New Item",
       checked: false,
       metadata: metadata || undefined
     });

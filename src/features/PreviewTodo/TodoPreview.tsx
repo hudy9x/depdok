@@ -21,6 +21,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { useTodoDocument } from "./useTodoDocument";
 import { TodoItem } from "./TodoItem";
 import { DraggableTodoItem } from "./DraggableTodoItem";
+import { KanbanCreateTaskButton } from "./KanbanCreateTaskButton";
 import { ColorSelector } from "./ColorSelector";
 import { WeekView } from "./Week/WeekView";
 import { ViewModeSwitcher } from "./ViewModeSwitcher";
@@ -97,7 +98,7 @@ interface SortableBoardProps {
   onUpdateItemTitle: (si: number, ii: number, title: string) => void;
   onUpdateItemMetadata: (si: number, ii: number, metadata: any) => void;
   onRemoveItem: (si: number, ii: number) => void;
-  onAddItem: (si: number) => void;
+  onAddItem: (si: number, metadata?: any, title?: string) => void;
 }
 
 function SortableBoard({
@@ -238,15 +239,10 @@ function SortableBoard({
           </ScrollArea>
           {editable && (
             <div className="pl-5 pr-1">
-              <Button
-                variant="ghost"
-                className="w-full justify-start mt-1 hover:bg-transparent text-muted-foreground"
-                onClick={() => onAddItem(docSectionIndex)}
-              >
-                <Plus className="h-4 w-4" /> Add Item
-              </Button>
+              <KanbanCreateTaskButton
+                onCreateTask={(title) => onAddItem(docSectionIndex, undefined, title)}
+              />
             </div>
-
           )}
         </CardContent>
       </Card>

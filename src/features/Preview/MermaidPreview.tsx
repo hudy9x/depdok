@@ -28,9 +28,9 @@ export function MermaidPreview({ content }: MermaidPreviewProps) {
           ? {
             bg: "#09090b",      // zinc-950
             fg: "#fafafa",      // zinc-50
-            line: "#52525b",    // zinc-600
-            accent: "#a1a1aa",  // zinc-400
-            muted: "#71717a",   // zinc-500
+            line: "#81819aff",    // zinc-600
+            accent: "#ccf760ff",  // arrow
+            muted: "#d8c2b2ff",   // message color
             surface: "#18181b", // zinc-900
             border: "#3f3f46",  // zinc-700
           }

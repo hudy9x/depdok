@@ -69,12 +69,12 @@ export function TodoItemActions({
                 onClick={() => onMetadataChange("assignee", assignee.alias)}
               >
                 <Avatar className="h-4 w-4 mr-2">
-                  <AvatarImage src={assignee.avatar} alt={assignee.name} />
+                  <AvatarImage src={assignee.avatar} alt={assignee.name || assignee.alias} />
                   <AvatarFallback className="text-[8px]">
-                    {assignee.name.substring(0, 2).toUpperCase()}
+                    {(assignee.name || assignee.alias || '?').substring(0, 2).toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
-                {assignee.name}
+                {assignee.name || assignee.alias}
               </DropdownMenuItem>
             ))}
           </DropdownMenuSubContent>

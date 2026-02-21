@@ -70,8 +70,8 @@ export const activateLicenseAtom = atom(
     set(licenseErrorAtom, null);
 
     try {
-      // Validate license with Polar.sh
-      const status = await licenseApi.validateLicense(licenseKey, POLAR_ORG_ID);
+      // Validate & Activate license with Polar.sh
+      const status = await licenseApi.activateLicense(licenseKey, POLAR_ORG_ID);
 
       if (!status.is_valid) {
         throw new Error('Invalid license key');
@@ -104,8 +104,8 @@ export const removeLicenseAtom = atom(
     set(licenseErrorAtom, null);
 
     try {
-      // Remove from keychain (also clears backend cache)
-      await licenseApi.removeLicenseKey();
+      // Remove from keychain (also clears backend cache and deactivates)
+      await licenseApi.removeLicenseKey(POLAR_ORG_ID);
 
       // Clear IndexedDB cache
       const { clearLicenseCache } = await import('../lib/license-cache');

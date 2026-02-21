@@ -6,6 +6,7 @@ export interface LicenseStatus {
   days_remaining?: number;
   customer_email?: string;
   expires_at?: string;
+  activation_id?: string;
 }
 
 export interface GracePeriodInfo {
@@ -19,6 +20,13 @@ export interface GracePeriodInfo {
  */
 export async function validateLicense(key: string, orgId: string): Promise<LicenseStatus> {
   return await invoke<LicenseStatus>('validate_license', { key, orgId });
+}
+
+/**
+ * Activate a license key with Polar.sh
+ */
+export async function activateLicense(key: string, orgId: string): Promise<LicenseStatus> {
+  return await invoke<LicenseStatus>('activate_license', { key, orgId });
 }
 
 /**
@@ -38,8 +46,8 @@ export async function saveLicenseKey(key: string): Promise<void> {
 /**
  * Remove license key from system keychain
  */
-export async function removeLicenseKey(): Promise<void> {
-  return await invoke<void>('remove_license_key');
+export async function removeLicenseKey(orgId: string): Promise<void> {
+  return await invoke<void>('remove_license_key', { orgId });
 }
 
 /**

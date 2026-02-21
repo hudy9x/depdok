@@ -48,15 +48,58 @@ mod keychain;
 
 // License commands
 #[tauri::command]
-async fn validate_license(key: String, org_id: String, app_handle: tauri::AppHandle) -> Result<license_manager::LicenseStatus, String> {
+async fn validate_license(key: String, org_id: String, _app_handle: tauri::AppHandle) -> Result<license_manager::LicenseStatus, String> {
     let status = license_manager::validate_license_key(&key, &org_id).await?;
+    Ok(status) // Don't cache here, let activate handle caching
+}
+
+#[tauri::command]
+async fn activate_license(key: String, org_id: String, app_handle: tauri::AppHandle) -> Result<license_manager::LicenseStatus, String> {
+    // 1. Validate first (which checks limit)
+    let mut status = license_manager::validate_license_key(&key, &org_id).await?;
     
-    // Cache the result
-    if let Ok(app_data_dir) = app_handle.path().app_data_dir() {
-        let _ = license_manager::cache_validation_result(&status, &app_data_dir);
+    // 2. If valid, activate
+    if status.is_valid {
+        let activation_id = license_manager::activate_license_key(&key, &org_id).await?;
+        status.activation_id = Some(activation_id);
+        
+        // Cache the result with the activation_id
+        if let Ok(app_data_dir) = app_handle.path().app_data_dir() {
+            let _ = license_manager::cache_validation_result(&status, &app_data_dir);
+        }
     }
     
     Ok(status)
+}
+
+#[tauri::command]
+async fn remove_license_key(org_id: String, app: tauri::AppHandle) -> Result<(), String> {
+    let app_data_dir = app.path().app_data_dir()
+        .map_err(|e| format!("Failed to get app data dir: {}", e))?;
+        
+    // 1. Deactivate license if we have the key and activation_id
+    if let Ok(status) = license_manager::get_license_status(&app_data_dir).await {
+        if let Ok(Some(key)) = keychain::get_license_key() {
+            if let Some(ref activation_id) = status.activation_id {
+                let _ = license_manager::deactivate_license_key(&key, &org_id, activation_id).await;
+            }
+        }
+    }
+
+    // 2. Remove from keychain
+    keychain::delete_license_key()?;
+    
+    // 3. remove cached validation
+    let app_data_dir = app.path().app_data_dir()
+        .map_err(|e| format!("Failed to get app data dir: {}", e))?;
+    
+    let cache_file = app_data_dir.join("license_cache.json");
+    if cache_file.exists() {
+        std::fs::remove_file(&cache_file)
+            .map_err(|e| format!("Failed to remove cache file: {}", e))?;
+    }
+    
+    Ok(())
 }
 
 #[tauri::command]
@@ -69,24 +112,6 @@ async fn get_license_status(app_handle: tauri::AppHandle) -> Result<license_mana
 #[tauri::command]
 fn save_license_key(key: String) -> Result<(), String> {
     keychain::save_license_key(&key)
-}
-
-#[tauri::command]
-fn remove_license_key(app: tauri::AppHandle) -> Result<(), String> {
-    // Remove from keychain
-    keychain::delete_license_key()?;
-    
-    // Also remove cached validation
-    let app_data_dir = app.path().app_data_dir()
-        .map_err(|e| format!("Failed to get app data dir: {}", e))?;
-    
-    let cache_file = app_data_dir.join("license_cache.json");
-    if cache_file.exists() {
-        std::fs::remove_file(&cache_file)
-            .map_err(|e| format!("Failed to remove cache file: {}", e))?;
-    }
-    
-    Ok(())
 }
 
 #[tauri::command]
@@ -249,6 +274,7 @@ pub fn run() {
             remove_license_key,
             is_licensed,
             get_grace_period_info,
+            activate_license,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

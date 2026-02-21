@@ -29,6 +29,11 @@ import { PanelRightOpen } from "lucide-react";
 import Heading from "@tiptap/extension-heading";
 import { HeadingNodeView } from "./HeadingNodeView";
 import { LicenseGuard } from "@/components/LicenseGuard";
+import { Table } from "@tiptap/extension-table";
+import { TableRow } from "@tiptap/extension-table-row";
+import { TableHeader } from "@tiptap/extension-table-header";
+import { TableCell } from "@tiptap/extension-table-cell";
+import { TableNodeView } from "./TableNodeView";
 
 const lowlight = createLowlight(common);
 
@@ -83,6 +88,16 @@ export function MarkdownPreview({
           return ReactNodeViewRenderer(HeadingNodeView);
         }
       }),
+      Table.configure({
+        resizable: false, // Custom node view handles insertion/deletion
+      }).extend({
+        addNodeView() {
+          return ReactNodeViewRenderer(TableNodeView);
+        },
+      }),
+      TableRow,
+      TableHeader,
+      TableCell,
       Markdown,
       TauriImage,
       TaskList,

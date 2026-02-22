@@ -35,6 +35,10 @@ import { TableRow } from "@tiptap/extension-table-row";
 import { TableHeader } from "@tiptap/extension-table-header";
 import { TableCell } from "@tiptap/extension-table-cell";
 import { TableNodeView } from "./TableNodeView";
+import Highlight from "@tiptap/extension-highlight";
+import Link from "@tiptap/extension-link";
+import Subscript from "@tiptap/extension-subscript";
+import Superscript from "@tiptap/extension-superscript";
 
 const lowlight = createLowlight(common);
 
@@ -99,6 +103,10 @@ export function MarkdownPreview({
       TableRow,
       TableHeader,
       TableCell,
+      Highlight.configure({ multicolor: false }),
+      Link.configure({ openOnClick: false, autolink: true }),
+      Subscript,
+      Superscript,
       Markdown,
       TauriImage,
       TaskList,

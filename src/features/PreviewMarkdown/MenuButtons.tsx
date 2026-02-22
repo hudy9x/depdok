@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Editor } from "@tiptap/react";
 import {
   Bold,
@@ -14,9 +14,16 @@ import {
   FileCode,
   Image,
   Trash,
-  Table as TableIcon
+  Table as TableIcon,
+  Highlighter,
+  Link,
+  Subscript,
+  Superscript,
+  Unlink,
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
 interface MenuButtonProps {
   onClick: () => void;
@@ -41,6 +48,80 @@ function MenuButton({ onClick, isActive, title, icon }: MenuButtonProps) {
 
 interface FormatButtonsProps {
   editor: Editor;
+}
+
+/** Link popover: set or unset a hyperlink on the selection */
+function LinkButton({ editor }: { editor: Editor }) {
+  const [open, setOpen] = useState(false);
+  const [url, setUrl] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const isActive = editor.isActive("link");
+
+  const openPopover = () => {
+    const existing = editor.getAttributes("link").href ?? "";
+    setUrl(existing);
+    setOpen(true);
+    // Focus input on next tick after popover renders
+    setTimeout(() => inputRef.current?.focus(), 0);
+  };
+
+  const apply = () => {
+    if (url.trim()) {
+      editor.chain().focus().setLink({ href: url.trim() }).run();
+    } else {
+      editor.chain().focus().unsetLink().run();
+    }
+    setOpen(false);
+  };
+
+  const remove = () => {
+    editor.chain().focus().unsetLink().run();
+    setOpen(false);
+  };
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          onClick={openPopover}
+          className={`p-2 rounded hover:bg-accent transition-colors ${isActive ? 'bg-accent text-accent-foreground' : ''}`}
+          title="Link"
+          type="button"
+        >
+          <Link className="w-4 h-4" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-72 p-3" align="start">
+        <p className="text-sm font-medium mb-2">Insert / Edit Link</p>
+        <div className="flex gap-2">
+          <Input
+            ref={inputRef}
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            placeholder="https://example.com"
+            className="h-8 text-sm"
+            onKeyDown={(e) => {
+              if (e.key === "Enter") { e.preventDefault(); apply(); }
+              if (e.key === "Escape") { setOpen(false); }
+            }}
+          />
+          <Button size="sm" className="h-8 px-3" onClick={apply}>
+            OK
+          </Button>
+        </div>
+        {isActive && (
+          <button
+            onClick={remove}
+            className="mt-2 flex items-center gap-1 text-xs text-destructive hover:underline"
+            type="button"
+          >
+            <Unlink className="w-3 h-3" /> Remove link
+          </button>
+        )}
+      </PopoverContent>
+    </Popover>
+  );
 }
 
 export function FormatButtons({ editor }: FormatButtonsProps) {
@@ -95,6 +176,26 @@ export function FormatButtons({ editor }: FormatButtonsProps) {
         title="Code"
         icon={<Code className="w-4 h-4" />}
       />
+      <div className="w-[1px] h-4 bg-border mx-1" />
+      <MenuButton
+        onClick={() => editor.chain().focus().toggleHighlight().run()}
+        isActive={editor.isActive('highlight')}
+        title="Highlight"
+        icon={<Highlighter className="w-4 h-4" />}
+      />
+      <MenuButton
+        onClick={() => editor.chain().focus().toggleSubscript().run()}
+        isActive={editor.isActive('subscript')}
+        title="Subscript"
+        icon={<Subscript className="w-4 h-4" />}
+      />
+      <MenuButton
+        onClick={() => editor.chain().focus().toggleSuperscript().run()}
+        isActive={editor.isActive('superscript')}
+        title="Superscript"
+        icon={<Superscript className="w-4 h-4" />}
+      />
+      <LinkButton editor={editor} />
     </>
   );
 }

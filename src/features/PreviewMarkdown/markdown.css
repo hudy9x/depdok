@@ -568,3 +568,39 @@
 .ProseMirror-focused .ProseMirror-gapcursor {
   display: block;
 }
+
+/* ── Node drag ──────────────────────────────────────────── */
+/* Show grab cursor on hoverable/draggable blocks */
+.ProseMirror [draggable="true"] {
+  cursor: grab;
+}
+
+.ProseMirror [draggable="true"]:active {
+  cursor: grabbing;
+}
+
+/* Cmd+Click selects a node (NodeSelection) — show it at 0.5 opacity */
+.ProseMirror-selectednode {
+  opacity: 0.5 !important;
+  background: var(--primary);
+  transition: opacity 0.15s ease;
+}
+
+/* ── TipTap DragHandle container ────────────────────────── */
+/* Library renders position:absolute — override to fixed so it escapes
+   the ScrollArea's overflow:hidden and stays viewport-relative */
+.drag-handle {
+  position: fixed !important;
+  z-index: 50;
+  cursor: grab;
+  transition: opacity 0.15s ease;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+/* The plugin manages visibility; we just ensure smooth reveal */
+.drag-handle[style*="visibility: visible"] {
+  opacity: 1;
+}

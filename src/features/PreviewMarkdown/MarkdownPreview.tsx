@@ -1,7 +1,6 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import { useEditor, EditorContent, ReactNodeViewRenderer } from "@tiptap/react";
 import { useAtomValue, useSetAtom } from "jotai";
-import { invoke } from "@tauri-apps/api/core";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import StarterKit from "@tiptap/starter-kit";
 
@@ -19,12 +18,13 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { MarkdownBubbleMenu } from "./MarkdownBubbleMenu";
 import { MarkdownFloatingMenu } from "./MarkdownFloatingMenu";
 import { MarkdownDragHandle } from "./MarkdownDragHandle";
+import { useLocalLinkHandler } from "./useLocalLinkHandler";
+import { useFileHandler } from "./useFileHandler";
 
 import { createTauriImage } from "./TauriImage";
 import { CodeBlockNodeView } from "./CodeBlockNodeView";
 import { editorStateAtom, markAsDirtyAtom } from "@/stores/EditorStore";
 import { draftService } from "@/lib/indexeddb";
-import { toast } from "sonner";
 import { MarkdownOutlineWrapper } from "./MarkdownOutline";
 import { Button } from "@/components/ui/button";
 import { PanelRightOpen } from "lucide-react";
@@ -60,13 +60,13 @@ export function MarkdownPreview({
   const TauriImage = createTauriImage(editorState.filePath);
   const isUpdatingRef = useRef(false);
   const [isOutlineOpen, setIsOutlineOpen] = useLocalStorage('markdown-outline-open', false);
+  // handleLinkClick initialised after containerRef below
 
-  // Function to get assets folder from localStorage
-  const getAssetsFolder = () => {
-    const folder = localStorage.getItem('settings-markdown-asset-folder') || '';
-    console.log('[getAssetsFolder] Retrieved from localStorage:', folder);
-    return folder;
-  };
+  const getAssetsFolder = useCallback(
+    () => localStorage.getItem('settings-markdown-asset-folder') || '',
+    []
+  );
+  const fileHandler = useFileHandler(editorState.filePath, getAssetsFolder);
 
   console.log('MarkdownPreview', content)
 
@@ -121,248 +121,7 @@ export function MarkdownPreview({
       TaskItem.configure({
         nested: true,
       }),
-      FileHandler.configure({
-        allowedMimeTypes: ['image/png', 'image/jpeg', 'image/gif', 'image/webp'],
-        onDrop: (currentEditor, files, pos) => {
-          console.log('[FileHandler] onDrop triggered', { files, pos });
-          files.forEach(async (file, index) => {
-            console.log('[FileHandler] Processing dropped file:', file.name, file.type);
-
-            // Insert placeholder skeleton immediately
-            const placeholderPos = pos + index;
-            const placeholderText = '⏳ Uploading...';
-            const startTime = Date.now();
-
-            currentEditor
-              .chain()
-              .insertContentAt(placeholderPos, {
-                type: 'paragraph',
-                content: [
-                  {
-                    type: 'text',
-                    text: placeholderText,
-                  },
-                ],
-              })
-              .run();
-
-            try {
-              // Read file as array buffer
-              const arrayBuffer = await file.arrayBuffer();
-              const uint8Array = new Uint8Array(arrayBuffer);
-              const dataArray = Array.from(uint8Array);
-
-              // Generate unique filename with timestamp
-              const timestamp = Date.now();
-              const ext = file.name.split('.').pop() || 'png';
-              const filename = `image-${timestamp}.${ext}`;
-
-              // Get directory of current markdown file
-              const currentFilePath = editorState.filePath;
-              if (!currentFilePath) {
-                throw new Error('No file path available');
-              }
-              const directory = currentFilePath.substring(0, currentFilePath.lastIndexOf('/'));
-
-              // Get assets folder dynamically
-              const assetsFolder = getAssetsFolder();
-              console.log('[onDrop] Assets folder value:', assetsFolder);
-
-              // Determine the target directory (with or without assets folder)
-              let targetDirectory = directory;
-              let relativePath = `./${filename}`;
-
-              if (assetsFolder) {
-                console.log('[onDrop] Assets folder is set, will create subfolder');
-                targetDirectory = `${directory}/${assetsFolder}`;
-                relativePath = `./${assetsFolder}/${filename}`;
-
-                // Create assets folder if it doesn't exist
-                try {
-                  console.log('[onDrop] Creating directory:', targetDirectory);
-                  await invoke('create_directory', { path: targetDirectory });
-                  console.log('[onDrop] Directory created successfully');
-                } catch (error) {
-                  console.error('[onDrop] Error creating assets directory:', error);
-                  // Continue anyway, the write might still work
-                }
-              } else {
-                console.log('[onDrop] No assets folder set, saving to same directory');
-              }
-
-              const imagePath = `${targetDirectory}/${filename}`;
-
-              // Save image file
-              await invoke('write_binary_file', {
-                path: imagePath,
-                data: dataArray,
-              });
-
-              console.log('[FileHandler] Image saved to:', imagePath);
-
-              // Ensure minimum 300ms display time
-              const elapsed = Date.now() - startTime;
-              const delay = Math.max(0, 300 - elapsed);
-
-              setTimeout(() => {
-                // Find and replace the placeholder with markdown image syntax
-                const { state } = currentEditor;
-                let foundPos = -1;
-                let nodeSize = 0;
-
-                state.doc.descendants((node, pos) => {
-                  if (node.textContent === placeholderText) {
-                    foundPos = pos;
-                    nodeSize = node.nodeSize;
-                    return false;
-                  }
-                });
-
-                if (foundPos !== -1) {
-                  // Replace placeholder with markdown image using insertContentAt with range
-                  const markdownImage = `![${file.name}](${relativePath})`;
-                  currentEditor.commands.insertContentAt(
-                    { from: foundPos, to: foundPos + nodeSize },
-                    markdownImage,
-                    { contentType: 'markdown' }
-                  );
-                  currentEditor.commands.focus();
-                }
-              }, delay);
-            } catch (error) {
-              console.error('[FileHandler] Error saving image:', error);
-              toast.error(`Failed to upload image: ${error}`);
-
-              // Remove the placeholder on error
-              const currentMarkdown = currentEditor.getMarkdown();
-              const cleanedMarkdown = currentMarkdown.replace(placeholderText, '');
-              currentEditor.commands.setContent(cleanedMarkdown, { contentType: 'markdown' });
-            }
-          });
-        },
-        onPaste: (currentEditor, files, htmlContent) => {
-          console.log('[FileHandler] onPaste triggered', { files, htmlContent });
-
-          if (htmlContent) {
-            // If there is htmlContent, stop manual insertion & let other extensions handle insertion
-            console.log('[FileHandler] htmlContent present, skipping manual insertion');
-            return false;
-          }
-
-          if (files.length === 0) {
-            return false;
-          }
-
-          files.forEach(async (file) => {
-            console.log('[FileHandler] Processing pasted file:', file.name, file.type);
-
-            // Insert placeholder skeleton immediately
-            const cursorPos = currentEditor.state.selection.anchor;
-            const placeholderText = '⏳ Uploading...';
-            const startTime = Date.now();
-
-            currentEditor
-              .chain()
-              .insertContentAt(cursorPos, {
-                type: 'paragraph',
-                content: [
-                  {
-                    type: 'text',
-                    text: placeholderText,
-                  },
-                ],
-              })
-              .run();
-
-            try {
-              // Read file as array buffer
-              const arrayBuffer = await file.arrayBuffer();
-              const uint8Array = new Uint8Array(arrayBuffer);
-              const dataArray = Array.from(uint8Array);
-
-              // Generate unique filename with timestamp
-              const timestamp = Date.now();
-              const ext = file.name.split('.').pop() || 'png';
-              const filename = `image-${timestamp}.${ext}`;
-
-              // Get directory of current markdown file
-              const currentFilePath = editorState.filePath;
-              if (!currentFilePath) {
-                throw new Error('No file path available');
-              }
-              const directory = currentFilePath.substring(0, currentFilePath.lastIndexOf('/'));
-
-              // Get assets folder dynamically
-              const assetsFolder = getAssetsFolder();
-              console.log('[onPaste] Assets folder value:', assetsFolder);
-
-              // Determine the target directory (with or without assets folder)
-              let targetDirectory = directory;
-              let relativePath = `./${filename}`;
-
-              if (assetsFolder) {
-                console.log('[onPaste] Assets folder is set, will create subfolder');
-                targetDirectory = `${directory}/${assetsFolder}`;
-                relativePath = `./${assetsFolder}/${filename}`;
-
-                // Create assets folder if it doesn't exist
-                try {
-                  console.log('[onPaste] Creating directory:', targetDirectory);
-                  await invoke('create_directory', { path: targetDirectory });
-                  console.log('[onPaste] Directory created successfully');
-                } catch (error) {
-                  console.error('[onPaste] Error creating assets directory:', error);
-                  // Continue anyway, the write might still work
-                }
-              } else {
-                console.log('[onPaste] No assets folder set, saving to same directory');
-              }
-
-              const imagePath = `${targetDirectory}/${filename}`;
-
-              // Save image file
-              await invoke('write_binary_file', {
-                path: imagePath,
-                data: dataArray,
-              });
-
-              console.log('[FileHandler] Image saved to:', imagePath);
-
-              // Ensure minimum 300ms display time
-              const elapsed = Date.now() - startTime;
-              const delay = Math.max(0, 300 - elapsed);
-
-              setTimeout(() => {
-                // Find and replace the placeholder with markdown image syntax
-                const { state } = currentEditor;
-                let foundPos = -1;
-                let nodeSize = 0;
-
-                state.doc.descendants((node, pos) => {
-                  if (node.textContent === placeholderText) {
-                    foundPos = pos;
-                    nodeSize = node.nodeSize;
-                    return false;
-                  }
-                });
-
-                if (foundPos !== -1) {
-                  // Replace placeholder with markdown image using insertContentAt with range
-                  const markdownImage = `![${file.name}](${relativePath})`;
-                  currentEditor.commands.insertContentAt(
-                    { from: foundPos, to: foundPos + nodeSize },
-                    markdownImage,
-                    { contentType: 'markdown' }
-                  );
-                  currentEditor.commands.focus();
-                }
-              }, delay);
-            } catch (error) {
-              toast.error(`Failed to upload image: ${error}`);
-            }
-          });
-        },
-      }),
+      FileHandler.configure(fileHandler),
     ],
     content: "",
     contentType: 'markdown', // Enable markdown mode
@@ -401,6 +160,8 @@ export function MarkdownPreview({
         }
         return false;
       },
+      // Handle link clicks: open local paths as tabs, open http(s) in browser
+      handleClick: (view, pos, event) => handleLinkClick(view, pos, event),
     },
     onUpdate: ({ editor }) => {
       console.log('onUpdate')
@@ -434,6 +195,7 @@ export function MarkdownPreview({
 
   // Add native drop event listeners for debugging
   const containerRef = useRef<HTMLDivElement>(null);
+  const handleLinkClick = useLocalLinkHandler(editorState.filePath, containerRef);
 
   useEffect(() => {
     const container = containerRef.current;

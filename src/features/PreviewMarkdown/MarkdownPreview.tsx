@@ -18,6 +18,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 
 import { MarkdownBubbleMenu } from "./MarkdownBubbleMenu";
 import { MarkdownFloatingMenu } from "./MarkdownFloatingMenu";
+import { MarkdownDragHandle } from "./MarkdownDragHandle";
 
 import { createTauriImage } from "./TauriImage";
 import { CodeBlockNodeView } from "./CodeBlockNodeView";
@@ -494,6 +495,7 @@ export function MarkdownPreview({
             <>
               <MarkdownBubbleMenu editor={editor} />
               <MarkdownFloatingMenu editor={editor} />
+              <MarkdownDragHandle editor={editor} />
             </>
           )}
           <EditorContent editor={editor} className="min-h-full" />

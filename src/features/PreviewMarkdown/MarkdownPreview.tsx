@@ -4,6 +4,7 @@ import { useAtomValue, useSetAtom } from "jotai";
 import { invoke } from "@tauri-apps/api/core";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import StarterKit from "@tiptap/starter-kit";
+
 import { Markdown } from "@tiptap/markdown";
 import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
 import TaskList from "@tiptap/extension-task-list";
@@ -353,6 +354,36 @@ export function MarkdownPreview({
     editorProps: {
       attributes: {
         class: "prose prose-sm sm:prose lg:prose-lg dark:prose-invert mx-auto max-w-[700px] px-8 pb-8 pt-0 focus:outline-none",
+      },
+      // Intercept Mod-Enter before StarterKit's HardBreak can consume it.
+      // When inside a table cell, exit the table and insert a paragraph below.
+      handleKeyDown: (view, event) => {
+        if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+          const { state } = view;
+          const { $from } = state.selection;
+
+          let tablePos: number | null = null;
+          let tableNodeSize = 0;
+          for (let depth = $from.depth; depth >= 0; depth--) {
+            if ($from.node(depth).type.name === 'table') {
+              tablePos = $from.before(depth);
+              tableNodeSize = $from.node(depth).nodeSize;
+              break;
+            }
+          }
+
+          if (tablePos === null) return false;
+
+          const insertPos = tablePos + tableNodeSize;
+          const paragraph = state.schema.nodes.paragraph.create();
+          const baseTr = state.tr.insert(insertPos, paragraph);
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const sel = (state.selection.constructor as any).near(baseTr.doc.resolve(insertPos + 1));
+          const tr = baseTr.setSelection(sel);
+          view.dispatch(tr);
+          return true;
+        }
+        return false;
       },
     },
     onUpdate: ({ editor }) => {

@@ -39,6 +39,7 @@ import Highlight from "@tiptap/extension-highlight";
 import Link from "@tiptap/extension-link";
 import Subscript from "@tiptap/extension-subscript";
 import Superscript from "@tiptap/extension-superscript";
+import Placeholder from "@tiptap/extension-placeholder";
 
 const lowlight = createLowlight(common);
 
@@ -107,6 +108,12 @@ export function MarkdownPreview({
       Link.configure({ openOnClick: false, autolink: true }),
       Subscript,
       Superscript,
+      Placeholder.configure({
+        placeholder: 'Start writing…',
+        // Only show placeholder on the very first empty node
+        showOnlyWhenEditable: true,
+        showOnlyCurrent: false,
+      }),
       Markdown,
       TauriImage,
       TaskList,

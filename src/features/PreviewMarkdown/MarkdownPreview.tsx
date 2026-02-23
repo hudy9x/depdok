@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, useState } from "react";
 import { useEditor, EditorContent, ReactNodeViewRenderer } from "@tiptap/react";
 import { useAtomValue, useSetAtom } from "jotai";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
@@ -25,7 +25,8 @@ import { createTauriImage } from "./TauriImage";
 import { CodeBlockNodeView } from "./CodeBlockNodeView";
 import { editorStateAtom, markAsDirtyAtom } from "@/stores/EditorStore";
 import { draftService } from "@/lib/indexeddb";
-import { MarkdownOutlineWrapper } from "./MarkdownOutline";
+import { MarkdownOutlineWrapper, type TocAnchor } from "./MarkdownOutline";
+import { TableOfContents } from "@tiptap/extension-table-of-contents";
 import { Button } from "@/components/ui/button";
 import { PanelRightOpen } from "lucide-react";
 import Heading from "@tiptap/extension-heading";
@@ -60,6 +61,7 @@ export function MarkdownPreview({
   const TauriImage = createTauriImage(editorState.filePath);
   const isUpdatingRef = useRef(false);
   const [isOutlineOpen, setIsOutlineOpen] = useLocalStorage('markdown-outline-open', false);
+  const [tocAnchors, setTocAnchors] = useState<TocAnchor[]>([]);
   // handleLinkClick initialised after containerRef below
 
   const getAssetsFolder = useCallback(
@@ -112,6 +114,10 @@ export function MarkdownPreview({
       Placeholder.configure({
         placeholder: 'Start writing…',
         showOnlyCurrent: false,
+      }),
+      TableOfContents.configure({
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        onUpdate: (anchors: any[]) => setTocAnchors(anchors as TocAnchor[]),
       }),
       Markdown,
       TauriImage,
@@ -264,9 +270,11 @@ export function MarkdownPreview({
       </div>
 
       <LicenseGuard className="fixed top-12 right-6" title="" tooltipTitle="Enable Markdown Outline">
-        <MarkdownOutlineWrapper editor={editor}
+        <MarkdownOutlineWrapper
+          anchors={tocAnchors}
           visible={isOutlineOpen}
-          onToggle={() => setIsOutlineOpen(!isOutlineOpen)} />
+          onToggle={() => setIsOutlineOpen(!isOutlineOpen)}
+        />
       </LicenseGuard>
     </div>
   );

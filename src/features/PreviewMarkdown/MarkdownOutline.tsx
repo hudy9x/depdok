@@ -1,38 +1,44 @@
-import React, { useEffect, useState, useMemo } from 'react';
-import { Editor } from '@tiptap/react';
+import React, { useState, useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { slugify } from './HeadingNodeView';
 import { ChevronRight, ChevronDown, Hash, PanelRightClose } from 'lucide-react';
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@/components/ui/tooltip"
-import { useActiveHeading } from '@/hooks/useActiveHeading';
+} from "@/components/ui/tooltip";
 import { Button } from '@/components/ui/button';
 
+// Mirrors the anchor shape provided by @tiptap/extension-table-of-contents
+export interface TocAnchor {
+  id: string;
+  level: number;
+  originalLevel: number;
+  textContent: string;
+  isActive: boolean;
+  isScrolledOver: boolean;
+  pos: number;
+  itemIndex: number;
+  dom: HTMLElement;
+}
+
+interface TocNode extends TocAnchor {
+  children: TocNode[];
+}
+
 interface MarkdownOutlineProps {
-  editor: Editor | null;
+  anchors: TocAnchor[];
   className?: string;
   onItemClick?: () => void;
 }
 
-interface HeadingNode {
-  id: string;
-  text: string;
-  level: number;
-  pos: number;
-  children: HeadingNode[];
-}
+const buildTree = (anchors: TocAnchor[]): TocNode[] => {
+  const root: TocNode[] = [];
+  const stack: TocNode[] = [];
 
-const buildHeadingTree = (headings: { id: string; text: string; level: number; pos: number }[]) => {
-  const root: HeadingNode[] = [];
-  const stack: HeadingNode[] = [];
-
-  headings.forEach((heading) => {
-    const node: HeadingNode = { ...heading, children: [] };
+  anchors.forEach((anchor) => {
+    const node: TocNode = { ...anchor, children: [] };
 
     while (stack.length > 0 && stack[stack.length - 1].level >= node.level) {
       stack.pop();
@@ -51,84 +57,22 @@ const buildHeadingTree = (headings: { id: string; text: string; level: number; p
 };
 
 export const MarkdownOutline: React.FC<MarkdownOutlineProps> = ({
-  editor,
+  anchors,
   className,
   onItemClick,
 }) => {
-  const [headingTree, setHeadingTree] = useState<HeadingNode[]>([]);
   const [collapsedIds, setCollapsedIds] = useState<Set<string>>(new Set());
 
-  // Extract all heading IDs for the active heading hook
-  const headingIds = useMemo(() => {
-    const extractIds = (nodes: HeadingNode[]): string[] => {
-      return nodes.flatMap(node => [node.id, ...extractIds(node.children)]);
-    };
-    return extractIds(headingTree);
-  }, [headingTree]);
+  const headingTree = useMemo(() => buildTree(anchors), [anchors]);
 
-  // Track which heading is currently active (visible in viewport)
-  const activeHeadingId = useActiveHeading(headingIds);
-
-  useEffect(() => {
-    if (!editor) return;
-
-    const updateHeadings = () => {
-      const items: { id: string; text: string; level: number; pos: number }[] = [];
-      const { doc } = editor.state;
-
-      doc.descendants((node, pos) => {
-        if (node.type.name === 'heading') {
-          // Only capture H1-H4 as requested
-          if (node.attrs.level <= 4) {
-            items.push({
-              id: slugify(node.textContent),
-              text: node.textContent,
-              level: node.attrs.level,
-              pos: pos,
-            });
-          }
-        }
-      });
-
-      setHeadingTree(buildHeadingTree(items));
-    };
-
-    // Initial update
-    updateHeadings();
-
-    // Subscribe to editor updates
-    const handleUpdate = () => {
-      updateHeadings();
-    };
-
-    editor.on('update', handleUpdate);
-
-    // Cleanup
-    return () => {
-      editor.off('update', handleUpdate);
-    };
-  }, [editor]);
-
-  const handleHeadingClick = (id: string, pos: number) => {
-    if (!editor) return;
-
-    // Improved scroll logic
-    editor.chain().focus().setTextSelection(pos).run();
-
-    const element = document.getElementById(id);
+  const handleHeadingClick = (anchor: TocAnchor) => {
+    const element = document.getElementById(anchor.id);
     if (element) {
       element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    } else {
-      // Fallback to DOM lookup
-      const dom = editor.view.nodeDOM(pos) as HTMLElement;
-      if (dom?.scrollIntoView) {
-        dom.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
+    } else if (anchor.dom) {
+      anchor.dom.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
-
-    if (onItemClick) {
-      onItemClick();
-    }
+    onItemClick?.();
   };
 
   const toggleCollapse = (id: string, e: React.MouseEvent) => {
@@ -144,10 +88,10 @@ export const MarkdownOutline: React.FC<MarkdownOutlineProps> = ({
     });
   };
 
-  const renderNode = (node: HeadingNode) => {
+  const renderNode = (node: TocNode) => {
     const hasChildren = node.children.length > 0;
     const isCollapsed = collapsedIds.has(node.id);
-    const isActive = activeHeadingId === node.id;
+    const isActive = node.isActive;
 
     return (
       <div key={node.id} className="flex flex-col">
@@ -173,14 +117,14 @@ export const MarkdownOutline: React.FC<MarkdownOutlineProps> = ({
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
-                  onClick={() => handleHeadingClick(node.id, node.pos)}
+                  onClick={() => handleHeadingClick(node)}
                   className={`text-left text-xs cursor-pointer truncate w-full flex-1 min-w-0 ${hasChildren ? "" : "opacity-50"}`}
                 >
-                  {node.text || 'Untitled'}
+                  {node.textContent || 'Untitled'}
                 </button>
               </TooltipTrigger>
               <TooltipContent side="top" sideOffset={10}>
-                <p>{node.text}</p>
+                <p>{node.textContent}</p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
@@ -212,11 +156,12 @@ export const MarkdownOutline: React.FC<MarkdownOutlineProps> = ({
   );
 };
 
-export const MarkdownOutlineWrapper: React.FC<{ editor: Editor | null, visible: boolean, onToggle: () => void }> = ({ editor, visible, onToggle }) => {
-
-  if (!visible) {
-    return null;
-  }
+export const MarkdownOutlineWrapper: React.FC<{
+  anchors: TocAnchor[];
+  visible: boolean;
+  onToggle: () => void;
+}> = ({ anchors, visible, onToggle }) => {
+  if (!visible) return null;
 
   return (
     <div className="w-48 xl:w-64 border-l rounded-tl-md rounded-bl-md border-border bg-muted h-full flex-shrink-0 flex flex-col transition-all duration-300 ease-in-out">
@@ -231,7 +176,7 @@ export const MarkdownOutlineWrapper: React.FC<{ editor: Editor | null, visible: 
           <PanelRightClose className="h-4 w-4" />
         </Button>
       </div>
-      <MarkdownOutline editor={editor} className="flex-1" />
+      <MarkdownOutline anchors={anchors} className="flex-1" />
     </div>
-  )
-}
+  );
+};

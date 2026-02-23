@@ -6,7 +6,7 @@ import { tabsAtom } from '@/stores/TabStore';
 import { ToggleButton } from '@/features/FileExplorer/ToggleButton';
 import { TabItem } from './TabItem';
 import { CreateTabButton } from './CreateTabButton';
-import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+import { CustomScroller } from '@/components/CustomScroller';
 import { useWindowDrag } from '@/hooks/useWindowDrag';
 
 export function EditorTabs() {
@@ -14,7 +14,7 @@ export function EditorTabs() {
 
   const styleBackButton = `w-8 h-[35px] p-2 cursor-pointer hover:opacity-90 hover:bg-background/100 opacity-90 border-x border-border flex-shrink-0`;
 
-  useWindowDrag('[data-radix-scroll-area-viewport]');
+  useWindowDrag('[data-custom-scroller-content]');
 
   return (
     <div className="flex items-center h-[35px] w-full overflow-hidden" data-tauri-drag-region>
@@ -27,8 +27,9 @@ export function EditorTabs() {
       <ToggleButton />
 
       {/* Tabs in the middle with horizontal scroll */}
-      <ScrollArea
-        className="h-[35px] whitespace-nowrap overflow-hidden"
+      <CustomScroller
+        orientation="horizontal"
+        className="h-[35px]"
         style={{ width: 'calc(100vw - 280px)' }}
       >
         <div id="tab-content-wrapper" className="flex w-max space-x-0 h-full">
@@ -40,8 +41,7 @@ export function EditorTabs() {
           {/* Create button on the right */}
           <CreateTabButton />
         </div>
-        <ScrollBar orientation="horizontal" className='h-1.5 hover:bg-background/50' />
-      </ScrollArea>
+      </CustomScroller>
 
     </div>
   );

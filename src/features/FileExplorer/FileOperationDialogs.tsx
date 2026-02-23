@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAtom, useSetAtom } from 'jotai';
 import { toast } from 'sonner';
 import {
@@ -24,7 +25,7 @@ import {
   renameNode,
   deleteNode,
 } from './api';
-import { tabsAtom, closeTabAtom } from '@/stores/TabStore';
+import { tabsAtom, closeTabAtom, createTabAtom } from '@/stores/TabStore';
 
 export function FileOperationDialogs() {
   const [renaming, setRenaming] = useAtom(renamingNodeAtom);
@@ -35,6 +36,8 @@ export function FileOperationDialogs() {
   // const openWorkspace = useSetAtom(openWorkspaceAtom);
   const [tabs] = useAtom(tabsAtom);
   const closeTab = useSetAtom(closeTabAtom);
+  const createTab = useSetAtom(createTabAtom);
+  const navigate = useNavigate();
 
   const [nameInput, setNameInput] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -57,6 +60,9 @@ export function FileOperationDialogs() {
       if (creating.type === 'file') {
         await createFile(newPath);
         toast.success(`File created: ${nameInput}`);
+        const fileName = nameInput.split(/[/\\]/).pop() || nameInput;
+        createTab({ filePath: newPath, fileName, switchTo: true, isPreview: false });
+        navigate('/editor');
       } else {
         await createDirectory(newPath);
         toast.success(`Folder created: ${nameInput}`);

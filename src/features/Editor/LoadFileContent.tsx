@@ -37,7 +37,10 @@ export function LoadFileContent({
         const isUntitled = filePath.startsWith("UNTITLED://");
         const extension = filePath.split(".").pop()?.toLowerCase() || "";
 
-        if (!isUntitled) {
+        const imageExtensions = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'ico', 'bmp'];
+        const isImage = imageExtensions.includes(extension);
+
+        if (!isUntitled && !isImage) {
           // 1. Load real file from disk
           loadedFileContent = await readFileContent(filePath);
         }
@@ -49,7 +52,7 @@ export function LoadFileContent({
         // For untitled files, ALWAYS use draft content (or empty string if no draft)
         let contentToLoad = loadedFileContent;
 
-        if (draft) {
+        if (!isImage && draft) {
           if (isUntitled || draft.content !== loadedFileContent) {
             contentToLoad = draft.content;
           }

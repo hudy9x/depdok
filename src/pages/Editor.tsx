@@ -217,6 +217,7 @@ export default function Editor() {
                           <PreviewPanel
                             content={content}
                             fileExtension={editorState.fileExtension}
+                            filePath={currentFilePath}
                             editable={true}
                             onContentChange={handleSaveContent}
                           />

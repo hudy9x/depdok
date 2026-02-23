@@ -6,13 +6,17 @@ import { TodoPreview } from "../PreviewTodo/TodoPreview";
 interface PreviewPanelProps {
   content: string;
   fileExtension: string | null;
+  filePath?: string;
   editable?: boolean;
   onContentChange?: (content: string) => void;
 }
 
+import { PreviewImage } from "../PreviewImage";
+
 export function PreviewPanel({
   content,
   fileExtension,
+  filePath,
   editable = false,
   onContentChange
 }: PreviewPanelProps) {
@@ -33,6 +37,11 @@ export function PreviewPanel({
         onContentChange={onContentChange}
       />
     );
+  }
+
+  const imageExtensions = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'ico', 'bmp'];
+  if (imageExtensions.includes(fileExtension.toLowerCase()) && filePath) {
+    return <PreviewImage filePath={filePath} />;
   }
 
   if (fileExtension === "mmd") {

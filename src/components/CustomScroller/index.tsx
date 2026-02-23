@@ -51,7 +51,7 @@ export function CustomScroller({
     if (isHorizontal) {
       const scrollable = content.scrollWidth - content.clientWidth;
       const hasScroll = scrollable > 0;
-      thumb.style.opacity = hasScroll ? '1' : '0';
+      thumb.style.opacity = hasScroll ? '' : '0';
       if (!hasScroll) return;
 
       const trackW = track.clientWidth;
@@ -62,7 +62,7 @@ export function CustomScroller({
     } else {
       const scrollable = content.scrollHeight - content.clientHeight;
       const hasScroll = scrollable > 0;
-      thumb.style.opacity = hasScroll ? '1' : '0';
+      thumb.style.opacity = hasScroll ? '' : '0';
       if (!hasScroll) return;
 
       const trackH = track.clientHeight;
@@ -186,7 +186,7 @@ export function CustomScroller({
   );
 
   return (
-    <div className={cn('relative overflow-hidden', className)} style={style}>
+    <div className={cn('group/scroller relative overflow-hidden', className)} style={style}>
       {/* ── Content child ─────────────────────────────────────────────── */}
       <div
         ref={contentRef}
@@ -225,9 +225,10 @@ export function CustomScroller({
             ref={thumbRef}
             onMouseDown={handleThumbMouseDown}
             className={cn(
-              'absolute rounded-full opacity-0',
+              'absolute rounded-full',
+              'opacity-0 group-hover/scroller:opacity-100',
+              'transition-opacity duration-150',
               'bg-muted-foreground/30 hover:bg-muted-foreground/60',
-              'transition-[background-color] duration-150',
               'cursor-pointer',
               isHorizontal ? 'h-full top-0' : 'w-full left-0',
             )}

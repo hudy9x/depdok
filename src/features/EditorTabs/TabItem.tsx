@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAtom, useSetAtom } from 'jotai';
 import { useNavigate } from 'react-router-dom';
 import { X } from 'lucide-react';
@@ -27,8 +27,15 @@ export function TabItem({ tab }: TabItemProps) {
   const closeTab = useSetAtom(closeTabAtom);
   const updateTab = useSetAtom(updateTabAtom);
   const [showCloseWarning, setShowCloseWarning] = useState(false);
+  const tabRef = useRef<HTMLDivElement>(null);
 
   const isActive = tab.id === activeTabId;
+
+  useEffect(() => {
+    if (isActive) {
+      tabRef.current?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    }
+  }, [isActive]);
 
   const handleClick = () => {
     if (!isActive) {
@@ -76,6 +83,7 @@ export function TabItem({ tab }: TabItemProps) {
     <>
       <TabContextMenu tab={tab}>
         <div
+          ref={tabRef}
           className={cn(
             'flex items-center gap-2 px-3 h-[35px] cursor-pointer border-r border-border group relative',
             'hover:bg-accent/70 transition-colors',

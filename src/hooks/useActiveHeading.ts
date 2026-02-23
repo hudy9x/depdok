@@ -1,63 +1,59 @@
 import { useState, useEffect } from 'react';
 
+interface AnchorWithDom {
+  id: string;
+  dom: HTMLElement;
+}
+
 /**
- * Custom hook to detect which heading is currently active (visible) in the viewport.
- * Uses IntersectionObserver to track heading visibility as the user scrolls.
- * 
- * @param headingIds Array of heading IDs to observe
- * @returns The ID of the currently active heading, or null if none are visible
+ * Tracks the active heading by listening to scroll events on a container.
+ * Uses anchor.dom directly (the actual DOM element from TipTap's TOC anchor)
+ * instead of document.getElementById, because TipTap uses UUIDs as anchor IDs
+ * which differ from the slug-based IDs on the heading DOM elements.
+ *
+ * @param anchors - Array of {id, dom} objects from TipTap TOC anchors
+ * @param scrollContainer - The element that actually scrolls (defaults to window)
+ * @param threshold - How many px past the top counts as "active" (default 80)
  */
-export function useActiveHeading(headingIds: string[]): string | null {
+export function useActiveHeading(
+  anchors: AnchorWithDom[],
+  scrollContainer?: HTMLElement | null,
+  threshold = 80,
+): string | null {
   const [activeHeadingId, setActiveHeadingId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (headingIds.length === 0) return;
+    if (anchors.length === 0) return;
 
-    // Track which headings are currently intersecting
-    const intersectingHeadings = new Map<string, IntersectionObserverEntry>();
+    const findActive = () => {
+      const containerTop = scrollContainer
+        ? scrollContainer.getBoundingClientRect().top
+        : 0;
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        // Update the map of intersecting headings
-        entries.forEach((entry) => {
-          const id = entry.target.id;
-          if (entry.isIntersecting) {
-            intersectingHeadings.set(id, entry);
-          } else {
-            intersectingHeadings.delete(id);
-          }
-        });
+      let activeId: string | null = null;
 
-        // Find the topmost intersecting heading
-        if (intersectingHeadings.size > 0) {
-          const topmost = Array.from(intersectingHeadings.values())
-            .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
+      for (const anchor of anchors) {
+        if (!anchor.dom) continue;
+        const relativeTop = anchor.dom.getBoundingClientRect().top - containerTop;
 
-          setActiveHeadingId(topmost.target.id);
+        if (relativeTop <= threshold) {
+          activeId = anchor.id;
         } else {
-          setActiveHeadingId(null);
+          break;
         }
-      },
-      {
-        // Trigger when heading is in the top 30% of viewport
-        rootMargin: '-20% 0px -70% 0px',
-        threshold: 0,
       }
-    );
 
-    // Observe all heading elements
-    headingIds.forEach((id) => {
-      const element = document.getElementById(id);
-      if (element) {
-        observer.observe(element);
-      }
-    });
-
-    // Cleanup
-    return () => {
-      observer.disconnect();
+      setActiveHeadingId(activeId);
     };
-  }, [headingIds]);
+
+    const target: EventTarget = scrollContainer ?? window;
+    target.addEventListener('scroll', findActive, { passive: true });
+    findActive();
+
+    return () => {
+      target.removeEventListener('scroll', findActive);
+    };
+  }, [anchors, scrollContainer, threshold]);
 
   return activeHeadingId;
 }

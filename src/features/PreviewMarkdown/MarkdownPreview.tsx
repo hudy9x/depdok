@@ -62,6 +62,8 @@ export function MarkdownPreview({
   const isUpdatingRef = useRef(false);
   const [isOutlineOpen, setIsOutlineOpen] = useLocalStorage('markdown-outline-open', false);
   const [tocAnchors, setTocAnchors] = useState<TocAnchor[]>([]);
+  // containerRef moved here so it can be referenced in TableOfContents scrollParent
+  const containerRef = useRef<HTMLDivElement>(null);
   // handleLinkClick initialised after containerRef below
 
   const getAssetsFolder = useCallback(
@@ -118,6 +120,9 @@ export function MarkdownPreview({
       TableOfContents.configure({
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         onUpdate: (anchors: any[]) => setTocAnchors(anchors as TocAnchor[]),
+        scrollParent: () =>
+          (containerRef.current?.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement) ??
+          window,
       }),
       Markdown,
       TauriImage,
@@ -199,7 +204,6 @@ export function MarkdownPreview({
   }, [editable, content, editor]);
 
   // Add native drop event listeners for debugging
-  const containerRef = useRef<HTMLDivElement>(null);
   const handleLinkClick = useLocalLinkHandler(editorState.filePath, containerRef);
 
   useEffect(() => {
@@ -257,7 +261,7 @@ export function MarkdownPreview({
           </div>
         )}
 
-        <ScrollArea className="w-full h-full">
+        <ScrollArea className="w-full h-full markdown-editor-scroll">
           {editable && (
             <>
               <MarkdownBubbleMenu editor={editor} />

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ChevronRight, ChevronDown, Hash, PanelRightClose } from 'lucide-react';
@@ -9,6 +9,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Button } from '@/components/ui/button';
+import { useActiveHeading } from '@/hooks/useActiveHeading';
 
 // Mirrors the anchor shape provided by @tiptap/extension-table-of-contents
 export interface TocAnchor {
@@ -31,6 +32,7 @@ interface MarkdownOutlineProps {
   anchors: TocAnchor[];
   className?: string;
   onItemClick?: () => void;
+  scrollRoot?: HTMLElement | null;
 }
 
 const buildTree = (anchors: TocAnchor[]): TocNode[] => {
@@ -60,10 +62,13 @@ export const MarkdownOutline: React.FC<MarkdownOutlineProps> = ({
   anchors,
   className,
   onItemClick,
+  scrollRoot,
 }) => {
   const [collapsedIds, setCollapsedIds] = useState<Set<string>>(new Set());
 
   const headingTree = useMemo(() => buildTree(anchors), [anchors]);
+
+  const activeHeadingId = useActiveHeading(anchors, scrollRoot);
 
   const handleHeadingClick = (anchor: TocAnchor) => {
     const element = document.getElementById(anchor.id);
@@ -91,7 +96,7 @@ export const MarkdownOutline: React.FC<MarkdownOutlineProps> = ({
   const renderNode = (node: TocNode) => {
     const hasChildren = node.children.length > 0;
     const isCollapsed = collapsedIds.has(node.id);
-    const isActive = node.isActive;
+    const isActive = activeHeadingId === node.id;
 
     return (
       <div key={node.id} className="flex flex-col">
@@ -161,6 +166,17 @@ export const MarkdownOutlineWrapper: React.FC<{
   visible: boolean;
   onToggle: () => void;
 }> = ({ anchors, visible, onToggle }) => {
+  const [scrollRoot, setScrollRoot] = useState<HTMLElement | null>(null);
+
+  // Query the Radix ScrollArea viewport so our scroll listener uses
+  // the actual editor scroll container rather than window
+  useEffect(() => {
+    const viewport = document.querySelector(
+      '.markdown-editor-scroll [data-radix-scroll-area-viewport]'
+    ) as HTMLElement | null;
+    setScrollRoot(viewport);
+  }, [visible, anchors.length]); // re-query when content changes
+
   if (!visible) return null;
 
   return (
@@ -176,7 +192,7 @@ export const MarkdownOutlineWrapper: React.FC<{
           <PanelRightClose className="h-4 w-4" />
         </Button>
       </div>
-      <MarkdownOutline anchors={anchors} className="flex-1" />
+      <MarkdownOutline anchors={anchors} scrollRoot={scrollRoot} className="flex-1" />
     </div>
   );
 };

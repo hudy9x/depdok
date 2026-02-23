@@ -85,7 +85,7 @@ export function FileTreeItem({
               <Folder fill='var(--primary)' className="w-4 h-4 text-primary" />
             )
           ) : (
-            <FileIcon filename={node.name} className={`w-4 h-4 group-hover/file-tree-item:grayscale-0 ${isActive || isSelected ? '' : 'grayscale'}`} />
+            <FileIcon filename={node.name} className={`w-4 h-4 ${isActive || isSelected ? '' : ''}`} />
           )}
         </span>
 

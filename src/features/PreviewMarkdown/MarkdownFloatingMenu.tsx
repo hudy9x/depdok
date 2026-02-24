@@ -11,7 +11,7 @@ export function MarkdownFloatingMenu({ editor }: MarkdownFloatingMenuProps) {
 
   return (
     <FloatingMenu editor={editor}>
-      <div className="flex items-center gap-1 p-1 bg-popover border border-border rounded-lg shadow-lg">
+      <div className="flex items-center gap-1 p-1 bg-popover border border-border rounded-lg shadow-lg -translate-y-full">
         <BlockButtons editor={editor} />
       </div>
     </FloatingMenu>

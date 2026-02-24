@@ -54,7 +54,7 @@ export function FileIcon({ filename, className, variant = 'colorful' }: FileIcon
 
   const getIcon = () => {
     const isImage = /\.(png|jpe?g|gif|svg|webp|ico)$/i.test(filename);
-    if (isImage) return <ImageIcon className={cn("w-3 h-3 text-muted-foreground", className, isColorful && "text-rose-500")} />;
+    if (isImage) return <ImageIcon className={cn("w-3 h-3 text-muted-foreground", className)} />;
 
     if (filename.endsWith('.todo')) return <TodoIcon className={cn("w-3 h-3", className)} primary={isColorful ? "#3b82f6" : undefined} secondary={isColorful ? "#93c5fd" : undefined} />;
     if (filename.endsWith('.md')) return <MarkdownIcon className={cn("w-3 h-3", className)} primary={isColorful ? "#0f172a" : undefined} />;

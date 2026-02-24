@@ -29,6 +29,7 @@ import { MarkdownOutlineWrapper, type TocAnchor } from "./MarkdownOutline";
 import { TableOfContents } from "@tiptap/extension-table-of-contents";
 import { Button } from "@/components/ui/button";
 import { PanelRightOpen } from "lucide-react";
+import { MarkdownSizeControl, type MarkdownEditorSize } from "./MarkdownSizeControl";
 import Heading from "@tiptap/extension-heading";
 import { HeadingNodeView } from "./HeadingNodeView";
 import { LicenseGuard } from "@/components/LicenseGuard";
@@ -61,6 +62,7 @@ export function MarkdownPreview({
   const TauriImage = createTauriImage(editorState.filePath);
   const isUpdatingRef = useRef(false);
   const [isOutlineOpen, setIsOutlineOpen] = useLocalStorage('markdown-outline-open', false);
+  const [editorSize, setEditorSize] = useLocalStorage<MarkdownEditorSize>('markdown-editor-size', 'small');
   const [tocAnchors, setTocAnchors] = useState<TocAnchor[]>([]);
   // containerRef moved here so it can be referenced in TableOfContents scrollParent
   const containerRef = useRef<HTMLDivElement>(null);
@@ -138,7 +140,7 @@ export function MarkdownPreview({
     autofocus: editable ? 'end' : false,
     editorProps: {
       attributes: {
-        class: "prose prose-sm sm:prose lg:prose-lg dark:prose-invert mx-auto max-w-[700px] px-8 pb-8 pt-0 focus:outline-none",
+        class: "prose prose-sm sm:prose lg:prose-lg dark:prose-invert mx-auto max-w-none px-8 pb-8 pt-0 focus:outline-none",
       },
       // Intercept Mod-Enter before StarterKit's HardBreak can consume it.
       // When inside a table cell, exit the table and insert a paragraph below.
@@ -269,8 +271,21 @@ export function MarkdownPreview({
               <MarkdownDragHandle editor={editor} />
             </>
           )}
-          <EditorContent editor={editor} spellCheck={false} className="min-h-full" />
+          <div
+            className="w-full mx-auto transition-all duration-300"
+            style={{
+              maxWidth:
+                editorSize === 'full'
+                  ? '100%'
+                  : editorSize === 'wide'
+                    ? '1100px'
+                    : '700px',
+            }}
+          >
+            <EditorContent editor={editor} spellCheck={false} className="min-h-full" />
+          </div>
         </ScrollArea>
+        <MarkdownSizeControl size={editorSize} onSizeChange={setEditorSize} />
       </div>
 
       <LicenseGuard className="fixed top-12 right-6" title="" tooltipTitle="Enable Markdown Outline">

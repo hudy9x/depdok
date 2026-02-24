@@ -269,7 +269,7 @@ export function MarkdownPreview({
               <MarkdownDragHandle editor={editor} />
             </>
           )}
-          <EditorContent editor={editor} className="min-h-full" />
+          <EditorContent editor={editor} spellCheck={false} className="min-h-full" />
         </ScrollArea>
       </div>
 

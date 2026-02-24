@@ -2,30 +2,25 @@
 
 ✨ Features
 
-- Implement Tiptap drag handle for block reordering in the Markdown preview. ([00e9f1e](../../commit/00e9f1e))
-- Add Tiptap placeholder and gap cursor extensions to the markdown editor. ([0273ab0](../../commit/0273ab0))
-- Add highlight, link, subscript, and superscript editor functionality with corresponding UI controls. ([0b1b2d8](../../commit/0b1b2d8))
+- Add markdown editor size control to dynamically adjust preview width. ([ed56137](../../commit/ed56137))
+- Enable image file preview with interactive zoom and pan capabilities. ([5405b95](../../commit/5405b95))
+- Add custom SVG icons for PlantUML, Mermaid, Todo, and Markdown files, and introduce a color variant to the FileIcon component. ([5b999c6](../../commit/5b999c6))
+- Implement a custom scroller thumb that hides by default and appears on hover with a smooth transition. ([5337eff](../../commit/5337eff))
+- Create a new scrollbar that support wheel ([95beb88](../../commit/95beb88))
 
 🐛 Bug Fixes
 
-- Fallback to assignee alias for name display in TodoItemActions. ([c2152e9](../../commit/c2152e9))
+- Remove conditional rose color from image file icons. ([466d41f](../../commit/466d41f))
 
 ♻️ Refactoring
 
-- Adjust Markdown drag handle placement to `left-start`, add a vertical offset, and center its icon. ([cac60e6](../../commit/cac60e6))
-- Reimplement active heading detection using scroll position and integrate it with the markdown preview and outline components. ([97f4aa7](../../commit/97f4aa7))
-- Integrate Tiptap TableOfContents extension for improved markdown outline management. ([e31e795](../../commit/e31e795))
-- Automatically open newly created files in the editor and navigate to the editor view. ([b1b10a5](../../commit/b1b10a5))
-- Automatically scroll the active editor tab into view using `useRef` and `useEffect`. ([8249880](../../commit/8249880))
-- Remove placeholder's `showOnlyWhenEditable` option and add autofocus to the editor. ([d75c1bd](../../commit/d75c1bd))
-- Extract file and local link handling logic into dedicated custom hooks. ([804c716](../../commit/804c716))
-- Add Mod-Enter keybind to exit tables and insert a new paragraph in the editor. ([e4b4747](../../commit/e4b4747))
+- Disable spell checking for the markdown editor content. ([0fd9833](../../commit/0fd9833))
 
 🔨 Other Changes
 
-- Change arrow color + text color ([1d53d7d](../../commit/1d53d7d))
-- Upgrade version 0.20.1 ([aa94678](../../commit/aa94678))
-- Upgrade version 0.20.1 ([83fc900](../../commit/83fc900))
+- Update caret color in markdown preview. ([c8e0712](../../commit/c8e0712))
+- Adjust vertical position of Markdown floating menu ([ae1118d](../../commit/ae1118d))
+- Upgrade version 0.21.7 ([1afa72f](../../commit/1afa72f))
 
 
-📋 Full Changelog: [83fc900...cac60e6](../../compare/83fc900...cac60e6)
+📋 Full Changelog: [1afa72f...ed56137](../../compare/1afa72f...ed56137)

@@ -49,7 +49,7 @@ export function PreviewPanel({
   }
 
   if (["puml", "pu"].includes(fileExtension)) {
-    return <PlantUMLPreview content={content} />;
+    return <PlantUMLPreview content={content} onContentChange={onContentChange} />;
   }
 
   if (fileExtension === "todo") {

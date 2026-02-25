@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import MonacoEditorReact, { BeforeMount, OnMount } from "@monaco-editor/react";
 import { listen } from '@tauri-apps/api/event';
-import { useAtomValue } from "jotai";
+import { useAtomValue, useAtom } from "jotai";
 import "./monaco.css";
 
 import { useTheme } from "next-themes";
@@ -23,6 +23,7 @@ import {
   registerToggleTodoAction
 } from '@/lib/monaco-actions';
 import { registerTodoSnippets, registerDateSnippets } from '@/lib/monaco-snippets';
+import { plantUMLJumpAtom } from "@/features/PreviewPlantUML/store";
 
 
 interface MonacoEditorProps {
@@ -36,6 +37,7 @@ interface MonacoEditorProps {
 export function MonacoEditor({ initialContent, language, onContentChange, enableFileWatcher = false, lineNumber }: MonacoEditorProps) {
   const [content, setContent] = useState(initialContent);
   const editorState = useAtomValue(editorStateAtom);
+  const [plantUMLJump, setPlantUMLJump] = useAtom(plantUMLJumpAtom);
 
   // Theme logic
   // Theme logic
@@ -227,6 +229,16 @@ export function MonacoEditor({ initialContent, language, onContentChange, enable
 
   // Handle line jumping
   useLineJump({ editorRef, lineNumber });
+
+  // Handle PlantUML click-to-jump
+  useEffect(() => {
+    if (!plantUMLJump || !editorRef.current) return;
+    const { lineNumber: targetLine } = plantUMLJump;
+    editorRef.current.revealLineInCenter(targetLine);
+    editorRef.current.setPosition({ lineNumber: targetLine, column: 1 });
+    editorRef.current.focus();
+    setPlantUMLJump(null);
+  }, [plantUMLJump, setPlantUMLJump]);
 
   console.log("MonacoEditorReact language", language)
 

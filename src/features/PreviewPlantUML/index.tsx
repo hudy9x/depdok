@@ -4,12 +4,19 @@ import { toast } from "sonner";
 import { useDebounce } from "use-debounce";
 import { useTheme } from "next-themes";
 import { useAtomValue, useSetAtom } from "jotai";
-import { ArrowUpRight, Pencil, Trash2, Check, X, Users, Plus } from "lucide-react";
+import { ArrowUpRight, Pencil, Trash2, Check, X, Users, Plus, ChevronLeft, ChevronRight } from "lucide-react";
 import { ZoomPanContainer } from "@/components/ZoomPanContainer";
 import { plantUmlServerUrlAtom } from "@/stores/SettingsStore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { getMessageLines, updateParticipantName } from "./plantuml-parser";
+import {
+  getMessageLines,
+  updateParticipantName,
+  insertParticipantAfter,
+  moveParticipant,
+  getAllParticipantLineNumbers,
+  findParticipantDefinition,
+} from "./plantuml-parser";
 import { plantUMLJumpAtom } from "./store";
 
 interface PlantUMLPreviewProps {
@@ -24,45 +31,37 @@ type PopoverMode =
   | "new-message"
   | "confirm-delete"
   | "participant-actions"
-  | "edit-participant-name";
+  | "edit-participant-name"
+  | "new-participant";
 
 interface PopoverState {
   open: boolean;
   x: number;
   y: number;
   mode: PopoverMode;
-  // message-specific
+  // message fields
   lineNumber: number;
   sourceLine: string;
-  // participant-specific
+  // participant fields
   participantIdentifier: string;
   participantDisplayName: string;
+  canMoveLeft: boolean;
+  canMoveRight: boolean;
 }
 
 const POPOVER_CLOSED: PopoverState = {
   open: false, x: 0, y: 0, mode: "message-actions",
   lineNumber: 0, sourceLine: "",
   participantIdentifier: "", participantDisplayName: "",
+  canMoveLeft: false, canMoveRight: false,
 };
 
-// ── Line helpers ──────────────────────────────────────────────────────────────
+// ── Message line helpers ──────────────────────────────────────────────────────
 
-function extractParticipants(line: string) {
-  const idx = line.indexOf(":");
-  return idx !== -1 ? line.slice(0, idx).trim() : line.trim();
-}
-function extractLabel(line: string) {
-  const idx = line.indexOf(":");
-  return idx !== -1 ? line.slice(idx + 1).trim() : line.trim();
-}
-function replaceLabel(line: string, v: string) {
-  const idx = line.indexOf(":");
-  return idx !== -1 ? line.slice(0, idx + 1) + " " + v : line;
-}
-function replaceParticipants(line: string, v: string) {
-  const idx = line.indexOf(":");
-  return idx !== -1 ? v + " :" + line.slice(idx + 1) : v;
-}
+const extractParticipants = (l: string) => { const i = l.indexOf(":"); return i !== -1 ? l.slice(0, i).trim() : l.trim(); };
+const extractLabel = (l: string) => { const i = l.indexOf(":"); return i !== -1 ? l.slice(i + 1).trim() : l.trim(); };
+const replaceLabel = (l: string, v: string) => { const i = l.indexOf(":"); return i !== -1 ? l.slice(0, i + 1) + " " + v : l; };
+const replaceParticipants = (l: string, v: string) => { const i = l.indexOf(":"); return i !== -1 ? v + " :" + l.slice(i + 1) : v; };
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -109,7 +108,7 @@ export function PlantUMLPreview({ content, onContentChange }: PlantUMLPreviewPro
   const messageLines = useRef<number[]>([]);
   useEffect(() => { messageLines.current = getMessageLines(content); }, [content]);
 
-  // ── Click handlers for .message elements ─────────────────────────────────────
+  // ── Click handlers for .message ──────────────────────────────────────────────
 
   useEffect(() => {
     if (!svgWrapperRef.current || !svgContent) return;
@@ -132,19 +131,19 @@ export function PlantUMLPreview({ content, onContentChange }: PlantUMLPreviewPro
             mode: "message-actions",
             lineNumber, sourceLine,
             participantIdentifier: "", participantDisplayName: "",
+            canMoveLeft: false, canMoveRight: false,
           });
         };
         el.style.cursor = "pointer";
         el.addEventListener("click", handler);
         cleanups.push(() => el.removeEventListener("click", handler));
       });
-
       return () => cleanups.forEach((fn) => fn());
     });
     return () => cancelAnimationFrame(raf);
   }, [svgContent, content]);
 
-  // ── Click handlers for .participant elements ──────────────────────────────────
+  // ── Click handlers for .participant ──────────────────────────────────────────
 
   useEffect(() => {
     if (!svgWrapperRef.current || !svgContent) return;
@@ -152,29 +151,30 @@ export function PlantUMLPreview({ content, onContentChange }: PlantUMLPreviewPro
       const wrapper = svgWrapperRef.current;
       if (!wrapper) return;
       const cleanups: (() => void)[] = [];
-
-      // Each lifeline group has multiple .participant children (head + tail).
-      // Deduplicate by identifier so we attach only once per actual participant.
       const seen = new Set<string>();
 
+      // Collect SVG participant order for move boundary checks
+      const svgParticipants: string[] = [];
       wrapper.querySelectorAll<SVGGElement>(".participant").forEach((el) => {
-        // data-qualified-name holds the PlantUML identifier/alias used in messages
+        const id = el.getAttribute("data-qualified-name") ?? "";
+        if (id && !svgParticipants.includes(id)) svgParticipants.push(id);
+      });
+
+      wrapper.querySelectorAll<SVGGElement>(".participant").forEach((el) => {
         const identifier = el.getAttribute("data-qualified-name") ?? "";
         if (!identifier || seen.has(identifier)) return;
         seen.add(identifier);
 
-        // The display name is in the first <text> child of a participant-head element
-        // but for simplicity we read data-qualified-name as fallback; the real display
-        // name is resolved at click time from the parser.
         const handler = (e: MouseEvent) => {
           e.stopPropagation();
-
-          // Get the displayed text from the nearest text element
-          let displayName = identifier;
-          const textEl = el.querySelector("text");
-          if (textEl?.textContent) displayName = textEl.textContent.trim();
-
+          const displayName = el.querySelector("text")?.textContent?.trim() ?? identifier;
           const rect = containerRef.current?.getBoundingClientRect();
+
+          // Determine move boundaries using source definition order
+          const allLines = getAllParticipantLineNumbers(content);
+          const myDef = findParticipantDefinition(content, identifier);
+          const myPos = myDef ? allLines.indexOf(myDef.lineNumber) : -1;
+
           setPopover({
             open: true,
             x: rect ? e.clientX - rect.left : e.clientX,
@@ -183,6 +183,8 @@ export function PlantUMLPreview({ content, onContentChange }: PlantUMLPreviewPro
             lineNumber: 0, sourceLine: "",
             participantIdentifier: identifier,
             participantDisplayName: displayName,
+            canMoveLeft: myPos > 0,
+            canMoveRight: myPos !== -1 && myPos < allLines.length - 1,
           });
         };
 
@@ -190,7 +192,6 @@ export function PlantUMLPreview({ content, onContentChange }: PlantUMLPreviewPro
         el.addEventListener("click", handler);
         cleanups.push(() => el.removeEventListener("click", handler));
       });
-
       return () => cleanups.forEach((fn) => fn());
     });
     return () => cancelAnimationFrame(raf);
@@ -209,7 +210,7 @@ export function PlantUMLPreview({ content, onContentChange }: PlantUMLPreviewPro
     setPopover((p) => ({ ...p, mode }));
   }, []);
 
-  const applyLineEdit = useCallback((transform: (line: string) => string) => {
+  const applyLineEdit = useCallback((transform: (l: string) => string) => {
     if (!onContentChange || !popover.lineNumber) return;
     const lines = content.split("\n");
     lines[popover.lineNumber - 1] = transform(lines[popover.lineNumber - 1]);
@@ -217,13 +218,8 @@ export function PlantUMLPreview({ content, onContentChange }: PlantUMLPreviewPro
     setPopover(POPOVER_CLOSED);
   }, [content, onContentChange, popover.lineNumber]);
 
-  const handleLabelConfirm = useCallback(() => {
-    applyLineEdit((l) => replaceLabel(l, inputValue.trim() || extractLabel(l)));
-  }, [applyLineEdit, inputValue]);
-
-  const handleParticipantsConfirm = useCallback(() => {
-    applyLineEdit((l) => replaceParticipants(l, inputValue.trim() || extractParticipants(l)));
-  }, [applyLineEdit, inputValue]);
+  const handleLabelConfirm = useCallback(() => applyLineEdit((l) => replaceLabel(l, inputValue.trim() || extractLabel(l))), [applyLineEdit, inputValue]);
+  const handleParticipantsConfirm = useCallback(() => applyLineEdit((l) => replaceParticipants(l, inputValue.trim() || extractParticipants(l))), [applyLineEdit, inputValue]);
 
   const handleNewMessageConfirm = useCallback(() => {
     if (!onContentChange || !popover.lineNumber || !inputValue.trim()) return;
@@ -247,17 +243,28 @@ export function PlantUMLPreview({ content, onContentChange }: PlantUMLPreviewPro
     setPopover(POPOVER_CLOSED);
   }, [content, inputValue, onContentChange, popover.participantIdentifier]);
 
+  const handleNewParticipantConfirm = useCallback(() => {
+    if (!onContentChange || !inputValue.trim()) return;
+    onContentChange(insertParticipantAfter(content, popover.participantIdentifier, inputValue.trim()));
+    setPopover(POPOVER_CLOSED);
+  }, [content, inputValue, onContentChange, popover.participantIdentifier]);
+
+  const handleMoveParticipant = useCallback((direction: 'up' | 'down') => {
+    if (!onContentChange || !popover.participantIdentifier) return;
+    onContentChange(moveParticipant(content, popover.participantIdentifier, direction));
+    setPopover(POPOVER_CLOSED);
+  }, [content, onContentChange, popover.participantIdentifier]);
+
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>, onConfirm: () => void) => {
       if (e.key === "Enter") onConfirm();
       if (e.key === "Escape") setPopover(POPOVER_CLOSED);
-    },
-    []
+    }, []
   );
 
   const handleContainerClick = useCallback(() => setPopover(POPOVER_CLOSED), []);
 
-  // ── Popover content ──────────────────────────────────────────────────────────
+  // ── Popover UI ───────────────────────────────────────────────────────────────
 
   const inlineInput = (placeholder: string, onConfirm: () => void) => (
     <div className="flex items-center gap-1">
@@ -266,7 +273,7 @@ export function PlantUMLPreview({ content, onContentChange }: PlantUMLPreviewPro
         value={inputValue}
         onChange={(e) => setInputValue(e.target.value)}
         onKeyDown={(e) => handleKeyDown(e, onConfirm)}
-        className="h-7 text-xs w-52"
+        className="h-7 text-xs w-56"
         placeholder={placeholder}
       />
       <Button variant="ghost" size="icon" className="h-7 w-7 text-green-500 hover:text-green-400" onClick={onConfirm}>
@@ -300,17 +307,56 @@ export function PlantUMLPreview({ content, onContentChange }: PlantUMLPreviewPro
 
       case "participant-actions":
         return (
-          <Button
-            variant="ghost" size="icon" className="h-7 w-7"
-            title="Edit participant name"
-            onClick={() => openMode("edit-participant-name", popover.participantDisplayName)}
-          >
-            <Pencil className="h-3.5 w-3.5" />
-          </Button>
+          <>
+            {/* Move left (up in source) */}
+            <Button
+              variant="ghost" size="icon" className="h-7 w-7"
+              title="Move left" disabled={!popover.canMoveLeft}
+              onClick={() => handleMoveParticipant('up')}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+
+            {/* Edit display name */}
+            <Button
+              variant="ghost" size="icon" className="h-7 w-7"
+              title="Edit participant name"
+              onClick={() => openMode("edit-participant-name", popover.participantDisplayName)}
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </Button>
+
+            {/* Create new participant after this one */}
+            <Button
+              variant="ghost" size="icon" className="h-7 w-7"
+              title="Add participant after this one"
+              onClick={() => openMode("new-participant", "")}
+            >
+              <Plus className="h-3.5 w-3.5" />
+            </Button>
+
+            {/* Move right (down in source) */}
+            <Button
+              variant="ghost" size="icon" className="h-7 w-7"
+              title="Move right" disabled={!popover.canMoveRight}
+              onClick={() => handleMoveParticipant('down')}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </>
         );
 
       case "edit-participant-name":
-        return inlineInput(`Display name for "${popover.participantIdentifier}"…`, handleParticipantNameConfirm);
+        return inlineInput(
+          `Display name for "${popover.participantIdentifier}"…`,
+          handleParticipantNameConfirm,
+        );
+
+      case "new-participant":
+        return inlineInput(
+          `participant "Name" as alias`,
+          handleNewParticipantConfirm,
+        );
 
       default: // message-actions
         return (

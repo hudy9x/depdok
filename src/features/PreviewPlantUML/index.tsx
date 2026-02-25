@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { useDebounce } from "use-debounce";
 import { useTheme } from "next-themes";
 import { useAtomValue, useSetAtom } from "jotai";
-import { ArrowUpRight, Pencil, Trash2, Check, X } from "lucide-react";
+import { ArrowUpRight, Pencil, Trash2, Check, X, Users, Plus } from "lucide-react";
 import { ZoomPanContainer } from "@/components/ZoomPanContainer";
 import { plantUmlServerUrlAtom } from "@/stores/SettingsStore";
 import { Button } from "@/components/ui/button";
@@ -17,7 +17,7 @@ interface PlantUMLPreviewProps {
   onContentChange?: (newContent: string) => void;
 }
 
-type PopoverMode = "actions" | "edit" | "confirm-delete";
+type PopoverMode = "actions" | "edit-label" | "edit-participants" | "new-message" | "confirm-delete";
 
 interface PopoverState {
   open: boolean;
@@ -29,26 +29,38 @@ interface PopoverState {
 }
 
 const POPOVER_CLOSED: PopoverState = {
-  open: false,
-  x: 0,
-  y: 0,
-  lineNumber: 0,
-  sourceLine: "",
-  mode: "actions",
+  open: false, x: 0, y: 0, lineNumber: 0, sourceLine: "", mode: "actions",
 };
 
-/** Extract the label portion after the first colon in a PlantUML message line */
-function extractLabel(line: string): string {
-  const colonIdx = line.indexOf(":");
-  return colonIdx !== -1 ? line.slice(colonIdx + 1).trim() : line.trim();
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+/** Everything before the first colon, e.g. "Alice -> Bob" */
+function extractParticipants(line: string): string {
+  const idx = line.indexOf(":");
+  return idx !== -1 ? line.slice(0, idx).trim() : line.trim();
 }
 
-/** Replace the label portion after the first colon in a PlantUML message line */
-function replaceLabel(line: string, newLabel: string): string {
-  const colonIdx = line.indexOf(":");
-  if (colonIdx === -1) return line;
-  return line.slice(0, colonIdx + 1) + " " + newLabel;
+/** Everything after the first colon, e.g. "Log attack start" */
+function extractLabel(line: string): string {
+  const idx = line.indexOf(":");
+  return idx !== -1 ? line.slice(idx + 1).trim() : line.trim();
 }
+
+/** Replace label (after colon) */
+function replaceLabel(line: string, newLabel: string): string {
+  const idx = line.indexOf(":");
+  if (idx === -1) return line;
+  return line.slice(0, idx + 1) + " " + newLabel;
+}
+
+/** Replace participants (before colon) */
+function replaceParticipants(line: string, newParticipants: string): string {
+  const idx = line.indexOf(":");
+  if (idx === -1) return newParticipants;
+  return newParticipants + " :" + line.slice(idx + 1);
+}
+
+// ── Component ─────────────────────────────────────────────────────────────────
 
 export function PlantUMLPreview({ content, onContentChange }: PlantUMLPreviewProps) {
   const [svgContent, setSvgContent] = useState("");
@@ -61,34 +73,25 @@ export function PlantUMLPreview({ content, onContentChange }: PlantUMLPreviewPro
   const svgWrapperRef = useRef<SVGGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [popover, setPopover] = useState<PopoverState>(POPOVER_CLOSED);
-  const [editValue, setEditValue] = useState("");
+  const [inputValue, setInputValue] = useState("");
+
+  // ── Fetch SVG ───────────────────────────────────────────────────────────────
 
   useEffect(() => {
-    if (!debouncedContent) {
-      setSvgContent("");
-      return;
-    }
+    if (!debouncedContent) { setSvgContent(""); return; }
 
     const fetchDiagram = async () => {
       setLoading(true);
       try {
         const encoded = encode(debouncedContent);
-
-        let url: string;
-        if (plantUmlServerUrl) {
-          url = `${plantUmlServerUrl}/svg/${encoded}`;
-        } else {
-          const isDark = resolvedTheme === "dark";
-          url = `https://img.plantuml.biz/plantuml/${isDark ? "d" : ""}svg/${encoded}`;
-        }
+        const isDark = resolvedTheme === "dark";
+        const url = plantUmlServerUrl
+          ? `${plantUmlServerUrl}/svg/${encoded}`
+          : `https://img.plantuml.biz/plantuml/${isDark ? "d" : ""}svg/${encoded}`;
 
         const res = await fetch(url);
-        if (!res.ok) {
-          throw new Error(`Server returned ${res.status}: ${res.statusText}`);
-        }
-
-        const svg = await res.text();
-        setSvgContent(svg);
+        if (!res.ok) throw new Error(`Server returned ${res.status}: ${res.statusText}`);
+        setSvgContent(await res.text());
       } catch (error) {
         console.error("Error fetching SVG from PlantUML server:", error);
         toast.error("Failed to generate UML diagram.");
@@ -100,13 +103,15 @@ export function PlantUMLPreview({ content, onContentChange }: PlantUMLPreviewPro
     fetchDiagram();
   }, [debouncedContent, resolvedTheme, plantUmlServerUrl]);
 
-  // Keep an up-to-date ref of message line numbers
+  // ── Message line index ───────────────────────────────────────────────────────
+
   const messageLines = useRef<number[]>([]);
   useEffect(() => {
     messageLines.current = getMessageLines(content);
   }, [content]);
 
-  // Attach click listeners to each .message element after SVG renders
+  // ── Attach click handlers to .message elements ───────────────────────────────
+
   useEffect(() => {
     if (!svgWrapperRef.current || !svgContent) return;
 
@@ -120,12 +125,10 @@ export function PlantUMLPreview({ content, onContentChange }: PlantUMLPreviewPro
       messages.forEach((el, idx) => {
         const handler = (e: MouseEvent) => {
           e.stopPropagation();
-
           const lineNumber = messageLines.current[idx];
           if (!lineNumber) return;
 
           const sourceLine = content.split("\n")[lineNumber - 1] ?? "";
-
           const containerRect = containerRef.current?.getBoundingClientRect();
           const x = containerRect ? e.clientX - containerRect.left : e.clientX;
           const y = containerRect ? e.clientY - containerRect.top : e.clientY;
@@ -144,7 +147,7 @@ export function PlantUMLPreview({ content, onContentChange }: PlantUMLPreviewPro
     return () => cancelAnimationFrame(raf);
   }, [svgContent, content]);
 
-  // ── Actions ────────────────────────────────────────────────────────────────
+  // ── Action handlers ──────────────────────────────────────────────────────────
 
   const handleJump = useCallback(() => {
     if (!popover.lineNumber) return;
@@ -152,31 +155,34 @@ export function PlantUMLPreview({ content, onContentChange }: PlantUMLPreviewPro
     setPopover(POPOVER_CLOSED);
   }, [popover.lineNumber, setJump]);
 
-  const handleOpenEdit = useCallback(() => {
-    setEditValue(extractLabel(popover.sourceLine));
-    setPopover((p) => ({ ...p, mode: "edit" }));
-  }, [popover.sourceLine]);
+  const openMode = useCallback((mode: PopoverMode, prefill: string) => {
+    setInputValue(prefill);
+    setPopover((p) => ({ ...p, mode }));
+  }, []);
 
-  const handleEditConfirm = useCallback(() => {
+  const applyLineEdit = useCallback((transform: (line: string) => string) => {
     if (!onContentChange || !popover.lineNumber) return;
     const lines = content.split("\n");
-    const idx = popover.lineNumber - 1;
-    lines[idx] = replaceLabel(lines[idx], editValue.trim() || extractLabel(lines[idx]));
+    lines[popover.lineNumber - 1] = transform(lines[popover.lineNumber - 1]);
     onContentChange(lines.join("\n"));
     setPopover(POPOVER_CLOSED);
-  }, [content, editValue, onContentChange, popover.lineNumber]);
+  }, [content, onContentChange, popover.lineNumber]);
 
-  const handleEditKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLInputElement>) => {
-      if (e.key === "Enter") handleEditConfirm();
-      if (e.key === "Escape") setPopover(POPOVER_CLOSED);
-    },
-    [handleEditConfirm]
-  );
+  const handleLabelConfirm = useCallback(() => {
+    applyLineEdit((line) => replaceLabel(line, inputValue.trim() || extractLabel(line)));
+  }, [applyLineEdit, inputValue]);
 
-  const handleOpenDelete = useCallback(() => {
-    setPopover((p) => ({ ...p, mode: "confirm-delete" }));
-  }, []);
+  const handleParticipantsConfirm = useCallback(() => {
+    applyLineEdit((line) => replaceParticipants(line, inputValue.trim() || extractParticipants(line)));
+  }, [applyLineEdit, inputValue]);
+
+  const handleNewMessageConfirm = useCallback(() => {
+    if (!onContentChange || !popover.lineNumber || !inputValue.trim()) return;
+    const lines = content.split("\n");
+    lines.splice(popover.lineNumber, 0, inputValue.trim());
+    onContentChange(lines.join("\n"));
+    setPopover(POPOVER_CLOSED);
+  }, [content, inputValue, onContentChange, popover.lineNumber]);
 
   const handleDeleteConfirm = useCallback(() => {
     if (!onContentChange || !popover.lineNumber) return;
@@ -186,101 +192,119 @@ export function PlantUMLPreview({ content, onContentChange }: PlantUMLPreviewPro
     setPopover(POPOVER_CLOSED);
   }, [content, onContentChange, popover.lineNumber]);
 
-  const handleContainerClick = useCallback(() => {
-    setPopover(POPOVER_CLOSED);
-  }, []);
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>, onConfirm: () => void) => {
+      if (e.key === "Enter") onConfirm();
+      if (e.key === "Escape") setPopover(POPOVER_CLOSED);
+    },
+    []
+  );
 
-  // ── Render ─────────────────────────────────────────────────────────────────
+  const handleContainerClick = useCallback(() => setPopover(POPOVER_CLOSED), []);
+
+  // ── Popover content ──────────────────────────────────────────────────────────
+
+  const renderInlineInput = (placeholder: string, onConfirm: () => void) => (
+    <div className="flex items-center gap-1">
+      <Input
+        autoFocus
+        value={inputValue}
+        onChange={(e) => setInputValue(e.target.value)}
+        onKeyDown={(e) => handleKeyDown(e, onConfirm)}
+        className="h-7 text-xs w-52"
+        placeholder={placeholder}
+      />
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-7 w-7 text-green-500 hover:text-green-400"
+        onClick={onConfirm}
+      >
+        <Check className="h-3.5 w-3.5" />
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-7 w-7"
+        onClick={() => setPopover(POPOVER_CLOSED)}
+      >
+        <X className="h-3.5 w-3.5" />
+      </Button>
+    </div>
+  );
 
   const renderPopoverContent = () => {
-    if (popover.mode === "confirm-delete") {
-      return (
-        <div className="flex items-center gap-2 px-1">
-          <span className="text-xs text-muted-foreground whitespace-nowrap">Delete message?</span>
-          <Button
-            variant="destructive"
-            size="sm"
-            className="h-6 px-2 text-xs"
-            onClick={handleDeleteConfirm}
-          >
-            Yes
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-6 px-2 text-xs"
-            onClick={() => setPopover(POPOVER_CLOSED)}
-          >
-            No
-          </Button>
-        </div>
-      );
-    }
+    switch (popover.mode) {
+      case "edit-label":
+        return renderInlineInput("Message label…", handleLabelConfirm);
 
-    if (popover.mode === "edit") {
-      return (
-        <div className="flex items-center gap-1">
-          <Input
-            autoFocus
-            value={editValue}
-            onChange={(e) => setEditValue(e.target.value)}
-            onKeyDown={handleEditKeyDown}
-            className="h-7 text-xs w-48"
-            placeholder="Message label…"
-          />
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 text-green-500 hover:text-green-400"
-            onClick={handleEditConfirm}
-          >
-            <Check className="h-3.5 w-3.5" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7"
-            onClick={() => setPopover(POPOVER_CLOSED)}
-          >
-            <X className="h-3.5 w-3.5" />
-          </Button>
-        </div>
-      );
-    }
+      case "edit-participants":
+        return renderInlineInput("e.g. Alice -> Bob", handleParticipantsConfirm);
 
-    // Default: actions mode
-    return (
-      <>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7"
-          title="Jump to line in editor"
-          onClick={handleJump}
-        >
-          <ArrowUpRight className="h-4 w-4" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7"
-          title="Edit message"
-          onClick={handleOpenEdit}
-        >
-          <Pencil className="h-3.5 w-3.5" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7 text-destructive hover:text-destructive"
-          title="Delete message"
-          onClick={handleOpenDelete}
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-        </Button>
-      </>
-    );
+      case "new-message":
+        return renderInlineInput("e.g. Alice -> Bob: Hello", handleNewMessageConfirm);
+
+      case "confirm-delete":
+        return (
+          <div className="flex items-center gap-2 px-1">
+            <span className="text-xs text-muted-foreground whitespace-nowrap">Delete message?</span>
+            <Button variant="destructive" size="sm" className="h-6 px-2 text-xs" onClick={handleDeleteConfirm}>
+              Yes
+            </Button>
+            <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={() => setPopover(POPOVER_CLOSED)}>
+              No
+            </Button>
+          </div>
+        );
+
+      default: // "actions"
+        return (
+          <>
+            <Button variant="ghost" size="icon" className="h-7 w-7" title="Jump to line" onClick={handleJump}>
+              <ArrowUpRight className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              title="Edit message label"
+              onClick={() => openMode("edit-label", extractLabel(popover.sourceLine))}
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              title="Edit participants & arrow"
+              onClick={() => openMode("edit-participants", extractParticipants(popover.sourceLine))}
+            >
+              <Users className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              title="Add message after this one"
+              onClick={() => openMode("new-message", "")}
+            >
+              <Plus className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-destructive hover:text-destructive"
+              title="Delete message"
+              onClick={() => setPopover((p) => ({ ...p, mode: "confirm-delete" }))}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          </>
+        );
+    }
   };
+
+  // ── Render ───────────────────────────────────────────────────────────────────
 
   return (
     <div
@@ -296,20 +320,11 @@ export function PlantUMLPreview({ content, onContentChange }: PlantUMLPreviewPro
 
       <ZoomPanContainer
         className="w-full h-full"
-        config={{
-          minZoom: 0.1,
-          maxZoom: 5,
-          initialZoom: 0.8,
-          centerOnLoad: true,
-        }}
+        config={{ minZoom: 0.1, maxZoom: 5, initialZoom: 0.8, centerOnLoad: true }}
       >
-        <g
-          ref={svgWrapperRef}
-          dangerouslySetInnerHTML={{ __html: svgContent }}
-        />
+        <g ref={svgWrapperRef} dangerouslySetInnerHTML={{ __html: svgContent }} />
       </ZoomPanContainer>
 
-      {/* Floating action popover */}
       {popover.open && (
         <div
           className="absolute z-50 flex items-center gap-1 bg-popover border border-border rounded-md shadow-md p-1"

@@ -37,7 +37,7 @@ const TodoIcon = ({ className, primary = "#737373", secondary = "#A4A4A4" }: Cus
   </svg>
 );
 
-const MarkdownIcon = ({ className, primary = "#737373" }: CustomIconProps) => (
+const MarkdownIcon = ({ className, primary = "currentColor" }: CustomIconProps) => (
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
     <path d="M20.5 4H3.5C2.1 4 1 5.1 1 6.5V17.5C1 18.9 2.1 20 3.5 20H20.5C21.9 20 23 18.9 23 17.5V6.5C23 5.1 21.9 4 20.5 4ZM5 16V8H7.5L9.5 10.5L11.5 8H14V16H12V11.5L9.5 14.5L7 11.5V16H5ZM18.5 16L15.5 12H17.5V8H19.5V12H21.5L18.5 16Z" fill={primary} />
   </svg>
@@ -57,7 +57,7 @@ export function FileIcon({ filename, className, variant = 'colorful' }: FileIcon
     if (isImage) return <ImageIcon className={cn("w-4 h-4 text-muted-foreground", className)} />;
 
     if (filename.endsWith('.todo')) return <TodoIcon className={cn("w-4 h-4", className)} primary={isColorful ? "#3b82f6" : undefined} secondary={isColorful ? "#93c5fd" : undefined} />;
-    if (filename.endsWith('.md')) return <MarkdownIcon className={cn("w-4 h-4", className)} primary={isColorful ? "#0f172a" : undefined} />;
+    if (filename.endsWith('.md')) return <MarkdownIcon className={cn("w-4 h-4 text-foreground", className)} />;
     if (filename.endsWith('.mmd')) return <MmdIcon className={cn("w-4 h-4", className)} primary={isColorful ? "#a855f7" : undefined} secondary={isColorful ? "#d8b4fe" : undefined} />;
     if (filename.endsWith('.plantuml') || filename.endsWith('.puml') || filename.endsWith('.pu')) return <PlantumlIcon className={cn("w-4 h-4", className)} primary={isColorful ? "#22c55e" : undefined} secondary={isColorful ? "#86efac" : undefined} />;
     return <FileText className={cn("w-4 h-4 text-muted-foreground", className)} />;

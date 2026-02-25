@@ -54,13 +54,13 @@ export function FileIcon({ filename, className, variant = 'colorful' }: FileIcon
 
   const getIcon = () => {
     const isImage = /\.(png|jpe?g|gif|svg|webp|ico)$/i.test(filename);
-    if (isImage) return <ImageIcon className={cn("w-3 h-3 text-muted-foreground", className)} />;
+    if (isImage) return <ImageIcon className={cn("w-4 h-4 text-muted-foreground", className)} />;
 
-    if (filename.endsWith('.todo')) return <TodoIcon className={cn("w-3 h-3", className)} primary={isColorful ? "#3b82f6" : undefined} secondary={isColorful ? "#93c5fd" : undefined} />;
-    if (filename.endsWith('.md')) return <MarkdownIcon className={cn("w-3 h-3", className)} primary={isColorful ? "#0f172a" : undefined} />;
-    if (filename.endsWith('.mmd')) return <MmdIcon className={cn("w-3 h-3", className)} primary={isColorful ? "#a855f7" : undefined} secondary={isColorful ? "#d8b4fe" : undefined} />;
-    if (filename.endsWith('.plantuml') || filename.endsWith('.puml') || filename.endsWith('.pu')) return <PlantumlIcon className={cn("w-3 h-3", className)} primary={isColorful ? "#22c55e" : undefined} secondary={isColorful ? "#86efac" : undefined} />;
-    return <FileText className={cn("w-3 h-3 text-muted-foreground", className)} />;
+    if (filename.endsWith('.todo')) return <TodoIcon className={cn("w-4 h-4", className)} primary={isColorful ? "#3b82f6" : undefined} secondary={isColorful ? "#93c5fd" : undefined} />;
+    if (filename.endsWith('.md')) return <MarkdownIcon className={cn("w-4 h-4", className)} primary={isColorful ? "#0f172a" : undefined} />;
+    if (filename.endsWith('.mmd')) return <MmdIcon className={cn("w-4 h-4", className)} primary={isColorful ? "#a855f7" : undefined} secondary={isColorful ? "#d8b4fe" : undefined} />;
+    if (filename.endsWith('.plantuml') || filename.endsWith('.puml') || filename.endsWith('.pu')) return <PlantumlIcon className={cn("w-4 h-4", className)} primary={isColorful ? "#22c55e" : undefined} secondary={isColorful ? "#86efac" : undefined} />;
+    return <FileText className={cn("w-4 h-4 text-muted-foreground", className)} />;
   };
 
   return getIcon();

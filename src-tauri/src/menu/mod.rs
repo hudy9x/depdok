@@ -1,4 +1,4 @@
-use tauri::{App, Emitter};
+use tauri::{App, Emitter, Manager};
 use tauri::menu::{MenuBuilder, SubmenuBuilder, MenuItemBuilder};
 
 pub fn init(app: &mut App) -> tauri::Result<()> {
@@ -82,11 +82,27 @@ pub fn init(app: &mut App) -> tauri::Result<()> {
         .text("column_selection_mode", "Column Selection Mode")
         .build()?;
 
+    // --- Window Menu ---
+    let window_submenu = SubmenuBuilder::new(handle, "Window")
+        .item(&MenuItemBuilder::with_id("window_minimize", "Minimize")
+            .accelerator("CmdOrCtrl+M")
+            .build(handle)?)
+        .item(&MenuItemBuilder::with_id("window_zoom", "Zoom")
+            .build(handle)?)
+        .separator()
+        .item(&MenuItemBuilder::with_id("window_fill", "Fill")
+            .accelerator("Ctrl+Alt+F")
+            .build(handle)?)
+        .item(&MenuItemBuilder::with_id("window_center", "Center")
+            .accelerator("Ctrl+Alt+C")
+            .build(handle)?)
+        .build()?;
 
     let menu = MenuBuilder::new(app)
         .item(&file_submenu)
         .item(&edit_submenu)
         .item(&selection_submenu)
+        .item(&window_submenu)
         .build()?;
     
     app.set_menu(menu)?;
@@ -121,6 +137,44 @@ pub fn init(app: &mut App) -> tauri::Result<()> {
             "add_previous_occurrence" => { let _ = app_handle.emit("menu://selection/add-previous-occurrence", ()); }
             "select_all_occurrences" => { let _ = app_handle.emit("menu://selection/select-all-occurrences", ()); }
             "column_selection_mode" => { let _ = app_handle.emit("menu://selection/column-selection-mode", ()); }
+
+            // Window Menu
+            "window_minimize" => {
+                if let Some(win) = app_handle.get_webview_window("main") {
+                    let _ = win.minimize();
+                }
+            }
+            "window_zoom" => {
+                if let Some(win) = app_handle.get_webview_window("main") {
+                    if let Ok(Some(monitor)) = win.current_monitor() {
+                        let size = monitor.size();
+                        let pos = monitor.position();
+                        let _ = win.set_size(tauri::Size::Physical(tauri::PhysicalSize {
+                            width: size.width,
+                            height: size.height,
+                        }));
+                        let _ = win.set_position(tauri::Position::Physical(tauri::PhysicalPosition {
+                            x: pos.x,
+                            y: pos.y,
+                        }));
+                    }
+                }
+            }
+            "window_fill" => {
+                if let Some(win) = app_handle.get_webview_window("main") {
+                    let _ = win.set_fullscreen(true);
+                }
+            }
+            "window_center" => {
+                if let Some(win) = app_handle.get_webview_window("main") {
+                    let _ = win.set_fullscreen(false);
+                    let _ = win.set_size(tauri::Size::Logical(tauri::LogicalSize {
+                        width: 740.0,
+                        height: 850.0,
+                    }));
+                    let _ = win.center();
+                }
+            }
 
             _ => {}
         }

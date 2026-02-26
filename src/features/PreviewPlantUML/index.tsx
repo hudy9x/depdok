@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { useDebounce } from "use-debounce";
 import { useTheme } from "next-themes";
 import { useAtomValue, useSetAtom } from "jotai";
-import { ArrowUpRight, Pencil, Trash2, Check, X, Users, Plus, ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowUpRight, Pencil, Trash2, Check, X, Users, Plus, ChevronLeft, ChevronRight, MessageSquare, Split } from "lucide-react";
 import { ZoomPanContainer } from "@/components/ZoomPanContainer";
 import { plantUmlServerUrlAtom } from "@/stores/SettingsStore";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,7 @@ import {
   moveParticipant,
   getAllParticipantLineNumbers,
   findParticipantDefinition,
+  getNotes,
 } from "./plantuml-parser";
 import { plantUMLJumpAtom } from "./store";
 
@@ -29,10 +30,13 @@ type PopoverMode =
   | "edit-label"
   | "edit-participants"
   | "new-message"
+  | "new-message-note"
   | "confirm-delete"
   | "participant-actions"
   | "edit-participant-name"
-  | "new-participant";
+  | "new-participant"
+  | "note-actions"
+  | "edit-note";
 
 interface PopoverState {
   open: boolean;
@@ -42,6 +46,10 @@ interface PopoverState {
   // message fields
   lineNumber: number;
   sourceLine: string;
+  // note fields
+  noteStartLine: number;
+  noteEndLine: number;
+  noteTextBlock: string;
   // participant fields
   participantIdentifier: string;
   participantDisplayName: string;
@@ -52,6 +60,7 @@ interface PopoverState {
 const POPOVER_CLOSED: PopoverState = {
   open: false, x: 0, y: 0, mode: "message-actions",
   lineNumber: 0, sourceLine: "",
+  noteStartLine: 0, noteEndLine: 0, noteTextBlock: "",
   participantIdentifier: "", participantDisplayName: "",
   canMoveLeft: false, canMoveRight: false,
 };
@@ -88,7 +97,7 @@ export function PlantUMLPreview({ content, onContentChange }: PlantUMLPreviewPro
         const encoded = encode(debouncedContent);
         const isDark = resolvedTheme === "dark";
         const url = plantUmlServerUrl
-          ? `${plantUmlServerUrl}/svg/${encoded}`
+          ? `${plantUmlServerUrl} /svg/${encoded} `
           : `https://img.plantuml.biz/plantuml/${isDark ? "d" : ""}svg/${encoded}`;
         const res = await fetch(url);
         if (!res.ok) throw new Error(`Server returned ${res.status}: ${res.statusText}`);
@@ -130,6 +139,7 @@ export function PlantUMLPreview({ content, onContentChange }: PlantUMLPreviewPro
             y: rect ? e.clientY - rect.top : e.clientY,
             mode: "message-actions",
             lineNumber, sourceLine,
+            noteStartLine: 0, noteEndLine: 0, noteTextBlock: "",
             participantIdentifier: "", participantDisplayName: "",
             canMoveLeft: false, canMoveRight: false,
           });
@@ -181,6 +191,7 @@ export function PlantUMLPreview({ content, onContentChange }: PlantUMLPreviewPro
             y: rect ? e.clientY - rect.top : e.clientY,
             mode: "participant-actions",
             lineNumber: 0, sourceLine: "",
+            noteStartLine: 0, noteEndLine: 0, noteTextBlock: "",
             participantIdentifier: identifier,
             participantDisplayName: displayName,
             canMoveLeft: myPos > 0,
@@ -191,6 +202,67 @@ export function PlantUMLPreview({ content, onContentChange }: PlantUMLPreviewPro
         el.style.cursor = "pointer";
         el.addEventListener("click", handler);
         cleanups.push(() => el.removeEventListener("click", handler));
+      });
+      return () => cleanups.forEach((fn) => fn());
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [svgContent, content]);
+
+  // ── Click handlers for Notes ─────────────────────────────────────────────────
+
+  const parsedNotes = useRef(getNotes(content));
+  useEffect(() => { parsedNotes.current = getNotes(content); }, [content]);
+
+  useEffect(() => {
+    if (!svgWrapperRef.current || !svgContent) return;
+    const raf = requestAnimationFrame(() => {
+      const wrapper = svgWrapperRef.current;
+      if (!wrapper) return;
+      const cleanups: (() => void)[] = [];
+
+      // Heuristic: finding note paths by looking for <text> elements that match note backgrounds
+      wrapper.querySelectorAll<SVGTextElement>("text").forEach((textEl) => {
+        const textContent = textEl.textContent?.trim();
+        if (!textContent) return;
+
+        // See if this text matches any parsed note
+        const matchingNote = parsedNotes.current.find(n => n.textBlock.includes(textContent) || textContent.includes(n.textBlock.split('\n')[0].trim()));
+        if (!matchingNote) return;
+
+        // The shape behind the text is usually the previous sibling (a path or rect or polygon)
+        // Climb up if needed. In PlantUML sequences, notes have a #FEFFDD or #EEEEEE path/polygon before text
+        let shapeEl: Element | null = textEl.previousElementSibling;
+        while (shapeEl && shapeEl.tagName !== "path" && shapeEl.tagName !== "polygon" && shapeEl.tagName !== "rect") {
+          shapeEl = shapeEl.previousElementSibling;
+        }
+
+
+        const handler = (e: MouseEvent) => {
+          e.stopPropagation();
+          const rect = containerRef.current?.getBoundingClientRect();
+          setPopover({
+            open: true,
+            x: rect ? e.clientX - rect.left : e.clientX,
+            y: rect ? e.clientY - rect.top : e.clientY,
+            mode: "note-actions",
+            lineNumber: 0, sourceLine: "",
+            noteStartLine: matchingNote.startLine,
+            noteEndLine: matchingNote.endLine,
+            noteTextBlock: matchingNote.textBlock,
+            participantIdentifier: "", participantDisplayName: "",
+            canMoveLeft: false, canMoveRight: false,
+          });
+        };
+
+        const attachTo = (el: Element | null) => {
+          if (!el) return;
+          (el as HTMLElement).style.cursor = "pointer";
+          el.addEventListener("click", handler as EventListener);
+          cleanups.push(() => el.removeEventListener("click", handler as EventListener));
+        };
+
+        attachTo(textEl);
+        if (shapeEl) attachTo(shapeEl);
       });
       return () => cleanups.forEach((fn) => fn());
     });
@@ -230,12 +302,18 @@ export function PlantUMLPreview({ content, onContentChange }: PlantUMLPreviewPro
   }, [content, inputValue, onContentChange, popover.lineNumber]);
 
   const handleDeleteConfirm = useCallback(() => {
-    if (!onContentChange || !popover.lineNumber) return;
+    if (!onContentChange) return;
     const lines = content.split("\n");
-    lines.splice(popover.lineNumber - 1, 1);
+    if (popover.noteStartLine > 0) {
+      // Deleting a note block
+      lines.splice(popover.noteStartLine - 1, popover.noteEndLine - popover.noteStartLine + 1);
+    } else if (popover.lineNumber > 0) {
+      // Deleting a discrete line
+      lines.splice(popover.lineNumber - 1, 1);
+    } else return;
     onContentChange(lines.join("\n"));
     setPopover(POPOVER_CLOSED);
-  }, [content, onContentChange, popover.lineNumber]);
+  }, [content, onContentChange, popover.lineNumber, popover.noteStartLine, popover.noteEndLine]);
 
   const handleParticipantNameConfirm = useCallback(() => {
     if (!onContentChange || !popover.participantIdentifier || !inputValue.trim()) return;
@@ -255,9 +333,62 @@ export function PlantUMLPreview({ content, onContentChange }: PlantUMLPreviewPro
     setPopover(POPOVER_CLOSED);
   }, [content, onContentChange, popover.participantIdentifier]);
 
+  const handleNewNoteConfirm = useCallback(() => {
+    if (!onContentChange || !popover.lineNumber || !inputValue.trim()) return;
+    const lines = content.split("\n");
+    const noteContent = inputValue.includes("\n")
+      ? `note right\n${inputValue}\nend note`
+      : `note right: ${inputValue}`;
+    lines.splice(popover.lineNumber, 0, noteContent);
+    onContentChange(lines.join("\n"));
+    setPopover(POPOVER_CLOSED);
+  }, [content, inputValue, onContentChange, popover.lineNumber]);
+
+  const handleEditNoteConfirm = useCallback(() => {
+    if (!onContentChange || !popover.noteStartLine || !inputValue.trim()) return;
+    const lines = content.split("\n");
+
+    // Determine the existing tag style by scanning the start line
+    const startLineStr = lines[popover.noteStartLine - 1];
+    const match = startLineStr.match(/^\s*(note\s+.*?)(?::|$)/i);
+    const tag = match ? match[1] : `note right`;
+
+    const noteContent = inputValue.includes("\n")
+      ? `${tag}\n${inputValue}\nend note`
+      : `${tag}: ${inputValue}`;
+
+    // Remove the old block and insert the new one
+    lines.splice(popover.noteStartLine - 1, popover.noteEndLine - popover.noteStartLine + 1, noteContent);
+
+    onContentChange(lines.join("\n"));
+    setPopover(POPOVER_CLOSED);
+  }, [content, inputValue, onContentChange, popover.noteStartLine, popover.noteEndLine]);
+
+  const handleAddAlt = useCallback(() => {
+    if (!onContentChange || !popover.lineNumber) return;
+    const lines = content.split("\n");
+    const altBlock = [
+      `alt If`,
+      `  note across: Add condition here`,
+      `else Else`,
+      `  note across: Add condition here`,
+      `end`
+    ].join('\n');
+    lines.splice(popover.lineNumber, 0, altBlock);
+    onContentChange(lines.join("\n"));
+    setPopover(POPOVER_CLOSED);
+  }, [content, onContentChange, popover.lineNumber]);
+
   const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLInputElement>, onConfirm: () => void) => {
-      if (e.key === "Enter") onConfirm();
+    (e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>, onConfirm: () => void) => {
+      // For textarea, require Ctrl/Cmd + Enter so regular Enter makes newlines
+      if (e.key === "Enter") {
+        if (e.currentTarget.tagName.toLowerCase() === "textarea") {
+          if (e.ctrlKey || e.metaKey) onConfirm();
+        } else {
+          onConfirm();
+        }
+      }
       if (e.key === "Escape") setPopover(POPOVER_CLOSED);
     }, []
   );
@@ -285,6 +416,30 @@ export function PlantUMLPreview({ content, onContentChange }: PlantUMLPreviewPro
     </div>
   );
 
+  const multilineInput = (placeholder: string, onConfirm: () => void) => (
+    <div className="flex flex-col gap-1 w-64">
+      <textarea
+        autoFocus
+        value={inputValue}
+        onChange={(e) => setInputValue(e.target.value)}
+        onKeyDown={(e) => handleKeyDown(e, onConfirm)}
+        className="text-xs p-2 min-h-[60px] resize-y rounded-md border border-input bg-transparent shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+        placeholder={placeholder}
+      />
+      <div className="flex items-center justify-between text-[10px] text-muted-foreground px-1">
+        <span>Cmd/Ctrl + Enter to confirm</span>
+        <div className="flex items-center gap-1">
+          <Button variant="ghost" size="icon" className="h-6 w-6 text-green-500 hover:text-green-400" onClick={onConfirm}>
+            <Check className="h-3 w-3" />
+          </Button>
+          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setPopover(POPOVER_CLOSED)}>
+            <X className="h-3 w-3" />
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+
   const renderPopoverContent = () => {
     switch (popover.mode) {
       case "edit-label":
@@ -296,10 +451,31 @@ export function PlantUMLPreview({ content, onContentChange }: PlantUMLPreviewPro
       case "new-message":
         return inlineInput("e.g. Alice -> Bob: Hello", handleNewMessageConfirm);
 
+      case "new-message-note":
+        return multilineInput("Note text...", handleNewNoteConfirm);
+
+      case "edit-note":
+        return multilineInput("Edit note (Cmd+Enter to save)...", handleEditNoteConfirm);
+
+      case "note-actions":
+        return (
+          <>
+            <Button variant="ghost" size="icon" className="h-7 w-7" title="Edit note"
+              onClick={() => openMode("edit-note", popover.noteTextBlock)}>
+              <Pencil className="h-3.5 w-3.5" />
+            </Button>
+            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive"
+              title="Delete note"
+              onClick={() => setPopover((p) => ({ ...p, mode: "confirm-delete" }))}>
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          </>
+        );
+
       case "confirm-delete":
         return (
           <div className="flex items-center gap-2 px-1">
-            <span className="text-xs text-muted-foreground whitespace-nowrap">Delete message?</span>
+            <span className="text-xs text-muted-foreground whitespace-nowrap">Delete {popover.noteStartLine > 0 ? "note" : "message"}?</span>
             <Button variant="destructive" size="sm" className="h-6 px-2 text-xs" onClick={handleDeleteConfirm}>Yes</Button>
             <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={() => setPopover(POPOVER_CLOSED)}>No</Button>
           </div>
@@ -375,6 +551,14 @@ export function PlantUMLPreview({ content, onContentChange }: PlantUMLPreviewPro
             <Button variant="ghost" size="icon" className="h-7 w-7" title="Add message after this one"
               onClick={() => openMode("new-message", "")}>
               <Plus className="h-3.5 w-3.5" />
+            </Button>
+            <Button variant="ghost" size="icon" className="h-7 w-7" title="Add note after this message"
+              onClick={() => openMode("new-message-note", "")}>
+              <MessageSquare className="h-3.5 w-3.5" />
+            </Button>
+            <Button variant="ghost" size="icon" className="h-7 w-7" title="Add alt block after this message"
+              onClick={handleAddAlt}>
+              <Split className="h-3.5 w-3.5" />
             </Button>
             <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive"
               title="Delete message"

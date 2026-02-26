@@ -153,3 +153,82 @@ export function moveParticipant(
   [lines[myIdx], lines[otherIdx]] = [lines[otherIdx], lines[myIdx]];
   return lines.join('\n');
 }
+
+// ── Note parsing ──────────────────────────────────────────────────────────────
+
+export interface NoteDef {
+  startLine: number; // 1-indexed
+  endLine: number;   // 1-indexed (same as startLine for single-line notes)
+  textBlock: string; // The full text content of the note (excluding keywords)
+}
+
+/**
+ * Parses the PlantUML source for single-line and multi-line notes.
+ * Returns an array of NoteDef objects, which provide the line numbers
+ * and text content. The text content is used heuristically to map SVG <text>
+ * elements back to their source definition.
+ */
+export function getNotes(content: string): NoteDef[] {
+  const lines = content.split('\n');
+  const result: NoteDef[] = [];
+
+  // Single-line match: "note [left|right|top|bottom|across] [of ID] : Note text here"
+  const singleNoteRe = /^\s*note\s+.*?:(.*)$/i;
+  // Multi-line start match: "note [left|right|top|bottom|across] [of ID]"
+  const multiStartRe = /^\s*note\s+[^:]*$/i;
+  // Multi-line end match: "end note"
+  const multiEndRe = /^\s*end\s+note\s*$/i;
+
+  let inMultiLineNote = false;
+  let multiLineStartIndex = -1;
+  let currentNoteTextLines: string[] = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    if (inMultiLineNote) {
+      if (multiEndRe.test(line)) {
+        // Multi-line note closed
+        result.push({
+          startLine: multiLineStartIndex + 1,
+          endLine: i + 1,
+          textBlock: currentNoteTextLines.join('\n').trim()
+        });
+        inMultiLineNote = false;
+        currentNoteTextLines = [];
+      } else {
+        currentNoteTextLines.push(line);
+      }
+      continue;
+    }
+
+    // Check for single-line note first (has a colon)
+    const singleMatch = line.match(singleNoteRe);
+    if (singleMatch) {
+      result.push({
+        startLine: i + 1,
+        endLine: i + 1,
+        textBlock: singleMatch[1].trim()
+      });
+      continue;
+    }
+
+    // Check for multi-line start (has NO colon at end of "note ...")
+    if (multiStartRe.test(line)) {
+      inMultiLineNote = true;
+      multiLineStartIndex = i;
+      currentNoteTextLines = [];
+    }
+  }
+
+  // Handle unclosed multi-line note at EOF just in case
+  if (inMultiLineNote) {
+    result.push({
+      startLine: multiLineStartIndex + 1,
+      endLine: lines.length,
+      textBlock: currentNoteTextLines.join('\n').trim()
+    });
+  }
+
+  return result;
+}

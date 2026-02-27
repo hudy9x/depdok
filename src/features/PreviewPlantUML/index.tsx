@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { useDebounce } from "use-debounce";
 import { useTheme } from "next-themes";
 import { useAtomValue, useSetAtom } from "jotai";
-import { ArrowUpRight, Pencil, Trash2, Check, X, Users, Plus, ChevronLeft, ChevronRight, MessageSquare, Split } from "lucide-react";
+import { ArrowUpRight, Pencil, Trash2, Check, X, Users, Plus, ChevronLeft, ChevronRight, MessageSquare, Split, AlignLeft, AlignCenter, AlignRight, Repeat } from "lucide-react";
 import { ZoomPanContainer } from "@/components/ZoomPanContainer";
 import { plantUmlServerUrlAtom } from "@/stores/SettingsStore";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,7 @@ import {
   getAllParticipantLineNumbers,
   findParticipantDefinition,
   getNotes,
+  getGroupLabels,
 } from "./plantuml-parser";
 import { plantUMLJumpAtom } from "./store";
 
@@ -36,7 +37,10 @@ type PopoverMode =
   | "edit-participant-name"
   | "new-participant"
   | "note-actions"
-  | "edit-note";
+  | "edit-note"
+  | "edit-note-over"
+  | "edit-group-label"
+  | "group-actions";
 
 interface PopoverState {
   open: boolean;
@@ -50,6 +54,7 @@ interface PopoverState {
   noteStartLine: number;
   noteEndLine: number;
   noteTextBlock: string;
+  noteDirection: "left" | "right" | "over" | "unknown";
   // participant fields
   participantIdentifier: string;
   participantDisplayName: string;
@@ -60,7 +65,7 @@ interface PopoverState {
 const POPOVER_CLOSED: PopoverState = {
   open: false, x: 0, y: 0, mode: "message-actions",
   lineNumber: 0, sourceLine: "",
-  noteStartLine: 0, noteEndLine: 0, noteTextBlock: "",
+  noteStartLine: 0, noteEndLine: 0, noteTextBlock: "", noteDirection: "unknown",
   participantIdentifier: "", participantDisplayName: "",
   canMoveLeft: false, canMoveRight: false,
 };
@@ -139,7 +144,7 @@ export function PlantUMLPreview({ content, onContentChange }: PlantUMLPreviewPro
             y: rect ? e.clientY - rect.top : e.clientY,
             mode: "message-actions",
             lineNumber, sourceLine,
-            noteStartLine: 0, noteEndLine: 0, noteTextBlock: "",
+            noteStartLine: 0, noteEndLine: 0, noteTextBlock: "", noteDirection: "unknown",
             participantIdentifier: "", participantDisplayName: "",
             canMoveLeft: false, canMoveRight: false,
           });
@@ -191,7 +196,7 @@ export function PlantUMLPreview({ content, onContentChange }: PlantUMLPreviewPro
             y: rect ? e.clientY - rect.top : e.clientY,
             mode: "participant-actions",
             lineNumber: 0, sourceLine: "",
-            noteStartLine: 0, noteEndLine: 0, noteTextBlock: "",
+            noteStartLine: 0, noteEndLine: 0, noteTextBlock: "", noteDirection: "unknown",
             participantIdentifier: identifier,
             participantDisplayName: displayName,
             canMoveLeft: myPos > 0,
@@ -249,6 +254,7 @@ export function PlantUMLPreview({ content, onContentChange }: PlantUMLPreviewPro
             noteStartLine: matchingNote.startLine,
             noteEndLine: matchingNote.endLine,
             noteTextBlock: matchingNote.textBlock,
+            noteDirection: matchingNote.direction,
             participantIdentifier: "", participantDisplayName: "",
             canMoveLeft: false, canMoveRight: false,
           });
@@ -264,6 +270,62 @@ export function PlantUMLPreview({ content, onContentChange }: PlantUMLPreviewPro
         attachTo(textEl);
         if (shapeEl) attachTo(shapeEl);
       });
+
+      // ── Click handlers for Alt/Else Labels ──────────────────────────────────────
+      const groupLabels = getGroupLabels(content);
+      const alts = groupLabels.filter(l => l.type === "alt");
+      let altIdx = 0;
+
+      wrapper.querySelectorAll<SVGTextElement>("text").forEach((textEl) => {
+        const textContent = textEl.textContent?.trim();
+        if (!textContent) return;
+
+        let matchingLabel = undefined;
+        let elementsToAttach: Element[] = [textEl];
+
+        if (textContent === "alt" && altIdx < alts.length) {
+          matchingLabel = alts[altIdx];
+          altIdx++;
+
+          // Attempt to find the dog-ear path to make it clickable
+          let prev = textEl.previousElementSibling;
+          while (prev && prev.tagName !== "path") {
+            prev = prev.previousElementSibling;
+          }
+          if (prev && prev.tagName === "path") {
+            elementsToAttach.push(prev);
+          }
+        } else {
+          // Strip bracket prefixes common in PlantUML `[label]` for conditions
+          const cleanContent = textContent.replace(/^\[/, "").replace(/\]$/, "");
+          matchingLabel = groupLabels.find(l => l.text === cleanContent || l.text === textContent);
+        }
+
+        if (!matchingLabel) return;
+
+        const handler = (e: MouseEvent) => {
+          e.stopPropagation();
+          const rect = containerRef.current?.getBoundingClientRect();
+          setPopover({
+            open: true,
+            x: rect ? e.clientX - rect.left : e.clientX,
+            y: rect ? e.clientY - rect.top : e.clientY,
+            mode: "group-actions",
+            lineNumber: matchingLabel!.lineNumber,
+            sourceLine: matchingLabel!.text,
+            noteStartLine: 0, noteEndLine: 0, noteTextBlock: "", noteDirection: "unknown",
+            participantIdentifier: "", participantDisplayName: "",
+            canMoveLeft: false, canMoveRight: false,
+          });
+        };
+
+        elementsToAttach.forEach((el) => {
+          (el as HTMLElement).style.cursor = "pointer";
+          el.addEventListener("click", handler as EventListener);
+          cleanups.push(() => el.removeEventListener("click", handler as EventListener));
+        });
+      });
+
       return () => cleanups.forEach((fn) => fn());
     });
     return () => cancelAnimationFrame(raf);
@@ -294,12 +356,15 @@ export function PlantUMLPreview({ content, onContentChange }: PlantUMLPreviewPro
   const handleParticipantsConfirm = useCallback(() => applyLineEdit((l) => replaceParticipants(l, inputValue.trim() || extractParticipants(l))), [applyLineEdit, inputValue]);
 
   const handleNewMessageConfirm = useCallback(() => {
-    if (!onContentChange || !popover.lineNumber || !inputValue.trim()) return;
+    if (!onContentChange || !inputValue.trim()) return;
     const lines = content.split("\n");
-    lines.splice(popover.lineNumber, 0, inputValue.trim());
-    onContentChange(lines.join("\n"));
+    const insertLine = popover.lineNumber > 0 ? popover.lineNumber : popover.noteEndLine;
+    if (insertLine > 0) {
+      lines.splice(insertLine, 0, inputValue.trim());
+      onContentChange(lines.join("\n"));
+    }
     setPopover(POPOVER_CLOSED);
-  }, [content, inputValue, onContentChange, popover.lineNumber]);
+  }, [content, inputValue, onContentChange, popover.lineNumber, popover.noteEndLine]);
 
   const handleDeleteConfirm = useCallback(() => {
     if (!onContentChange) return;
@@ -364,6 +429,50 @@ export function PlantUMLPreview({ content, onContentChange }: PlantUMLPreviewPro
     setPopover(POPOVER_CLOSED);
   }, [content, inputValue, onContentChange, popover.noteStartLine, popover.noteEndLine]);
 
+  const handleNoteDirectionChange = useCallback((newDirection: "left" | "right" | "over", target?: string) => {
+    if (!onContentChange || !popover.noteStartLine) return;
+    const lines = content.split("\n");
+    const startLineStr = lines[popover.noteStartLine - 1];
+
+    let newTag = `note ${newDirection}`;
+    if (target) {
+      newTag = `note over ${target}`;
+    }
+
+    const match = startLineStr.match(/^\s*(note\s+.*?)(?::|$)/i);
+    if (match) {
+      lines[popover.noteStartLine - 1] = startLineStr.replace(match[1], newTag);
+    } else {
+      // Fallback
+      if (startLineStr.includes(':')) {
+        lines[popover.noteStartLine - 1] = startLineStr.replace(/^.*?(\s*:)/, `${newTag}$1`);
+      } else {
+        lines[popover.noteStartLine - 1] = newTag;
+      }
+    }
+    onContentChange(lines.join("\n"));
+    setPopover(POPOVER_CLOSED);
+  }, [content, onContentChange, popover.noteStartLine]);
+
+  const handleEditNoteOverConfirm = useCallback(() => {
+    if (!inputValue.trim()) return;
+    handleNoteDirectionChange("over" as any, inputValue.trim());
+  }, [inputValue, handleNoteDirectionChange]);
+
+  const handleEditGroupLabelConfirm = useCallback(() => {
+    if (!onContentChange || !popover.lineNumber || !inputValue.trim()) return;
+    const lines = content.split("\n");
+    const source = lines[popover.lineNumber - 1];
+
+    // Replace the text content while keeping the `alt` or `else` prefix.
+    const match = source.match(/^(\s*(?:alt|else)\s*)(.*)$/i);
+    if (match) {
+      lines[popover.lineNumber - 1] = match[1] + (match[1].endsWith(' ') ? '' : ' ') + inputValue.trim();
+      onContentChange(lines.join("\n"));
+    }
+    setPopover(POPOVER_CLOSED);
+  }, [content, inputValue, onContentChange, popover.lineNumber]);
+
   const handleAddAlt = useCallback(() => {
     if (!onContentChange || !popover.lineNumber) return;
     const lines = content.split("\n");
@@ -375,6 +484,31 @@ export function PlantUMLPreview({ content, onContentChange }: PlantUMLPreviewPro
       `end`
     ].join('\n');
     lines.splice(popover.lineNumber, 0, altBlock);
+    onContentChange(lines.join("\n"));
+    setPopover(POPOVER_CLOSED);
+  }, [content, onContentChange, popover.lineNumber]);
+
+  const handleAddLoop = useCallback(() => {
+    if (!onContentChange || !popover.lineNumber) return;
+    const lines = content.split("\n");
+    const loopBlock = [
+      `loop 10 times`,
+      `  note across: Add condition here`,
+      `end`
+    ].join('\n');
+    lines.splice(popover.lineNumber, 0, loopBlock);
+    onContentChange(lines.join("\n"));
+    setPopover(POPOVER_CLOSED);
+  }, [content, onContentChange, popover.lineNumber]);
+
+  const handleAppendElse = useCallback(() => {
+    if (!onContentChange || !popover.lineNumber) return;
+    const lines = content.split("\n");
+    const elseBlock = [
+      `else Else`,
+      `  note across: Add condition here`
+    ].join('\n');
+    lines.splice(popover.lineNumber, 0, elseBlock);
     onContentChange(lines.join("\n"));
     setPopover(POPOVER_CLOSED);
   }, [content, onContentChange, popover.lineNumber]);
@@ -460,10 +594,28 @@ export function PlantUMLPreview({ content, onContentChange }: PlantUMLPreviewPro
       case "note-actions":
         return (
           <>
+            <Button variant="ghost" size="icon" className="h-7 w-7" title="Add message after this note"
+              onClick={() => openMode("new-message", "")}>
+              <Plus className="h-3.5 w-3.5" />
+            </Button>
+            <div className="w-px h-4 bg-border mx-1" />
             <Button variant="ghost" size="icon" className="h-7 w-7" title="Edit note"
               onClick={() => openMode("edit-note", popover.noteTextBlock)}>
               <Pencil className="h-3.5 w-3.5" />
             </Button>
+            <Button variant="ghost" size="icon" className={`h-7 w-7 ${popover.noteDirection === 'left' ? 'bg-muted' : ''}`} title="Position Left"
+              onClick={() => handleNoteDirectionChange("left")}>
+              <AlignLeft className="h-3.5 w-3.5" />
+            </Button>
+            <Button variant="ghost" size="icon" className={`h-7 w-7 text-center ${popover.noteDirection === 'over' ? 'bg-muted' : ''}`} title="Position Over"
+              onClick={() => openMode("edit-note-over", "")}>
+              <AlignCenter className="h-3.5 w-3.5" />
+            </Button>
+            <Button variant="ghost" size="icon" className={`h-7 w-7 ${popover.noteDirection === 'right' ? 'bg-muted' : ''}`} title="Position Right"
+              onClick={() => handleNoteDirectionChange("right")}>
+              <AlignRight className="h-3.5 w-3.5" />
+            </Button>
+            <div className="w-px h-4 bg-border mx-1" />
             <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive"
               title="Delete note"
               onClick={() => setPopover((p) => ({ ...p, mode: "confirm-delete" }))}>
@@ -472,14 +624,59 @@ export function PlantUMLPreview({ content, onContentChange }: PlantUMLPreviewPro
           </>
         );
 
-      case "confirm-delete":
+      case "edit-note-over":
+        return inlineInput("Participant(s)...", handleEditNoteOverConfirm);
+
+      case "group-actions":
+        return (
+          <>
+            <Button variant="ghost" size="icon" className="h-7 w-7" title="Add message after this line"
+              onClick={() => openMode("new-message", "")}>
+              <Plus className="h-3.5 w-3.5" />
+            </Button>
+            {popover.lineNumber > 0 && /^\s*alt\b/i.test(content.split('\n')[popover.lineNumber - 1]) && (
+              <>
+                <div className="w-px h-4 bg-border mx-1" />
+                <Button variant="ghost" size="icon" className="h-7 w-7" title="Append else branch"
+                  onClick={handleAppendElse}>
+                  <Split className="h-3.5 w-3.5" />
+                </Button>
+              </>
+            )}
+            <div className="w-px h-4 bg-border mx-1" />
+            <Button variant="ghost" size="icon" className="h-7 w-7" title="Edit condition"
+              onClick={() => openMode("edit-group-label", popover.sourceLine)}>
+              <Pencil className="h-3.5 w-3.5" />
+            </Button>
+            <div className="w-px h-4 bg-border mx-1" />
+            <Button variant="ghost" size="icon" className="h-7 w-7" title="Jump to source"
+              onClick={handleJump}>
+              <ArrowUpRight className="h-3.5 w-3.5" />
+            </Button>
+            <div className="w-px h-4 bg-border mx-1" />
+            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive"
+              title="Delete condition"
+              onClick={() => setPopover((p) => ({ ...p, mode: "confirm-delete" }))}>
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          </>
+        );
+
+      case "edit-group-label":
+        return inlineInput("Condition / Label...", handleEditGroupLabelConfirm);
+
+      case "confirm-delete": {
+        let deleteLabel = "message";
+        if (popover.noteStartLine > 0) deleteLabel = "note";
+        else if (/^\s*(alt|else|loop)\b/i.test(popover.sourceLine)) deleteLabel = "condition";
         return (
           <div className="flex items-center gap-2 px-1">
-            <span className="text-xs text-muted-foreground whitespace-nowrap">Delete {popover.noteStartLine > 0 ? "note" : "message"}?</span>
+            <span className="text-xs text-muted-foreground whitespace-nowrap">Delete {deleteLabel}?</span>
             <Button variant="destructive" size="sm" className="h-6 px-2 text-xs" onClick={handleDeleteConfirm}>Yes</Button>
             <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={() => setPopover(POPOVER_CLOSED)}>No</Button>
           </div>
         );
+      }
 
       case "participant-actions":
         return (
@@ -559,6 +756,10 @@ export function PlantUMLPreview({ content, onContentChange }: PlantUMLPreviewPro
             <Button variant="ghost" size="icon" className="h-7 w-7" title="Add alt block after this message"
               onClick={handleAddAlt}>
               <Split className="h-3.5 w-3.5" />
+            </Button>
+            <Button variant="ghost" size="icon" className="h-7 w-7" title="Add loop block after this message"
+              onClick={handleAddLoop}>
+              <Repeat className="h-3.5 w-3.5" />
             </Button>
             <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive"
               title="Delete message"

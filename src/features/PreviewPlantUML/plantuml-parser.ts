@@ -160,6 +160,7 @@ export interface NoteDef {
   startLine: number; // 1-indexed
   endLine: number;   // 1-indexed (same as startLine for single-line notes)
   textBlock: string; // The full text content of the note (excluding keywords)
+  direction: "left" | "right" | "over" | "unknown";
 }
 
 /**
@@ -182,6 +183,15 @@ export function getNotes(content: string): NoteDef[] {
   let inMultiLineNote = false;
   let multiLineStartIndex = -1;
   let currentNoteTextLines: string[] = [];
+  let currentDirection: NoteDef["direction"] = "unknown";
+
+  const extractDirection = (header: string): NoteDef["direction"] => {
+    const l = header.toLowerCase();
+    if (l.includes("left")) return "left";
+    if (l.includes("right")) return "right";
+    if (l.includes("over")) return "over";
+    return "unknown";
+  };
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
@@ -192,10 +202,12 @@ export function getNotes(content: string): NoteDef[] {
         result.push({
           startLine: multiLineStartIndex + 1,
           endLine: i + 1,
-          textBlock: currentNoteTextLines.join('\n').trim()
+          textBlock: currentNoteTextLines.join('\n').trim(),
+          direction: currentDirection
         });
         inMultiLineNote = false;
         currentNoteTextLines = [];
+        currentDirection = "unknown";
       } else {
         currentNoteTextLines.push(line);
       }
@@ -208,7 +220,8 @@ export function getNotes(content: string): NoteDef[] {
       result.push({
         startLine: i + 1,
         endLine: i + 1,
-        textBlock: singleMatch[1].trim()
+        textBlock: singleMatch[1].trim(),
+        direction: extractDirection(line)
       });
       continue;
     }
@@ -218,6 +231,7 @@ export function getNotes(content: string): NoteDef[] {
       inMultiLineNote = true;
       multiLineStartIndex = i;
       currentNoteTextLines = [];
+      currentDirection = extractDirection(line);
     }
   }
 
@@ -226,8 +240,53 @@ export function getNotes(content: string): NoteDef[] {
     result.push({
       startLine: multiLineStartIndex + 1,
       endLine: lines.length,
-      textBlock: currentNoteTextLines.join('\n').trim()
+      textBlock: currentNoteTextLines.join('\n').trim(),
+      direction: currentDirection
     });
+  }
+
+  return result;
+}
+
+// ── Group block (alt/else) parsing ──────────────────────────────────────────
+
+export interface GroupLabelDef {
+  lineNumber: number; // 1-indexed
+  type: "alt" | "else";
+  text: string;     // The label text
+}
+
+/**
+ * Extracts alt/else label lines to match SVG group headers.
+ */
+export function getGroupLabels(content: string): GroupLabelDef[] {
+  const lines = content.split('\n');
+  const result: GroupLabelDef[] = [];
+
+  const altRe = /^\s*alt\s+(.*)$/i;
+  const elseRe = /^\s*else\s+(.*)$/i;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    const altMatch = line.match(altRe);
+    if (altMatch) {
+      result.push({
+        lineNumber: i + 1,
+        type: "alt",
+        text: altMatch[1].trim()
+      });
+      continue;
+    }
+
+    const elseMatch = line.match(elseRe);
+    if (elseMatch) {
+      result.push({
+        lineNumber: i + 1,
+        type: "else",
+        text: elseMatch[1].trim()
+      });
+    }
   }
 
   return result;

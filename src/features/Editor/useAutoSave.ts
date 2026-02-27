@@ -25,7 +25,7 @@ import { writeTextFile } from "@tauri-apps/plugin-fs";
 import { editorStateAtom, markAsDirtyAtom, markAsSavedAtom } from "@/stores/EditorStore";
 import { activeTabAtom, markTabAsDirtyAtom, markTabAsSavedAtom } from "@/stores/TabStore";
 import { autoSaveEnabledAtom, autoSaveDelayAtom } from "@/stores/SettingsStore";
-import { isSavingAtom } from "@/stores/FileWatchStore";
+import { isSavingAtom, lastSavedContentMap } from "@/stores/FileWatchStore";
 import { draftService } from "@/lib/indexeddb";
 
 export function useAutoSave() {
@@ -57,10 +57,13 @@ export function useAutoSave() {
     if (!editorState.filePath || !autoSaveEnabled) return;
 
     try {
-      // Set flag to prevent file watcher from reacting to our own save
-      setIsSaving(true);
+      // Set flag (with file path) to prevent file watcher from reacting to our own save
+      console.log("[useAutoSave] 💾 Auto-saving:", editorState.filePath, "| setting isSaving =", editorState.filePath);
+      setIsSaving(editorState.filePath);
 
       await writeTextFile(editorState.filePath, newContent);
+      // Record exactly what we wrote so useFileWatcher can skip false-positive toasts
+      lastSavedContentMap.set(editorState.filePath, newContent);
       await draftService.removeDraft(editorState.filePath);
       markAsSaved();
 
@@ -71,11 +74,12 @@ export function useAutoSave() {
 
       // Clear flag after a short delay to ensure file system events have settled
       setTimeout(() => {
-        setIsSaving(false);
+        console.log("[useAutoSave] 🔓 Clearing isSaving for:", editorState.filePath);
+        setIsSaving(null);
       }, 1000);
     } catch (error) {
       console.error("Auto-save failed:", error);
-      setIsSaving(false);
+      setIsSaving(null);
     }
   }, autoSaveDelay);
 

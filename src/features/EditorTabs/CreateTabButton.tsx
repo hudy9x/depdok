@@ -1,4 +1,4 @@
-import { Plus, FileText, CheckSquare, Image, Code, FolderOpen } from 'lucide-react';
+import { Plus, FileText, CheckSquare, Image, Code, FolderOpen, Pencil } from 'lucide-react';
 import { useSetAtom } from 'jotai';
 import { useNavigate } from 'react-router-dom';
 import { open } from '@tauri-apps/plugin-dialog';
@@ -17,6 +17,7 @@ const fileTypes = [
   { extension: 'mmd', label: 'Mermaid', icon: Image, color: 'text-purple-500' },
   { extension: 'todo', label: 'Todo', icon: CheckSquare, color: 'text-blue-500' },
   { extension: 'pu', label: 'PlantUML', icon: Code, color: 'text-green-500' },
+  { extension: 'excalidraw', label: 'Excalidraw', icon: Pencil, color: 'text-orange-500' },
   { extension: 'txt', label: 'Text', icon: FileText, color: 'text-muted-foreground' },
 ];
 
@@ -32,7 +33,7 @@ export function CreateTabButton() {
         filters: [
           {
             name: "Documentation Files",
-            extensions: ["md", "mmd", "txt", "pu", "puml", "todo"],
+            extensions: ["md", "mmd", "txt", "pu", "puml", "todo", "excalidraw"],
           },
         ],
       });

@@ -24,6 +24,7 @@ import {
   createDirectory,
   renameNode,
   deleteNode,
+  writeFileContent,
 } from './api';
 import { tabsAtom, closeTabAtom, createTabAtom } from '@/stores/TabStore';
 
@@ -59,6 +60,20 @@ export function FileOperationDialogs() {
 
       if (creating.type === 'file') {
         await createFile(newPath);
+
+        // For .excalidraw files, seed a valid empty scene so the preview opens cleanly
+        if (nameInput.endsWith('.excalidraw')) {
+          const emptyScene = JSON.stringify({
+            type: 'excalidraw',
+            version: 2,
+            source: 'depdok',
+            elements: [],
+            appState: { viewBackgroundColor: '#ffffff' },
+            files: {},
+          }, null, 2);
+          await writeFileContent(newPath, emptyScene);
+        }
+
         toast.success(`File created: ${nameInput}`);
         const fileName = nameInput.split(/[/\\]/).pop() || nameInput;
         createTab({ filePath: newPath, fileName, switchTo: true, isPreview: false });

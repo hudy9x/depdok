@@ -1,5 +1,14 @@
 import { atom } from 'jotai';
 
+/**
+ * Stores the last content we wrote to disk per file path.
+ * Used by useFileWatcher to compare disk content and skip spurious
+ * "file changed externally" toasts caused by our own writes.
+ * The draft is removed after auto-save so we can't rely on IndexedDB.
+ */
+export const lastSavedContentMap = new Map<string, string>();
+
+
 // Currently watched file path (null if no file is being watched)
 export const currentWatchedFileAtom = atom<string | null>(null);
 
@@ -8,10 +17,11 @@ export const currentWatchedFileAtom = atom<string | null>(null);
 export const fileChangeNotificationAtom = atom<string | null>(null);
 
 /**
- * Tracks whether the app is currently saving a file
- * Used to prevent file watcher from reacting to our own saves
+ * Tracks which file path the app is currently saving to disk.
+ * null = not saving. string = the absolute path currently being written.
+ * Used to prevent file watcher from reacting to our own saves.
  */
-export const isSavingAtom = atom<boolean>(false);
+export const isSavingAtom = atom<string | null>(null);
 
 // Action: Set the currently watched file
 export const setWatchedFileAtom = atom(

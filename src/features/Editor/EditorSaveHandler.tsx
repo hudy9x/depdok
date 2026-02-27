@@ -5,7 +5,7 @@ import { save } from "@tauri-apps/plugin-dialog";
 import { toast } from "sonner";
 
 import { editorStateAtom, markAsSavedAtom } from "@/stores/EditorStore";
-import { isSavingAtom } from "@/stores/FileWatchStore";
+import { isSavingAtom, lastSavedContentMap } from "@/stores/FileWatchStore";
 import { draftService } from "@/lib/indexeddb";
 import {
   activeTabAtom,
@@ -15,7 +15,8 @@ import {
   extractFilenameFromDummyPath,
 } from "@/stores/TabStore";
 
-const supportedFileTypes = ["md", "mmd", "txt", "pu", "puml", "plantuml", "todo"];
+const supportedFileTypes = ["md", "mmd", "txt", "pu", "puml", "plantuml", "todo", "excalidraw"];
+
 
 export function EditorSave() {
   const editorState = useAtomValue(editorStateAtom);
@@ -53,11 +54,12 @@ export function EditorSave() {
         return;
       }
 
-      // Set flag to prevent file watcher from reacting
-      setIsSaving(true);
+      // Set flag (with file path) to prevent file watcher from reacting
+      setIsSaving(selected);
 
       // Write to new location
       await writeTextFile(selected, draft.content);
+      lastSavedContentMap.set(selected, draft.content);
 
       // Update tab with real path
       if (activeTab) {
@@ -74,11 +76,11 @@ export function EditorSave() {
       toast.success("File saved successfully");
 
       // Clear flag after delay
-      setTimeout(() => setIsSaving(false), 1000);
+      setTimeout(() => setIsSaving(null), 1000);
     } catch (error) {
       console.error("Error in save-as:", error);
       toast.error("Failed to save file");
-      setIsSaving(false);
+      setIsSaving(null);
     }
   };
 
@@ -107,10 +109,11 @@ export function EditorSave() {
         contentToSave?.substring(0, 100)
       );
 
-      // Set flag to prevent file watcher from reacting
-      setIsSaving(true);
+      // Set flag (with file path) to prevent file watcher from reacting
+      setIsSaving(editorState.filePath);
 
       await writeTextFile(editorState.filePath, contentToSave);
+      lastSavedContentMap.set(editorState.filePath, contentToSave);
       await draftService.removeDraft(editorState.filePath);
 
       // Mark both editor and tab as saved
@@ -119,14 +122,12 @@ export function EditorSave() {
         markTabAsSaved(activeTab.id);
       }
 
-      // toast.success("File saved");
-
       // Clear flag after delay
-      setTimeout(() => setIsSaving(false), 1000);
+      setTimeout(() => setIsSaving(null), 1000);
     } catch (error) {
       console.error("Error saving file:", error);
       toast.error("Failed to save file");
-      setIsSaving(false);
+      setIsSaving(null);
     }
   };
 
@@ -134,6 +135,7 @@ export function EditorSave() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === "s") {
+        console.log("[EditorSaveHandler] ⌨️ window Cmd+S caught — filePath:", editorState.filePath);
         e.preventDefault();
         handleSave();
       }

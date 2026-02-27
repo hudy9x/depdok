@@ -5,7 +5,7 @@ import { startWatching, stopWatching, onFileChanged } from "@/lib/fileWatcher";
 import { draftService } from "@/lib/indexeddb";
 import { useAtomValue } from "jotai";
 import { activeTabAtom } from "@/stores/TabStore";
-import { isSavingAtom } from "@/stores/FileWatchStore";
+import { isSavingAtom, lastSavedContentMap } from "@/stores/FileWatchStore";
 
 interface UseFileWatcherOptions {
   filePath: string;
@@ -80,12 +80,12 @@ export function useFileWatcher({
 
     const setupListener = async () => {
       unlisten = await onFileChanged((changedFilePath) => {
-        console.log("[FileWatcher] Event received:", changedFilePath, "Current watched:", filePath);
+        console.log("[FileWatcher] 📬 Event received:", changedFilePath, "| watched:", filePath, "| isSaving:", isSaving);
 
         // READ visual flow at useAutoSave.ts to understand how isSaving works
-        // Ignore if we're currently saving from the app
-        if (isSaving) {
-          console.log("[FileWatcher] Ignoring file change event - app is saving");
+        // Ignore if we're currently saving THIS exact file from the app
+        if (isSaving === changedFilePath) {
+          console.log("[FileWatcher] ✅ Ignoring — isSaving matches changed path:", changedFilePath);
           return;
         }
 
@@ -101,18 +101,36 @@ export function useFileWatcher({
 
         console.log("[FileWatcher] Processing change. AutoReload:", autoReload, "IsDirty:", activeTab.isDirty);
 
-        const handleShowToast = () => {
+        const handleShowToast = async () => {
           // Debounce: if we already have a pending reload notification for this file, don't show another
           if (pendingReloadRef.current === changedFilePath) {
             console.log("Ignoring duplicate file change event (dialog already open)");
             return;
           }
 
+          // Read the file and compare with what we last wrote to disk.
+          // If they match, it's a spurious event from our own save — skip the toast.
+          // We use lastSavedContentMap instead of the draft because the draft is
+          // deleted immediately after auto-save completes.
+          try {
+            const diskContent = await readTextFile(changedFilePath);
+            const lastSaved = lastSavedContentMap.get(changedFilePath) ?? "";
+            console.log("[FileWatcher] diskContent length:", diskContent.length, "lastSaved length:", lastSaved.length);
+            if (diskContent === lastSaved) {
+              console.log("[FileWatcher] Disk content matches last saved — skipping toast");
+              return;
+            }
+          } catch {
+            // If we can't read the file, fall through and show the toast anyway
+          }
+
           pendingReloadRef.current = changedFilePath;
+
+          console.log('File changed externally')
 
           toast.warning("File changed externally", {
             id: `file-change-${changedFilePath}`, // Ensure unique toast ID to avoid stacking if logic fails
-            description: "The file has been modified outside the editor.",
+            description: `The file ${changedFilePath} has been modified outside the editor.`,
             action: {
               label: "Reload",
               onClick: reloadFileContent,
@@ -126,10 +144,6 @@ export function useFileWatcher({
             },
             duration: Infinity, // Keep toast visible until user acts
             onDismiss: () => {
-              // Also clear on dismiss? Maybe safer not to, requiring explicit interaction,
-              // but usually dismiss means "ignore".
-              // Let's leave it null cleaning on explicit cancel or reload only logic above?
-              // Actually if they dismiss, we should probably allow next notification.
               pendingReloadRef.current = null;
             }
           });

@@ -2,6 +2,7 @@ import { MarkdownPreview } from "../PreviewMarkdown/MarkdownPreview";
 import { MermaidPreview } from "./MermaidPreview";
 import { PlantUMLPreview } from "../PreviewPlantUML";
 import { TodoPreview } from "../PreviewTodo/TodoPreview";
+import { ExcalidrawPreview } from "../PreviewExcalidraw";
 
 interface PreviewPanelProps {
   content: string;
@@ -60,6 +61,10 @@ export function PreviewPanel({
         onContentChange={onContentChange}
       />
     );
+  }
+
+  if (fileExtension === "excalidraw") {
+    return <ExcalidrawPreview content={content} filePath={filePath} onContentChange={onContentChange} />;
   }
 
   return (

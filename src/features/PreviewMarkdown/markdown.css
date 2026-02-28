@@ -35,6 +35,7 @@
 /* Markdown Prose Styles */
 .prose {
   color: var(--foreground);
+  padding-bottom: 70vh;
 }
 
 .prose *::selection {

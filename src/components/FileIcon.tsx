@@ -1,4 +1,4 @@
-import { FileText, Image as ImageIcon } from 'lucide-react';
+import { FileText, Image as ImageIcon, SwatchBook } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface CustomIconProps {
@@ -37,14 +37,7 @@ const TodoIcon = ({ className, primary = "#737373", secondary = "#A4A4A4" }: Cus
   </svg>
 );
 
-const ExcalidrawIcon = ({ className, primary = "#737373", secondary = "#A4A4A4" }: CustomIconProps) => (
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
-    <path d="M12 19H5C4.44772 19 4 18.5523 4 18V6C4 5.44772 4.44772 5 5 5H14L19 10V18C19 18.5523 18.5523 19 18 19H16" stroke={primary} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-    <path d="M14 5V10H19" stroke={primary} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-    <path d="M8.5 14.5L10.5 12.5L13 15L15 13" stroke={secondary} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-    <path d="M8 17H16" stroke={secondary} strokeWidth="1.5" strokeLinecap="round" />
-  </svg>
-);
+
 
 const MarkdownIcon = ({ className, primary = "currentColor" }: CustomIconProps) => (
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
@@ -66,7 +59,7 @@ export function FileIcon({ filename, className, variant = 'colorful' }: FileIcon
     if (isImage) return <ImageIcon className={cn("w-4 h-4 text-muted-foreground", className)} />;
 
     if (filename.endsWith('.todo')) return <TodoIcon className={cn("w-4 h-4", className)} primary={isColorful ? "#3b82f6" : undefined} secondary={isColorful ? "#93c5fd" : undefined} />;
-    if (filename.endsWith('.excalidraw')) return <ExcalidrawIcon className={cn("w-4 h-4", className)} primary={isColorful ? "#f97316" : undefined} secondary={isColorful ? "#fdba74" : undefined} />;
+    if (filename.endsWith('.excalidraw')) return <SwatchBook className={cn("w-4 h-4", className)} style={isColorful ? { color: '#f97316' } : undefined} />;
     if (filename.endsWith('.md')) return <MarkdownIcon className={cn("w-4 h-4 text-foreground", className)} />;
     if (filename.endsWith('.mmd')) return <MmdIcon className={cn("w-4 h-4", className)} primary={isColorful ? "#a855f7" : undefined} secondary={isColorful ? "#d8b4fe" : undefined} />;
     if (filename.endsWith('.plantuml') || filename.endsWith('.puml') || filename.endsWith('.pu')) return <PlantumlIcon className={cn("w-4 h-4", className)} primary={isColorful ? "#22c55e" : undefined} secondary={isColorful ? "#86efac" : undefined} />;

@@ -27,8 +27,9 @@ import { editorStateAtom, markAsDirtyAtom } from "@/stores/EditorStore";
 import { draftService } from "@/lib/indexeddb";
 import { MarkdownOutlineWrapper, type TocAnchor } from "./MarkdownOutline";
 import { TableOfContents } from "@tiptap/extension-table-of-contents";
-import { Button } from "@/components/ui/button";
-import { PanelRightOpen } from "lucide-react";
+
+import { MarkdownOutlineMinimap } from "./MarkdownOutlineMinimap";
+import { useActiveHeading } from "@/hooks/useActiveHeading";
 import { MarkdownSizeControl, type MarkdownEditorSize } from "./MarkdownSizeControl";
 import Heading from "@tiptap/extension-heading";
 import { HeadingNodeView } from "./HeadingNodeView";
@@ -64,6 +65,7 @@ export function MarkdownPreview({
   const [isOutlineOpen, setIsOutlineOpen] = useLocalStorage('markdown-outline-open', false);
   const [editorSize, setEditorSize] = useLocalStorage<MarkdownEditorSize>('markdown-editor-size', 'small');
   const [tocAnchors, setTocAnchors] = useState<TocAnchor[]>([]);
+  const activeHeadingId = useActiveHeading(tocAnchors, null);
   // containerRef moved here so it can be referenced in TableOfContents scrollParent
   const containerRef = useRef<HTMLDivElement>(null);
   // handleLinkClick initialised after containerRef below
@@ -252,14 +254,11 @@ export function MarkdownPreview({
       <div className="flex-1 h-full relative min-w-0 flex flex-col">
         {!isOutlineOpen && (
           <div className="absolute top-2 right-2 z-10">
-            <Button
-              variant="outline"
-              size="icon"
-              className="h-8 w-8 bg-background/80  backdrop-blur-sm"
+            <MarkdownOutlineMinimap
+              anchors={tocAnchors}
+              activeHeadingId={activeHeadingId ?? undefined}
               onClick={() => setIsOutlineOpen(true)}
-            >
-              <PanelRightOpen className="h-4 w-4" />
-            </Button>
+            />
           </div>
         )}
 

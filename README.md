@@ -51,6 +51,28 @@ Unlike general-purpose editors or note-taking apps, this tool treats **documenta
 
 ---
 
+## 📥 Installation
+
+### macOS - Homebrew
+If you have Homebrew installed, you can simply install via:
+
+```bash
+# 1. Tap the repository
+brew tap hudy9x/depdok https://github.com/hudy9x/depdok-ladi
+
+# 2. Install the app
+brew install --cask depdok
+```
+*Tip: If you encounter permission issues, add the `--no-quarantine` flag.*
+
+### Windows (PowerShell)
+
+```powershell
+irm https://raw.githubusercontent.com/hudy9x/depdok-ladi/main/install.ps1 | iex
+```
+
+---
+
 ## 🚫 What this is NOT
 - Not a code editor
 - Not a note-taking or “second brain” app

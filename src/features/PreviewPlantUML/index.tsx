@@ -5,6 +5,7 @@ import { useDebounce } from "use-debounce";
 import { useTheme } from "next-themes";
 import { useAtomValue, useSetAtom } from "jotai";
 import { ArrowUpRight, Pencil, Trash2, Check, X, Users, Plus, ChevronLeft, ChevronRight, MessageSquare, Split, AlignLeft, AlignCenter, AlignRight, Repeat } from "lucide-react";
+
 import { ZoomPanContainer } from "@/components/ZoomPanContainer";
 import { plantUmlServerUrlAtom } from "@/stores/SettingsStore";
 import { Button } from "@/components/ui/button";
@@ -92,6 +93,25 @@ export function PlantUMLPreview({ content, onContentChange }: PlantUMLPreviewPro
   const [popover, setPopover] = useState<PopoverState>(POPOVER_CLOSED);
   const [inputValue, setInputValue] = useState("");
 
+  // ── Selected element highlight ───────────────────────────────────────────────
+  const clickedEl = useRef<Element | null>(null);
+  const clearSelection = useCallback(() => {
+    if (clickedEl.current) {
+      clickedEl.current.classList.remove("plantuml-selected");
+      clickedEl.current = null;
+    }
+  }, []);
+  const selectElement = useCallback((el: Element) => {
+    clearSelection();
+    el.classList.add("plantuml-selected");
+    clickedEl.current = el;
+  }, [clearSelection]);
+
+  const closePopover = useCallback(() => {
+    clearSelection();
+    setPopover(POPOVER_CLOSED);
+  }, [clearSelection]);
+
   // ── Fetch SVG ───────────────────────────────────────────────────────────────
 
   useEffect(() => {
@@ -138,6 +158,7 @@ export function PlantUMLPreview({ content, onContentChange }: PlantUMLPreviewPro
           if (!lineNumber) return;
           const sourceLine = content.split("\n")[lineNumber - 1] ?? "";
           const rect = containerRef.current?.getBoundingClientRect();
+          selectElement(el.querySelector("text") ?? el);
           setPopover({
             open: true,
             x: rect ? e.clientX - rect.left : e.clientX,
@@ -190,6 +211,7 @@ export function PlantUMLPreview({ content, onContentChange }: PlantUMLPreviewPro
           const myDef = findParticipantDefinition(content, identifier);
           const myPos = myDef ? allLines.indexOf(myDef.lineNumber) : -1;
 
+          selectElement(el);
           setPopover({
             open: true,
             x: rect ? e.clientX - rect.left : e.clientX,
@@ -245,6 +267,7 @@ export function PlantUMLPreview({ content, onContentChange }: PlantUMLPreviewPro
         const handler = (e: MouseEvent) => {
           e.stopPropagation();
           const rect = containerRef.current?.getBoundingClientRect();
+          selectElement(textEl);
           setPopover({
             open: true,
             x: rect ? e.clientX - rect.left : e.clientX,
@@ -306,6 +329,7 @@ export function PlantUMLPreview({ content, onContentChange }: PlantUMLPreviewPro
         const handler = (e: MouseEvent) => {
           e.stopPropagation();
           const rect = containerRef.current?.getBoundingClientRect();
+          selectElement(textEl);
           setPopover({
             open: true,
             x: rect ? e.clientX - rect.left : e.clientX,
@@ -336,8 +360,8 @@ export function PlantUMLPreview({ content, onContentChange }: PlantUMLPreviewPro
   const handleJump = useCallback(() => {
     if (!popover.lineNumber) return;
     setJump({ lineNumber: popover.lineNumber });
-    setPopover(POPOVER_CLOSED);
-  }, [popover.lineNumber, setJump]);
+    closePopover();
+  }, [popover.lineNumber, setJump, closePopover]);
 
   const openMode = useCallback((mode: PopoverMode, prefill: string) => {
     setInputValue(prefill);
@@ -349,8 +373,8 @@ export function PlantUMLPreview({ content, onContentChange }: PlantUMLPreviewPro
     const lines = content.split("\n");
     lines[popover.lineNumber - 1] = transform(lines[popover.lineNumber - 1]);
     onContentChange(lines.join("\n"));
-    setPopover(POPOVER_CLOSED);
-  }, [content, onContentChange, popover.lineNumber]);
+    closePopover();
+  }, [content, onContentChange, popover.lineNumber, closePopover]);
 
   const handleLabelConfirm = useCallback(() => applyLineEdit((l) => replaceLabel(l, inputValue.trim() || extractLabel(l))), [applyLineEdit, inputValue]);
   const handleParticipantsConfirm = useCallback(() => applyLineEdit((l) => replaceParticipants(l, inputValue.trim() || extractParticipants(l))), [applyLineEdit, inputValue]);
@@ -363,8 +387,8 @@ export function PlantUMLPreview({ content, onContentChange }: PlantUMLPreviewPro
       lines.splice(insertLine, 0, inputValue.trim());
       onContentChange(lines.join("\n"));
     }
-    setPopover(POPOVER_CLOSED);
-  }, [content, inputValue, onContentChange, popover.lineNumber, popover.noteEndLine]);
+    closePopover();
+  }, [content, inputValue, onContentChange, popover.lineNumber, popover.noteEndLine, closePopover]);
 
   const handleDeleteConfirm = useCallback(() => {
     if (!onContentChange) return;
@@ -377,26 +401,26 @@ export function PlantUMLPreview({ content, onContentChange }: PlantUMLPreviewPro
       lines.splice(popover.lineNumber - 1, 1);
     } else return;
     onContentChange(lines.join("\n"));
-    setPopover(POPOVER_CLOSED);
-  }, [content, onContentChange, popover.lineNumber, popover.noteStartLine, popover.noteEndLine]);
+    closePopover();
+  }, [content, onContentChange, popover.lineNumber, popover.noteStartLine, popover.noteEndLine, closePopover]);
 
   const handleParticipantNameConfirm = useCallback(() => {
     if (!onContentChange || !popover.participantIdentifier || !inputValue.trim()) return;
     onContentChange(updateParticipantName(content, popover.participantIdentifier, inputValue.trim()));
-    setPopover(POPOVER_CLOSED);
-  }, [content, inputValue, onContentChange, popover.participantIdentifier]);
+    closePopover();
+  }, [content, inputValue, onContentChange, popover.participantIdentifier, closePopover]);
 
   const handleNewParticipantConfirm = useCallback(() => {
     if (!onContentChange || !inputValue.trim()) return;
     onContentChange(insertParticipantAfter(content, popover.participantIdentifier, inputValue.trim()));
-    setPopover(POPOVER_CLOSED);
-  }, [content, inputValue, onContentChange, popover.participantIdentifier]);
+    closePopover();
+  }, [content, inputValue, onContentChange, popover.participantIdentifier, closePopover]);
 
   const handleMoveParticipant = useCallback((direction: 'up' | 'down') => {
     if (!onContentChange || !popover.participantIdentifier) return;
     onContentChange(moveParticipant(content, popover.participantIdentifier, direction));
-    setPopover(POPOVER_CLOSED);
-  }, [content, onContentChange, popover.participantIdentifier]);
+    closePopover();
+  }, [content, onContentChange, popover.participantIdentifier, closePopover]);
 
   const handleNewNoteConfirm = useCallback(() => {
     if (!onContentChange || !popover.lineNumber || !inputValue.trim()) return;
@@ -406,8 +430,8 @@ export function PlantUMLPreview({ content, onContentChange }: PlantUMLPreviewPro
       : `note right: ${inputValue}`;
     lines.splice(popover.lineNumber, 0, noteContent);
     onContentChange(lines.join("\n"));
-    setPopover(POPOVER_CLOSED);
-  }, [content, inputValue, onContentChange, popover.lineNumber]);
+    closePopover();
+  }, [content, inputValue, onContentChange, popover.lineNumber, closePopover]);
 
   const handleEditNoteConfirm = useCallback(() => {
     if (!onContentChange || !popover.noteStartLine || !inputValue.trim()) return;
@@ -426,8 +450,8 @@ export function PlantUMLPreview({ content, onContentChange }: PlantUMLPreviewPro
     lines.splice(popover.noteStartLine - 1, popover.noteEndLine - popover.noteStartLine + 1, noteContent);
 
     onContentChange(lines.join("\n"));
-    setPopover(POPOVER_CLOSED);
-  }, [content, inputValue, onContentChange, popover.noteStartLine, popover.noteEndLine]);
+    closePopover();
+  }, [content, inputValue, onContentChange, popover.noteStartLine, popover.noteEndLine, closePopover]);
 
   const handleNoteDirectionChange = useCallback((newDirection: "left" | "right" | "over", target?: string) => {
     if (!onContentChange || !popover.noteStartLine) return;
@@ -451,8 +475,8 @@ export function PlantUMLPreview({ content, onContentChange }: PlantUMLPreviewPro
       }
     }
     onContentChange(lines.join("\n"));
-    setPopover(POPOVER_CLOSED);
-  }, [content, onContentChange, popover.noteStartLine]);
+    closePopover();
+  }, [content, onContentChange, popover.noteStartLine, closePopover]);
 
   const handleEditNoteOverConfirm = useCallback(() => {
     if (!inputValue.trim()) return;
@@ -470,8 +494,8 @@ export function PlantUMLPreview({ content, onContentChange }: PlantUMLPreviewPro
       lines[popover.lineNumber - 1] = match[1] + (match[1].endsWith(' ') ? '' : ' ') + inputValue.trim();
       onContentChange(lines.join("\n"));
     }
-    setPopover(POPOVER_CLOSED);
-  }, [content, inputValue, onContentChange, popover.lineNumber]);
+    closePopover();
+  }, [content, inputValue, onContentChange, popover.lineNumber, closePopover]);
 
   const handleAddAlt = useCallback(() => {
     if (!onContentChange || !popover.lineNumber) return;
@@ -485,8 +509,8 @@ export function PlantUMLPreview({ content, onContentChange }: PlantUMLPreviewPro
     ].join('\n');
     lines.splice(popover.lineNumber, 0, altBlock);
     onContentChange(lines.join("\n"));
-    setPopover(POPOVER_CLOSED);
-  }, [content, onContentChange, popover.lineNumber]);
+    closePopover();
+  }, [content, onContentChange, popover.lineNumber, closePopover]);
 
   const handleAddLoop = useCallback(() => {
     if (!onContentChange || !popover.lineNumber) return;
@@ -498,8 +522,8 @@ export function PlantUMLPreview({ content, onContentChange }: PlantUMLPreviewPro
     ].join('\n');
     lines.splice(popover.lineNumber, 0, loopBlock);
     onContentChange(lines.join("\n"));
-    setPopover(POPOVER_CLOSED);
-  }, [content, onContentChange, popover.lineNumber]);
+    closePopover();
+  }, [content, onContentChange, popover.lineNumber, closePopover]);
 
   const handleAppendElse = useCallback(() => {
     if (!onContentChange || !popover.lineNumber) return;
@@ -510,8 +534,8 @@ export function PlantUMLPreview({ content, onContentChange }: PlantUMLPreviewPro
     ].join('\n');
     lines.splice(popover.lineNumber, 0, elseBlock);
     onContentChange(lines.join("\n"));
-    setPopover(POPOVER_CLOSED);
-  }, [content, onContentChange, popover.lineNumber]);
+    closePopover();
+  }, [content, onContentChange, popover.lineNumber, closePopover]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>, onConfirm: () => void) => {
@@ -523,11 +547,13 @@ export function PlantUMLPreview({ content, onContentChange }: PlantUMLPreviewPro
           onConfirm();
         }
       }
-      if (e.key === "Escape") setPopover(POPOVER_CLOSED);
-    }, []
+      if (e.key === "Escape") closePopover();
+    }, [closePopover]
   );
 
-  const handleContainerClick = useCallback(() => setPopover(POPOVER_CLOSED), []);
+  const handleContainerClick = useCallback(() => {
+    closePopover();
+  }, [closePopover]);
 
   // ── Popover UI ───────────────────────────────────────────────────────────────
 
@@ -544,7 +570,7 @@ export function PlantUMLPreview({ content, onContentChange }: PlantUMLPreviewPro
       <Button variant="ghost" size="icon" className="h-7 w-7 text-green-500 hover:text-green-400" onClick={onConfirm}>
         <Check className="h-3.5 w-3.5" />
       </Button>
-      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setPopover(POPOVER_CLOSED)}>
+      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={closePopover}>
         <X className="h-3.5 w-3.5" />
       </Button>
     </div>
@@ -566,11 +592,20 @@ export function PlantUMLPreview({ content, onContentChange }: PlantUMLPreviewPro
           <Button variant="ghost" size="icon" className="h-6 w-6 text-green-500 hover:text-green-400" onClick={onConfirm}>
             <Check className="h-3 w-3" />
           </Button>
-          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setPopover(POPOVER_CLOSED)}>
+          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={closePopover}>
             <X className="h-3 w-3" />
           </Button>
         </div>
       </div>
+    </div>
+  );
+
+  const tip = (label: string, child: React.ReactElement) => (
+    <div className="relative group/tip">
+      {child}
+      <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 text-[11px] leading-none text-primary-foreground bg-primary rounded whitespace-nowrap opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150 z-[100]">
+        {label}
+      </span>
     </div>
   );
 
@@ -594,33 +629,42 @@ export function PlantUMLPreview({ content, onContentChange }: PlantUMLPreviewPro
       case "note-actions":
         return (
           <>
-            <Button variant="ghost" size="icon" className="h-7 w-7" title="Add message after this note"
-              onClick={() => openMode("new-message", "")}>
-              <Plus className="h-3.5 w-3.5" />
-            </Button>
+            {tip("Add message after this note",
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openMode("new-message", "")}>
+                <Plus className="h-3.5 w-3.5" />
+              </Button>
+            )}
             <div className="w-px h-4 bg-border mx-1" />
-            <Button variant="ghost" size="icon" className="h-7 w-7" title="Edit note"
-              onClick={() => openMode("edit-note", popover.noteTextBlock)}>
-              <Pencil className="h-3.5 w-3.5" />
-            </Button>
-            <Button variant="ghost" size="icon" className={`h-7 w-7 ${popover.noteDirection === 'left' ? 'bg-muted' : ''}`} title="Position Left"
-              onClick={() => handleNoteDirectionChange("left")}>
-              <AlignLeft className="h-3.5 w-3.5" />
-            </Button>
-            <Button variant="ghost" size="icon" className={`h-7 w-7 text-center ${popover.noteDirection === 'over' ? 'bg-muted' : ''}`} title="Position Over"
-              onClick={() => openMode("edit-note-over", "")}>
-              <AlignCenter className="h-3.5 w-3.5" />
-            </Button>
-            <Button variant="ghost" size="icon" className={`h-7 w-7 ${popover.noteDirection === 'right' ? 'bg-muted' : ''}`} title="Position Right"
-              onClick={() => handleNoteDirectionChange("right")}>
-              <AlignRight className="h-3.5 w-3.5" />
-            </Button>
+            {tip("Edit note",
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openMode("edit-note", popover.noteTextBlock)}>
+                <Pencil className="h-3.5 w-3.5" />
+              </Button>
+            )}
+            {tip("Position left",
+              <Button variant="ghost" size="icon" className={`h-7 w-7 ${popover.noteDirection === 'left' ? 'bg-muted' : ''}`}
+                onClick={() => handleNoteDirectionChange("left")}>
+                <AlignLeft className="h-3.5 w-3.5" />
+              </Button>
+            )}
+            {tip("Position over (select participant)",
+              <Button variant="ghost" size="icon" className={`h-7 w-7 text-center ${popover.noteDirection === 'over' ? 'bg-muted' : ''}`}
+                onClick={() => openMode("edit-note-over", "")}>
+                <AlignCenter className="h-3.5 w-3.5" />
+              </Button>
+            )}
+            {tip("Position right",
+              <Button variant="ghost" size="icon" className={`h-7 w-7 ${popover.noteDirection === 'right' ? 'bg-muted' : ''}`}
+                onClick={() => handleNoteDirectionChange("right")}>
+                <AlignRight className="h-3.5 w-3.5" />
+              </Button>
+            )}
             <div className="w-px h-4 bg-border mx-1" />
-            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive"
-              title="Delete note"
-              onClick={() => setPopover((p) => ({ ...p, mode: "confirm-delete" }))}>
-              <Trash2 className="h-3.5 w-3.5" />
-            </Button>
+            {tip("Delete note",
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive"
+                onClick={() => setPopover((p) => ({ ...p, mode: "confirm-delete" }))}>
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            )}
           </>
         );
 
@@ -630,35 +674,41 @@ export function PlantUMLPreview({ content, onContentChange }: PlantUMLPreviewPro
       case "group-actions":
         return (
           <>
-            <Button variant="ghost" size="icon" className="h-7 w-7" title="Add message after this line"
-              onClick={() => openMode("new-message", "")}>
-              <Plus className="h-3.5 w-3.5" />
-            </Button>
+            {tip("Add message after this line",
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openMode("new-message", "")}>
+                <Plus className="h-3.5 w-3.5" />
+              </Button>
+            )}
             {popover.lineNumber > 0 && /^\s*alt\b/i.test(content.split('\n')[popover.lineNumber - 1]) && (
               <>
                 <div className="w-px h-4 bg-border mx-1" />
-                <Button variant="ghost" size="icon" className="h-7 w-7" title="Append else branch"
-                  onClick={handleAppendElse}>
-                  <Split className="h-3.5 w-3.5" />
-                </Button>
+                {tip("Append else branch",
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleAppendElse}>
+                    <Split className="h-3.5 w-3.5" />
+                  </Button>
+                )}
               </>
             )}
             <div className="w-px h-4 bg-border mx-1" />
-            <Button variant="ghost" size="icon" className="h-7 w-7" title="Edit condition"
-              onClick={() => openMode("edit-group-label", popover.sourceLine)}>
-              <Pencil className="h-3.5 w-3.5" />
-            </Button>
+            {tip("Edit condition label",
+              <Button variant="ghost" size="icon" className="h-7 w-7"
+                onClick={() => openMode("edit-group-label", popover.sourceLine)}>
+                <Pencil className="h-3.5 w-3.5" />
+              </Button>
+            )}
             <div className="w-px h-4 bg-border mx-1" />
-            <Button variant="ghost" size="icon" className="h-7 w-7" title="Jump to source"
-              onClick={handleJump}>
-              <ArrowUpRight className="h-3.5 w-3.5" />
-            </Button>
+            {tip("Jump to source line",
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleJump}>
+                <ArrowUpRight className="h-3.5 w-3.5" />
+              </Button>
+            )}
             <div className="w-px h-4 bg-border mx-1" />
-            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive"
-              title="Delete condition"
-              onClick={() => setPopover((p) => ({ ...p, mode: "confirm-delete" }))}>
-              <Trash2 className="h-3.5 w-3.5" />
-            </Button>
+            {tip("Delete condition",
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive"
+                onClick={() => setPopover((p) => ({ ...p, mode: "confirm-delete" }))}>
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            )}
           </>
         );
 
@@ -673,7 +723,7 @@ export function PlantUMLPreview({ content, onContentChange }: PlantUMLPreviewPro
           <div className="flex items-center gap-2 px-1">
             <span className="text-xs text-muted-foreground whitespace-nowrap">Delete {deleteLabel}?</span>
             <Button variant="destructive" size="sm" className="h-6 px-2 text-xs" onClick={handleDeleteConfirm}>Yes</Button>
-            <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={() => setPopover(POPOVER_CLOSED)}>No</Button>
+            <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={closePopover}>No</Button>
           </div>
         );
       }
@@ -681,41 +731,40 @@ export function PlantUMLPreview({ content, onContentChange }: PlantUMLPreviewPro
       case "participant-actions":
         return (
           <>
-            {/* Move left (up in source) */}
-            <Button
-              variant="ghost" size="icon" className="h-7 w-7"
-              title="Move left" disabled={!popover.canMoveLeft}
-              onClick={() => handleMoveParticipant('up')}
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-
-            {/* Edit display name */}
-            <Button
-              variant="ghost" size="icon" className="h-7 w-7"
-              title="Edit participant name"
-              onClick={() => openMode("edit-participant-name", popover.participantDisplayName)}
-            >
-              <Pencil className="h-3.5 w-3.5" />
-            </Button>
-
-            {/* Create new participant after this one */}
-            <Button
-              variant="ghost" size="icon" className="h-7 w-7"
-              title="Add participant after this one"
-              onClick={() => openMode("new-participant", "")}
-            >
-              <Plus className="h-3.5 w-3.5" />
-            </Button>
-
-            {/* Move right (down in source) */}
-            <Button
-              variant="ghost" size="icon" className="h-7 w-7"
-              title="Move right" disabled={!popover.canMoveRight}
-              onClick={() => handleMoveParticipant('down')}
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
+            {tip("Move participant left",
+              <Button
+                variant="ghost" size="icon" className="h-7 w-7"
+                disabled={!popover.canMoveLeft}
+                onClick={() => handleMoveParticipant('up')}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+            )}
+            {tip("Edit display name",
+              <Button
+                variant="ghost" size="icon" className="h-7 w-7"
+                onClick={() => openMode("edit-participant-name", popover.participantDisplayName)}
+              >
+                <Pencil className="h-3.5 w-3.5" />
+              </Button>
+            )}
+            {tip("Add participant after this one",
+              <Button
+                variant="ghost" size="icon" className="h-7 w-7"
+                onClick={() => openMode("new-participant", "")}
+              >
+                <Plus className="h-3.5 w-3.5" />
+              </Button>
+            )}
+            {tip("Move participant right",
+              <Button
+                variant="ghost" size="icon" className="h-7 w-7"
+                disabled={!popover.canMoveRight}
+                onClick={() => handleMoveParticipant('down')}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            )}
           </>
         );
 
@@ -734,38 +783,51 @@ export function PlantUMLPreview({ content, onContentChange }: PlantUMLPreviewPro
       default: // message-actions
         return (
           <>
-            <Button variant="ghost" size="icon" className="h-7 w-7" title="Jump to line" onClick={handleJump}>
-              <ArrowUpRight className="h-4 w-4" />
-            </Button>
-            <Button variant="ghost" size="icon" className="h-7 w-7" title="Edit message label"
-              onClick={() => openMode("edit-label", extractLabel(popover.sourceLine))}>
-              <Pencil className="h-3.5 w-3.5" />
-            </Button>
-            <Button variant="ghost" size="icon" className="h-7 w-7" title="Edit participants & arrow"
-              onClick={() => openMode("edit-participants", extractParticipants(popover.sourceLine))}>
-              <Users className="h-3.5 w-3.5" />
-            </Button>
-            <Button variant="ghost" size="icon" className="h-7 w-7" title="Add message after this one"
-              onClick={() => openMode("new-message", "")}>
-              <Plus className="h-3.5 w-3.5" />
-            </Button>
-            <Button variant="ghost" size="icon" className="h-7 w-7" title="Add note after this message"
-              onClick={() => openMode("new-message-note", "")}>
-              <MessageSquare className="h-3.5 w-3.5" />
-            </Button>
-            <Button variant="ghost" size="icon" className="h-7 w-7" title="Add alt block after this message"
-              onClick={handleAddAlt}>
-              <Split className="h-3.5 w-3.5" />
-            </Button>
-            <Button variant="ghost" size="icon" className="h-7 w-7" title="Add loop block after this message"
-              onClick={handleAddLoop}>
-              <Repeat className="h-3.5 w-3.5" />
-            </Button>
-            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive"
-              title="Delete message"
-              onClick={() => setPopover((p) => ({ ...p, mode: "confirm-delete" }))}>
-              <Trash2 className="h-3.5 w-3.5" />
-            </Button>
+            {tip("Jump to source line",
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleJump}>
+                <ArrowUpRight className="h-4 w-4" />
+              </Button>
+            )}
+            {tip("Edit message label",
+              <Button variant="ghost" size="icon" className="h-7 w-7"
+                onClick={() => openMode("edit-label", extractLabel(popover.sourceLine))}>
+                <Pencil className="h-3.5 w-3.5" />
+              </Button>
+            )}
+            {tip("Edit participants & arrow",
+              <Button variant="ghost" size="icon" className="h-7 w-7"
+                onClick={() => openMode("edit-participants", extractParticipants(popover.sourceLine))}>
+                <Users className="h-3.5 w-3.5" />
+              </Button>
+            )}
+            {tip("Add message after this one",
+              <Button variant="ghost" size="icon" className="h-7 w-7"
+                onClick={() => openMode("new-message", "")}>
+                <Plus className="h-3.5 w-3.5" />
+              </Button>
+            )}
+            {tip("Add note after this message",
+              <Button variant="ghost" size="icon" className="h-7 w-7"
+                onClick={() => openMode("new-message-note", "")}>
+                <MessageSquare className="h-3.5 w-3.5" />
+              </Button>
+            )}
+            {tip("Add alt/else block after this message",
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleAddAlt}>
+                <Split className="h-3.5 w-3.5" />
+              </Button>
+            )}
+            {tip("Add loop block after this message",
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleAddLoop}>
+                <Repeat className="h-3.5 w-3.5" />
+              </Button>
+            )}
+            {tip("Delete message",
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive"
+                onClick={() => setPopover((p) => ({ ...p, mode: "confirm-delete" }))}>
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            )}
           </>
         );
     }
@@ -779,6 +841,9 @@ export function PlantUMLPreview({ content, onContentChange }: PlantUMLPreviewPro
       className="w-full h-full bg-background relative overflow-hidden"
       onClick={handleContainerClick}
     >
+      {/* CSS for the clicked-element highlight */}
+      <style>{`.plantuml-selected { fill: red !important; }`}</style>
+
       {loading && (
         <div className="absolute top-2 right-2 text-xs text-muted-foreground bg-background/80 px-2 py-1 rounded z-50">
           Rendering...

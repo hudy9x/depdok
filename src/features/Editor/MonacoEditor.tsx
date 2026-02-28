@@ -2,12 +2,9 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import MonacoEditorReact, { BeforeMount, OnMount } from "@monaco-editor/react";
 import { listen } from '@tauri-apps/api/event';
 import { useAtomValue, useAtom } from "jotai";
-import "./monaco.css";
-
 import { useTheme } from "next-themes";
 
 import { MonacoThemeLoader, getMonacoThemeName } from "./MonacoThemeLoader";
-import { animateContentUpdate } from "./monacoAnimations";
 
 import { editorThemeAtom } from "@/stores/SettingsStore";
 import { setupMermaidTheme } from '@/lib/monaco-theme';
@@ -54,30 +51,13 @@ export function MonacoEditor({ initialContent, language, onContentChange, enable
   const editorRef = useRef<any>(null);
   const monacoRef = useRef<any>(null);
   const menuListenersCleanupRef = useRef<(() => void) | null>(null);
-  const isProgrammaticChangeRef = useRef(false);
-  const decorationIdsRef = useRef<string[]>([]);
-
   // Sync content when initialContent changes
   useEffect(() => {
     setContent(initialContent);
   }, [initialContent]);
 
   // File watcher hook - reloads content when file changes externally
-  // File watcher hook - reloads content when file changes externally
-  const handleContentReload = useCallback(async (newContent: string) => {
-    // If editor is ready, animate the update
-    if (editorRef.current && monacoRef.current) {
-      isProgrammaticChangeRef.current = false; // Don't trigger the basic fade-in
-
-      await animateContentUpdate({
-        editor: editorRef.current,
-        monaco: monacoRef.current,
-        newContent,
-        chunkSize: 5,
-        interval: 30
-      });
-    }
-
+  const handleContentReload = useCallback((newContent: string) => {
     setContent(newContent);
     onContentChange?.(newContent);
   }, [onContentChange]);
@@ -121,34 +101,6 @@ export function MonacoEditor({ initialContent, language, onContentChange, enable
   const handleEditorDidMount: OnMount = (editor, monaco) => {
     editorRef.current = editor;
 
-    // Listener for content changes (Fade-in effect)
-    editor.onDidChangeModelContent((event) => {
-      if (!isProgrammaticChangeRef.current) return;
-
-      const newDecorations = event.changes.map(change => {
-        const startLine = change.range.startLineNumber;
-        const startCol = change.range.startColumn;
-
-        const lines = change.text.split('\n');
-        const endLine = startLine + lines.length - 1;
-        const endCol = lines.length > 1
-          ? lines[lines.length - 1].length + 1
-          : startCol + change.text.length;
-
-        return {
-          range: new monaco.Range(startLine, startCol, endLine, endCol),
-          options: { inlineClassName: 'monaco-fade-in-text' }
-        };
-      });
-
-      decorationIdsRef.current = editor.deltaDecorations(decorationIdsRef.current, newDecorations);
-
-      // Clean up decorations after animation
-      setTimeout(() => {
-        decorationIdsRef.current = editor.deltaDecorations(decorationIdsRef.current, []);
-      }, 2000);
-    });
-
     // Action registration - Start ==================
     if (language === 'mermaid') {
       // 1. Auto format on Shift+Alt+F
@@ -175,8 +127,6 @@ export function MonacoEditor({ initialContent, language, onContentChange, enable
       const text = event.payload.text;
       if (!text) return;
 
-      isProgrammaticChangeRef.current = true;
-
       const position = editor.getPosition() || editor.getModel()?.getFullModelRange().getEndPosition();
       const range = position ? new monaco.Range(position.lineNumber, position.column, position.lineNumber, position.column) : null;
 
@@ -187,8 +137,6 @@ export function MonacoEditor({ initialContent, language, onContentChange, enable
           forceMoveMarkers: true
         }]);
       }
-
-      isProgrammaticChangeRef.current = false;
     }));
 
     const register = (event: string, action: string) => {

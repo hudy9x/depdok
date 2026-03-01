@@ -58,7 +58,7 @@ If you have Homebrew installed, you can simply install via:
 
 ```bash
 # 1. Tap the repository
-brew tap hudy9x/depdok https://github.com/hudy9x/depdok-ladi
+brew tap hudy9x/depdok https://github.com/hudy9x/depdok
 
 # 2. Install the app
 brew install --cask depdok
@@ -68,7 +68,7 @@ brew install --cask depdok
 ### Windows (PowerShell)
 
 ```powershell
-irm https://raw.githubusercontent.com/hudy9x/depdok-ladi/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/hudy9x/depdok/main/install.ps1 | iex
 ```
 
 ---

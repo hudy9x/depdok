@@ -11,20 +11,20 @@ interface MacOSTitlebarProps {
 export function MacOSTitlebar({ left, center, right }: MacOSTitlebarProps) {
   return (
     <TitlebarContainer>
-      {/* Buttons - Absolute Left */}
-      <div className="absolute left-3 flex items-center gap-3">
+      {/* Buttons - Left */}
+      <div className="flex items-center gap-3 pl-3 pr-2 flex-shrink-0">
         <MacOSButtons />
         {left}
       </div>
 
       {/* Center - Tabs area */}
-      <div data-tauri-drag-region className="ml-[65px] flex items-center justify-center h-full px-3 flex-1">
+      <div data-tauri-drag-region className="flex items-center justify-center h-full px-1 flex-1 min-w-0 overflow-hidden">
         {/* {center || <span className="text-[13px] font-medium text-foreground/70 pointer-events-none">Depdok</span>} */}
         {center}
       </div>
 
       {/* Right - Actions */}
-      <div className="titlebar-right absolute right-3 flex items-center gap-2">
+      <div className="titlebar-right flex items-center gap-2 pr-3 flex-shrink-0">
         {right}
       </div>
     </TitlebarContainer>

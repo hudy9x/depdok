@@ -17,7 +17,7 @@ export function EditorTabs() {
   useWindowDrag('[data-custom-scroller-content]');
 
   return (
-    <div className="flex items-center h-[35px] w-full overflow-hidden" data-tauri-drag-region>
+    <div className="flex items-end pt-0 h-[35px] w-full overflow-hidden bg-background" data-tauri-drag-region>
       {/* Back button on the left */}
       <Link to="/home">
         <ChevronLeft className={styleBackButton} />
@@ -29,8 +29,7 @@ export function EditorTabs() {
       {/* Tabs in the middle with horizontal scroll */}
       <CustomScroller
         orientation="horizontal"
-        className="h-[35px]"
-        style={{ width: 'calc(100vw - 280px)' }}
+        className="h-[35px] flex-1 min-w-0"
       >
         <div id="tab-content-wrapper" className="flex w-max space-x-0 h-full">
           {tabs.map((tab) => (

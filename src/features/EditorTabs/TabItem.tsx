@@ -93,14 +93,13 @@ export function TabItem({ tab }: TabItemProps) {
           )}
           onClick={handleClick}
           onDoubleClick={handleDoubleClick}
-          data-tauri-drag-region
         >
           {/* File Icon */}
           <span className="flex-shrink-0 opacity-70">
             <FileIcon filename={displayName} />
           </span>
 
-          <span className="text-xs truncate flex-1" data-tauri-drag-region>{displayName}</span>
+          <span className="text-xs truncate flex-1">{displayName}</span>
 
           {/* Right side interactions: Dirty Indicator + Close Button */}
           <div className="relative w-4 h-4 flex items-center justify-center">

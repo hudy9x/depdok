@@ -203,6 +203,9 @@ importers:
       beautiful-mermaid:
         specifier: ^0.1.3
         version: 0.1.3
+      beautiful-plantuml:
+        specifier: ^0.1.6
+        version: 0.1.6(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -2540,6 +2543,12 @@ packages:
 
   beautiful-mermaid@0.1.3:
     resolution: {integrity: sha512-lVEHCnlVLtVRbO03T+D9kY5BZlkpvFU6F18LEu2N2VLB0eo5evG1FJWg3SvREErKY+zZ7j9f+cNsgtiOhYI2Nw==}
+
+  beautiful-plantuml@0.1.6:
+    resolution: {integrity: sha512-FzXB/nnypiromCreVx395arjRtfMBfPKcF3VDN5/GsNnGTQrMJYjYmQx9Z089AVanqdP5p/z8wkVOZK7zZCSUA==}
+    peerDependencies:
+      react: ^18.0.0 || ^19.0.0
+      react-dom: ^18.0.0 || ^19.0.0
 
   binary-extensions@2.3.0:
     resolution: {integrity: sha512-Ceh+7ox5qe7LJuLHoY0feh3pHuUDHAcRUeyL2VYghZwfpkNIy/+8Ocg0a3UuSoYzavmylwuLWQOf3hl0jjMMIw==}
@@ -6014,6 +6023,11 @@ snapshots:
   beautiful-mermaid@0.1.3:
     dependencies:
       '@dagrejs/dagre': 1.1.8
+
+  beautiful-plantuml@0.1.6(react-dom@18.3.1(react@18.3.1))(react@18.3.1):
+    dependencies:
+      react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
 
   binary-extensions@2.3.0: {}
 

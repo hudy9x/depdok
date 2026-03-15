@@ -34,6 +34,7 @@ import { FileSearchDialog } from "@/features/FileSearchDialog";
 import { ContentSearchDialog } from "@/features/ContentSearchDialog";
 import { useGlobalShortcuts } from "@/hooks/useGlobalShortcuts";
 import { LicenseStatusBadge } from "@/components/LicenseStatusBadge";
+import { EditorViewMode } from "@/features/EditorViewMode";
 
 export default function Editor() {
   const [searchParams] = useSearchParams();
@@ -161,7 +162,7 @@ export default function Editor() {
         }
       />
       <EditorSave />
-
+      <EditorViewMode />
       <div className="fixed top-[35px] h-[calc(100vh-35px)] left-0 w-full flex flex-col px-1.5 pb-1.5 bg-background">
         <div className="h-full w-full bg-background border border-border rounded-lg overflow-hidden shadow-lg">
           <PanelGroup direction="horizontal" id="editor-layout" autoSaveId="depdok-editor-layout">

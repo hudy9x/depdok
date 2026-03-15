@@ -13,9 +13,11 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
-import { FileText, Edit3 } from "lucide-react";
+import { FileText, Edit3, Folder, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { createTabAtom, createUntitledTabAtom, tabsAtom } from "@/stores/TabStore";
+import { openWorkspaceAtom, recentFoldersAtom } from "@/features/FileExplorer/store";
+import { openFolderDialog } from "@/features/FileExplorer/api";
 
 const supportedFileTypes = ["md", "mmd", "txt", "pu", "puml", "todo"];
 
@@ -25,6 +27,9 @@ export default function Home() {
   const createUntitledTab = useSetAtom(createUntitledTabAtom);
   const tabs = useAtomValue(tabsAtom);
   const navigate = useNavigate();
+
+  const recentFolders = useAtomValue(recentFoldersAtom);
+  const openWorkspace = useSetAtom(openWorkspaceAtom);
 
   useEffect(() => {
     setIsVisible(true);
@@ -55,7 +60,28 @@ export default function Home() {
     }
   };
 
+  const handleOpenFolder = async () => {
+    try {
+      const folderPath = await openFolderDialog();
+      if (folderPath) {
+        await openWorkspace(folderPath);
+        navigate("/editor");
+      }
+    } catch (error) {
+      console.error("Failed to open folder:", error);
+      toast.error("Failed to open folder");
+    }
+  };
 
+  const handleRecentFolderClick = async (path: string) => {
+    try {
+      await openWorkspace(path);
+      navigate("/editor");
+    } catch (error) {
+      console.error("Failed to open recent folder:", error);
+      toast.error("Failed to open folder");
+    }
+  };
 
   const handleStartWriting = () => {
     // If there are existing tabs, just navigate to editor
@@ -67,6 +93,13 @@ export default function Home() {
       createUntitledTab("Untitled.md");
       navigate("/editor");
     }
+  };
+
+  // Helper to safely get folder name across platforms
+  const getFolderName = (path: string) => {
+    // Handle both Unix and Windows separators
+    const parts = path.split(/[/\\]/);
+    return parts.pop() || path;
   };
 
   return (
@@ -95,14 +128,47 @@ export default function Home() {
             <Edit3 className="w-5 h-5" />
             Start Writing
           </Button>
+          <Button size="lg" variant="outline" onClick={handleOpenFolder} className="gap-2">
+            <Folder className="w-5 h-5" />
+            Open Folder
+          </Button>
           <Button size="lg" variant="outline" onClick={handleOpenFile} className="gap-2">
             <FileText className="w-5 h-5" />
             Open File
           </Button>
         </EmptyContent>
+
         <p className="text-sm text-muted-foreground mt-4">
           Supports Markdown, Mermaid, PlantUML, and Text files
         </p>
+
+        {recentFolders.length > 0 && (
+          <div className="mt-4 w-full max-w-md rounded-lg p-2 flex flex-col gap-1">
+            <div className="flex items-center gap-2 px-2 py-2 text-sm font-medium text-muted-foreground">
+              <Clock className="w-4 h-4" />
+              Recent Folders
+            </div>
+            <div className="flex flex-col gap-1 max-h-[240px] overflow-y-auto">
+              {recentFolders.map((folderPath) => (
+                <button
+                  key={folderPath}
+                  onClick={() => handleRecentFolderClick(folderPath)}
+                  className="flex items-center cursor-pointer justify-between w-full p-2 text-sm rounded-md hover:bg-muted text-left transition-colors group"
+                >
+                  <div className="flex items-center gap-3 truncate">
+                    <Folder className="w-4 h-4 text-muted-foreground group-hover:text-foreground shrink-0" />
+                    <span className="truncate font-medium text-foreground" title={folderPath}>
+                      {getFolderName(folderPath)}
+                    </span>
+                  </div>
+                  <span className="text-xs text-muted-foreground truncate max-w-[180px]" title={folderPath}>
+                    {folderPath}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </Empty>
     </main>
   );

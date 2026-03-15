@@ -51,23 +51,32 @@ export function EditorRightActions() {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <div className={`${styleButtons} opacity-100 flex items-center justify-center`} title="Change View Mode">
-              {isSidebySide && <Columns2 className="w-4 h-4" />}
-              {isEditorOnly && <Code className="w-4 h-4" />}
-              {isPreviewOnly && <Eye className="w-4 h-4" />}
+              {isSidebySide && <Columns2 className="w-3 h-3" />}
+              {isEditorOnly && <Code className="w-3 h-3" />}
+              {isPreviewOnly && <Eye className="w-3 h-3" />}
             </div>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={onSelectSidebySide} className="gap-2 cursor-pointer">
-              <Columns2 className="w-4 h-4" />
-              <span>Side by Side</span>
+            <DropdownMenuItem
+              onClick={onSelectSidebySide}
+              className={`gap-2 ${isSidebySide ? 'bg-accent pointer-events-none' : 'cursor-pointer'}`}
+            >
+              <Columns2 className="w-3 h-3" />
+              <span className="text-xs">Side by Side</span>
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={onSelectEditorOnly} className="gap-2 cursor-pointer">
-              <Code className="w-4 h-4" />
-              <span>Editor Only</span>
+            <DropdownMenuItem
+              onClick={onSelectEditorOnly}
+              className={`gap-2 ${isEditorOnly ? 'bg-accent pointer-events-none' : 'cursor-pointer'}`}
+            >
+              <Code className="w-3 h-3" />
+              <span className="text-xs">Editor Only</span>
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={onSelectPreviewOnly} className="gap-2 cursor-pointer">
-              <Eye className="w-4 h-4" />
-              <span>Preview Only</span>
+            <DropdownMenuItem
+              onClick={onSelectPreviewOnly}
+              className={`gap-2 ${isPreviewOnly ? 'bg-accent pointer-events-none' : 'cursor-pointer'}`}
+            >
+              <Eye className="w-3 h-3" />
+              <span className="text-xs">Preview Only</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

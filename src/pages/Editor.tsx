@@ -13,7 +13,7 @@ import { EditorTabs } from "@/features/EditorTabs";
 import { LoadFileContent } from "@/features/Editor/LoadFileContent";
 import { EditorSave } from "@/features/Editor/EditorSaveHandler";
 import { FileExplorer } from "@/features/FileExplorer";
-import { isFileExplorerVisibleAtom, isFileExplorerAutoHoverAtom } from "@/features/FileExplorer/store";
+import { isFileExplorerVisibleAtom, isFileExplorerAutoHoverAtom, workspaceRootAtom } from "@/features/FileExplorer/store";
 import { useAutoHideSidebar } from "@/features/FileExplorer/hooks/useAutoHideSidebar";
 import {
   editorStateAtom,
@@ -47,6 +47,7 @@ export default function Editor() {
   const [tabs] = useAtom(tabsAtom);
   const isFileExplorerVisible = useAtomValue(isFileExplorerVisibleAtom);
   const isAutoHover = useAtomValue(isFileExplorerAutoHoverAtom);
+  const workspaceRoot = useAtomValue(workspaceRootAtom);
   const fileExplorerPanelRef = useRef<ImperativePanelHandle>(null);
 
   // Auto-hide sidebar hook
@@ -95,11 +96,11 @@ export default function Editor() {
 
     if (activeTab && activeTab.filePath !== filePath) {
       navigate(`/editor?path=${encodeURIComponent(activeTab.filePath)}`, { replace: true });
-    } else if (!activeTab && tabs.length === 0) {
-      // If no tabs left, go home (only after initial mount)
+    } else if (!activeTab && tabs.length === 0 && !workspaceRoot) {
+      // If no tabs left and no workspace, go home (only after initial mount)
       navigate('/home', { replace: true });
     }
-  }, [activeTab, filePath, navigate, tabs.length]);
+  }, [activeTab, filePath, navigate, tabs.length, workspaceRoot]);
 
   // 2. Sync URL -> Tabs
   // When URL changes (e.g. back button, or external link), switch to or create tab
@@ -140,8 +141,8 @@ export default function Editor() {
   // Use active tab's file path, only if we have an active tab
   const currentFilePath = activeTab?.filePath;
 
-  // If no file path, return null (we'll redirect to home via useEffect)
-  if (!currentFilePath) {
+  // If no file path and no workspace, return null (we'll redirect to home via useEffect)
+  if (!currentFilePath && !workspaceRoot) {
     return null;
   }
 
@@ -187,46 +188,55 @@ export default function Editor() {
 
             {/* Editor Panel */}
             <Panel defaultSize={80} id="editor-content">
-              <LoadFileContent filePath={currentFilePath} onMetadataLoad={loadFileMetadata}>
-                {(initialContent) => (
-                  <>
-                    {viewMode === 'side-by-side' && (
-                      <SideBySide
-                        initialContent={initialContent}
-                        enableFileWatcher={true}
-                        lineNumber={activeTab?.lineNumber}
-                      />
-                    )}
+              {currentFilePath ? (
+                <LoadFileContent filePath={currentFilePath} onMetadataLoad={loadFileMetadata}>
+                  {(initialContent) => (
+                    <>
+                      {viewMode === 'side-by-side' && (
+                        <SideBySide
+                          initialContent={initialContent}
+                          enableFileWatcher={true}
+                          lineNumber={activeTab?.lineNumber}
+                        />
+                      )}
 
-                    {viewMode === 'editor-only' && (
-                      <MonacoEditor
-                        initialContent={initialContent}
-                        language={getMonacoLanguage(editorState.fileExtension)}
-                        enableFileWatcher={true}
-                        lineNumber={activeTab?.lineNumber}
-                      />
-                    )}
+                      {viewMode === 'editor-only' && (
+                        <MonacoEditor
+                          initialContent={initialContent}
+                          language={getMonacoLanguage(editorState.fileExtension)}
+                          enableFileWatcher={true}
+                          lineNumber={activeTab?.lineNumber}
+                        />
+                      )}
 
-                    {viewMode === 'preview-only' && (
-                      <PreviewFileWatcher
-                        content={initialContent}
-                        enableFileWatcher={true}
-                        onContentReload={handleExternalReload}
-                      >
-                        {(content) => (
-                          <PreviewPanel
-                            content={content}
-                            fileExtension={editorState.fileExtension}
-                            filePath={currentFilePath}
-                            editable={true}
-                            onContentChange={handleSaveContent}
-                          />
-                        )}
-                      </PreviewFileWatcher>
-                    )}
-                  </>
-                )}
-              </LoadFileContent>
+                      {viewMode === 'preview-only' && (
+                        <PreviewFileWatcher
+                          content={initialContent}
+                          enableFileWatcher={true}
+                          onContentReload={handleExternalReload}
+                        >
+                          {(content) => (
+                            <PreviewPanel
+                              content={content}
+                              fileExtension={editorState.fileExtension}
+                              filePath={currentFilePath}
+                              editable={true}
+                              onContentChange={handleSaveContent}
+                            />
+                          )}
+                        </PreviewFileWatcher>
+                      )}
+                    </>
+                  )}
+                </LoadFileContent>
+              ) : (
+                <div className="h-full w-full flex flex-col items-center justify-center bg-background text-muted-foreground p-8">
+                  <div className="flex flex-col items-center gap-4 max-w-sm text-center">
+                    <img src="/app-icon.png" alt="App Icon" className="w-16 h-16 opacity-20 grayscale" />
+                    <p className="text-sm">Select a file from the explorer to start editing or create a new file.</p>
+                  </div>
+                </div>
+              )}
             </Panel>
           </PanelGroup>
 

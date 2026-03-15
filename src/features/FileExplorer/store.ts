@@ -10,6 +10,12 @@ export const workspaceRootAtom = atomWithStorage<string | null>(
   null
 );
 
+// Persisted recent folders (max 20)
+export const recentFoldersAtom = atomWithStorage<string[]>(
+  'depdok-recent-folders',
+  []
+);
+
 // Persisted expanded folders (stored as array for JSON serialization)
 const expandedFoldersArrayAtom = atomWithStorage<string[]>(
   'depdok-expanded-folders',
@@ -55,6 +61,12 @@ export const openWorkspaceAtom = atom(
     try {
       const entries = await listDirectory(rootPath);
       set(workspaceRootAtom, rootPath);
+
+      // Update recent folders
+      const recent = get(recentFoldersAtom);
+      const newRecent = [rootPath, ...recent.filter(p => p !== rootPath)].slice(0, 20);
+      set(recentFoldersAtom, newRecent);
+
       set(fileTreeDataAtom, { ...get(fileTreeDataAtom), [rootPath]: entries });
 
       // Auto-expand root

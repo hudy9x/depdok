@@ -19,6 +19,7 @@ import {
   registerToggleTodoAction,
   registerFormatBlockAction,
 } from '@/lib/monaco-actions';
+import { registerFormatLinePopover } from '@/lib/monaco-actions/register-format-line-popover';
 import { registerTodoSnippets, registerDateSnippets } from '@/lib/monaco-snippets';
 import { plantUMLJumpAtom } from "@/features/PreviewPlantUML/store";
 
@@ -51,6 +52,7 @@ export function MonacoEditor({ initialContent, language, onContentChange, enable
   const editorRef = useRef<any>(null);
   const monacoRef = useRef<any>(null);
   const menuListenersCleanupRef = useRef<(() => void) | null>(null);
+  const formatPopoverCleanupRef = useRef<(() => void) | null>(null);
   // Sync content when initialContent changes
   useEffect(() => {
     setContent(initialContent);
@@ -118,6 +120,8 @@ export function MonacoEditor({ initialContent, language, onContentChange, enable
         setContent(formatted);
         handleChange(formatted);
       });
+      // Empty-line popover with block-type buttons
+      formatPopoverCleanupRef.current = registerFormatLinePopover(editor, monaco);
     }
 
     // 2. Duplicate line on Shift+Alt+D
@@ -181,6 +185,7 @@ export function MonacoEditor({ initialContent, language, onContentChange, enable
   useEffect(() => {
     return () => {
       menuListenersCleanupRef.current?.();
+      formatPopoverCleanupRef.current?.();
     };
   }, []);
 

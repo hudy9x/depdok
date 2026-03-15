@@ -21,10 +21,10 @@ interface TreeNodeProps {
 // ─── Color tokens ─────────────────────────────────────────────────────────────
 
 function getValueColor(value: JsonValue): string {
-  if (value === null)            return "text-rose-400";
-  if (typeof value === "boolean") return "text-orange-400";
-  if (typeof value === "number")  return "text-sky-400";
-  if (typeof value === "string")  return "text-emerald-400";
+  if (value === null)             return "text-rose-600 dark:text-rose-400";
+  if (typeof value === "boolean") return "text-orange-600 dark:text-orange-400";
+  if (typeof value === "number")  return "text-sky-700 dark:text-sky-400";
+  if (typeof value === "string")  return "text-emerald-700 dark:text-emerald-400";
   return "text-foreground";
 }
 
@@ -33,13 +33,13 @@ function ValuePill({ value }: { value: JsonValue }) {
     return <span className={`${getValueColor(value)} font-mono text-xs`}>"{value}"</span>;
   }
   if (value === null) {
-    return <span className="text-rose-400 font-mono text-xs italic">null</span>;
+    return <span className="text-rose-600 dark:text-rose-400 font-mono text-xs italic">null</span>;
   }
   if (typeof value === "boolean") {
-    return <span className="text-orange-400 font-mono text-xs">{String(value)}</span>;
+    return <span className="text-orange-600 dark:text-orange-400 font-mono text-xs">{String(value)}</span>;
   }
   if (typeof value === "number") {
-    return <span className="text-sky-400 font-mono text-xs">{value}</span>;
+    return <span className="text-sky-700 dark:text-sky-400 font-mono text-xs">{value}</span>;
   }
   return null;
 }
@@ -97,7 +97,7 @@ function TreeNode({ label, value, depth = 0 }: TreeNodeProps) {
         </span>
 
         {/* Key */}
-        <span className="text-xs font-mono text-blue-400 shrink-0">{label}</span>
+        <span className="text-xs font-mono text-blue-700 dark:text-blue-400 shrink-0">{label}</span>
         <span className="text-xs text-muted-foreground shrink-0">:</span>
 
         {/* Value or type summary */}
@@ -143,7 +143,7 @@ function XmlNode({ node, depth = 0 }: { node: Element | ChildNode; depth?: numbe
     return (
       <div className="flex items-center gap-1.5 py-0.5 px-2 pl-6">
         <span className="w-1.5 h-1.5 rounded-full bg-border block shrink-0" />
-        <span className="text-xs font-mono text-emerald-400">"{text}"</span>
+        <span className="text-xs font-mono text-emerald-700 dark:text-emerald-400">"{text}"</span>
       </div>
     );
   }
@@ -174,16 +174,16 @@ function XmlNode({ node, depth = 0 }: { node: Element | ChildNode; depth?: numbe
           )}
         </span>
         <div className="flex flex-wrap gap-1 items-baseline">
-          <span className="text-xs font-mono text-orange-400">&lt;{el.tagName}&gt;</span>
+          <span className="text-xs font-mono text-orange-600 dark:text-orange-400">&lt;{el.tagName}&gt;</span>
           {attrs.map((a) => (
             <span key={a.name} className="text-xs font-mono">
-              <span className="text-yellow-400">{a.name}</span>
+              <span className="text-yellow-600 dark:text-yellow-400">{a.name}</span>
               <span className="text-muted-foreground">=</span>
-              <span className="text-emerald-400">"{a.value}"</span>
+              <span className="text-emerald-700 dark:text-emerald-400">"{a.value}"</span>
             </span>
           ))}
           {!hasChildren && el.textContent?.trim() && (
-            <span className="text-xs font-mono text-emerald-400">"{el.textContent.trim()}"</span>
+            <span className="text-xs font-mono text-emerald-700 dark:text-emerald-400">"{el.textContent.trim()}"</span>
           )}
           {hasChildren && (
             <span className="text-xs text-muted-foreground/60 italic">{childNodes.length} children</span>

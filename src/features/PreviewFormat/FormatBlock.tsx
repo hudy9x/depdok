@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
 import { ChevronDown, ChevronRight, Copy, Check } from "lucide-react";
 import { FormatBlockType } from "@/lib/format-parser";
+import { formatBlock } from "@/lib/monaco-actions/format-formatter";
 import { JsonTreeView, YamlTreeView, XmlTreeView } from "./DataTreeView";
 
 interface FormatBlockProps {
@@ -44,7 +45,13 @@ export function FormatBlock({ type, label, content, editable = false, onContentC
 
   const handleCopy = (e: React.MouseEvent) => {
     e.stopPropagation();
-    navigator.clipboard.writeText(content).then(() => {
+    let textToCopy = content;
+    try {
+      if (content.trim()) textToCopy = formatBlock(type, content);
+    } catch {
+      // fall back to raw content if formatting fails
+    }
+    navigator.clipboard.writeText(textToCopy).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     });

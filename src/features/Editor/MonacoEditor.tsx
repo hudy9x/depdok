@@ -218,7 +218,7 @@ export function MonacoEditor({ initialContent, language, onContentChange, enable
             wordWrap: "on",
             automaticLayout: true,
             scrollBeyondLastLine: false,
-            padding: { top: 16, bottom: 16 },
+            padding: { top: 16, bottom: 40 },
           }}
         />
       </MonacoThemeLoader>

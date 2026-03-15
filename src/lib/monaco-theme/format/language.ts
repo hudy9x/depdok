@@ -62,8 +62,14 @@ export function registerFormatLanguage(monaco: Monaco) {
       yaml_block: [
         [/^~~~$/, { token: 'keyword', next: '@pop' }],
 
+        // List item with an inline key: '- name: value' (must come before plain key rule)
+        [/^(\s*-\s+)([\w\-]+)(\s*:)/, ['delimiter', 'type', 'delimiter']],
+
         // Key: word followed by colon at start of a line (with optional indent)
         [/^(\s*)([\w\-]+)(\s*:)/, ['', 'type', 'delimiter']],
+
+        // Plain list item marker (no key): '- value'
+        [/^\s*-\s/, 'delimiter'],
 
         // Comments
         [/#.*$/, 'comment'],
@@ -75,9 +81,6 @@ export function registerFormatLanguage(monaco: Monaco) {
         // Scalars
         [/\b(true|false|null|~)\b/, 'keyword'],
         [/-?\d+(\.\d+)?/, 'number'],
-
-        // List item
-        [/^\s*-\s/, 'delimiter'],
       ],
 
       // ── XML block ───────────────────────────────────────────────────────────

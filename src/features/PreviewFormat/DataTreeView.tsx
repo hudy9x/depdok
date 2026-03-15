@@ -21,10 +21,10 @@ interface TreeNodeProps {
 // ─── Color tokens ─────────────────────────────────────────────────────────────
 
 function getValueColor(value: JsonValue): string {
-  if (value === null)             return "text-rose-600 dark:text-rose-400";
+  if (value === null) return "text-rose-600 dark:text-rose-400";
   if (typeof value === "boolean") return "text-orange-600 dark:text-orange-400";
-  if (typeof value === "number")  return "text-sky-700 dark:text-sky-400";
-  if (typeof value === "string")  return "text-emerald-700 dark:text-emerald-400";
+  if (typeof value === "number") return "text-sky-700 dark:text-sky-400";
+  if (typeof value === "string") return "text-emerald-700 dark:text-emerald-400";
   return "text-foreground";
 }
 
@@ -97,7 +97,7 @@ function TreeNode({ label, value, depth = 0 }: TreeNodeProps) {
         </span>
 
         {/* Key */}
-        <span className="text-xs font-mono text-blue-700 dark:text-blue-400 shrink-0">{label}</span>
+        <span className="text-xs font-mono text-blue-900 dark:text-blue-400 shrink-0">{label}</span>
         <span className="text-xs text-muted-foreground shrink-0">:</span>
 
         {/* Value or type summary */}

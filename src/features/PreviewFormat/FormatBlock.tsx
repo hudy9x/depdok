@@ -13,20 +13,20 @@ interface FormatBlockProps {
 }
 
 const BADGE_COLORS: Record<FormatBlockType, string> = {
-  json:  "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
-  xml:   "bg-blue-500/20 text-blue-400 border-blue-500/30",
-  yaml:  "bg-purple-500/20 text-purple-400 border-purple-500/30",
-  html:  "bg-orange-500/20 text-orange-400 border-orange-500/30",
-  text:  "bg-muted text-muted-foreground border-border",
+  json: "bg-yellow-500/20 text-yellow-600 border-yellow-500/30",
+  xml: "bg-blue-500/20 text-blue-600 border-blue-500/30",
+  yaml: "bg-purple-500/20 text-purple-600 border-purple-500/30",
+  html: "bg-orange-500/20 text-orange-600 border-orange-500/30",
+  text: "bg-muted text-muted-foreground border-border",
 };
 
 function TreeView({ type, content }: { type: FormatBlockType; content: string }) {
   switch (type) {
-    case "json":  return <JsonTreeView content={content} />;
-    case "yaml":  return <YamlTreeView content={content} />;
-    case "xml":   return <XmlTreeView content={content} />;
-    case "html":  return <XmlTreeView content={content} isHtml />;
-    default:      return null;
+    case "json": return <JsonTreeView content={content} />;
+    case "yaml": return <YamlTreeView content={content} />;
+    case "xml": return <XmlTreeView content={content} />;
+    case "html": return <XmlTreeView content={content} isHtml />;
+    default: return null;
   }
 }
 
@@ -101,7 +101,7 @@ export function FormatBlock({ type, label, content, editable = false, onContentC
 
       {/* Body */}
       {!collapsed && (
-        <div className="border-t border-border">
+        <div className="border-t border-border bg-accent">
           {/* Inline input — only in preview-only (editable) mode */}
           {editable && (
             <div className="px-4 pt-3 pb-2 border-b border-border/50">

@@ -4,6 +4,7 @@ import { MermaidPreview } from "./MermaidPreview";
 import { PlantUMLBrowserPreview } from "../PreviewPlantUML/PlantUMLBrowserPreview";
 import { TodoPreview } from "../PreviewTodo/TodoPreview";
 import { ExcalidrawPreview } from "../PreviewExcalidraw";
+import { FormatPreview } from "../PreviewFormat/FormatPreview";
 
 interface PreviewPanelProps {
   content: string;
@@ -67,6 +68,10 @@ export function PreviewPanel({
 
   if (fileExtension === "excalidraw") {
     return <ExcalidrawPreview content={content} filePath={filePath} onContentChange={onContentChange} />;
+  }
+
+  if (fileExtension === "format") {
+    return <FormatPreview content={content} editable={editable} onContentChange={onContentChange} />;
   }
 
   return (

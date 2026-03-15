@@ -2,6 +2,7 @@ import type { Monaco } from '@monaco-editor/react';
 import { registerMermaidLanguage } from './mermaid/language';
 import { registerMermaidThemes } from './mermaid/themes';
 import { registerPlantUMLLanguage } from './plantuml/language';
+import { registerFormatLanguage, applyFormatTokenColors } from './format/language';
 
 export function setupMermaidTheme(monaco: Monaco) {
   registerMermaidLanguage(monaco);
@@ -12,8 +13,14 @@ export function setupPlantUMLTheme(monaco: Monaco) {
   registerPlantUMLLanguage(monaco);
 }
 
+export function setupFormatTheme(monaco: Monaco) {
+  registerFormatLanguage(monaco);
+  applyFormatTokenColors(monaco);
+}
+
 export { registerMermaidLanguage, registerMermaidThemes };
 export { registerPlantUMLLanguage };
+export { registerFormatLanguage, applyFormatTokenColors };
 export { formatMermaidCode } from '../monaco-actions/mermaid-formatter';
 
 export const THEME_MAPPING: Record<string, { light: string; dark: string; label: string }> = {

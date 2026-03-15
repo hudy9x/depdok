@@ -7,8 +7,7 @@ import { useTheme } from "next-themes";
 import { MonacoThemeLoader, getMonacoThemeName } from "./MonacoThemeLoader";
 
 import { editorThemeAtom } from "@/stores/SettingsStore";
-import { setupMermaidTheme } from '@/lib/monaco-theme';
-import { setupPlantUMLTheme } from '@/lib/monaco-theme';
+import { setupMermaidTheme, setupPlantUMLTheme, setupFormatTheme } from '@/lib/monaco-theme';
 import { useAutoSave } from "./useAutoSave";
 import { useFileWatcher } from "@/hooks/useFileWatcher";
 import { useLineJump } from "./useLineJump";
@@ -17,7 +16,8 @@ import { editorStateAtom } from "@/stores/EditorStore";
 import {
   registerFormatAction,
   registerDuplicateLineAction,
-  registerToggleTodoAction
+  registerToggleTodoAction,
+  registerFormatBlockAction,
 } from '@/lib/monaco-actions';
 import { registerTodoSnippets, registerDateSnippets } from '@/lib/monaco-snippets';
 import { plantUMLJumpAtom } from "@/features/PreviewPlantUML/store";
@@ -87,6 +87,7 @@ export function MonacoEditor({ initialContent, language, onContentChange, enable
     setTimeout(() => {
       setupMermaidTheme(monaco);
       setupPlantUMLTheme(monaco);
+      setupFormatTheme(monaco);
 
       // Register snippets
       if (language === 'markdown') {
@@ -109,6 +110,14 @@ export function MonacoEditor({ initialContent, language, onContentChange, enable
       };
 
       registerFormatAction(editor, monaco, handleFormat);
+    }
+
+    if (editorState.fileExtension === 'format') {
+      // Cmd/Ctrl+Shift+F — format the block under the cursor
+      registerFormatBlockAction(editor, monaco, (formatted: string) => {
+        setContent(formatted);
+        handleChange(formatted);
+      });
     }
 
     // 2. Duplicate line on Shift+Alt+D

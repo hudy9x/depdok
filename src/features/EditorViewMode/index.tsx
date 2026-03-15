@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { useAtom, useSetAtom } from "jotai";
 import { Columns2, Code, Eye } from "lucide-react";
 import { viewModeAtom } from "@/stores/EditorStore";

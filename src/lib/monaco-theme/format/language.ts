@@ -30,11 +30,11 @@ export function registerFormatLanguage(monaco: Monaco) {
     tokenizer: {
       // ── Root: between blocks ───────────────────────────────────────────────
       root: [
-        [/^~~~json(:.+)?$/,  { token: 'keyword', next: '@json_block' }],
-        [/^~~~xml(:.+)?$/,   { token: 'keyword', next: '@xml_block'  }],
-        [/^~~~yaml(:.+)?$/, { token: 'keyword', next: '@yaml_block' }],
-        [/^~~~html(:.+)?$/, { token: 'keyword', next: '@html_block' }],
-        [/^~~~\w+(:.+)?$/,  { token: 'keyword', next: '@plain_block' }],
+        [/^~~~json(?:[:\s].*)?$/,  { token: 'keyword', next: '@json_block' }],
+        [/^~~~xml(?:[:\s].*)?$/,   { token: 'keyword', next: '@xml_block'  }],
+        [/^~~~yaml(?:[:\s].*)?$/, { token: 'keyword', next: '@yaml_block' }],
+        [/^~~~html(?:[:\s].*)?$/, { token: 'keyword', next: '@html_block' }],
+        [/^~~~\w+(?:[:\s].*)?$/,  { token: 'keyword', next: '@plain_block' }],
         [/.+/, 'comment'],   // free text between blocks → comment style
       ],
 

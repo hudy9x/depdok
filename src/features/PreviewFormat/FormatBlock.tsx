@@ -1,15 +1,22 @@
 import { useState, useRef } from "react";
-import { ChevronDown, ChevronRight, Copy, Check } from "lucide-react";
+import { ChevronDown, ChevronRight, Copy, Check, Trash, GripVertical } from "lucide-react";
 import { FormatBlockType } from "@/lib/format-parser";
 import { formatBlock } from "@/lib/monaco-actions/format-formatter";
 import { JsonTreeView, YamlTreeView, XmlTreeView } from "./DataTreeView";
+import { Handle, Position } from "@xyflow/react";
 
-interface FormatBlockProps {
+export interface FormatBlockNodeData extends Record<string, unknown> {
   type: FormatBlockType;
   label?: string;
   content: string;
   editable?: boolean;
   onContentChange?: (newContent: string) => void;
+  // Compare specific
+  onDelete?: () => void;
+}
+
+interface FormatBlockProps {
+  data: FormatBlockNodeData;
 }
 
 const BADGE_COLORS: Record<FormatBlockType, string> = {
@@ -30,7 +37,8 @@ function TreeView({ type, content }: { type: FormatBlockType; content: string })
   }
 }
 
-export function FormatBlock({ type, label, content, editable = false, onContentChange }: FormatBlockProps) {
+export function FormatBlock({ data }: FormatBlockProps) {
+  const { type, label, content, editable = false, onContentChange, onDelete } = data;
   const [collapsed, setCollapsed] = useState(false);
   const [copied, setCopied] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -64,31 +72,48 @@ export function FormatBlock({ type, label, content, editable = false, onContentC
   };
 
   return (
-    <div className="rounded-lg border border-border bg-card overflow-hidden">
+    <div className="rounded-lg border border-border bg-card overflow-hidden min-w-[300px] shadow-sm">
+      <Handle type="target" position={Position.Left} className="!w-2.5 !h-6 !rounded-l-full !rounded-r-none !bg-muted-foreground !border-y-2 !border-l-2 !border-r-0 !border-background !-ml-[5px]" />
+
       {/* Header */}
-      <div className="flex items-center gap-2 px-3 py-2 bg-muted/30">
-        {/* Collapse toggle */}
-        <button
-          className="flex items-center gap-2 flex-1 text-left hover:opacity-70 transition-opacity min-w-0"
-          onClick={() => setCollapsed((c) => !c)}
+      <div className="custom-drag-handle flex items-center gap-1.5 px-3 py-2 bg-muted/30 cursor-grab active:cursor-grabbing">
+        {/* Drag Handle */}
+        <div
+          className="shrink-0 flex items-center justify-center -ml-1.5 p-1 rounded hover:bg-muted/50 text-muted-foreground/40 hover:text-muted-foreground transition-colors"
+          title="Drag block"
         >
+          <GripVertical className="w-4 h-4" />
+        </div>
+
+        {/* Block Info */}
+        <div className="flex items-center gap-2 flex-1 min-w-0">
           <span className={`shrink-0 text-[10px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded border ${BADGE_COLORS[type]}`}>
             {type}
           </span>
           {label && (
             <span className="text-xs text-muted-foreground truncate">{label}</span>
           )}
+        </div>
+
+        {/* Collapse toggle */}
+        <button
+          onClick={() => setCollapsed((c) => !c)}
+          className="shrink-0 flex items-center justify-center w-6 h-6 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground nodrag"
+          title={collapsed ? "Expand block" : "Collapse block"}
+        >
           {collapsed ? (
-            <ChevronRight className="shrink-0 ml-auto w-3.5 h-3.5 text-muted-foreground" />
+            <ChevronRight className="w-3.5 h-3.5" />
           ) : (
-            <ChevronDown className="shrink-0 ml-auto w-3.5 h-3.5 text-muted-foreground" />
+            <ChevronDown className="w-3.5 h-3.5" />
           )}
         </button>
+
+
 
         {/* Copy button */}
         <button
           onClick={handleCopy}
-          className="shrink-0 flex items-center justify-center w-6 h-6 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+          className="shrink-0 flex items-center justify-center w-6 h-6 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground nodrag"
           title="Copy content"
         >
           {copied ? (
@@ -97,11 +122,22 @@ export function FormatBlock({ type, label, content, editable = false, onContentC
             <Copy className="w-3.5 h-3.5" />
           )}
         </button>
+
+        {/* Delete button */}
+        {onDelete && (
+          <button
+            onClick={onDelete}
+            className="shrink-0 flex items-center justify-center w-6 h-6 rounded hover:bg-red-500/20 transition-colors text-muted-foreground hover:text-red-500 nodrag"
+            title="Delete block"
+          >
+            <Trash className="w-3.5 h-3.5" />
+          </button>
+        )}
       </div>
 
       {/* Body */}
       {!collapsed && (
-        <div className="border-t border-border bg-accent">
+        <div className="border-t border-border bg-card nodrag">
           {/* Inline input — only in preview-only (editable) mode */}
           {editable && (
             <div className="px-4 pt-3 pb-2 border-b border-border/50">
@@ -130,6 +166,8 @@ export function FormatBlock({ type, label, content, editable = false, onContentC
           )}
         </div>
       )}
+
+      <Handle type="source" position={Position.Right} className="!w-2.5 !h-6 !rounded-r-full !rounded-l-none !bg-muted-foreground !border-y-2 !border-r-2 !border-l-0 !border-background !-mr-[5px]" />
     </div>
   );
 }

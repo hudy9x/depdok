@@ -3,13 +3,14 @@ export type FormatBlockType = "json" | "xml" | "yaml" | "html" | "text";
 export interface FormatBlock {
   type: FormatBlockType;
   label?: string;   // optional name after colon, e.g. ~~~json:my-label
+  metadata?: Record<string, any>; // parsed trailing JSON
   content: string;
   startLine: number; // 1-indexed, line of the opening ~~~type fence
   endLine: number;   // 1-indexed, line of the closing ~~~ fence
 }
 
-// Matches ~~~type or ~~~type:label
-const FENCE_OPEN_RE = /^~~~(\w+)(?::(.+))?\s*$/;
+// Matches ~~~type or ~~~type:label, and optionally trailing { "json": "metadata" }
+const FENCE_OPEN_RE = /^~~~(\w+)(?::([^{]*?))?(?:\s*(\{.*\}))?\s*$/;
 const FENCE_CLOSE_RE = /^~~~\s*$/;
 
 const SUPPORTED_TYPES: FormatBlockType[] = ["json", "xml", "yaml", "html"];
@@ -46,6 +47,15 @@ export function parseFormatFile(content: string): FormatBlock[] {
         ? (rawType as FormatBlockType)
         : "text";
 
+      let metadata: Record<string, any> | undefined;
+      if (openMatch[3]) {
+        try {
+          metadata = JSON.parse(openMatch[3]);
+        } catch {
+          // ignore parsing error
+        }
+      }
+
       const fenceStart = i + 1; // 1-indexed
       flushText(fenceStart - 1);
 
@@ -61,6 +71,7 @@ export function parseFormatFile(content: string): FormatBlock[] {
       blocks.push({
         type,
         label,
+        metadata,
         content: contentLines.join("\n"),
         startLine: fenceStart,
         endLine: fenceEnd,
@@ -109,8 +120,54 @@ export function replaceBlockContent(
 /**
  * Append a new empty block to the file content.
  */
-export function appendBlock(fileContent: string, type: FormatBlockType): string {
+export function appendBlock(fileContent: string, type: FormatBlockType, initialContent: string = "", metadata?: Record<string, any>): string {
   const trimmed = fileContent.trimEnd();
   const separator = trimmed.length > 0 ? "\n\n" : "";
-  return `${trimmed}${separator}~~~${type}\n\n~~~\n`;
+  const contentBody = initialContent ? `${initialContent}\n` : "\n";
+  const metaString = metadata && Object.keys(metadata).length > 0 ? ` ${JSON.stringify(metadata)}` : "";
+  return `${trimmed}${separator}~~~${type}${metaString}\n${contentBody}~~~\n`;
+}
+
+/**
+ * Delete a entire block (including its fences) given its block index.
+ */
+export function deleteBlockContent(
+  fileContent: string,
+  blocks: FormatBlock[],
+  blockIndex: number
+): string {
+  const block = blocks[blockIndex];
+  if (!block || block.type === "text") return fileContent;
+
+  const lines = fileContent.split("\n");
+  const openFenceLine = block.startLine - 1; // 0-indexed
+  const closeFenceLine = block.endLine - 1;  // 0-indexed
+
+  const before = lines.slice(0, openFenceLine);
+  const after = lines.slice(closeFenceLine + 1);
+
+  return [...before, ...after].join("\n");
+}
+
+/**
+ * Update just the metadata of a specific block and return the new string.
+ */
+export function updateBlockMetadata(
+  fileContent: string,
+  blocks: FormatBlock[],
+  blockIndex: number,
+  newMetadata: Record<string, any>
+): string {
+  const block = blocks[blockIndex];
+  if (!block || block.type === "text") return fileContent;
+
+  const lines = fileContent.split("\n");
+  const openFenceLine = block.startLine - 1; // 0-indexed
+
+  const labelPart = block.label ? `:${block.label}` : "";
+  const metaString = Object.keys(newMetadata).length > 0 ? ` ${JSON.stringify(newMetadata)}` : "";
+  
+  lines[openFenceLine] = `~~~${block.type}${labelPart}${metaString}`;
+
+  return lines.join("\n");
 }

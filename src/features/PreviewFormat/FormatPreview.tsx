@@ -12,9 +12,10 @@ import {
   Controls,
   Node,
   Edge,
-  addEdge,
   Connection,
   ReactFlowInstance,
+  getBezierPath,
+  ConnectionLineComponentProps,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { useTheme } from "next-themes";
@@ -31,6 +32,40 @@ const BLOCK_TYPES: { type: FormatBlockType; label: string; icon: React.ReactNode
   { type: "html", label: "HTML", icon: <Code className="w-3.5 h-3.5" />, color: "text-orange-600 dark:text-orange-400 border-orange-500/40 hover:bg-orange-500/10" },
   { type: "yaml", label: "YAML", icon: <Braces className="w-3.5 h-3.5" />, color: "text-purple-600 dark:text-purple-400 border-purple-500/40 hover:bg-purple-500/10" },
 ];
+
+const CustomConnectionLine = ({
+  fromX,
+  fromY,
+  toX,
+  toY,
+  connectionStatus,
+}: ConnectionLineComponentProps) => {
+  const [edgePath] = getBezierPath({
+    sourceX: fromX,
+    sourceY: fromY,
+    targetX: toX,
+    targetY: toY,
+  });
+
+  let strokeClass = "text-muted-foreground";
+  if (connectionStatus === "valid") {
+    strokeClass = "text-emerald-500";
+  } else if (connectionStatus === "invalid") {
+    strokeClass = "text-red-500";
+  }
+
+  return (
+    <g>
+      <path
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={4}
+        className={strokeClass}
+        d={edgePath}
+      />
+    </g>
+  );
+};
 
 const nodeTypes = {
   formatBlock: FormatBlock,
@@ -142,55 +177,39 @@ export function FormatPreview({ content, editable = false, onContentChange }: Fo
   }, [localContent, parsedBlocks, onContentChange]);
 
   const handleDeleteEdge = useCallback((edgeId: string) => {
-    setEdges((eds) => eds.filter(e => e.id !== edgeId));
-  }, [setEdges]);
+    const match = edgeId.match(/e-block-(\d+)-block-(\d+)/);
+    if (!match) return;
+    const sourceIndex = parseInt(match[1]);
+    const targetIndex = parseInt(match[2]);
+    const block = parsedBlocks[sourceIndex];
+    if (!block) return;
+    
+    const connections = (block.metadata?.connections || []).filter((idx: number) => idx !== targetIndex);
+    const newMetadata = { ...block.metadata, connections };
+    if (connections.length === 0) delete newMetadata.connections;
+    
+    const updated = updateBlockMetadata(localContent, parsedBlocks, sourceIndex, newMetadata);
+    setLocalContent(updated);
+    onContentChange?.(updated);
+  }, [localContent, parsedBlocks, onContentChange]);
 
   const handleCompare = useCallback((sourceId: string, targetId: string) => {
-    setEdges((eds) => {
-      const edgeId = `e-${sourceId}-${targetId}`;
-      if (eds.find((e) => e.id === edgeId)) return eds;
-      const newEdge: Edge = {
-        id: edgeId,
-        source: sourceId,
-        target: targetId,
-        type: "compareEdge",
-        animated: true,
-        data: {
-          onDiffClick: () => {
-            setDiffSourceId(sourceId);
-            setDiffTargetId(targetId);
-            setDiffOpen(true);
-          },
-          onDeleteEdge: () => handleDeleteEdge(edgeId),
-        },
-      };
-      return [...eds, newEdge];
-    });
-  }, [setEdges]);
+    const sourceIndex = parseInt(sourceId.replace("block-", ""));
+    const targetIndex = parseInt(targetId.replace("block-", ""));
+    const block = parsedBlocks[sourceIndex];
+    if (!block) return;
+    
+    const connections = Array.from(new Set([...(block.metadata?.connections || []), targetIndex]));
+    const newMetadata = { ...block.metadata, connections };
+    
+    const updated = updateBlockMetadata(localContent, parsedBlocks, sourceIndex, newMetadata);
+    setLocalContent(updated);
+    onContentChange?.(updated);
+  }, [localContent, parsedBlocks, onContentChange]);
 
   const onConnect = useCallback((connection: Connection) => {
-    setEdges((eds) => {
-      const edgeId = `e-${connection.source}-${connection.target}`;
-      if (eds.find((e) => e.id === edgeId)) return eds;
-      return addEdge(
-        {
-          ...connection,
-          id: edgeId,
-          type: "compareEdge",
-          animated: true,
-          data: {
-            onDiffClick: () => {
-              setDiffSourceId(connection.source);
-              setDiffTargetId(connection.target);
-              setDiffOpen(true);
-            },
-            onDeleteEdge: () => handleDeleteEdge(edgeId),
-          },
-        },
-        eds
-      );
-    });
-  }, [setEdges]);
+    handleCompare(connection.source, connection.target);
+  }, [handleCompare]);
 
   const isValidConnection = useCallback(
     (connection: Edge | Connection) => {
@@ -253,7 +272,35 @@ export function FormatPreview({ content, editable = false, onContentChange }: Fo
 
       return newNodes;
     });
-  }, [parsedBlocks, editable, handleBlockContentChange, handleCompare, setNodes]);
+
+    setEdges(() => {
+      const newEdges: Edge[] = [];
+      parsedBlocks.forEach((block, index) => {
+        const connections = block.metadata?.connections;
+        if (Array.isArray(connections)) {
+          connections.forEach((targetIndex: number) => {
+            const edgeId = `e-block-${index}-block-${targetIndex}`;
+            newEdges.push({
+              id: edgeId,
+              source: `block-${index}`,
+              target: `block-${targetIndex}`,
+              type: "compareEdge",
+              animated: true,
+              data: {
+                onDiffClick: () => {
+                  setDiffSourceId(`block-${index}`);
+                  setDiffTargetId(`block-${targetIndex}`);
+                  setDiffOpen(true);
+                },
+                onDeleteEdge: () => handleDeleteEdge(edgeId),
+              },
+            });
+          });
+        }
+      });
+      return newEdges;
+    });
+  }, [parsedBlocks, editable, handleBlockContentChange, handleDeleteBlock, handleDeleteEdge, setNodes, setEdges]);
 
   // Handle Diff dialog content lookup
   const diffSourceBlock = diffSourceId ? parsedBlocks[parseInt(diffSourceId.replace("block-", ""))] : null;
@@ -300,7 +347,7 @@ export function FormatPreview({ content, editable = false, onContentChange }: Fo
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         defaultEdgeOptions={{ style: { strokeWidth: 4 } }}
-        connectionLineStyle={{ strokeWidth: 4 }}
+        connectionLineComponent={CustomConnectionLine}
         fitView
       >
         <Background />

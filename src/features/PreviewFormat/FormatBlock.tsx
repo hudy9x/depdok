@@ -3,7 +3,7 @@ import { ChevronDown, ChevronRight, Copy, Check, Trash, GripVertical } from "luc
 import { FormatBlockType } from "@/lib/format-parser";
 import { formatBlock } from "@/lib/monaco-actions/format-formatter";
 import { JsonTreeView, YamlTreeView, XmlTreeView } from "./DataTreeView";
-import { Handle, Position } from "@xyflow/react";
+import { Handle, Position, useConnection, useNodeId } from "@xyflow/react";
 
 export interface FormatBlockNodeData extends Record<string, unknown> {
   type: FormatBlockType;
@@ -43,6 +43,24 @@ export function FormatBlock({ data }: FormatBlockProps) {
   const [copied, setCopied] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  const nodeId = useNodeId();
+  
+  const connection = useConnection();
+  const connectionNodeId = connection?.inProgress ? connection.fromNode?.id : null;
+  const connectionSourceType = connection?.inProgress ? (connection.fromNode?.data as unknown as FormatBlockNodeData)?.type : null;
+
+  const isConnecting = connection?.inProgress && connectionNodeId !== nodeId;
+  const isConnectableMatch = isConnecting ? connectionSourceType === type : null;
+
+  let highlightClasses = "border-border";
+  if (isConnectableMatch === true) {
+    highlightClasses = "border-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.2)] ring-1 ring-emerald-500/50 transition-all";
+  } else if (isConnectableMatch === false) {
+    highlightClasses = "border-red-500/50 opacity-40 transition-all grayscale duration-300";
+  } else {
+    highlightClasses = "border-border transition-all duration-300";
+  }
+
   if (type === "text") {
     return (
       <p className="text-xs text-muted-foreground px-1 py-0.5 select-none">
@@ -72,7 +90,7 @@ export function FormatBlock({ data }: FormatBlockProps) {
   };
 
   return (
-    <div className="rounded-lg border border-border bg-card overflow-hidden min-w-[300px] shadow-sm">
+    <div className={`rounded-lg border bg-card overflow-hidden min-w-[300px] shadow-sm ${highlightClasses}`}>
       <Handle type="target" position={Position.Left} className="!w-2.5 !h-6 !rounded-l-full !rounded-r-none !bg-muted-foreground !border-y-2 !border-l-2 !border-r-0 !border-background !-ml-[5px]" />
 
       {/* Header */}

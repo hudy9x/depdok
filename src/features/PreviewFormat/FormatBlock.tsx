@@ -1,9 +1,10 @@
-import { useState, useRef } from "react";
-import { ChevronDown, ChevronRight, Copy, Check, Trash, GripVertical } from "lucide-react";
+import { useState } from "react";
+import { ChevronDown, ChevronRight, Copy, Check, Trash, GripVertical, Pencil } from "lucide-react";
 import { FormatBlockType } from "@/lib/format-parser";
 import { formatBlock } from "@/lib/monaco-actions/format-formatter";
 import { JsonTreeView, YamlTreeView, XmlTreeView } from "./DataTreeView";
 import { Handle, Position, useConnection, useNodeId } from "@xyflow/react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 
 export interface FormatBlockNodeData extends Record<string, unknown> {
   type: FormatBlockType;
@@ -41,7 +42,20 @@ export function FormatBlock({ data }: FormatBlockProps) {
   const { type, label, content, editable = false, onContentChange, onDelete } = data;
   const [collapsed, setCollapsed] = useState(false);
   const [copied, setCopied] = useState(false);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editContent, setEditContent] = useState(content);
+
+  const handleEditOpen = (open: boolean) => {
+    setIsEditDialogOpen(open);
+    if (open) {
+      setEditContent(content);
+    }
+  };
+
+  const handleSaveEdit = () => {
+    onContentChange?.(editContent);
+    setIsEditDialogOpen(false);
+  };
 
   const nodeId = useNodeId();
   
@@ -83,12 +97,6 @@ export function FormatBlock({ data }: FormatBlockProps) {
     });
   };
 
-  const handleTextareaInput = (e: React.FormEvent<HTMLTextAreaElement>) => {
-    const el = e.currentTarget;
-    el.style.height = "auto";
-    el.style.height = `${el.scrollHeight}px`;
-  };
-
   return (
     <div className={`rounded-lg border bg-card overflow-hidden min-w-[300px] shadow-sm ${highlightClasses}`}>
       <Handle type="target" position={Position.Left} className="!w-2.5 !h-6 !rounded-l-full !rounded-r-none !bg-muted-foreground !border-y-2 !border-l-2 !border-r-0 !border-background !-ml-[5px]" />
@@ -128,6 +136,46 @@ export function FormatBlock({ data }: FormatBlockProps) {
 
 
 
+        {/* Edit button */}
+        {editable && (
+          <Dialog open={isEditDialogOpen} onOpenChange={handleEditOpen}>
+            <DialogTrigger asChild>
+              <button
+                className="shrink-0 flex items-center justify-center w-6 h-6 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground nodrag"
+                title="Edit raw content"
+              >
+                <Pencil className="w-3.5 h-3.5" />
+              </button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col gap-0 p-0 overflow-hidden nodrag nopan">
+              <DialogHeader className="px-4 py-3 border-b border-border bg-muted/30">
+                <DialogTitle className="text-sm font-medium">Edit {type.toUpperCase()} Block</DialogTitle>
+              </DialogHeader>
+              <textarea
+                value={editContent}
+                placeholder={`Paste or type ${type.toUpperCase()} here…`}
+                onChange={(e) => setEditContent(e.target.value)}
+                className="flex-1 w-full min-h-[400px] p-4 bg-transparent text-sm font-mono text-foreground placeholder:text-muted-foreground/50 outline-none leading-relaxed resize-none"
+                spellCheck={false}
+              />
+              <DialogFooter className="px-4 py-3 border-t border-border bg-muted/30 flex justify-end">
+                <button
+                  onClick={() => setIsEditDialogOpen(false)}
+                  className="px-4 py-1.5 rounded-md text-xs font-medium bg-muted text-muted-foreground hover:text-foreground transition-colors mr-2 w-max"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveEdit}
+                  className="px-4 py-1.5 rounded-md text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors w-max"
+                >
+                  Save Changes
+                </button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        )}
+
         {/* Copy button */}
         <button
           onClick={handleCopy}
@@ -156,22 +204,6 @@ export function FormatBlock({ data }: FormatBlockProps) {
       {/* Body */}
       {!collapsed && (
         <div className="border-t border-border bg-card nodrag">
-          {/* Inline input — only in preview-only (editable) mode */}
-          {editable && (
-            <div className="px-4 pt-3 pb-2 border-b border-border/50">
-              <textarea
-                ref={textareaRef}
-                value={content}
-                placeholder={`Paste or type ${type.toUpperCase()} here…`}
-                onChange={(e) => onContentChange?.(e.target.value)}
-                onInput={handleTextareaInput}
-                rows={1}
-                className="w-full resize-none bg-transparent text-xs font-mono text-foreground placeholder:text-muted-foreground/50 outline-none leading-relaxed overflow-hidden"
-                style={{ minHeight: "24px" }}
-              />
-            </div>
-          )}
-
           {/* Tree view */}
           {content.trim() ? (
             <div className="overflow-auto max-h-[480px] bg-background/50">

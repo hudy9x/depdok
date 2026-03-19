@@ -52,38 +52,41 @@ export function DiffDialog({ open, onOpenChange, title, sourceContent, targetCon
             <ToggleGroupItem value="chars" className="h-6 px-2 text-xs rounded-md">Chars</ToggleGroupItem>
           </ToggleGroup>
         </DialogHeader>
-        <ScrollArea className="flex-1 bg-muted/30 rounded-md border border-border p-4 mt-2">
-          <pre className="text-sm font-mono leading-relaxed whitespace-pre-wrap">
-            {diffResult.map((part, index) => {
-              const bg = part.added
-                ? "bg-emerald-500/10 !text-emerald-600 dark:text-emerald-400"
-                : part.removed
-                  ? "bg-rose-500/10 !text-rose-600 dark:text-rose-400"
-                  : "text-muted-foreground";
+        <div className="flex-1 h-[600px]">
+          <ScrollArea className="flex-1 h-full bg-muted/30 rounded-md border border-border mt-2">
+            <pre className="text-sm font-mono leading-relaxed whitespace-pre-wrap break-words">
+              {diffResult.map((part, index) => {
+                const bg = part.added
+                  ? "bg-emerald-500/10 !text-emerald-600 dark:text-emerald-400"
+                  : part.removed
+                    ? "bg-rose-500/10 !text-rose-600 dark:text-rose-400"
+                    : "text-muted-foreground";
 
-              if (diffMode === 'lines') {
-                const prefix = part.added ? "+ " : part.removed ? "- " : "  ";
-                const lines = part.value.split('\n');
-                if (lines[lines.length - 1] === '') lines.pop();
+                if (diffMode === 'lines') {
+                  const prefix = part.added ? "+ " : part.removed ? "- " : "  ";
+                  const lines = part.value.split('\n');
+                  if (lines[lines.length - 1] === '') lines.pop();
 
+                  return (
+                    <span key={index} className={`block w-full ${bg}`}>
+                      {lines.map((line, i) => (
+                        <span key={i} className="block px-2">{prefix}{line}</span>
+                      ))}
+                    </span>
+                  );
+                }
+
+                // For words and chars, render inline
                 return (
-                  <span key={index} className={`block w-full ${bg}`}>
-                    {lines.map((line, i) => (
-                      <span key={i} className="block px-2">{prefix}{line}</span>
-                    ))}
+                  <span key={index} className={bg}>
+                    {part.value}
                   </span>
                 );
-              }
+              })}
+            </pre>
+          </ScrollArea>
+        </div>
 
-              // For words and chars, render inline
-              return (
-                <span key={index} className={bg}>
-                  {part.value}
-                </span>
-              );
-            })}
-          </pre>
-        </ScrollArea>
       </DialogContent>
     </Dialog>
   );

@@ -2,18 +2,23 @@
 
 ✨ Features
 
-- Remove Monaco editor content update fade-in animations and related styling and utility functions. ([2c4835c](../../commit/2c4835c))
-- Add element highlighting on click and integrate clearing the highlight with popover closure. ([395d28c](../../commit/395d28c))
-- Introduce a markdown outline minimap to visualize document structure and highlight the active heading. ([12aa989](../../commit/12aa989))
+- Create .format extension (#29) ([9cc04ae](../../commit/9cc04ae))
+- Add Homebrew Cask for macOS and PowerShell installer for Windows, updating README with installation instructions. ([6f3806c](../../commit/6f3806c))
 
 ♻️ Refactoring
 
-- Replace custom Excalidraw icon with Lucide SwatchBook component. ([75b2773](../../commit/75b2773))
-- Enhance markdown preview with bottom padding and minimap tooltips for outline items. ([15d8c07](../../commit/15d8c07))
+- Extract editor view mode selection into a new component with an updated button group UI. ([869780a](../../commit/869780a))
+- Refine titlebar and editor tab drag regions. ([d6a3822](../../commit/d6a3822))
+- Enhance PlantUML preview with `beautiful-plantuml` ([a65449e](../../commit/a65449e))
+
+📝 Documentation
+
+- Update repository URL in installation instructions. ([ce3aef2](../../commit/ce3aef2))
 
 🔨 Other Changes
 
-- Upgrade version 0.26.0 ([e4176d0](../../commit/e4176d0))
+- Add recent view at /home page and display active view mode only ([afc5faa](../../commit/afc5faa))
+- Upgrade version 0.28.0 ([6b9c1cf](../../commit/6b9c1cf))
 
 
-📋 Full Changelog: [e4176d0...2c4835c](../../compare/e4176d0...2c4835c)
+📋 Full Changelog: [6b9c1cf...9cc04ae](../../compare/6b9c1cf...9cc04ae)

@@ -3,7 +3,6 @@ import { Braces, Code, FileCode, FileJson } from "lucide-react";
 import { parseFormatFile, appendBlock, replaceBlockContent, deleteBlockContent, updateBlockMetadata, FormatBlockType } from "@/lib/format-parser";
 import { FormatBlock, FormatBlockNodeData } from "./FormatBlock";
 import { CompareEdge } from "./CompareEdge";
-import { DiffDialog } from "./DiffDialog";
 import {
   ReactFlow,
   useNodesState,
@@ -90,10 +89,6 @@ export function FormatPreview({ content, editable = false, onContentChange }: Fo
 
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
-
-  const [diffOpen, setDiffOpen] = useState(false);
-  const [diffSourceId, setDiffSourceId] = useState<string | null>(null);
-  const [diffTargetId, setDiffTargetId] = useState<string | null>(null);
 
   const handleAddBlock = useCallback((type: FormatBlockType, initialContent?: string) => {
     let position = undefined;
@@ -287,11 +282,9 @@ export function FormatPreview({ content, editable = false, onContentChange }: Fo
               type: "compareEdge",
               animated: true,
               data: {
-                onDiffClick: () => {
-                  setDiffSourceId(`block-${index}`);
-                  setDiffTargetId(`block-${targetIndex}`);
-                  setDiffOpen(true);
-                },
+                sourceContent: parsedBlocks[index].content,
+                targetContent: parsedBlocks[targetIndex].content,
+                formatType: parsedBlocks[index].type,
                 onDeleteEdge: () => handleDeleteEdge(edgeId),
               },
             });
@@ -301,10 +294,6 @@ export function FormatPreview({ content, editable = false, onContentChange }: Fo
       return newEdges;
     });
   }, [parsedBlocks, editable, handleBlockContentChange, handleDeleteBlock, handleDeleteEdge, setNodes, setEdges]);
-
-  // Handle Diff dialog content lookup
-  const diffSourceBlock = diffSourceId ? parsedBlocks[parseInt(diffSourceId.replace("block-", ""))] : null;
-  const diffTargetBlock = diffTargetId ? parsedBlocks[parseInt(diffTargetId.replace("block-", ""))] : null;
 
   // Empty state
   if (!hasTypedBlocks) {
@@ -348,6 +337,7 @@ export function FormatPreview({ content, editable = false, onContentChange }: Fo
         edgeTypes={edgeTypes}
         defaultEdgeOptions={{ style: { strokeWidth: 4 } }}
         connectionLineComponent={CustomConnectionLine}
+        panOnScroll={true}
         fitView
       >
         <Background />
@@ -367,15 +357,6 @@ export function FormatPreview({ content, editable = false, onContentChange }: Fo
           </button>
         ))}
       </div>
-
-      <DiffDialog
-        open={diffOpen}
-        onOpenChange={setDiffOpen}
-        title={`Diff: ${diffSourceBlock?.label || diffSourceBlock?.type} vs ${diffTargetBlock?.label || diffTargetBlock?.type}`}
-        sourceContent={diffSourceBlock?.content || ""}
-        targetContent={diffTargetBlock?.content || ""}
-        formatType={diffSourceBlock?.type as FormatBlockType}
-      />
     </div>
   );
 }

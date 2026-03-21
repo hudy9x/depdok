@@ -13,6 +13,8 @@ export interface FormatBlockNodeData extends Record<string, unknown> {
   editable?: boolean;
   onContentChange?: (newContent: string) => void;
   // Compare specific
+  isSource?: boolean;
+  isDestination?: boolean;
   onDelete?: () => void;
 }
 
@@ -58,7 +60,7 @@ export function FormatBlock({ data }: FormatBlockProps) {
   };
 
   const nodeId = useNodeId();
-  
+
   const connection = useConnection();
   const connectionNodeId = connection?.inProgress ? connection.fromNode?.id : null;
   const connectionSourceType = connection?.inProgress ? (connection.fromNode?.data as unknown as FormatBlockNodeData)?.type : null;
@@ -101,6 +103,9 @@ export function FormatBlock({ data }: FormatBlockProps) {
     <div className={`rounded-lg border bg-card overflow-hidden min-w-[300px] shadow-sm ${highlightClasses}`}>
       <Handle type="target" position={Position.Left} className="!w-2.5 !h-6 !rounded-l-full !rounded-r-none !bg-muted-foreground !border-y-2 !border-l-2 !border-r-0 !border-background !-ml-[5px]" />
 
+
+
+
       {/* Header */}
       <div className="custom-drag-handle flex items-center gap-1.5 px-3 py-2 bg-muted/30 cursor-grab active:cursor-grabbing">
         {/* Drag Handle */}
@@ -111,11 +116,29 @@ export function FormatBlock({ data }: FormatBlockProps) {
           <GripVertical className="w-4 h-4" />
         </div>
 
+        {/* Source/Destination Badges */}
+        <div className="absolute -top-7 left-0">
+          {data.isSource && (
+            <span className="shrink-0 text-[10px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded border bg-green-500/20 text-green-600 border-green-500/30">
+              Source
+            </span>
+          )}
+
+          {data.isDestination && (
+            <span className="shrink-0 text-[10px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded border bg-red-500/20 text-red-600 border-red-500/30">
+              Destination
+            </span>
+          )}
+        </div>
+
+
         {/* Block Info */}
         <div className="flex items-center gap-2 flex-1 min-w-0">
           <span className={`shrink-0 text-[10px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded border ${BADGE_COLORS[type]}`}>
             {type}
           </span>
+
+
           {label && (
             <span className="text-xs text-muted-foreground truncate">{label}</span>
           )}

@@ -291,6 +291,15 @@ export function FormatPreview({ content, editable = false, onContentChange }: Fo
   // Sync parsed blocks to React Flow nodes
   useEffect(() => {
     setNodes((currentNodes) => {
+      const destinationIndexes = new Set<number>();
+      parsedBlocks.forEach((block) => {
+        if (Array.isArray(block.metadata?.connections)) {
+          block.metadata.connections.forEach((targetIndex: number) => {
+            destinationIndexes.add(targetIndex);
+          });
+        }
+      });
+
       const newNodes: Node<FormatBlockNodeData>[] = parsedBlocks
         .map((block, index) => {
           if (block.type === "text") return null;
@@ -312,6 +321,8 @@ export function FormatPreview({ content, editable = false, onContentChange }: Fo
               label: block.label,
               content: block.content,
               editable,
+              isSource: Array.isArray(block.metadata?.connections) && block.metadata.connections.length > 0,
+              isDestination: destinationIndexes.has(index),
               onContentChange: (newContent: string) => handleBlockContentChange(index, newContent),
               onDelete: () => handleDeleteBlock(index),
             },

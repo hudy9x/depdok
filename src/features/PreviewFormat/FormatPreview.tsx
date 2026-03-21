@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { Braces, Code, FileCode, FileJson, Loader2 } from "lucide-react";
 import { parseFormatFile, appendBlock, replaceBlockContent, deleteBlockContent, updateBlockMetadata, FormatBlockType } from "@/lib/format-parser";
 import { FormatBlock, FormatBlockNodeData } from "./FormatBlock";
@@ -24,6 +24,7 @@ import { useTheme } from "next-themes";
 interface FormatPreviewProps {
   content: string;
   editable?: boolean;
+  readOnly?: boolean;
   onContentChange?: (newContent: string) => void;
 }
 
@@ -90,17 +91,39 @@ const edgeTypes = {
   compareEdge: CompareEdge,
 };
 
-export function FormatPreview({ content, editable = false, onContentChange }: FormatPreviewProps) {
+export function FormatPreview({ content, editable = false, readOnly = false, onContentChange }: FormatPreviewProps) {
   const { resolvedTheme } = useTheme();
   const [rfInstance, setRfInstance] = useState<ReactFlowInstance | null>(null);
   const [localContent, setLocalContent] = useState(content);
   const [isProcessing, setIsProcessing] = useState(false);
   const [hoverDiffs, setHoverDiffs] = useState<Record<string, {sourceIndex: number; targetIndex: number; x: number; y: number}>>({});
 
-  // Sync from props if external changes arrive
+  // Track content emitted by this component so we can detect round-trips.
+  // When the parent echoes back the same string we just saved, we skip re-syncing
+  // to avoid rebuilding all React Flow nodes unnecessarily (the main lag source).
+  const lastEmittedContent = useRef<string | null>(null);
+
   useEffect(() => {
+    // In readOnly mode always sync (the editor drives the preview one-way).
+    if (readOnly) {
+      setLocalContent(content);
+      return;
+    }
+
+    // Skip if this is simply our own mutation being echoed back by the parent.
+    if (lastEmittedContent.current !== null && content === lastEmittedContent.current) {
+      lastEmittedContent.current = null; // reset so future external changes still land
+      return;
+    }
+
     setLocalContent(content);
-  }, [content]);
+  }, [content, readOnly]);
+
+  // Wrap onContentChange to record what we emit before it travels to the parent.
+  const emitContentChange = useCallback((newContent: string) => {
+    lastEmittedContent.current = newContent;
+    onContentChange?.(newContent);
+  }, [onContentChange]);
 
   const parsedBlocks = useMemo(() => parseFormatFile(localContent), [localContent]);
   const hasTypedBlocks = parsedBlocks.some((b) => b.type !== "text");
@@ -135,10 +158,10 @@ export function FormatPreview({ content, editable = false, onContentChange }: Fo
     setLocalContent(prev => {
       const updated = appendBlock(prev, type, initialContent, position ? { position } : undefined);
       // defer to avoid strict mode double invocation calling `onContentChange` in render
-      setTimeout(() => onContentChange?.(updated), 0);
+      setTimeout(() => emitContentChange(updated), 0);
       return updated;
     });
-  }, [onContentChange, rfInstance]);
+  }, [emitContentChange, rfInstance]);
 
   const handleDrop = useCallback(async (e: React.DragEvent) => {
     e.preventDefault();
@@ -232,14 +255,14 @@ export function FormatPreview({ content, editable = false, onContentChange }: Fo
   const handleBlockContentChange = useCallback((blockIndex: number, newBlockContent: string) => {
     const updated = replaceBlockContent(localContent, parsedBlocks, blockIndex, newBlockContent);
     setLocalContent(updated);
-    onContentChange?.(updated);
-  }, [localContent, parsedBlocks, onContentChange]);
+    emitContentChange(updated);
+  }, [localContent, parsedBlocks, emitContentChange]);
 
   const handleDeleteBlock = useCallback((blockIndex: number) => {
     const updated = deleteBlockContent(localContent, parsedBlocks, blockIndex);
     setLocalContent(updated);
-    onContentChange?.(updated);
-  }, [localContent, parsedBlocks, onContentChange]);
+    emitContentChange(updated);
+  }, [localContent, parsedBlocks, emitContentChange]);
 
   const handleDeleteEdge = useCallback((edgeId: string) => {
     const match = edgeId.match(/e-block-(\d+)-block-(\d+)/);
@@ -255,8 +278,8 @@ export function FormatPreview({ content, editable = false, onContentChange }: Fo
     
     const updated = updateBlockMetadata(localContent, parsedBlocks, sourceIndex, newMetadata);
     setLocalContent(updated);
-    onContentChange?.(updated);
-  }, [localContent, parsedBlocks, onContentChange]);
+    emitContentChange(updated);
+  }, [localContent, parsedBlocks, emitContentChange]);
 
   const handleCompare = useCallback((sourceId: string, targetId: string) => {
     const sourceIndex = parseInt(sourceId.replace("block-", ""));
@@ -269,8 +292,8 @@ export function FormatPreview({ content, editable = false, onContentChange }: Fo
     
     const updated = updateBlockMetadata(localContent, parsedBlocks, sourceIndex, newMetadata);
     setLocalContent(updated);
-    onContentChange?.(updated);
-  }, [localContent, parsedBlocks, onContentChange]);
+    emitContentChange(updated);
+  }, [localContent, parsedBlocks, emitContentChange]);
 
   const onConnect = useCallback((connection: Connection) => {
     handleCompare(connection.source, connection.target);
@@ -365,8 +388,8 @@ export function FormatPreview({ content, editable = false, onContentChange }: Fo
 
     const updated = updateBlockMetadata(localContent, parsedBlocks, blockIndex, newMetadata);
     setLocalContent(updated);
-    onContentChange?.(updated);
-  }, [localContent, parsedBlocks, onContentChange]);
+    emitContentChange(updated);
+  }, [localContent, parsedBlocks, emitContentChange]);
 
   // Sync parsed blocks to React Flow nodes
   useEffect(() => {
@@ -446,25 +469,27 @@ export function FormatPreview({ content, editable = false, onContentChange }: Fo
       <div 
         className="relative w-full h-full flex flex-col items-center justify-center gap-4 px-6 text-center outline-none"
         tabIndex={0}
-        onDrop={handleDrop}
-        onDragOver={handleDragOver}
+        onDrop={readOnly ? undefined : handleDrop}
+        onDragOver={readOnly ? undefined : handleDragOver}
       >
         <p className="text-sm text-muted-foreground">
           No blocks yet. Add a section to get started.
         </p>
-        <div className="flex items-center gap-2 flex-wrap justify-center">
-          {BLOCK_TYPES.map(({ type, label, icon, color }) => (
-            <Button
-              key={type}
-              variant="outline"
-              onClick={() => handleAddBlock(type)}
-              className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors ${color}`}
-            >
-              {icon}
-              {label}
-            </Button>
-          ))}
-        </div>
+        {!readOnly && (
+          <div className="flex items-center gap-2 flex-wrap justify-center">
+            {BLOCK_TYPES.map(({ type, label, icon, color }) => (
+              <Button
+                key={type}
+                variant="outline"
+                onClick={() => handleAddBlock(type)}
+                className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors ${color}`}
+              >
+                {icon}
+                {label}
+              </Button>
+            ))}
+          </div>
+        )}
         <p className="text-xs text-muted-foreground/60">
           Or type <code className="px-1 rounded bg-muted">~~~json</code> directly in the editor
         </p>
@@ -482,8 +507,8 @@ export function FormatPreview({ content, editable = false, onContentChange }: Fo
     <div 
       className="relative w-full h-full bg-muted outline-none" 
       tabIndex={0}
-      onDrop={handleDrop}
-      onDragOver={handleDragOver}
+      onDrop={readOnly ? undefined : handleDrop}
+      onDragOver={readOnly ? undefined : handleDragOver}
     >
       <ReactFlow
         colorMode={resolvedTheme === "dark" ? "dark" : "light"}
@@ -511,9 +536,12 @@ export function FormatPreview({ content, editable = false, onContentChange }: Fo
         onInit={setRfInstance}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
-        onNodeDragStop={onNodeDragStop}
-        onConnect={onConnect}
-        isValidConnection={isValidConnection}
+        onNodeDragStop={readOnly ? undefined : onNodeDragStop}
+        onConnect={readOnly ? undefined : onConnect}
+        isValidConnection={readOnly ? undefined : isValidConnection}
+        nodesDraggable={!readOnly}
+        nodesConnectable={!readOnly}
+        edgesReconnectable={!readOnly}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         defaultEdgeOptions={{ style: { strokeWidth: 4 } }}
@@ -525,20 +553,22 @@ export function FormatPreview({ content, editable = false, onContentChange }: Fo
         <Controls position="bottom-right" />
       </ReactFlow>
 
-      {/* Add section buttons — absolutely pinned to bottom */}
-      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-2 bg-background/80 backdrop-blur rounded-md border border-border shadow-lg z-50">
-        {BLOCK_TYPES.map(({ type, label, icon, color }) => (
-          <Button
-            key={type}
-            variant="outline"
-            onClick={() => handleAddBlock(type)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors ${color}`}
-          >
-            {icon}
-            {label}
-          </Button>
-        ))}
-      </div>
+      {/* Add section buttons — show only when interactive */}
+      {!readOnly && (
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-2 bg-background/80 backdrop-blur rounded-md border border-border shadow-lg z-50">
+          {BLOCK_TYPES.map(({ type, label, icon, color }) => (
+            <Button
+              key={type}
+              variant="outline"
+              onClick={() => handleAddBlock(type)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors ${color}`}
+            >
+              {icon}
+              {label}
+            </Button>
+          ))}
+        </div>
+      )}
 
       {isProcessing && (
         <div className="absolute inset-0 z-[100] flex flex-col items-center justify-center bg-background/50 backdrop-blur-sm">

@@ -1,8 +1,9 @@
 import { useState, useCallback, useEffect, useMemo } from "react";
-import { Braces, Code, FileCode, FileJson } from "lucide-react";
+import { Braces, Code, FileCode, FileJson, Loader2 } from "lucide-react";
 import { parseFormatFile, appendBlock, replaceBlockContent, deleteBlockContent, updateBlockMetadata, FormatBlockType } from "@/lib/format-parser";
 import { FormatBlock, FormatBlockNodeData } from "./FormatBlock";
 import { CompareEdge } from "./CompareEdge";
+import { Button } from "@/components/ui/button";
 import {
   ReactFlow,
   useNodesState,
@@ -78,6 +79,7 @@ export function FormatPreview({ content, editable = false, onContentChange }: Fo
   const { resolvedTheme } = useTheme();
   const [rfInstance, setRfInstance] = useState<ReactFlowInstance | null>(null);
   const [localContent, setLocalContent] = useState(content);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   // Sync from props if external changes arrive
   useEffect(() => {
@@ -90,7 +92,7 @@ export function FormatPreview({ content, editable = false, onContentChange }: Fo
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
 
-  const handleAddBlock = useCallback((type: FormatBlockType, initialContent?: string) => {
+  const handleAddBlock = useCallback((type: FormatBlockType, initialContent?: string, offsetIndex = 0) => {
     let position = undefined;
     if (rfInstance) {
       // Get the center of the ReactFlow container
@@ -105,16 +107,63 @@ export function FormatPreview({ content, editable = false, onContentChange }: Fo
         // Offset slightly so it spawns roughly in the middle, assuming block is ~300x200
         position.x -= 150;
         position.y -= 100;
+        
+        position.x += offsetIndex * 50;
+        position.y += offsetIndex * 50;
 
         position.x = Math.round(position.x);
         position.y = Math.round(position.y);
       }
     }
 
-    const updated = appendBlock(localContent, type, initialContent, position ? { position } : undefined);
-    setLocalContent(updated);
-    onContentChange?.(updated);
-  }, [localContent, onContentChange, rfInstance]);
+    setLocalContent(prev => {
+      const updated = appendBlock(prev, type, initialContent, position ? { position } : undefined);
+      // defer to avoid strict mode double invocation calling `onContentChange` in render
+      setTimeout(() => onContentChange?.(updated), 0);
+      return updated;
+    });
+  }, [onContentChange, rfInstance]);
+
+  const handleDrop = useCallback(async (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsProcessing(true);
+    
+    try {
+      const files = Array.from(e.dataTransfer.files);
+      let addedCount = 0;
+      
+      for (const file of files) {
+        const ext = file.name.split('.').pop()?.toLowerCase();
+        if (!ext) continue;
+        
+        let detectedType: FormatBlockType | null = null;
+        if (ext === 'json') detectedType = 'json';
+        else if (ext === 'xml') detectedType = 'xml';
+        else if (ext === 'html' || ext === 'htm') detectedType = 'html';
+        else if (ext === 'yaml' || ext === 'yml') detectedType = 'yaml';
+        
+        if (detectedType) {
+          const text = await file.text();
+          // allow ui to render loading state and sequence block generation safely
+          await new Promise<void>(resolve => {
+            setTimeout(() => {
+              handleAddBlock(detectedType!, text, addedCount);
+              addedCount++;
+              resolve();
+            }, 20);
+          });
+        }
+      }
+      
+      await new Promise(r => setTimeout(r, 300));
+    } finally {
+      setIsProcessing(false);
+    }
+  }, [handleAddBlock]);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+  }, []);
 
   const handlePaste = useCallback((e: React.ClipboardEvent | ClipboardEvent) => {
     // Check if the user is typing inside an input/textarea
@@ -148,7 +197,12 @@ export function FormatPreview({ content, editable = false, onContentChange }: Fo
 
     if (detectedType) {
       e.preventDefault();
-      handleAddBlock(detectedType, text);
+      setIsProcessing(true);
+      setTimeout(async () => {
+        handleAddBlock(detectedType!, text);
+        await new Promise(r => setTimeout(r, 300));
+        setIsProcessing(false);
+      }, 20);
     }
   }, [handleAddBlock]);
 
@@ -298,31 +352,48 @@ export function FormatPreview({ content, editable = false, onContentChange }: Fo
   // Empty state
   if (!hasTypedBlocks) {
     return (
-      <div className="w-full h-full flex flex-col items-center justify-center gap-4 px-6 text-center">
+      <div 
+        className="relative w-full h-full flex flex-col items-center justify-center gap-4 px-6 text-center outline-none"
+        tabIndex={0}
+        onDrop={handleDrop}
+        onDragOver={handleDragOver}
+      >
         <p className="text-sm text-muted-foreground">
           No blocks yet. Add a section to get started.
         </p>
         <div className="flex items-center gap-2 flex-wrap justify-center">
           {BLOCK_TYPES.map(({ type, label, icon, color }) => (
-            <button
+            <Button
               key={type}
+              variant="outline"
               onClick={() => handleAddBlock(type)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${color}`}
+              className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors ${color}`}
             >
               {icon}
               {label}
-            </button>
+            </Button>
           ))}
         </div>
         <p className="text-xs text-muted-foreground/60">
           Or type <code className="px-1 rounded bg-muted">~~~json</code> directly in the editor
         </p>
+        
+        {isProcessing && (
+          <div className="absolute inset-0 z-[100] flex flex-col items-center justify-center bg-background/50 backdrop-blur-sm">
+            <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          </div>
+        )}
       </div>
     );
   }
 
   return (
-    <div className="relative w-full h-full bg-muted outline-none" tabIndex={0}>
+    <div 
+      className="relative w-full h-full bg-muted outline-none" 
+      tabIndex={0}
+      onDrop={handleDrop}
+      onDragOver={handleDragOver}
+    >
       <ReactFlow
         colorMode={resolvedTheme === "dark" ? "dark" : "light"}
         nodes={nodes}
@@ -345,18 +416,25 @@ export function FormatPreview({ content, editable = false, onContentChange }: Fo
       </ReactFlow>
 
       {/* Add section buttons — absolutely pinned to bottom */}
-      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-2 bg-background/80 backdrop-blur rounded-full border border-border shadow-lg z-50">
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-2 bg-background/80 backdrop-blur rounded-md border border-border shadow-lg z-50">
         {BLOCK_TYPES.map(({ type, label, icon, color }) => (
-          <button
+          <Button
             key={type}
+            variant="outline"
             onClick={() => handleAddBlock(type)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium transition-colors ${color}`}
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors ${color}`}
           >
             {icon}
             {label}
-          </button>
+          </Button>
         ))}
       </div>
+
+      {isProcessing && (
+        <div className="absolute inset-0 z-[100] flex flex-col items-center justify-center bg-background/50 backdrop-blur-sm">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      )}
     </div>
   );
 }

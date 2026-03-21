@@ -23,10 +23,6 @@ export function SideBySide({ initialContent, enableFileWatcher = false, lineNumb
 
   const handleEditorChange = useCallback((newContent: string) => {
     setContent(newContent);
-  }, []);
-
-  const handlePreviewChange = useCallback((newContent: string) => {
-    setContent(newContent);
     handleAutoSave(newContent);
   }, [handleAutoSave]);
 
@@ -50,8 +46,7 @@ export function SideBySide({ initialContent, enableFileWatcher = false, lineNumb
         <PreviewPanel
           content={content}
           fileExtension={editorState.fileExtension}
-          editable={true} // Allow editing in side-by-side
-          onContentChange={handlePreviewChange}
+          readOnly={true}
         />
       </Panel>
     </PanelGroup>

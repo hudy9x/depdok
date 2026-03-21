@@ -12,7 +12,9 @@ export interface FormatBlockNodeData extends Record<string, unknown> {
   content: string;
   editable?: boolean;
   onContentChange?: (newContent: string) => void;
-  // Compare specific
+  isSource?: boolean;
+  isDestination?: boolean;
+  isHoverTarget?: boolean;
   onDelete?: () => void;
 }
 
@@ -58,7 +60,7 @@ export function FormatBlock({ data }: FormatBlockProps) {
   };
 
   const nodeId = useNodeId();
-  
+
   const connection = useConnection();
   const connectionNodeId = connection?.inProgress ? connection.fromNode?.id : null;
   const connectionSourceType = connection?.inProgress ? (connection.fromNode?.data as unknown as FormatBlockNodeData)?.type : null;
@@ -66,13 +68,13 @@ export function FormatBlock({ data }: FormatBlockProps) {
   const isConnecting = connection?.inProgress && connectionNodeId !== nodeId;
   const isConnectableMatch = isConnecting ? connectionSourceType === type : null;
 
-  let highlightClasses = "border-border";
+  let highlightClasses = "border-border transition-all duration-300";
   if (isConnectableMatch === true) {
     highlightClasses = "border-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.2)] ring-1 ring-emerald-500/50 transition-all";
   } else if (isConnectableMatch === false) {
     highlightClasses = "border-red-500/50 opacity-40 transition-all grayscale duration-300";
-  } else {
-    highlightClasses = "border-border transition-all duration-300";
+  } else if (data.isHoverTarget) {
+    highlightClasses = "border-red-500/70 shadow-[0_0_15px_rgba(239,68,68,0.15)] ring-1 ring-red-500/30 transition-all duration-300";
   }
 
   if (type === "text") {
@@ -101,6 +103,9 @@ export function FormatBlock({ data }: FormatBlockProps) {
     <div className={`rounded-lg border bg-card overflow-hidden min-w-[300px] shadow-sm ${highlightClasses}`}>
       <Handle type="target" position={Position.Left} className="!w-2.5 !h-6 !rounded-l-full !rounded-r-none !bg-muted-foreground !border-y-2 !border-l-2 !border-r-0 !border-background !-ml-[5px]" />
 
+
+
+
       {/* Header */}
       <div className="custom-drag-handle flex items-center gap-1.5 px-3 py-2 bg-muted/30 cursor-grab active:cursor-grabbing">
         {/* Drag Handle */}
@@ -111,11 +116,29 @@ export function FormatBlock({ data }: FormatBlockProps) {
           <GripVertical className="w-4 h-4" />
         </div>
 
+        {/* Source/Destination Badges */}
+        <div className="absolute -top-7 left-0">
+          {data.isSource && (
+            <span className="shrink-0 text-[10px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded border bg-green-500/20 text-green-600 border-green-500/30">
+              Source
+            </span>
+          )}
+
+          {data.isDestination && (
+            <span className="shrink-0 text-[10px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded border bg-red-500/20 text-red-600 border-red-500/30">
+              Destination
+            </span>
+          )}
+        </div>
+
+
         {/* Block Info */}
         <div className="flex items-center gap-2 flex-1 min-w-0">
           <span className={`shrink-0 text-[10px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded border ${BADGE_COLORS[type]}`}>
             {type}
           </span>
+
+
           {label && (
             <span className="text-xs text-muted-foreground truncate">{label}</span>
           )}

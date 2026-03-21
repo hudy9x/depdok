@@ -11,6 +11,7 @@ interface PreviewPanelProps {
   fileExtension: string | null;
   filePath?: string;
   editable?: boolean;
+  readOnly?: boolean;
   onContentChange?: (content: string) => void;
 }
 
@@ -21,6 +22,7 @@ export function PreviewPanel({
   fileExtension,
   filePath,
   editable = false,
+  readOnly = false,
   onContentChange
 }: PreviewPanelProps) {
 
@@ -71,7 +73,7 @@ export function PreviewPanel({
   }
 
   if (fileExtension === "format") {
-    return <FormatPreview content={content} editable={editable} onContentChange={onContentChange} />;
+    return <FormatPreview content={content} editable={editable} readOnly={readOnly} onContentChange={onContentChange} />;
   }
 
   return (

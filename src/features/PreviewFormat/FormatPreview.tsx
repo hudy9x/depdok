@@ -1,8 +1,10 @@
-import { useState, useCallback, useEffect, useMemo } from "react";
-import { Braces, Code, FileCode, FileJson } from "lucide-react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
+import { Braces, Code, FileCode, FileJson, Loader2 } from "lucide-react";
 import { parseFormatFile, appendBlock, replaceBlockContent, deleteBlockContent, updateBlockMetadata, FormatBlockType } from "@/lib/format-parser";
 import { FormatBlock, FormatBlockNodeData } from "./FormatBlock";
 import { CompareEdge } from "./CompareEdge";
+import { Button } from "@/components/ui/button";
+import { DiffViewer } from "./DiffViewer";
 import {
   ReactFlow,
   useNodesState,
@@ -22,6 +24,7 @@ import { useTheme } from "next-themes";
 interface FormatPreviewProps {
   content: string;
   editable?: boolean;
+  readOnly?: boolean;
   onContentChange?: (newContent: string) => void;
 }
 
@@ -66,23 +69,61 @@ const CustomConnectionLine = ({
   );
 };
 
+const HoverDiffNode = ({ data }: any) => {
+  return (
+    <div className="w-[500px] pointer-events-none opacity-95 transition-opacity select-none shadow-2xl">
+      <DiffViewer 
+        sourceContent={data.sourceContent} 
+        targetContent={data.targetContent} 
+        formatType={data.formatType} 
+        title="Live Diff Preview"
+      />
+    </div>
+  );
+};
+
 const nodeTypes = {
   formatBlock: FormatBlock,
+  hoverDiffNode: HoverDiffNode,
 };
 
 const edgeTypes = {
   compareEdge: CompareEdge,
 };
 
-export function FormatPreview({ content, editable = false, onContentChange }: FormatPreviewProps) {
+export function FormatPreview({ content, editable = false, readOnly = false, onContentChange }: FormatPreviewProps) {
   const { resolvedTheme } = useTheme();
   const [rfInstance, setRfInstance] = useState<ReactFlowInstance | null>(null);
   const [localContent, setLocalContent] = useState(content);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [hoverDiffs, setHoverDiffs] = useState<Record<string, {sourceIndex: number; targetIndex: number; x: number; y: number}>>({});
 
-  // Sync from props if external changes arrive
+  // Track content emitted by this component so we can detect round-trips.
+  // When the parent echoes back the same string we just saved, we skip re-syncing
+  // to avoid rebuilding all React Flow nodes unnecessarily (the main lag source).
+  const lastEmittedContent = useRef<string | null>(null);
+
   useEffect(() => {
+    // In readOnly mode always sync (the editor drives the preview one-way).
+    if (readOnly) {
+      setLocalContent(content);
+      return;
+    }
+
+    // Skip if this is simply our own mutation being echoed back by the parent.
+    if (lastEmittedContent.current !== null && content === lastEmittedContent.current) {
+      lastEmittedContent.current = null; // reset so future external changes still land
+      return;
+    }
+
     setLocalContent(content);
-  }, [content]);
+  }, [content, readOnly]);
+
+  // Wrap onContentChange to record what we emit before it travels to the parent.
+  const emitContentChange = useCallback((newContent: string) => {
+    lastEmittedContent.current = newContent;
+    onContentChange?.(newContent);
+  }, [onContentChange]);
 
   const parsedBlocks = useMemo(() => parseFormatFile(localContent), [localContent]);
   const hasTypedBlocks = parsedBlocks.some((b) => b.type !== "text");
@@ -90,7 +131,7 @@ export function FormatPreview({ content, editable = false, onContentChange }: Fo
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
 
-  const handleAddBlock = useCallback((type: FormatBlockType, initialContent?: string) => {
+  const handleAddBlock = useCallback((type: FormatBlockType, initialContent?: string, offsetIndex = 0) => {
     let position = undefined;
     if (rfInstance) {
       // Get the center of the ReactFlow container
@@ -105,16 +146,63 @@ export function FormatPreview({ content, editable = false, onContentChange }: Fo
         // Offset slightly so it spawns roughly in the middle, assuming block is ~300x200
         position.x -= 150;
         position.y -= 100;
+        
+        position.x += offsetIndex * 50;
+        position.y += offsetIndex * 50;
 
         position.x = Math.round(position.x);
         position.y = Math.round(position.y);
       }
     }
 
-    const updated = appendBlock(localContent, type, initialContent, position ? { position } : undefined);
-    setLocalContent(updated);
-    onContentChange?.(updated);
-  }, [localContent, onContentChange, rfInstance]);
+    setLocalContent(prev => {
+      const updated = appendBlock(prev, type, initialContent, position ? { position } : undefined);
+      // defer to avoid strict mode double invocation calling `onContentChange` in render
+      setTimeout(() => emitContentChange(updated), 0);
+      return updated;
+    });
+  }, [emitContentChange, rfInstance]);
+
+  const handleDrop = useCallback(async (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsProcessing(true);
+    
+    try {
+      const files = Array.from(e.dataTransfer.files);
+      let addedCount = 0;
+      
+      for (const file of files) {
+        const ext = file.name.split('.').pop()?.toLowerCase();
+        if (!ext) continue;
+        
+        let detectedType: FormatBlockType | null = null;
+        if (ext === 'json') detectedType = 'json';
+        else if (ext === 'xml') detectedType = 'xml';
+        else if (ext === 'html' || ext === 'htm') detectedType = 'html';
+        else if (ext === 'yaml' || ext === 'yml') detectedType = 'yaml';
+        
+        if (detectedType) {
+          const text = await file.text();
+          // allow ui to render loading state and sequence block generation safely
+          await new Promise<void>(resolve => {
+            setTimeout(() => {
+              handleAddBlock(detectedType!, text, addedCount);
+              addedCount++;
+              resolve();
+            }, 20);
+          });
+        }
+      }
+      
+      await new Promise(r => setTimeout(r, 300));
+    } finally {
+      setIsProcessing(false);
+    }
+  }, [handleAddBlock]);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+  }, []);
 
   const handlePaste = useCallback((e: React.ClipboardEvent | ClipboardEvent) => {
     // Check if the user is typing inside an input/textarea
@@ -148,7 +236,12 @@ export function FormatPreview({ content, editable = false, onContentChange }: Fo
 
     if (detectedType) {
       e.preventDefault();
-      handleAddBlock(detectedType, text);
+      setIsProcessing(true);
+      setTimeout(async () => {
+        handleAddBlock(detectedType!, text);
+        await new Promise(r => setTimeout(r, 300));
+        setIsProcessing(false);
+      }, 20);
     }
   }, [handleAddBlock]);
 
@@ -162,14 +255,14 @@ export function FormatPreview({ content, editable = false, onContentChange }: Fo
   const handleBlockContentChange = useCallback((blockIndex: number, newBlockContent: string) => {
     const updated = replaceBlockContent(localContent, parsedBlocks, blockIndex, newBlockContent);
     setLocalContent(updated);
-    onContentChange?.(updated);
-  }, [localContent, parsedBlocks, onContentChange]);
+    emitContentChange(updated);
+  }, [localContent, parsedBlocks, emitContentChange]);
 
   const handleDeleteBlock = useCallback((blockIndex: number) => {
     const updated = deleteBlockContent(localContent, parsedBlocks, blockIndex);
     setLocalContent(updated);
-    onContentChange?.(updated);
-  }, [localContent, parsedBlocks, onContentChange]);
+    emitContentChange(updated);
+  }, [localContent, parsedBlocks, emitContentChange]);
 
   const handleDeleteEdge = useCallback((edgeId: string) => {
     const match = edgeId.match(/e-block-(\d+)-block-(\d+)/);
@@ -185,8 +278,8 @@ export function FormatPreview({ content, editable = false, onContentChange }: Fo
     
     const updated = updateBlockMetadata(localContent, parsedBlocks, sourceIndex, newMetadata);
     setLocalContent(updated);
-    onContentChange?.(updated);
-  }, [localContent, parsedBlocks, onContentChange]);
+    emitContentChange(updated);
+  }, [localContent, parsedBlocks, emitContentChange]);
 
   const handleCompare = useCallback((sourceId: string, targetId: string) => {
     const sourceIndex = parseInt(sourceId.replace("block-", ""));
@@ -199,8 +292,8 @@ export function FormatPreview({ content, editable = false, onContentChange }: Fo
     
     const updated = updateBlockMetadata(localContent, parsedBlocks, sourceIndex, newMetadata);
     setLocalContent(updated);
-    onContentChange?.(updated);
-  }, [localContent, parsedBlocks, onContentChange]);
+    emitContentChange(updated);
+  }, [localContent, parsedBlocks, emitContentChange]);
 
   const onConnect = useCallback((connection: Connection) => {
     handleCompare(connection.source, connection.target);
@@ -217,6 +310,70 @@ export function FormatPreview({ content, editable = false, onContentChange }: Fo
     [nodes]
   );
 
+  // Compute and persist overlapping blocks as preview diffs dynamically
+  useEffect(() => {
+    if (!rfInstance || nodes.length === 0) return;
+    
+    // Only process overlaps once nodes have properly mounted dimensions
+    const allMeasured = nodes.every(n => n.measured && (n.measured.width || n.measured.height));
+    if (!allMeasured) return;
+
+    const newDiffs: Record<string, {sourceIndex: number, targetIndex: number, x: number, y: number}> = {};
+    const newHoverTargetIds = new Set<string>();
+
+    nodes.forEach(node => {
+      // Find intersections
+      const intersections = rfInstance.getIntersectingNodes(node);
+      const targetNode = intersections.find(n => n.type === 'formatBlock' && n.id !== node.id && n.id > node.id);
+      
+      if (targetNode) {
+        const sourceIndex = parseInt(node.id.replace('block-', ''));
+        const targetIndex = parseInt(targetNode.id.replace('block-', ''));
+        
+        const sourceBlock = parsedBlocks[sourceIndex];
+        const targetBlock = parsedBlocks[targetIndex];
+        
+        if (sourceBlock && targetBlock && sourceBlock.type === targetBlock.type && sourceBlock.type !== 'text') {
+           const minX = Math.min(targetNode.position.x, node.position.x) - 520;
+           const minY = Math.min(targetNode.position.y, node.position.y);
+           const diffId = `hover-${node.id}-${targetNode.id}`;
+           newDiffs[diffId] = { sourceIndex, targetIndex, x: minX, y: minY };
+           
+           newHoverTargetIds.add(targetNode.id);
+           newHoverTargetIds.add(node.id);
+        }
+      }
+    });
+
+    setHoverDiffs(prev => {
+       const nextKeys = Object.keys(newDiffs);
+       const prevKeys = Object.keys(prev);
+       if (prevKeys.length !== nextKeys.length) return newDiffs;
+       
+       for (const k of nextKeys) {
+         if (!prev[k] || prev[k].x !== newDiffs[k].x || prev[k].y !== newDiffs[k].y || prev[k].sourceIndex !== newDiffs[k].sourceIndex || prev[k].targetIndex !== newDiffs[k].targetIndex) {
+            return newDiffs;
+         }
+       }
+       return prev;
+    });
+
+    // Safely update specific nodes with hover highlights
+    setNodes((nds) => {
+       let changed = false;
+       const nextNds = nds.map(n => {
+          const isTarget = newHoverTargetIds.has(n.id);
+          if (n.data.isHoverTarget !== isTarget) {
+             changed = true;
+             return { ...n, data: { ...n.data, isHoverTarget: isTarget } };
+          }
+          return n;
+       });
+       return changed ? nextNds : nds;
+    });
+
+  }, [rfInstance, nodes, parsedBlocks, setNodes]);
+
   // Handle drag stop to save node position
   const onNodeDragStop = useCallback((_event: React.MouseEvent, node: Node) => {
     const blockIndex = parseInt(node.id.replace("block-", ""));
@@ -231,12 +388,21 @@ export function FormatPreview({ content, editable = false, onContentChange }: Fo
 
     const updated = updateBlockMetadata(localContent, parsedBlocks, blockIndex, newMetadata);
     setLocalContent(updated);
-    onContentChange?.(updated);
-  }, [localContent, parsedBlocks, onContentChange]);
+    emitContentChange(updated);
+  }, [localContent, parsedBlocks, emitContentChange]);
 
   // Sync parsed blocks to React Flow nodes
   useEffect(() => {
     setNodes((currentNodes) => {
+      const destinationIndexes = new Set<number>();
+      parsedBlocks.forEach((block) => {
+        if (Array.isArray(block.metadata?.connections)) {
+          block.metadata.connections.forEach((targetIndex: number) => {
+            destinationIndexes.add(targetIndex);
+          });
+        }
+      });
+
       const newNodes: Node<FormatBlockNodeData>[] = parsedBlocks
         .map((block, index) => {
           if (block.type === "text") return null;
@@ -258,6 +424,8 @@ export function FormatPreview({ content, editable = false, onContentChange }: Fo
               label: block.label,
               content: block.content,
               editable,
+              isSource: Array.isArray(block.metadata?.connections) && block.metadata.connections.length > 0,
+              isDestination: destinationIndexes.has(index),
               onContentChange: (newContent: string) => handleBlockContentChange(index, newContent),
               onDelete: () => handleDeleteBlock(index),
             },
@@ -298,41 +466,82 @@ export function FormatPreview({ content, editable = false, onContentChange }: Fo
   // Empty state
   if (!hasTypedBlocks) {
     return (
-      <div className="w-full h-full flex flex-col items-center justify-center gap-4 px-6 text-center">
+      <div 
+        className="relative w-full h-full flex flex-col items-center justify-center gap-4 px-6 text-center outline-none"
+        tabIndex={0}
+        onDrop={readOnly ? undefined : handleDrop}
+        onDragOver={readOnly ? undefined : handleDragOver}
+      >
         <p className="text-sm text-muted-foreground">
           No blocks yet. Add a section to get started.
         </p>
-        <div className="flex items-center gap-2 flex-wrap justify-center">
-          {BLOCK_TYPES.map(({ type, label, icon, color }) => (
-            <button
-              key={type}
-              onClick={() => handleAddBlock(type)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${color}`}
-            >
-              {icon}
-              {label}
-            </button>
-          ))}
-        </div>
+        {!readOnly && (
+          <div className="flex items-center gap-2 flex-wrap justify-center">
+            {BLOCK_TYPES.map(({ type, label, icon, color }) => (
+              <Button
+                key={type}
+                variant="outline"
+                onClick={() => handleAddBlock(type)}
+                className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors ${color}`}
+              >
+                {icon}
+                {label}
+              </Button>
+            ))}
+          </div>
+        )}
         <p className="text-xs text-muted-foreground/60">
           Or type <code className="px-1 rounded bg-muted">~~~json</code> directly in the editor
         </p>
+        
+        {isProcessing && (
+          <div className="absolute inset-0 z-[100] flex flex-col items-center justify-center bg-background/50 backdrop-blur-sm">
+            <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          </div>
+        )}
       </div>
     );
   }
 
   return (
-    <div className="relative w-full h-full bg-muted outline-none" tabIndex={0}>
+    <div 
+      className="relative w-full h-full bg-muted outline-none" 
+      tabIndex={0}
+      onDrop={readOnly ? undefined : handleDrop}
+      onDragOver={readOnly ? undefined : handleDragOver}
+    >
       <ReactFlow
         colorMode={resolvedTheme === "dark" ? "dark" : "light"}
-        nodes={nodes}
+        nodes={[
+          ...nodes,
+          ...Object.entries(hoverDiffs).map(([diffId, diff]) => {
+            const hasValidity = parsedBlocks[diff.sourceIndex] && parsedBlocks[diff.targetIndex];
+            if (!hasValidity) return undefined;
+            return {
+              id: diffId,
+              type: 'hoverDiffNode',
+              position: { x: diff.x, y: diff.y },
+              data: {
+                sourceContent: parsedBlocks[diff.sourceIndex].content,
+                targetContent: parsedBlocks[diff.targetIndex].content,
+                formatType: parsedBlocks[diff.sourceIndex].type,
+              },
+              draggable: false,
+              selectable: false,
+              zIndex: 1000,
+            };
+          }).filter(Boolean) as Node[]
+        ]}
         edges={edges}
         onInit={setRfInstance}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
-        onNodeDragStop={onNodeDragStop}
-        onConnect={onConnect}
-        isValidConnection={isValidConnection}
+        onNodeDragStop={readOnly ? undefined : onNodeDragStop}
+        onConnect={readOnly ? undefined : onConnect}
+        isValidConnection={readOnly ? undefined : isValidConnection}
+        nodesDraggable={!readOnly}
+        nodesConnectable={!readOnly}
+        edgesReconnectable={!readOnly}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         defaultEdgeOptions={{ style: { strokeWidth: 4 } }}
@@ -344,19 +553,28 @@ export function FormatPreview({ content, editable = false, onContentChange }: Fo
         <Controls position="bottom-right" />
       </ReactFlow>
 
-      {/* Add section buttons — absolutely pinned to bottom */}
-      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-2 bg-background/80 backdrop-blur rounded-full border border-border shadow-lg z-50">
-        {BLOCK_TYPES.map(({ type, label, icon, color }) => (
-          <button
-            key={type}
-            onClick={() => handleAddBlock(type)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium transition-colors ${color}`}
-          >
-            {icon}
-            {label}
-          </button>
-        ))}
-      </div>
+      {/* Add section buttons — show only when interactive */}
+      {!readOnly && (
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-2 bg-background/80 backdrop-blur rounded-md border border-border shadow-lg z-50">
+          {BLOCK_TYPES.map(({ type, label, icon, color }) => (
+            <Button
+              key={type}
+              variant="outline"
+              onClick={() => handleAddBlock(type)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors ${color}`}
+            >
+              {icon}
+              {label}
+            </Button>
+          ))}
+        </div>
+      )}
+
+      {isProcessing && (
+        <div className="absolute inset-0 z-[100] flex flex-col items-center justify-center bg-background/50 backdrop-blur-sm">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      )}
     </div>
   );
 }

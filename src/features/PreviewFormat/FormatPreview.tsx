@@ -4,6 +4,7 @@ import { parseFormatFile, appendBlock, replaceBlockContent, deleteBlockContent, 
 import { FormatBlock, FormatBlockNodeData } from "./FormatBlock";
 import { CompareEdge } from "./CompareEdge";
 import { Button } from "@/components/ui/button";
+import { DiffViewer } from "./DiffViewer";
 import {
   ReactFlow,
   useNodesState,
@@ -67,8 +68,22 @@ const CustomConnectionLine = ({
   );
 };
 
+const HoverDiffNode = ({ data }: any) => {
+  return (
+    <div className="w-[500px] pointer-events-none opacity-95 transition-opacity select-none shadow-2xl">
+      <DiffViewer 
+        sourceContent={data.sourceContent} 
+        targetContent={data.targetContent} 
+        formatType={data.formatType} 
+        title="Live Diff Preview"
+      />
+    </div>
+  );
+};
+
 const nodeTypes = {
   formatBlock: FormatBlock,
+  hoverDiffNode: HoverDiffNode,
 };
 
 const edgeTypes = {
@@ -80,6 +95,7 @@ export function FormatPreview({ content, editable = false, onContentChange }: Fo
   const [rfInstance, setRfInstance] = useState<ReactFlowInstance | null>(null);
   const [localContent, setLocalContent] = useState(content);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [hoverDiffs, setHoverDiffs] = useState<Record<string, {sourceIndex: number; targetIndex: number; x: number; y: number}>>({});
 
   // Sync from props if external changes arrive
   useEffect(() => {
@@ -271,6 +287,70 @@ export function FormatPreview({ content, editable = false, onContentChange }: Fo
     [nodes]
   );
 
+  // Compute and persist overlapping blocks as preview diffs dynamically
+  useEffect(() => {
+    if (!rfInstance || nodes.length === 0) return;
+    
+    // Only process overlaps once nodes have properly mounted dimensions
+    const allMeasured = nodes.every(n => n.measured && (n.measured.width || n.measured.height));
+    if (!allMeasured) return;
+
+    const newDiffs: Record<string, {sourceIndex: number, targetIndex: number, x: number, y: number}> = {};
+    const newHoverTargetIds = new Set<string>();
+
+    nodes.forEach(node => {
+      // Find intersections
+      const intersections = rfInstance.getIntersectingNodes(node);
+      const targetNode = intersections.find(n => n.type === 'formatBlock' && n.id !== node.id && n.id > node.id);
+      
+      if (targetNode) {
+        const sourceIndex = parseInt(node.id.replace('block-', ''));
+        const targetIndex = parseInt(targetNode.id.replace('block-', ''));
+        
+        const sourceBlock = parsedBlocks[sourceIndex];
+        const targetBlock = parsedBlocks[targetIndex];
+        
+        if (sourceBlock && targetBlock && sourceBlock.type === targetBlock.type && sourceBlock.type !== 'text') {
+           const minX = Math.min(targetNode.position.x, node.position.x) - 520;
+           const minY = Math.min(targetNode.position.y, node.position.y);
+           const diffId = `hover-${node.id}-${targetNode.id}`;
+           newDiffs[diffId] = { sourceIndex, targetIndex, x: minX, y: minY };
+           
+           newHoverTargetIds.add(targetNode.id);
+           newHoverTargetIds.add(node.id);
+        }
+      }
+    });
+
+    setHoverDiffs(prev => {
+       const nextKeys = Object.keys(newDiffs);
+       const prevKeys = Object.keys(prev);
+       if (prevKeys.length !== nextKeys.length) return newDiffs;
+       
+       for (const k of nextKeys) {
+         if (!prev[k] || prev[k].x !== newDiffs[k].x || prev[k].y !== newDiffs[k].y || prev[k].sourceIndex !== newDiffs[k].sourceIndex || prev[k].targetIndex !== newDiffs[k].targetIndex) {
+            return newDiffs;
+         }
+       }
+       return prev;
+    });
+
+    // Safely update specific nodes with hover highlights
+    setNodes((nds) => {
+       let changed = false;
+       const nextNds = nds.map(n => {
+          const isTarget = newHoverTargetIds.has(n.id);
+          if (n.data.isHoverTarget !== isTarget) {
+             changed = true;
+             return { ...n, data: { ...n.data, isHoverTarget: isTarget } };
+          }
+          return n;
+       });
+       return changed ? nextNds : nds;
+    });
+
+  }, [rfInstance, nodes, parsedBlocks, setNodes]);
+
   // Handle drag stop to save node position
   const onNodeDragStop = useCallback((_event: React.MouseEvent, node: Node) => {
     const blockIndex = parseInt(node.id.replace("block-", ""));
@@ -407,7 +487,26 @@ export function FormatPreview({ content, editable = false, onContentChange }: Fo
     >
       <ReactFlow
         colorMode={resolvedTheme === "dark" ? "dark" : "light"}
-        nodes={nodes}
+        nodes={[
+          ...nodes,
+          ...Object.entries(hoverDiffs).map(([diffId, diff]) => {
+            const hasValidity = parsedBlocks[diff.sourceIndex] && parsedBlocks[diff.targetIndex];
+            if (!hasValidity) return undefined;
+            return {
+              id: diffId,
+              type: 'hoverDiffNode',
+              position: { x: diff.x, y: diff.y },
+              data: {
+                sourceContent: parsedBlocks[diff.sourceIndex].content,
+                targetContent: parsedBlocks[diff.targetIndex].content,
+                formatType: parsedBlocks[diff.sourceIndex].type,
+              },
+              draggable: false,
+              selectable: false,
+              zIndex: 1000,
+            };
+          }).filter(Boolean) as Node[]
+        ]}
         edges={edges}
         onInit={setRfInstance}
         onNodesChange={onNodesChange}

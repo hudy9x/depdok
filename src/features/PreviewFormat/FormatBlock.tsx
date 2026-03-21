@@ -12,9 +12,9 @@ export interface FormatBlockNodeData extends Record<string, unknown> {
   content: string;
   editable?: boolean;
   onContentChange?: (newContent: string) => void;
-  // Compare specific
   isSource?: boolean;
   isDestination?: boolean;
+  isHoverTarget?: boolean;
   onDelete?: () => void;
 }
 
@@ -68,13 +68,13 @@ export function FormatBlock({ data }: FormatBlockProps) {
   const isConnecting = connection?.inProgress && connectionNodeId !== nodeId;
   const isConnectableMatch = isConnecting ? connectionSourceType === type : null;
 
-  let highlightClasses = "border-border";
+  let highlightClasses = "border-border transition-all duration-300";
   if (isConnectableMatch === true) {
     highlightClasses = "border-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.2)] ring-1 ring-emerald-500/50 transition-all";
   } else if (isConnectableMatch === false) {
     highlightClasses = "border-red-500/50 opacity-40 transition-all grayscale duration-300";
-  } else {
-    highlightClasses = "border-border transition-all duration-300";
+  } else if (data.isHoverTarget) {
+    highlightClasses = "border-red-500/70 shadow-[0_0_15px_rgba(239,68,68,0.15)] ring-1 ring-red-500/30 transition-all duration-300";
   }
 
   if (type === "text") {

@@ -5,12 +5,15 @@ import { listen } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/plugin-dialog";
 import { toast } from "sonner";
 import { createTabAtom, createUntitledTabAtom } from "@/stores/TabStore";
+import { openWorkspaceAtom } from "@/features/FileExplorer/store";
+import { openNewWindow } from "@/api-client/window";
 
 const supportedFileTypes = ["md", "mmd", "txt", "pu", "puml", "todo"];
 
 export function AppMenuListener() {
   const createTab = useSetAtom(createTabAtom);
   const createUntitledTab = useSetAtom(createUntitledTabAtom);
+  const openWorkspace = useSetAtom(openWorkspaceAtom);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -69,6 +72,31 @@ export function AppMenuListener() {
     listeners.push(
       listen("menu://back", () => {
         navigate("/home");
+      })
+    );
+
+    // New window listener
+    listeners.push(
+      listen("menu://new-window", async () => {
+        try {
+          await openNewWindow();
+        } catch (error) {
+          console.error("Error opening new window:", error);
+          toast.error("Failed to open new window");
+        }
+      })
+    );
+
+    // Open recent folder from dock menu
+    listeners.push(
+      listen<string>("menu://open-recent-folder", async (event) => {
+        try {
+          await openWorkspace(event.payload);
+          navigate("/editor");
+        } catch (error) {
+          console.error("Error opening recent folder:", error);
+          toast.error("Failed to open folder");
+        }
       })
     );
 

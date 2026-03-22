@@ -1,5 +1,6 @@
 import { atom } from 'jotai';
 import { atomWithStorage } from 'jotai/utils';
+import { sessionStorageDriver } from '@/lib/storage';
 
 export interface Tab {
   id: string;
@@ -34,13 +35,14 @@ export const nextUntitledCounterAtom = atomWithStorage<number>(
   1
 );
 
-// Tabs array (persisted in localStorage)
-export const tabsAtom = atomWithStorage<Tab[]>('depdok-tabs', []);
+// Tabs array (persisted in sessionStorage)
+export const tabsAtom = atomWithStorage<Tab[]>('depdok-tabs', [], sessionStorageDriver);
 
-// Active tab ID (persisted in localStorage)
+// Active tab ID (persisted in sessionStorage)
 export const activeTabIdAtom = atomWithStorage<string | null>(
   'depdok-active-tab-id',
-  null
+  null,
+  sessionStorageDriver
 );
 
 // Derived atom to get active tab

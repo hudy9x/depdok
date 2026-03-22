@@ -14,10 +14,14 @@ import { LicensePopover } from './features/LicensePopover';
 import { useEffect } from 'react';
 import { useSetAtom } from 'jotai';
 import { refreshLicenseStatusAtom } from './stores/license';
+import { useSyncRecentFoldersToDock } from './hooks/useSyncRecentFoldersToDock';
+import { useProjectStateSync } from './hooks/useProjectStateSync';
 
 function App() {
   const savedTheme = settingsService.getSettings().theme;
   const refreshLicenseStatus = useSetAtom(refreshLicenseStatusAtom);
+  useSyncRecentFoldersToDock();
+  useProjectStateSync();
 
   // Check license status on app startup
   useEffect(() => {

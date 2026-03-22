@@ -23,7 +23,7 @@ export function WindowsTitlebar({ left, center, right }: WindowsTitlebarProps) {
       </div>
 
       {/* Right - Actions & Buttons */}
-      <div className="flex h-full items-center flex-shrink-0">
+      <div data-tauri-drag-region="false" className="flex h-full items-center flex-shrink-0">
         <div className="flex items-center gap-2 mr-2">
           {right}
         </div>

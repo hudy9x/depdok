@@ -1,6 +1,7 @@
 use tauri::{App, Emitter, Manager};
 use tauri::menu::{MenuBuilder, SubmenuBuilder, MenuItemBuilder};
 
+
 pub fn init(app: &mut App) -> tauri::Result<()> {
     let handle = app.handle();
 
@@ -17,6 +18,10 @@ pub fn init(app: &mut App) -> tauri::Result<()> {
         .item(&new_file_submenu)
         .text("open_file", "Open File")
         .text("open_folder", "Open Folder")
+        .separator()
+        .item(&MenuItemBuilder::with_id("new_window", "New Window")
+            .accelerator("CmdOrCtrl+Shift+N")
+            .build(handle)?)
         .separator()
         .text("back", "Back")
         .separator()
@@ -119,6 +124,7 @@ pub fn init(app: &mut App) -> tauri::Result<()> {
             "open_file" => { let _ = app_handle.emit("menu://open-file", ()); }
             "open_folder" => { let _ = app_handle.emit("menu://open-folder", ()); }
             "back" => { let _ = app_handle.emit("menu://back", ()); }
+            "new_window" => { let _ = app_handle.emit("menu://new-window", ()); }
             "quit" => { app_handle.exit(0); }
 
             // Selection Menu

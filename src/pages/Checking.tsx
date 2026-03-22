@@ -5,8 +5,8 @@ export default function Checking() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Check localStorage for saved tabs
-    const savedTabs = localStorage.getItem("depdok-tabs");
+    // Check sessionStorage for saved tabs
+    const savedTabs = sessionStorage.getItem("depdok-tabs");
 
     if (savedTabs) {
       try {

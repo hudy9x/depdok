@@ -31,7 +31,8 @@ export function TauriImageNodeView({ node, deleteNode, extension }: TauriImageNo
     // Resolve relative paths to absolute paths
     let resolvedPath = src;
     if (markdownFilePath && (src.startsWith('./') || src.startsWith('../') || !src.startsWith('/'))) {
-      const markdownDir = markdownFilePath.substring(0, markdownFilePath.lastIndexOf('/'));
+      const mdLastSlash = Math.max(markdownFilePath.lastIndexOf('/'), markdownFilePath.lastIndexOf('\\'));
+      const markdownDir = mdLastSlash >= 0 ? markdownFilePath.substring(0, mdLastSlash) : '';
 
       if (src.startsWith('./')) {
         resolvedPath = `${markdownDir}/${src.substring(2)}`;
@@ -40,7 +41,7 @@ export function TauriImageNodeView({ node, deleteNode, extension }: TauriImageNo
         let dir = markdownDir;
         while (path.startsWith('../')) {
           path = path.substring(3);
-          const parentSlash = dir.lastIndexOf('/');
+          const parentSlash = Math.max(dir.lastIndexOf('/'), dir.lastIndexOf('\\'));
           dir = parentSlash >= 0 ? dir.substring(0, parentSlash) : '';
         }
         resolvedPath = `${dir}/${path}`;

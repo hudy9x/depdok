@@ -12,7 +12,7 @@ export function MacOSTitlebar({ left, center, right }: MacOSTitlebarProps) {
   return (
     <TitlebarContainer>
       {/* Buttons - Left */}
-      <div className="flex items-center gap-3 pl-3 pr-2 flex-shrink-0">
+      <div data-tauri-drag-region="false" className="flex items-center gap-3 pl-3 pr-2 flex-shrink-0">
         <MacOSButtons />
         {left}
       </div>
@@ -24,7 +24,7 @@ export function MacOSTitlebar({ left, center, right }: MacOSTitlebarProps) {
       </div>
 
       {/* Right - Actions */}
-      <div className="titlebar-right flex items-center gap-2 pr-3 flex-shrink-0">
+      <div data-tauri-drag-region="false" className="titlebar-right flex items-center gap-2 pr-3 flex-shrink-0">
         {right}
       </div>
     </TitlebarContainer>

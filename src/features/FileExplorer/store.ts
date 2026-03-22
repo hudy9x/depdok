@@ -1,13 +1,16 @@
 import { atom } from 'jotai';
 import { atomWithStorage } from 'jotai/utils';
+import { sessionStorageDriver } from '@/lib/storage';
 import { FileEntry, listDirectory } from './api';
 import { FlatTreeNode, flattenTree } from './utils';
 import { indexWorkspaceFiles } from '@/features/FileSearchDialog/api';
+import { load } from '@tauri-apps/plugin-store';
 
 // Persisted workspace root path
 export const workspaceRootAtom = atomWithStorage<string | null>(
   'depdok-workspace-root',
-  null
+  null,
+  sessionStorageDriver
 );
 
 // Persisted recent folders (max 20)
@@ -19,7 +22,8 @@ export const recentFoldersAtom = atomWithStorage<string[]>(
 // Persisted expanded folders (stored as array for JSON serialization)
 const expandedFoldersArrayAtom = atomWithStorage<string[]>(
   'depdok-expanded-folders',
-  []
+  [],
+  sessionStorageDriver
 );
 
 // Derived atom to convert array to Set
@@ -66,6 +70,26 @@ export const openWorkspaceAtom = atom(
       const recent = get(recentFoldersAtom);
       const newRecent = [rootPath, ...recent.filter(p => p !== rootPath)].slice(0, 20);
       set(recentFoldersAtom, newRecent);
+
+      // LRU Eviction: Prune project states not in recent list
+      try {
+        const store = await load('store.json', { autoSave: false } as any);
+        const allProjects = await store.get<Record<string, any>>('depdok-projects-state') || {};
+        let changed = false;
+        const recentSet = new Set(newRecent);
+        for (const key of Object.keys(allProjects)) {
+          if (!recentSet.has(key)) {
+            delete allProjects[key];
+            changed = true;
+          }
+        }
+        if (changed) {
+          await store.set('depdok-projects-state', allProjects);
+          await store.save();
+        }
+      } catch (err) {
+        console.error('Failed to prune project states LRU:', err);
+      }
 
       set(fileTreeDataAtom, { ...get(fileTreeDataAtom), [rootPath]: entries });
 
@@ -227,7 +251,8 @@ export const refreshDirectoryAtom = atom(
 // Persisted FileExplorer visibility state
 export const isFileExplorerVisibleAtom = atomWithStorage<boolean>(
   'depdok-file-explorer-visible',
-  false
+  false,
+  sessionStorageDriver
 );
 
 // Auto-hide hover state (not persisted, runtime only)

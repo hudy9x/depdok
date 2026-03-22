@@ -16,6 +16,7 @@ dependencies = [
  "machine-uid",
  "notify-debouncer-full",
  "nucleo-matcher",
+ "objc2 0.6.3",
  "reqwest",
  "serde",
  "serde_json",

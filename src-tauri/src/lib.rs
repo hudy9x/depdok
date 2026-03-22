@@ -45,6 +45,52 @@ mod commands;
 mod menu;
 mod license_manager;
 mod keychain;
+#[cfg(target_os = "macos")]
+mod dock;
+
+#[tauri::command]
+fn open_new_window(app: tauri::AppHandle) -> Result<(), String> {
+    let label = format!("window-{}", std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis());
+
+    let win_builder = WebviewWindowBuilder::new(&app, &label, WebviewUrl::default())
+        .title("Depdok")
+        .inner_size(740.0, 850.0)
+        .decorations(false)
+        .transparent(true)
+        .disable_drag_drop_handler();
+
+    let window = win_builder.build().map_err(|e| e.to_string())?;
+
+    #[cfg(target_os = "macos")]
+    {
+        use window_vibrancy::{apply_vibrancy, NSVisualEffectMaterial};
+        apply_vibrancy(&window, NSVisualEffectMaterial::HudWindow, None, Some(10.0))
+            .map_err(|e| format!("Vibrancy error: {:?}", e))?;
+    }
+
+    Ok(())
+}
+
+/// Update the macOS dock menu with recent folders and a \"New Window\" entry.
+/// On non-macOS platforms this is a no-op.
+#[tauri::command]
+fn update_dock_menu(app: tauri::AppHandle, recent_folders: Vec<String>) -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    {
+        // Persist so we can restore on next launch.
+        if let Ok(store) = app.store("store.json") {
+            let _ = store.set("dock_recent_folders", serde_json::json!(recent_folders));
+            let _ = store.save();
+        }
+        dock::rebuild(&app, &recent_folders);
+    }
+    #[cfg(not(target_os = "macos"))]
+    let _ = (app, recent_folders);
+    Ok(())
+}
 
 // License commands
 #[tauri::command]
@@ -170,6 +216,20 @@ pub fn run() {
             // Initialize menu
             menu::init(app)?;
 
+            // Set up macOS dock menu (reads previous session's recent folders from store).
+            #[cfg(target_os = "macos")]
+            {
+                dock::setup(app.handle());
+                let initial_recent: Vec<String> = if let Ok(store) = app.store("store.json") {
+                    store.get("dock_recent_folders")
+                        .and_then(|v| serde_json::from_value(v).ok())
+                        .unwrap_or_default()
+                } else {
+                    vec![]
+                };
+                dock::rebuild(app.handle(), &initial_recent);
+            }
+
             let win_builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
                 .title("Depdok")
                 .inner_size(width, height)
@@ -267,6 +327,8 @@ pub fn run() {
             commands::file_search::fuzzy_search_files,
             commands::content_search::search_content,
             commands::content_search::set_content_search_workspace,
+            open_new_window,
+            update_dock_menu,
             // License commands
             validate_license,
             get_license_status,

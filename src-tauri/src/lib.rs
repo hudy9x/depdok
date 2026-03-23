@@ -3,6 +3,9 @@ use std::sync::Mutex;
 use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
 use tauri_plugin_store::StoreExt;
 
+const MIN_WINDOW_WIDTH: f64 = 609.0;
+const MIN_WINDOW_HEIGHT: f64 = 627.0;
+
 // Global state to store the opened file path
 struct OpenedFilePath(Mutex<Option<String>>);
 
@@ -58,6 +61,7 @@ fn open_new_window(app: tauri::AppHandle) -> Result<(), String> {
     let win_builder = WebviewWindowBuilder::new(&app, &label, WebviewUrl::default())
         .title("Depdok")
         .inner_size(740.0, 850.0)
+        .min_inner_size(MIN_WINDOW_WIDTH, MIN_WINDOW_HEIGHT)
         .decorations(false)
         .transparent(true)
         .disable_drag_drop_handler();
@@ -233,6 +237,7 @@ pub fn run() {
             let win_builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
                 .title("Depdok")
                 .inner_size(width, height)
+                .min_inner_size(MIN_WINDOW_WIDTH, MIN_WINDOW_HEIGHT)
                 .decorations(false)
                 .transparent(true)
                 .disable_drag_drop_handler(); // Disable Tauri's file drop to allow browser handling

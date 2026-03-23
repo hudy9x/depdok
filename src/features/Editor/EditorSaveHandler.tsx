@@ -15,7 +15,7 @@ import {
   extractFilenameFromDummyPath,
 } from "@/stores/TabStore";
 
-const supportedFileTypes = ["md", "mmd", "txt", "pu", "puml", "plantuml", "todo", "excalidraw"];
+const supportedFileTypes = ["md", "mmd", "txt", "pu", "format", "puml", "plantuml", "todo", "excalidraw"];
 
 
 export function EditorSave() {

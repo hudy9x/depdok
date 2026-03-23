@@ -19,7 +19,7 @@ const fileTypes = [
   { extension: 'pu', label: 'PlantUML', icon: Code, color: 'text-green-500' },
   { extension: 'excalidraw', label: 'Excalidraw', icon: Pencil, color: 'text-orange-500' },
   { extension: 'format', label: 'Format', icon: Braces, color: 'text-pink-500' },
-  { extension: 'txt', label: 'Text', icon: FileText, color: 'text-muted-foreground' },
+  // { extension: 'txt', label: 'Text', icon: FileText, color: 'text-muted-foreground' },
 ];
 
 export function CreateTabButton() {
@@ -53,7 +53,12 @@ export function CreateTabButton() {
   };
 
   const handleCreateFile = (extension: string) => {
-    createUntitledTab(`Untitled.${extension}`);
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    const randomId = Array.from({ length: 6 })
+      .map(() => chars.charAt(Math.floor(Math.random() * chars.length)))
+      .join('');
+    
+    createUntitledTab(`Untitled-${randomId}.${extension}`);
     // Navigate to editor if not already there
     if (window.location.pathname !== '/editor') {
       navigate('/editor');

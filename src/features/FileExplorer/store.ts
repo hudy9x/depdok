@@ -297,7 +297,7 @@ export const revealFileAtom = atom(
 
     // Extract parent directories from the file path
     while (currentPath !== workspaceRoot && currentPath.length > workspaceRoot.length) {
-      const lastSlash = currentPath.lastIndexOf('/');
+      const lastSlash = Math.max(currentPath.lastIndexOf('/'), currentPath.lastIndexOf('\\'));
       if (lastSlash === -1) break;
 
       currentPath = currentPath.substring(0, lastSlash);

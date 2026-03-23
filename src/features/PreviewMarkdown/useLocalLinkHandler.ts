@@ -7,9 +7,10 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 
 /** Resolves a relative href against a base file path (handles ./, ../, bare names). */
 function resolveLocalPath(basePath: string, href: string): string {
-  const dir = basePath.substring(0, basePath.lastIndexOf('/'));
-  const parts = dir.split('/');
-  for (const seg of href.split('/')) {
+  const lastSlash = Math.max(basePath.lastIndexOf('/'), basePath.lastIndexOf('\\'));
+  const dir = lastSlash >= 0 ? basePath.substring(0, lastSlash) : '';
+  const parts = dir.split(/[/\\]/);
+  for (const seg of href.split(/[/\\]/)) {
     if (seg === '..') parts.pop();
     else if (seg !== '.') parts.push(seg);
   }
@@ -50,7 +51,7 @@ export function useLocalLinkHandler(
       }
       if (!currentFilePath) return;
       const resolved = resolveLocalPath(currentFilePath, href);
-      const fileName = resolved.split('/').pop() || 'Untitled';
+      const fileName = resolved.split(/[/\\]/).pop() || 'Untitled';
       createTab({ filePath: resolved, fileName, switchTo: true, isPreview: true });
       navigate('/editor');
     },

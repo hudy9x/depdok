@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useAtom, useSetAtom } from 'jotai';
 import { useNavigate } from 'react-router-dom';
 import { X } from 'lucide-react';
+import { platform } from '@tauri-apps/plugin-os';
 import { cn } from '@/lib/utils';
 import {
   activeTabIdAtom,
@@ -28,6 +29,15 @@ export function TabItem({ tab }: TabItemProps) {
   const updateTab = useSetAtom(updateTabAtom);
   const [showCloseWarning, setShowCloseWarning] = useState(false);
   const tabRef = useRef<HTMLDivElement>(null);
+  const [isMacOS, setIsMacOS] = useState(false);
+
+  useEffect(() => {
+    try {
+      setIsMacOS(platform() === 'macos');
+    } catch (e) {
+      console.error('Failed to get platform:', e);
+    }
+  }, []);
 
   const isActive = tab.id === activeTabId;
 
@@ -93,6 +103,7 @@ export function TabItem({ tab }: TabItemProps) {
           )}
           onClick={handleClick}
           onDoubleClick={handleDoubleClick}
+          {...(isMacOS ? { 'data-tauri-drag-region': true } : {})}
         >
           {/* File Icon */}
           <span className="flex-shrink-0 opacity-70">

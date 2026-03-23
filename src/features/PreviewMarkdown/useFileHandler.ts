@@ -21,7 +21,8 @@ async function saveImageFile(file: File, ctx: UploadContext): Promise<string> {
   const ext = file.name.split('.').pop() || 'png';
   const filename = `image-${timestamp}.${ext}`;
 
-  const dir = ctx.filePath.substring(0, ctx.filePath.lastIndexOf('/'));
+  const lastSlash = Math.max(ctx.filePath.lastIndexOf('/'), ctx.filePath.lastIndexOf('\\'));
+  const dir = lastSlash >= 0 ? ctx.filePath.substring(0, lastSlash) : '';
   let targetDir = dir;
   let relativePath = `./${filename}`;
 

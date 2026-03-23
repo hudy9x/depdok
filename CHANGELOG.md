@@ -2,23 +2,16 @@
 
 ✨ Features
 
-- Create .format extension (#29) ([9cc04ae](../../commit/9cc04ae))
-- Add Homebrew Cask for macOS and PowerShell installer for Windows, updating README with installation instructions. ([6f3806c](../../commit/6f3806c))
+- Multiple windows (#31) ([609ed6e](../../commit/609ed6e))
+- .format extension which allow to quick format compressed json/xml/html/yaml files to formatted versions and do a quick diff between same extension as well (#30) ([e3974eb](../../commit/e3974eb))
 
-♻️ Refactoring
+🐛 Bug Fixes
 
-- Extract editor view mode selection into a new component with an updated button group UI. ([869780a](../../commit/869780a))
-- Refine titlebar and editor tab drag regions. ([d6a3822](../../commit/d6a3822))
-- Enhance PlantUML preview with `beautiful-plantuml` ([a65449e](../../commit/a65449e))
-
-📝 Documentation
-
-- Update repository URL in installation instructions. ([ce3aef2](../../commit/ce3aef2))
+- Cannot read write file on windows (#32) ([d919899](../../commit/d919899))
 
 🔨 Other Changes
 
-- Add recent view at /home page and display active view mode only ([afc5faa](../../commit/afc5faa))
-- Upgrade version 0.28.0 ([6b9c1cf](../../commit/6b9c1cf))
+- Upgrade version 0.31.0 ([cfc4e89](../../commit/cfc4e89))
 
 
-📋 Full Changelog: [6b9c1cf...9cc04ae](../../compare/6b9c1cf...9cc04ae)
+📋 Full Changelog: [cfc4e89...d919899](../../compare/cfc4e89...d919899)

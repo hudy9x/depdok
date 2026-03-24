@@ -2,16 +2,15 @@
 
 ✨ Features
 
-- Multiple windows (#31) ([609ed6e](../../commit/609ed6e))
-- .format extension which allow to quick format compressed json/xml/html/yaml files to formatted versions and do a quick diff between same extension as well (#30) ([e3974eb](../../commit/e3974eb))
+- Set the minimum size of window ([f31e14a](../../commit/f31e14a))
 
-🐛 Bug Fixes
+♻️ Refactoring
 
-- Cannot read write file on windows (#32) ([d919899](../../commit/d919899))
+- Add support for '.format' file type, remove '.txt' from new tab options, and append a random ID to untitled tab filenames. ([7d34d2a](../../commit/7d34d2a))
 
 🔨 Other Changes
 
-- Upgrade version 0.31.0 ([cfc4e89](../../commit/cfc4e89))
+- Upgrade version 0.32.1 ([ac7913c](../../commit/ac7913c))
 
 
-📋 Full Changelog: [cfc4e89...d919899](../../compare/cfc4e89...d919899)
+📋 Full Changelog: [ac7913c...f31e14a](../../compare/ac7913c...f31e14a)

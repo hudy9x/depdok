@@ -16,6 +16,7 @@ import {
 import { CloseTabWarning } from './CloseTabWarning';
 import { FileIcon } from '@/components/FileIcon';
 import { TabContextMenu } from './TabContextMenu';
+import { TabPreviewTooltip } from './TabPreviewTooltip';
 
 interface TabItemProps {
   tab: Tab;
@@ -92,49 +93,51 @@ export function TabItem({ tab }: TabItemProps) {
   return (
     <>
       <TabContextMenu tab={tab}>
-        <div
-          ref={tabRef}
-          className={cn(
-            'flex items-center gap-2 px-3 h-[35px] cursor-pointer border-r border-border group relative',
-            'hover:bg-accent/70 transition-colors',
-            'min-w-[120px] max-w-[200px]',
-            isActive ? 'bg-accent text-muted-foreground' : 'text-muted-foreground',
-            tab.isPreview && 'italic'
-          )}
-          onClick={handleClick}
-          onDoubleClick={handleDoubleClick}
-          {...(isMacOS ? { 'data-tauri-drag-region': true } : {})}
-        >
-          {/* File Icon */}
-          <span className="flex-shrink-0 opacity-70">
-            <FileIcon filename={displayName} />
-          </span>
-
-          <span className="text-xs truncate flex-1">{displayName}</span>
-
-          {/* Right side interactions: Dirty Indicator + Close Button */}
-          <div className="relative w-4 h-4 flex items-center justify-center">
-            {/* Dirty Indicator (visible when dirty, hidden on hover to show close button) */}
-            {tab.isDirty && (
-              <div
-                className="w-2 h-2 rounded-full bg-orange-500 absolute transition-opacity group-hover:opacity-0"
-                title="Unsaved changes"
-              />
+        <TabPreviewTooltip tab={tab}>
+          <div
+            ref={tabRef}
+            className={cn(
+              'flex items-center gap-2 px-3 h-[35px] cursor-pointer border-r border-border group relative',
+              'hover:bg-accent/70 transition-colors',
+              'min-w-[120px] max-w-[200px]',
+              isActive ? 'bg-accent text-muted-foreground' : 'text-muted-foreground',
+              tab.isPreview && 'italic'
             )}
+            onClick={handleClick}
+            onDoubleClick={handleDoubleClick}
+            {...(isMacOS ? { 'data-tauri-drag-region': true } : {})}
+          >
+            {/* File Icon */}
+            <span className="flex-shrink-0 opacity-70">
+              <FileIcon filename={displayName} />
+            </span>
 
-            {/* Close Button (visible on hover) */}
-            <button
-              className={cn(
-                "absolute inset-0 flex items-center justify-center rounded hover:bg-muted transition-opacity",
-                "opacity-0 group-hover:opacity-100"
+            <span className="text-xs truncate flex-1">{displayName}</span>
+
+            {/* Right side interactions: Dirty Indicator + Close Button */}
+            <div className="relative w-4 h-4 flex items-center justify-center">
+              {/* Dirty Indicator (visible when dirty, hidden on hover to show close button) */}
+              {tab.isDirty && (
+                <div
+                  className="w-2 h-2 rounded-full bg-orange-500 absolute transition-opacity group-hover:opacity-0"
+                  title="Unsaved changes"
+                />
               )}
-              onClick={handleClose}
-              title="Close"
-            >
-              <X className="w-3 h-3" />
-            </button>
+
+              {/* Close Button (visible on hover) */}
+              <button
+                className={cn(
+                  "absolute inset-0 flex items-center justify-center rounded hover:bg-muted transition-opacity",
+                  "opacity-0 group-hover:opacity-100"
+                )}
+                onClick={handleClose}
+                title="Close"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </div>
           </div>
-        </div>
+        </TabPreviewTooltip>
       </TabContextMenu>
 
       {showCloseWarning && (

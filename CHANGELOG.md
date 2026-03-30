@@ -2,15 +2,16 @@
 
 ✨ Features
 
-- Set the minimum size of window ([f31e14a](../../commit/f31e14a))
+- Preview tab content (#33) ([7fef3df](../../commit/7fef3df))
 
-♻️ Refactoring
+🐛 Bug Fixes
 
-- Add support for '.format' file type, remove '.txt' from new tab options, and append a random ID to untitled tab filenames. ([7d34d2a](../../commit/7d34d2a))
+- Prevent race conditions in workspace initialization and indexing, and stop drag-region propagation on back button ([345cff6](../../commit/345cff6))
 
 🔨 Other Changes
 
-- Upgrade version 0.32.1 ([ac7913c](../../commit/ac7913c))
+- Upgrade version 0.33.0 ([e4fdba2](../../commit/e4fdba2))
+- Upgrade version 0.33.0 ([20499f4](../../commit/20499f4))
 
 
-📋 Full Changelog: [ac7913c...f31e14a](../../compare/ac7913c...f31e14a)
+📋 Full Changelog: [20499f4...345cff6](../../compare/20499f4...345cff6)

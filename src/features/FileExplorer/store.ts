@@ -126,8 +126,10 @@ export const openWorkspaceAtom = atom(
         await indexWorkspaceFiles(rootPath);
         console.log('Workspace files indexed successfully');
       } catch (indexError) {
-        console.error('Failed to index workspace files:', indexError);
-        // Don't fail the workspace open if indexing fails
+        // On Windows, this can fire when a new window opens while a prior
+        // window's indexing callback is still pending — downgrade to warn
+        // since it does not affect workspace functionality.
+        console.warn('Workspace indexing skipped or failed (non-critical):', indexError);
       }
     } catch (error) {
       console.error('Failed to open workspace:', error);

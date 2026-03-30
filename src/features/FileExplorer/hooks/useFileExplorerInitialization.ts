@@ -16,13 +16,19 @@ export function useFileExplorerInitialization() {
 
   // Auto-load persisted workspace on mount
   useEffect(() => {
+    let isMounted = true;
+
     if (workspaceRoot && !fileTreeData[workspaceRoot] && !hasLoadedRef.current) {
       hasLoadedRef.current = true;
       openWorkspace(workspaceRoot).catch((error) => {
-        console.error('Failed to load persisted workspace:', error);
-        hasLoadedRef.current = false;
+        if (isMounted) {
+          console.error('Failed to load persisted workspace:', error);
+          hasLoadedRef.current = false;
+        }
       });
     }
+
+    return () => { isMounted = false; };
   }, [workspaceRoot, fileTreeData, openWorkspace]);
 
   // Listen for menu event to open folder

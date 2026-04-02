@@ -1,17 +1,13 @@
 ## What's Changed
 
-✨ Features
-
-- Preview tab content (#33) ([7fef3df](../../commit/7fef3df))
-
 🐛 Bug Fixes
 
-- Prevent race conditions in workspace initialization and indexing, and stop drag-region propagation on back button ([345cff6](../../commit/345cff6))
+- Upgrade beautiful-plantuml to v0.1.8 ([f9dd203](../../commit/f9dd203))
+- Remove captured preview for now, it causes performance issue ([67a01c3](../../commit/67a01c3))
 
 🔨 Other Changes
 
-- Upgrade version 0.33.0 ([e4fdba2](../../commit/e4fdba2))
-- Upgrade version 0.33.0 ([20499f4](../../commit/20499f4))
+- Upgrade version 0.34.1 ([2c4a297](../../commit/2c4a297))
 
 
-📋 Full Changelog: [20499f4...345cff6](../../compare/20499f4...345cff6)
+📋 Full Changelog: [2c4a297...f9dd203](../../compare/2c4a297...f9dd203)

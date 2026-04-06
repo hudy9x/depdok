@@ -5,6 +5,7 @@ import { PlantUMLBrowserPreview } from "../PreviewPlantUML/PlantUMLBrowserPrevie
 import { TodoPreview } from "../PreviewTodo/TodoPreview";
 import { ExcalidrawPreview } from "../PreviewExcalidraw";
 import { FormatPreview } from "../PreviewFormat/FormatPreview";
+import { LoggerEditor } from "../LoggerEditor";
 
 interface PreviewPanelProps {
   content: string;
@@ -74,6 +75,10 @@ export function PreviewPanel({
 
   if (fileExtension === "format") {
     return <FormatPreview content={content} editable={editable} readOnly={readOnly} onContentChange={onContentChange} />;
+  }
+
+  if (fileExtension === "logger") {
+    return <LoggerEditor filePath={filePath || ""} />;
   }
 
   return (

@@ -1,4 +1,4 @@
-import { FileText, Image as ImageIcon, SwatchBook } from 'lucide-react';
+import { FileText, Image as ImageIcon, SwatchBook, Radio } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface CustomIconProps {
@@ -63,6 +63,7 @@ export function FileIcon({ filename, className, variant = 'colorful' }: FileIcon
     if (filename.endsWith('.md')) return <MarkdownIcon className={cn("w-4 h-4 text-foreground", className)} />;
     if (filename.endsWith('.mmd')) return <MmdIcon className={cn("w-4 h-4", className)} primary={isColorful ? "#a855f7" : undefined} secondary={isColorful ? "#d8b4fe" : undefined} />;
     if (filename.endsWith('.plantuml') || filename.endsWith('.puml') || filename.endsWith('.pu')) return <PlantumlIcon className={cn("w-4 h-4", className)} primary={isColorful ? "#22c55e" : undefined} secondary={isColorful ? "#86efac" : undefined} />;
+    if (filename.endsWith('.logger')) return <Radio className={cn("w-4 h-4", className)} style={isColorful ? { color: '#ef4444' } : undefined} />;
     return <FileText className={cn("w-4 h-4 text-muted-foreground", className)} />;
   };
 

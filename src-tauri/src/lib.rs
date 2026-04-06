@@ -201,6 +201,9 @@ pub fn run() {
             // Initialize content search state
             app.manage(commands::content_search::init());
             
+            // Initialize logger server state
+            app.manage(commands::logger::LoggerServerState::new());
+            
             // Load saved window size from store
             let store = app.store("store.json").expect("Failed to get store");
             
@@ -342,6 +345,8 @@ pub fn run() {
             is_licensed,
             get_grace_period_info,
             activate_license,
+            commands::logger::start_logger_server,
+            commands::logger::register_logger_channel,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

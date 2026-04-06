@@ -192,6 +192,8 @@ export default function Editor() {
 
             {/* Editor Panel */}
             <Panel defaultSize={80} id="editor-content">
+
+
               {currentFilePath ? (
                 <LoadFileContent filePath={currentFilePath} onMetadataLoad={loadFileMetadata}>
                   {(initialContent) => (

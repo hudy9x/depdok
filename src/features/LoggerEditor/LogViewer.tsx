@@ -7,6 +7,19 @@ interface LogViewerProps {
   searchTerms?: string[];
 }
 
+const HIGHLIGHT_COLORS = [
+  "bg-yellow-500/30 text-yellow-500",
+  "bg-green-500/30 text-green-500",
+  "bg-blue-500/30 text-blue-500",
+  "bg-purple-500/30 text-purple-500",
+  "bg-pink-500/30 text-pink-500",
+  "bg-red-500/30 text-red-500",
+  "bg-orange-500/30 text-orange-500",
+  "bg-teal-500/30 text-teal-500",
+  "bg-cyan-500/30 text-cyan-500",
+  "bg-indigo-500/30 text-indigo-500",
+];
+
 function HighlightedText({ text, searchTerms }: { text: string; searchTerms?: string[] }) {
   if (!searchTerms || searchTerms.length === 0) return <>{text}</>;
 
@@ -18,10 +31,11 @@ function HighlightedText({ text, searchTerms }: { text: string; searchTerms?: st
   return (
     <>
       {parts.map((part, i) => {
-        const isMatch = searchTerms.some(term => term.toLowerCase() === part.toLowerCase());
-        if (isMatch) {
+        const termIndex = searchTerms.findIndex(term => term.toLowerCase() === part.toLowerCase());
+        if (termIndex !== -1) {
+          const colorClass = HIGHLIGHT_COLORS[termIndex % HIGHLIGHT_COLORS.length];
           return (
-             <mark key={i} className="bg-yellow-500/30 text-yellow-500 font-bold rounded px-0.5">
+             <mark key={i} className={`${colorClass} font-bold rounded px-0.5`}>
                {part}
              </mark>
           );

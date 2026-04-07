@@ -72,14 +72,27 @@ data = json.dumps({
     "timestamp": datetime.datetime.now().isoformat()
 }).encode('utf-8')
 
-req = urllib.request.Request('${fullUrl}', data=data, headers={'Content-Type': 'application/json'}, method='POST')
+req = urllib.request.Request(
+    '${fullUrl}', 
+    data=data, 
+    headers={'Content-Type': 'application/json'}, 
+    method='POST'
+)
 try:
     urllib.request.urlopen(req)
 except:
     pass
 `;
 
-  const currCode = driver === "nodejs" ? nodeCode : pythonCode;
+  const curlCode = `curl -X POST ${fullUrl} \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "level": "info",
+    "message": "Hello from cURL!",
+    "timestamp": "'$(date -u +"%Y-%m-%dT%H:%M:%SZ")'"
+  }'`;
+
+  const currCode = driver === "nodejs" ? nodeCode : driver === "python" ? pythonCode : curlCode;
 
   return (
     <div className="flex items-center justify-between p-2 pb-0 mb-2 border-b border-border text-sm">
@@ -103,13 +116,13 @@ except:
               Connect
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="sm:max-w-2xl">
             <DialogHeader>
               <DialogTitle>Connect with Driver</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 pt-4">
-              <div className="flex items-center gap-4">
-                <span className="text-sm font-medium">Select Driver:</span>
+              <div className="flex items-center justify-between gap-4">
+                <div className="text-sm font-medium">Select Driver:</div>
                 <Select value={driver} onValueChange={setDriver}>
                   <SelectTrigger className="w-[180px]">
                     <SelectValue placeholder="Driver" />
@@ -117,6 +130,7 @@ except:
                   <SelectContent>
                     <SelectItem value="nodejs">Node.js (Native)</SelectItem>
                     <SelectItem value="python">Python (Native)</SelectItem>
+                    <SelectItem value="curl">cURL</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

@@ -82,7 +82,7 @@ export function TodoItem({
   useAutosizeTextArea(textareaRef.current, item.title);
 
   return (
-    <div className={`group relative flex flex-row items-start gap-3 p-4 shadow-sm rounded-xl border border-border bg-accent hover:shadow-md transition-all ${item.checked && "opacity-60"}`}>
+    <div className={`group relative flex flex-row items-start gap-3 p-4 shadow-xs rounded-xl border border-border bg-white dark:bg-accent hover:shadow-md transition-all ${item.checked && "opacity-60"}`}>
 
       {/* Left: Checkbox */}
       <div className="pt-0.5">

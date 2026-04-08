@@ -9,6 +9,7 @@ import { useState } from "react";
 
 interface LoggerHeaderProps {
   channel: string;
+  onChannelChange: (channel: string) => void;
   serverUrl: string;
   isServerRunning: boolean;
   onToggleServer: () => void;
@@ -23,6 +24,7 @@ interface LoggerHeaderProps {
 
 export function LoggerHeader({
   channel,
+  onChannelChange,
   serverUrl,
   isServerRunning,
   onToggleServer,
@@ -101,9 +103,15 @@ except:
           {isServerRunning ? <Square className="w-4 h-4 mr-1" /> : <Play className="w-4 h-4 mr-1" />}
           {isServerRunning ? "Stop" : "Start"}
         </Button>
-        <div className="flex items-center gap-1 bg-muted h-9 px-3 rounded text-xs select-auto">
+        <div className="flex items-center gap-1 bg-muted h-9 px-2 rounded text-xs">
           <span className="text-muted-foreground mr-1">URL:</span>
-          <span>{fullUrl}</span>
+          <span className="text-muted-foreground">{serverUrl ? serverUrl + '/' : 'http://localhost:8080/'}</span>
+          <Input
+            value={channel}
+            onChange={(e) => onChannelChange(e.target.value)}
+            disabled={isServerRunning}
+            className="h-6 px-1 py-0 w-32 text-xs font-mono bg-transparent border-none focus-visible:ring-1 focus-visible:ring-primary shadow-none"
+          />
           <Button variant="ghost" size="icon" className="h-5 w-5 ml-2" onClick={handleCopyUrl}>
             {hasCopiedUrl ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3" />}
           </Button>

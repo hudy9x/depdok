@@ -27,7 +27,8 @@ export function LoggerEditor({ filePath }: LoggerEditorProps) {
     };
   }, []);
 
-  const channel = filePath.split(/[/\\]/).pop()?.replace('.logger', '') || 'default';
+  const defaultChannel = useMemo(() => filePath.split(/[/\\]/).pop()?.replace('.logger', '') || 'default', [filePath]);
+  const [channel, setChannel] = useState(defaultChannel);
   const outLogPath = filePath.replace('.logger', '.out.log');
 
   const handleStart = async () => {
@@ -102,6 +103,7 @@ export function LoggerEditor({ filePath }: LoggerEditorProps) {
     <div className="flex flex-col h-full w-full bg-background border-t border-border">
       <LoggerHeader 
         channel={channel}
+        onChannelChange={setChannel}
         serverUrl={serverUrl}
         isServerRunning={isServerRunning}
         onToggleServer={handleToggleServer}

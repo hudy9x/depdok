@@ -1,4 +1,4 @@
-import { Plus, FileText, CheckSquare, Image, Code, FolderOpen, Pencil, Braces, Radio } from 'lucide-react';
+import { Plus, FolderOpen } from 'lucide-react';
 import { useSetAtom } from 'jotai';
 import { useNavigate } from 'react-router-dom';
 import { open } from '@tauri-apps/plugin-dialog';
@@ -11,16 +11,16 @@ import {
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import { createUntitledTabAtom, createTabAtom } from '@/stores/TabStore';
+import { FileIcon } from '@/components/FileIcon';
 
 const fileTypes = [
-  { extension: 'md', label: 'Markdown', icon: FileText, color: 'text-yellow-500' },
-  { extension: 'mmd', label: 'Mermaid', icon: Image, color: 'text-purple-500' },
-  { extension: 'todo', label: 'Todo', icon: CheckSquare, color: 'text-blue-500' },
-  { extension: 'pu', label: 'PlantUML', icon: Code, color: 'text-green-500' },
-  { extension: 'excalidraw', label: 'Excalidraw', icon: Pencil, color: 'text-orange-500' },
-  { extension: 'format', label: 'Format', icon: Braces, color: 'text-pink-500' },
-  { extension: 'logger', label: 'Logger', icon: Radio, color: 'text-red-500' },
-  // { extension: 'txt', label: 'Text', icon: FileText, color: 'text-muted-foreground' },
+  { extension: 'md', label: 'Markdown' },
+  { extension: 'mmd', label: 'Mermaid' },
+  { extension: 'todo', label: 'Todo' },
+  { extension: 'pu', label: 'PlantUML' },
+  { extension: 'excalidraw', label: 'Excalidraw' },
+  { extension: 'format', label: 'Format' },
+  { extension: 'logger', label: 'Logger' },
 ];
 
 export function CreateTabButton() {
@@ -84,14 +84,13 @@ export function CreateTabButton() {
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         {fileTypes.map((type) => {
-          const IconComponent = type.icon;
           return (
             <DropdownMenuItem
               key={type.extension}
               onClick={() => handleCreateFile(type.extension)}
               className="cursor-pointer"
             >
-              <IconComponent className={`w-4 h-4 mr-2 ${type.color}`} />
+              <FileIcon filename={`untitled.${type.extension}`} className="mr-2" />
               <span>{type.label}</span>
               <span className="ml-auto text-xs text-muted-foreground">.{type.extension}</span>
             </DropdownMenuItem>

@@ -1,13 +1,16 @@
 ## What's Changed
 
-🐛 Bug Fixes
+✨ Features
 
-- Upgrade beautiful-plantuml to v0.1.8 ([f9dd203](../../commit/f9dd203))
-- Remove captured preview for now, it causes performance issue ([67a01c3](../../commit/67a01c3))
+- Load excalidraw libraries (#35) ([8ccdaf9](../../commit/8ccdaf9))
+- Create logger format (#34) ([e52a11b](../../commit/e52a11b))
 
 🔨 Other Changes
 
-- Upgrade version 0.34.1 ([2c4a297](../../commit/2c4a297))
+- Use same icons for everywhere ([b4712cb](../../commit/b4712cb))
+- Refresh explorer while saving file successfully ([a13583c](../../commit/a13583c))
+- Change background of todo item ([81b3559](../../commit/81b3559))
+- Upgrade version 0.34.4 ([3855225](../../commit/3855225))
 
 
-📋 Full Changelog: [2c4a297...f9dd203](../../compare/2c4a297...f9dd203)
+📋 Full Changelog: [3855225...b4712cb](../../compare/3855225...b4712cb)

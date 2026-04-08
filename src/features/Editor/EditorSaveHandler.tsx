@@ -15,7 +15,7 @@ import {
   extractFilenameFromDummyPath,
 } from "@/stores/TabStore";
 
-const supportedFileTypes = ["md", "mmd", "txt", "pu", "format", "puml", "plantuml", "todo", "excalidraw"];
+const supportedFileTypes = ["md", "mmd", "txt", "pu", "format", "puml", "plantuml", "todo", "excalidraw", "logger"];
 
 
 export function EditorSave() {
@@ -30,16 +30,25 @@ export function EditorSave() {
     try {
       // Extract filename from UNTITLED://filename.ext
       const filename = extractFilenameFromDummyPath(currentPath);
+      const extMatch = filename.match(/\.([^.]+)$/);
+      const ext = extMatch ? extMatch[1].toLowerCase() : "";
+
+      const filters = [];
+      if (ext && supportedFileTypes.includes(ext)) {
+        filters.push({
+          name: `${ext.toUpperCase()} File`,
+          extensions: [ext],
+        });
+      }
+      filters.push({
+        name: "Documentation Files",
+        extensions: supportedFileTypes,
+      });
 
       // Open save dialog
       const selected = await save({
         defaultPath: filename,
-        filters: [
-          {
-            name: "Documentation Files",
-            extensions: supportedFileTypes,
-          },
-        ],
+        filters,
       });
 
       if (!selected) {
@@ -47,7 +56,20 @@ export function EditorSave() {
       }
 
       // Get draft content
-      const draft = await draftService.getDraft(currentPath);
+      let draft = await draftService.getDraft(currentPath);
+
+      if (!draft && currentPath.endsWith(".logger")) {
+        draft = { 
+          filePath: currentPath,
+          timestamp: Date.now(),
+          content: JSON.stringify({
+            filterLevel: "all",
+            showMessageOnly: false,
+            filterText: "",
+            driver: "nodejs"
+          }, null, 2)
+        };
+      }
 
       if (!draft) {
         toast.error("No content to save");
@@ -95,7 +117,20 @@ export function EditorSave() {
 
     try {
       // Get content from IndexedDB draft
-      const draft = await draftService.getDraft(editorState.filePath);
+      let draft = await draftService.getDraft(editorState.filePath);
+
+      if (!draft && editorState.filePath.endsWith(".logger")) {
+        draft = { 
+          filePath: editorState.filePath,
+          timestamp: Date.now(),
+          content: JSON.stringify({
+            filterLevel: "all",
+            showMessageOnly: false,
+            filterText: "",
+            driver: "nodejs"
+          }, null, 2)
+        };
+      }
 
       if (!draft) {
         toast.error("No content to save");

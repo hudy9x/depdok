@@ -3,7 +3,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTheme } from "next-themes";
 import { useSetAtom } from "jotai";
 import { isSavingAtom } from "@/stores/FileWatchStore";
-
+import { FolderPlus } from "lucide-react";
+import { installCustomLibrary, loadAllInstalledLibraries } from "./libraryManager";
 // Lazy-load Excalidraw only on the client (it's a large package)
 const loadExcalidraw = () => import("@excalidraw/excalidraw");
 
@@ -48,6 +49,8 @@ interface ExcalidrawComponentProps {
       theme?: boolean;
     };
   };
+  excalidrawAPI?: (api: any) => void;
+  renderTopRightUI?: (isMobile: boolean, appState: ExcalidrawAppState) => React.ReactNode;
 }
 
 interface ExcalidrawElement {
@@ -95,6 +98,7 @@ export function ExcalidrawPreview({ content, filePath, onContentChange }: Excali
   const [ExcalidrawModule, setExcalidrawModule] = useState<ExcalidrawModule | null>(null);
   const [loadError, setLoadError] = useState(false);
   const setIsSaving = useSetAtom(isSavingAtom);
+  const [excalidrawAPI, setExcalidrawAPI] = useState<any>(null);
 
   // Skip the very first onChange fired by Excalidraw on mount
   const isMountedRef = useRef(false);
@@ -113,6 +117,18 @@ export function ExcalidrawPreview({ content, filePath, onContentChange }: Excali
         setLoadError(true);
       });
   }, []);
+
+  // Load custom libraries on API mount
+  useEffect(() => {
+    if (!excalidrawAPI) return;
+    loadAllInstalledLibraries().then((libraryItems) => {
+      console.log("[ExcalidrawPreview] loadAllInstalledLibraries returned:", libraryItems?.length);
+      if (libraryItems && libraryItems.length > 0) {
+        excalidrawAPI.updateLibrary({ libraryItems, merge: true });
+        console.log("[ExcalidrawPreview] Updated API with libraries");
+      }
+    });
+  }, [excalidrawAPI]);
 
   // Intercept Cmd+S / Ctrl+S in capture phase so Excalidraw never sees it.
   // The app-level handler on `window` (EditorSaveHandler) will still fire.
@@ -202,6 +218,22 @@ export function ExcalidrawPreview({ content, filePath, onContentChange }: Excali
     <div ref={wrapperRef} className="relative w-full h-full">
       <div className="absolute inset-0">
         <Excalidraw
+          excalidrawAPI={setExcalidrawAPI}
+          renderTopRightUI={() => (
+            <button
+              className="flex items-center gap-2 px-3 py-1 bg-accent hover:bg-accent/80  text-foreground rounded-md text-sm font-medium transition-colors border border-border shadow-xs h-9 cursor-pointer"
+              onClick={async (e) => {
+                e.preventDefault();
+                const items = await installCustomLibrary();
+                if (items && items.length > 0 && excalidrawAPI) {
+                  excalidrawAPI.updateLibrary({ libraryItems: items, merge: true, openLibraryMenu: true });
+                }
+              }}
+            >
+              <FolderPlus className="w-4 h-4" />
+              Import Library
+            </button>
+          )}
           initialData={{
             elements: scene.elements ?? [],
             appState: {

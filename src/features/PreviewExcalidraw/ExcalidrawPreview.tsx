@@ -221,7 +221,7 @@ export function ExcalidrawPreview({ content, filePath, onContentChange }: Excali
           excalidrawAPI={setExcalidrawAPI}
           renderTopRightUI={() => (
             <button
-              className="flex items-center gap-2 px-3 py-1 bg-secondary text-secondary-foreground hover:bg-secondary/80 rounded-md text-sm font-medium transition-colors border shadow-sm h-9 cursor-pointer"
+              className="flex items-center gap-2 px-3 py-1 bg-accent hover:bg-accent/80  text-foreground rounded-md text-sm font-medium transition-colors border border-border shadow-xs h-9 cursor-pointer"
               onClick={async (e) => {
                 e.preventDefault();
                 const items = await installCustomLibrary();
@@ -231,7 +231,7 @@ export function ExcalidrawPreview({ content, filePath, onContentChange }: Excali
               }}
             >
               <FolderPlus className="w-4 h-4" />
-              Import Custom Library
+              Import Library
             </button>
           )}
           initialData={{

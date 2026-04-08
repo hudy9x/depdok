@@ -14,6 +14,7 @@ import {
   isDummyPath,
   extractFilenameFromDummyPath,
 } from "@/stores/TabStore";
+import { refreshDirectoryAtom } from "@/features/FileExplorer/store";
 
 const supportedFileTypes = ["md", "mmd", "txt", "pu", "format", "puml", "plantuml", "todo", "excalidraw", "logger"];
 
@@ -25,6 +26,7 @@ export function EditorSave() {
   const updateTabPath = useSetAtom(updateTabPathAtom);
   const markTabAsSaved = useSetAtom(markTabAsSavedAtom);
   const setIsSaving = useSetAtom(isSavingAtom);
+  const refreshDirectory = useSetAtom(refreshDirectoryAtom);
 
   const handleSaveAs = async (currentPath: string) => {
     try {
@@ -82,6 +84,12 @@ export function EditorSave() {
       // Write to new location
       await writeTextFile(selected, draft.content);
       lastSavedContentMap.set(selected, draft.content);
+
+      // Refresh file explorer for the parent folder
+      const parentDir = selected.substring(0, Math.max(selected.lastIndexOf('/'), selected.lastIndexOf('\\')));
+      if (parentDir) {
+        refreshDirectory(parentDir).catch(console.error);
+      }
 
       // Update tab with real path
       if (activeTab) {

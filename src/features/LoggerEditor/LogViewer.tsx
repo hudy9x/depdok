@@ -41,7 +41,7 @@ export function LogViewer({ logs, showMessageOnly = false, searchTerms = [] }: L
   }, [logs]);
 
   return (
-    <div className="h-full w-full bg-[#1e1e1e] text-white font-mono text-xs pb-16">
+    <div className="h-full w-full bg-accent text-slate-800 dark:text-white font-mono text-xs pt-2 pb-16">
       <Virtuoso
         data={groupedLogs}
         followOutput="smooth"

@@ -17,13 +17,13 @@ export function LogListRow({ log, showMessageOnly, searchTerms }: LogListRowProp
   const colorClass = levelColors[log.level.toLowerCase()] || "text-gray-300";
 
   return (
-    <div className="flex px-4 py-1 hover:bg-white/5 border-b border-white/5">
+    <div className="flex px-4 py-1 hover:bg-black/5 dark:hover:bg-white/5 border-b border-black/5 dark:border-white/5">
       {!showMessageOnly && (
         <>
-          <div className="w-56 shrink-0 text-gray-500">
+          <div className="w-56 shrink-0 text-gray-500 dark:text-gray-500">
             <span>{new Date(log.timestamp).toLocaleString()}</span>
             {log.timeDiff !== undefined && (
-              <span className="text-[10px] text-gray-400/60 ml-1.5 font-normal">
+              <span className="text-[10px] text-gray-500/60 dark:text-gray-400/60 ml-1.5 font-normal">
                 (+{formatTimeDiff(log.timeDiff)})
               </span>
             )}
@@ -33,15 +33,15 @@ export function LogListRow({ log, showMessageOnly, searchTerms }: LogListRowProp
           </div>
         </>
       )}
-      <div className="flex-1 break-all">
+      <div className="flex-1 break-all text-gray-800 dark:text-gray-400">
         {log.count > 1 && (
-          <span className="mr-2 px-1.5 py-0.5 rounded-full bg-blue-500/20 text-blue-400 font-bold text-[10px]">
+          <span className="mr-2 px-1.5 py-0.5 rounded-full bg-blue-500/10 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 font-bold text-[10px]">
             [x{log.count}]
           </span>
         )}
         <HighlightedText text={log.message} searchTerms={searchTerms} />
         {!showMessageOnly && log.data && (
-          <pre className="mt-1 text-[10px] text-gray-400 opacity-80 whitespace-pre-wrap">
+          <pre className="mt-1 text-[10px] text-gray-600 dark:text-gray-400 opacity-80 whitespace-pre-wrap">
             {JSON.stringify(log.data, null, 2)}
           </pre>
         )}

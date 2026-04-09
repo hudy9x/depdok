@@ -97,7 +97,7 @@ except:
   const currCode = driver === "nodejs" ? nodeCode : driver === "python" ? pythonCode : curlCode;
 
   return (
-    <div className="flex items-center justify-between p-2 pb-0 mb-2 border-b border-border text-sm">
+    <div className="flex items-center justify-between p-2 pb-0 border-b border-border text-sm">
       <div className="flex items-center gap-2 mb-2">
         <Button variant={isServerRunning ? "destructive" : "default"} size="sm" onClick={onToggleServer}>
           {isServerRunning ? <Square className="w-4 h-4 mr-1" /> : <Play className="w-4 h-4 mr-1" />}

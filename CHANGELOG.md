@@ -1,16 +1,13 @@
 ## What's Changed
 
-✨ Features
+🐛 Bug Fixes
 
-- Load excalidraw libraries (#35) ([8ccdaf9](../../commit/8ccdaf9))
-- Create logger format (#34) ([e52a11b](../../commit/e52a11b))
+- Resolve invalid URL path error and disable Ctrl+S on auto-saving (#36) ([9026220](../../commit/9026220))
 
 🔨 Other Changes
 
-- Use same icons for everywhere ([b4712cb](../../commit/b4712cb))
-- Refresh explorer while saving file successfully ([a13583c](../../commit/a13583c))
-- Change background of todo item ([81b3559](../../commit/81b3559))
-- Upgrade version 0.34.4 ([3855225](../../commit/3855225))
+- Update LoggerEditor components with light mode support and adjusted layout spacing ([4f7e073](../../commit/4f7e073))
+- Upgrade version 0.35.3 ([edfac89](../../commit/edfac89))
 
 
-📋 Full Changelog: [3855225...b4712cb](../../compare/3855225...b4712cb)
+📋 Full Changelog: [edfac89...9026220](../../compare/edfac89...9026220)

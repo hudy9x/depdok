@@ -15,6 +15,7 @@ import {
   extractFilenameFromDummyPath,
 } from "@/stores/TabStore";
 import { refreshDirectoryAtom } from "@/features/FileExplorer/store";
+import { autoSaveEnabledAtom } from "@/stores/SettingsStore";
 
 const supportedFileTypes = ["md", "mmd", "txt", "pu", "format", "puml", "plantuml", "todo", "excalidraw", "logger"];
 
@@ -22,6 +23,7 @@ const supportedFileTypes = ["md", "mmd", "txt", "pu", "format", "puml", "plantum
 export function EditorSave() {
   const editorState = useAtomValue(editorStateAtom);
   const activeTab = useAtomValue(activeTabAtom);
+  const autoSaveEnabled = useAtomValue(autoSaveEnabledAtom);
   const markAsSaved = useSetAtom(markAsSavedAtom);
   const updateTabPath = useSetAtom(updateTabPathAtom);
   const markTabAsSaved = useSetAtom(markTabAsSavedAtom);
@@ -178,15 +180,21 @@ export function EditorSave() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === "s") {
-        console.log("[EditorSaveHandler] ⌨️ window Cmd+S caught — filePath:", editorState.filePath);
         e.preventDefault();
+        
+        if (autoSaveEnabled) {
+          console.log("[EditorSaveHandler] ⌨️ window Cmd+S caught but ignored because AutoSave is ON");
+          return;
+        }
+
+        console.log("[EditorSaveHandler] ⌨️ window Cmd+S caught — filePath:", editorState.filePath);
         handleSave();
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [editorState.filePath, activeTab]);
+  }, [editorState.filePath, activeTab, autoSaveEnabled]);
 
   return null;
 }

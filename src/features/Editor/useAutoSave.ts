@@ -23,7 +23,7 @@ import { useDebouncedCallback } from "use-debounce";
 import { writeTextFile } from "@tauri-apps/plugin-fs";
 
 import { editorStateAtom, markAsDirtyAtom, markAsSavedAtom } from "@/stores/EditorStore";
-import { activeTabAtom, markTabAsDirtyAtom, markTabAsSavedAtom } from "@/stores/TabStore";
+import { activeTabAtom, markTabAsDirtyAtom, markTabAsSavedAtom, isDummyPath } from "@/stores/TabStore";
 import { autoSaveEnabledAtom, autoSaveDelayAtom } from "@/stores/SettingsStore";
 import { isSavingAtom, lastSavedContentMap } from "@/stores/FileWatchStore";
 import { draftService } from "@/lib/indexeddb";
@@ -54,7 +54,7 @@ export function useAutoSave() {
 
   // Debounced auto-save to file (only if enabled)
   const debouncedAutoSave = useDebouncedCallback(async (newContent: string) => {
-    if (!editorState.filePath || !autoSaveEnabled) return;
+    if (!editorState.filePath || !autoSaveEnabled || isDummyPath(editorState.filePath)) return;
 
     try {
       // Set flag (with file path) to prevent file watcher from reacting to our own save

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, KeyboardEvent } from 'react';
 import { useSetAtom, useAtomValue } from 'jotai';
 import { toast } from 'sonner';
 import { renameFile } from '@/lib/fileOperations';
@@ -50,7 +50,7 @@ export function RenameTabDialog({ tab, open, onOpenChange }: RenameTabDialogProp
       // If it's a real file (not UNTITLED), rename it on disk
       if (!isDummyPath(tab.filePath)) {
         // Get the directory path
-        const pathParts = tab.filePath.split('/');
+        const pathParts = tab.filePath.split(/[/\\]/);
         pathParts.pop(); // Remove the old filename
         const directory = pathParts.join('/');
         const newPath = `${directory}/${newName}`;
@@ -78,13 +78,18 @@ export function RenameTabDialog({ tab, open, onOpenChange }: RenameTabDialogProp
 
         toast.success(`Renamed to ${newName}`);
       } else {
+        const newDummyPath = `UNTITLED://${newName}`;
+        
+        // Rename the draft in IndexedDB if it exists for the dummy path as well
+        await draftService.renameDraft(tab.filePath, newDummyPath);
+
         // For UNTITLED files, just update the name in the store
         updateTab({
           tabId: tab.id,
           updates: {
             fileName: newName,
             fileExtension,
-            filePath: `UNTITLED://${newName}`,
+            filePath: newDummyPath,
           },
         });
 
@@ -100,7 +105,7 @@ export function RenameTabDialog({ tab, open, onOpenChange }: RenameTabDialogProp
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       e.preventDefault();
       handleRename();

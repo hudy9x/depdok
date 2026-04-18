@@ -2,12 +2,11 @@
 
 🐛 Bug Fixes
 
-- Resolve invalid URL path error and disable Ctrl+S on auto-saving (#36) ([9026220](../../commit/9026220))
+- Can not save file after rename it on Windows  (#37) ([c4792e6](../../commit/c4792e6))
 
 🔨 Other Changes
 
-- Update LoggerEditor components with light mode support and adjusted layout spacing ([4f7e073](../../commit/4f7e073))
-- Upgrade version 0.35.3 ([edfac89](../../commit/edfac89))
+- Upgrade version 0.35.6 ([b7cfd9c](../../commit/b7cfd9c))
 
 
-📋 Full Changelog: [edfac89...9026220](../../compare/edfac89...9026220)
+📋 Full Changelog: [b7cfd9c...c4792e6](../../compare/b7cfd9c...c4792e6)

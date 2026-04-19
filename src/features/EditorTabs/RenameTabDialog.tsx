@@ -1,4 +1,4 @@
-import React, { useState, useEffect, KeyboardEvent } from 'react';
+import { useState, useEffect, KeyboardEvent } from 'react';
 import { useSetAtom, useAtomValue } from 'jotai';
 import { toast } from 'sonner';
 import { renameFile } from '@/lib/fileOperations';

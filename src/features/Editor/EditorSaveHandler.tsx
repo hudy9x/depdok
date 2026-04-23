@@ -192,8 +192,11 @@ export function EditorSave() {
       }
     };
 
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    // Use capture phase so this fires BEFORE ExcalidrawPreview's capture-phase
+    // stopImmediatePropagation() on its wrapper div. Capture goes top-down:
+    // window(capture) → div(capture) → ... → bubble, so window capture fires first.
+    window.addEventListener("keydown", handleKeyDown, true);
+    return () => window.removeEventListener("keydown", handleKeyDown, true);
   }, [editorState.filePath, activeTab, autoSaveEnabled]);
 
   return null;

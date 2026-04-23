@@ -28,15 +28,14 @@ export function useProjectStateSync() {
 
   // Load project state when workspaceRoot changes
   useEffect(() => {
-    if (!workspaceRoot) return;
-
     let isMounted = true;
+    const projectKey = workspaceRoot || 'GLOBAL_WORKSPACE';
 
     const loadState = async () => {
       try {
         const store = await getStore();
         const allProjects = await store.get<ProjectsStateMap>('depdok-projects-state') || {};
-        const projectState = allProjects[workspaceRoot];
+        const projectState = allProjects[projectKey];
 
         if (isMounted && projectState) {
           // Note: Here we update the state directly but we have to be careful not to
@@ -44,6 +43,8 @@ export function useProjectStateSync() {
           setTabs(projectState.tabs || []);
           setActiveTabId(projectState.activeTabId || null);
           setExpandedFolders(new Set(projectState.expandedFolders || []));
+        } else if (isMounted && !workspaceRoot) {
+          // If no state for GLOBAL_WORKSPACE yet, do nothing (keep current session state)
         }
       } catch (error) {
         console.error('Failed to load project state:', error);
@@ -59,7 +60,7 @@ export function useProjectStateSync() {
 
   // Save project state when it changes
   useEffect(() => {
-    if (!workspaceRoot) return;
+    const projectKey = workspaceRoot || 'GLOBAL_WORKSPACE';
 
     const saveState = async () => {
       try {
@@ -72,7 +73,7 @@ export function useProjectStateSync() {
           expandedFolders: Array.from(expandedFolders)
         };
 
-        allProjects[workspaceRoot] = newState;
+        allProjects[projectKey] = newState;
         await store.set('depdok-projects-state', allProjects);
         await store.save(); // Actually write to disk
       } catch (error) {

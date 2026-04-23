@@ -19,7 +19,7 @@ import { createTabAtom, createUntitledTabAtom, tabsAtom } from "@/stores/TabStor
 import { openWorkspaceAtom, recentFoldersAtom } from "@/features/FileExplorer/store";
 import { openFolderDialog } from "@/features/FileExplorer/api";
 
-const supportedFileTypes = ["md", "mmd", "txt", "pu", "puml", "todo"];
+const supportedFileTypes = ["md", "mmd", "txt", "pu", "format", "puml", "plantuml", "todo", "excalidraw", "logger"];
 
 export default function Home() {
   const [isVisible, setIsVisible] = useState(false);
@@ -139,7 +139,7 @@ export default function Home() {
         </EmptyContent>
 
         <p className="text-sm text-muted-foreground mt-4">
-          Supports Markdown, Mermaid, PlantUML, and Text files
+          Supports Markdown, Mermaid, PlantUML, Excalidraw, and Text files
         </p>
 
         {recentFolders.length > 0 && (

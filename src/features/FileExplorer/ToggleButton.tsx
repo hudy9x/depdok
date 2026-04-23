@@ -16,11 +16,12 @@ export function ToggleButton() {
       onClick={toggleFileExplorer}
       className={styleToggleButton}
       title={isFileExplorerVisible ? "Hide File Explorer" : "Show File Explorer"}
+      data-tauri-drag-region="false"
     >
       {isFileExplorerVisible ? (
-        <PanelLeftClose className="w-4 h-4" />
+        <PanelLeftClose className="w-4 h-4 pointer-events-none" data-tauri-drag-region="false" />
       ) : (
-        <PanelLeft className="w-4 h-4" />
+        <PanelLeft className="w-4 h-4 pointer-events-none" data-tauri-drag-region="false" />
       )}
     </button>
   );

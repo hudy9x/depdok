@@ -130,8 +130,10 @@ export function ExcalidrawPreview({ content, filePath, onContentChange }: Excali
     });
   }, [excalidrawAPI]);
 
-  // Intercept Cmd+S / Ctrl+S in capture phase so Excalidraw never sees it.
-  // The app-level handler on `window` (EditorSaveHandler) will still fire.
+   // Intercept Cmd+S / Ctrl+S in capture phase so Excalidraw never sees it.
+   // EditorSaveHandler listens on window in capture phase, which fires BEFORE
+   // this div's capture listener (capture goes top-down: window → div), so
+   // the app-level save handler still runs.
   useEffect(() => {
     const el = wrapperRef.current;
     if (!el) return;
@@ -139,10 +141,9 @@ export function ExcalidrawPreview({ content, filePath, onContentChange }: Excali
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "s") {
         console.log("[ExcalidrawPreview] 🛑 Capture-phase Cmd+S intercepted — stopping Excalidraw from seeing it");
-        // Stop Excalidraw from opening its own save dialog
+        // Stop Excalidraw from opening its own save dialog.
+        // EditorSaveHandler on window(capture) already fired before this.
         e.stopImmediatePropagation();
-        // But let the app-level window handler still fire by re-dispatching
-        // (window listeners fire independently — capture on div doesn't block window)
       }
     };
 

@@ -8,7 +8,7 @@ import { createTabAtom, createUntitledTabAtom } from "@/stores/TabStore";
 import { openWorkspaceAtom } from "@/features/FileExplorer/store";
 import { openNewWindow } from "@/api-client/window";
 
-const supportedFileTypes = ["md", "mmd", "txt", "pu", "puml", "todo"];
+const supportedFileTypes = ["md", "mmd", "txt", "pu", "format", "puml", "plantuml", "todo", "excalidraw", "logger"];
 
 export function AppMenuListener() {
   const createTab = useSetAtom(createTabAtom);

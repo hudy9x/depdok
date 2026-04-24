@@ -19,8 +19,8 @@ export function EditorTabs() {
   return (
     <div className="flex items-end pt-0 h-[35px] w-full overflow-hidden bg-background" data-tauri-drag-region>
       {/* Back button on the left */}
-      <Link to="/home" onMouseDown={(e) => e.stopPropagation()}>
-        <ChevronLeft className={styleBackButton} />
+      <Link to="/home" onMouseDown={(e) => e.stopPropagation()} data-tauri-drag-region="false">
+        <ChevronLeft className={styleBackButton} data-tauri-drag-region="false" />
       </Link>
 
       {/* FileExplorer toggle button */}

@@ -1,9 +1,16 @@
 ## What's Changed
 
+🐛 Bug Fixes
+
+- Can not save a dirty file after re-opening the app + missing file extension configure for the Open file button (#38) ([123fb96](../../commit/123fb96))
+
+♻️ Refactoring
+
+- Upgrade beautiful-plantuml ([52b0e75](../../commit/52b0e75))
+
 🔨 Other Changes
 
-- Remove unused import ([fdaabad](../../commit/fdaabad))
-- Upgrade version 0.35.7 ([a6e03f2](../../commit/a6e03f2))
+- Upgrade version 0.35.9 ([2010ae5](../../commit/2010ae5))
 
 
-📋 Full Changelog: [a6e03f2...fdaabad](../../compare/a6e03f2...fdaabad)
+📋 Full Changelog: [2010ae5...52b0e75](../../compare/2010ae5...52b0e75)

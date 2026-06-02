@@ -56,7 +56,7 @@ export function EditorViewMode() {
   }
 
   return (
-    <div className="fixed bottom-[38px] left-[60px] z-50 flex items-center">
+    <div className="">
       <div className="flex items-center gap-3">
         {/* Group button view-mode switcher */}
         <div className="flex items-center bg-muted rounded-md p-0.5 gap-0.5">
@@ -69,7 +69,7 @@ export function EditorViewMode() {
                 disabled={isActive}
                 onClick={() => handleViewModeChange(mode)}
                 className={[
-                  "flex items-center justify-center w-7 h-6 rounded transition-colors",
+                  "flex items-center justify-center w-7 h-5 rounded transition-colors",
                   isActive
                     ? "bg-background text-foreground shadow-sm cursor-default"
                     : "text-muted-foreground hover:text-foreground cursor-pointer",

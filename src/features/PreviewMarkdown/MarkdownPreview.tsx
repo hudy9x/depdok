@@ -287,13 +287,13 @@ export function MarkdownPreview({
         <MarkdownSizeControl size={editorSize} onSizeChange={setEditorSize} />
       </div>
 
-      <LicenseGuard className="fixed top-12 right-6" title="" tooltipTitle="Enable Markdown Outline">
+      {/* <LicenseGuard className="fixed top-12 right-6" title="" tooltipTitle="Enable Markdown Outline"> */}
         <MarkdownOutlineWrapper
           anchors={tocAnchors}
           visible={isOutlineOpen}
           onToggle={() => setIsOutlineOpen(!isOutlineOpen)}
         />
-      </LicenseGuard>
+      {/* </LicenseGuard> */}
     </div>
   );
 }

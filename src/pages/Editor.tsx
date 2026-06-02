@@ -2,11 +2,11 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import { useSetAtom, useAtomValue, useAtom } from "jotai";
 import { useEffect, useRef, useState } from "react";
 import { Panel, PanelGroup, PanelResizeHandle, ImperativePanelHandle } from "react-resizable-panels";
-import { 
-  Files, 
-  Search, 
-  GitBranch, 
-  Settings, 
+import {
+  Files,
+  Search,
+  GitBranch,
+  Settings,
   ChevronRight
 } from 'lucide-react';
 
@@ -52,7 +52,7 @@ function SidebarAccordion({ title, children }: SidebarAccordionProps) {
 
   return (
     <div className="w-full select-none flex flex-col">
-      <div 
+      <div
         className="flex items-center gap-1.5 px-3 py-1.5 hover:bg-muted/30 cursor-pointer text-[9px] font-bold text-foreground/75 border-y border-border/40 transition-colors"
         onClick={() => setIsOpen(!isOpen)}
       >
@@ -175,7 +175,7 @@ export default function Editor() {
       <FileSearchDialog />
       <ContentSearchDialog />
       <EditorSave />
-      <EditorViewMode />
+      {/* <EditorViewMode /> */}
 
       {/* Main Body Workspace Container */}
       <div className="w-full h-full flex bg-layout-chrome overflow-hidden">
@@ -195,7 +195,7 @@ export default function Editor() {
               onExpand={() => setIsFileExplorerVisible(true)}
             >
               {isFileExplorerVisible && (
-                <div className="h-full border-r border-border bg-layout-chrome flex flex-col select-none">
+                <div className="h-full bg-layout-chrome flex flex-col select-none">
                   {/* File tree browser */}
                   <div className="flex-1 min-h-0 overflow-y-auto">
                     <FileExplorer />
@@ -205,7 +205,7 @@ export default function Editor() {
             </Panel>
 
             {isFileExplorerVisible && (
-              <PanelResizeHandle className="w-[1px] bg-border/40 hover:bg-primary/50 transition-colors" />
+              <PanelResizeHandle className="w-[1px] bg-border hover:bg-primary/50 transition-colors" />
             )}
 
             {/* Right Pane: Tabs + Breadcrumbs + Monaco/Preview Panel */}
@@ -235,8 +235,9 @@ export default function Editor() {
                       </div>
 
                       {/* Segmented view switch control */}
-                      <div className="flex items-center bg-muted/70 p-0.5 rounded border border-border/45 select-none shrink-0">
-                        <button
+                      <div className="">
+                        <EditorViewMode />
+                        {/* <button
                           onClick={() => setViewMode('preview-only')}
                           className={cn(
                             "px-2.5 py-0.5 rounded text-[10px] font-semibold transition-all cursor-pointer",
@@ -257,7 +258,7 @@ export default function Editor() {
                           )}
                         >
                           Markdown
-                        </button>
+                        </button> */}
                       </div>
                     </div>
 

@@ -26,7 +26,7 @@ export function PlantUMLBrowserPreview({
   const { resolvedTheme } = useTheme();
 
   return (
-    <div className="w-full h-full relative overflow-hidden bg-background">
+    <div className="w-full h-full relative overflow-hidden bg-layout-content">
       <ZoomPanContainer
         config={{ minZoom: 0.1, maxZoom: 5, initialZoom: 0.8, centerOnLoad: true }}
       >

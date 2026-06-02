@@ -250,7 +250,7 @@ export function MarkdownPreview({
   }, []);
 
   return (
-    <div className="w-full h-full overflow-hidden bg-background flex" ref={containerRef}>
+    <div className="w-full h-full overflow-hidden bg-layout-content flex" ref={containerRef}>
       <div className="flex-1 h-full relative min-w-0 flex flex-col">
         {!isOutlineOpen && (
           <div className="absolute top-2 right-2 z-10">

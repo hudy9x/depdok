@@ -96,10 +96,11 @@ export function TabItem({ tab }: TabItemProps) {
         <div
           ref={tabRef}
           className={cn(
-            'flex items-center gap-2 px-3 h-[35px] cursor-pointer border-r border-border group relative',
-            'hover:bg-accent/70 transition-colors',
+            'flex items-center gap-2 px-3 h-[35px] cursor-pointer border-r border-border group relative transition-all',
             'min-w-[120px] max-w-[200px]',
-            isActive ? 'bg-accent text-muted-foreground' : 'text-muted-foreground',
+            isActive 
+              ? 'bg-layout-content text-foreground border-b border-b-transparent border-r border-r-border' 
+              : 'bg-layout-chrome text-muted-foreground hover:bg-muted/30 hover:text-foreground border-b border-border',
             tab.isPreview && 'italic'
           )}
           onClick={handleClick}

@@ -14,8 +14,8 @@ export function TitlebarContainer({ children }: TitlebarContainerProps) {
       ref={dragRef}
       data-tauri-drag-region 
       className={cn(
-        "fixed top-0 left-0 right-0 h-[35px] flex items-center justify-center select-none z-[9999]",
-        "bg-background"
+        "h-[35px] w-full flex items-center justify-between select-none z-[9999] border-b border-border",
+        "bg-layout-chrome shrink-0"
       )}
     >
       {children}

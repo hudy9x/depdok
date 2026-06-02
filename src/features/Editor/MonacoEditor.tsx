@@ -175,9 +175,34 @@ export function MonacoEditor({ initialContent, language, onContentChange, enable
     register('menu://selection/select-all-occurrences', 'editor.action.selectHighlights');
     register('menu://selection/column-selection-mode', 'editor.action.toggleColumnSelection');
 
+    // Register cursor position change listener for status bar updates
+    editor.onDidChangeCursorPosition((e: any) => {
+      window.dispatchEvent(new CustomEvent('editor-cursor', {
+        detail: {
+          lineNumber: e.position.lineNumber,
+          column: e.position.column
+        }
+      }));
+    });
+
+    // Dispatch initial cursor position
+    const initPos = editor.getPosition();
+    if (initPos) {
+      window.dispatchEvent(new CustomEvent('editor-cursor', {
+        detail: {
+          lineNumber: initPos.lineNumber,
+          column: initPos.column
+        }
+      }));
+    }
+
     // Store cleanup function
     menuListenersCleanupRef.current = () => {
       unlisteners.forEach(p => p.then(u => u()));
+      // Reset status bar cursor on unmount
+      window.dispatchEvent(new CustomEvent('editor-cursor', {
+        detail: null
+      }));
     };
   };
 

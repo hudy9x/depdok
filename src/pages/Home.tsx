@@ -3,7 +3,6 @@ import { useSetAtom, useAtomValue } from "jotai";
 import { useNavigate } from "react-router-dom";
 import { open } from "@tauri-apps/plugin-dialog";
 import { cn } from "@/lib/utils";
-import { Titlebar } from "@/features/Titlebar";
 import { Button } from "@/components/ui/button";
 import {
   Empty,
@@ -105,13 +104,11 @@ export default function Home() {
   return (
     <main
       className={cn(
-        "fixed top-0 left-0 z-50 w-full h-full flex flex-col items-center justify-center bg-background",
+        "h-full w-full flex flex-col items-center justify-center bg-layout-chrome",
         "transition-opacity duration-600 delay-[200ms] ease-in-out fill-mode-forwards",
         isVisible ? "opacity-100" : "opacity-0"
       )}
     >
-      <Titlebar />
-
       <Empty>
         <EmptyHeader>
           <EmptyMedia>

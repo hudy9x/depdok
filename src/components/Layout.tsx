@@ -1,5 +1,6 @@
 import { ReactNode } from 'react';
-// import { Footer } from './Footer';
+import { Titlebar } from '@/features/Titlebar';
+import { Footer } from './Footer';
 
 interface LayoutProps {
   children: ReactNode;
@@ -7,14 +8,17 @@ interface LayoutProps {
 
 export function Layout({ children }: LayoutProps) {
   return (
-    <>
-      {/* MainContent - Between Titlebar and Footer */}
-      <main className="fixed top-[35px] bottom-8 h-[calc(100vh-35px-32px)] left-0 right-0 overflow-auto">
+    <div className="flex flex-col h-screen w-screen overflow-hidden bg-layout-chrome text-foreground select-none">
+      {/* Header - fixed height custom titlebar */}
+      <Titlebar />
+
+      {/* Body - takes remaining vertical space */}
+      <main className="flex-1 min-h-0 relative overflow-hidden">
         {children}
       </main>
 
-      {/* Footer - Fixed at Bottom */}
-      {/* <Footer /> */}
-    </>
+      {/* Footer - fixed height interactive status bar */}
+      <Footer />
+    </div>
   );
 }

@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 
 import { workspaceRootAtom } from '@/features/FileExplorer/store';
 import { activeTabAtom } from '@/stores/TabStore';
-import { getCurrentBranch, gitPull } from '@/lib/gitUtils';
+import { getCurrentBranch, gitPull, getGitSyncStatus, startWatchingGit, stopWatchingGit, onGitChanged, isGitRepository } from '@/lib/gitUtils';
 import { cn } from '@/lib/utils';
 
 export function Footer() {
@@ -13,25 +13,62 @@ export function Footer() {
   const activeTab = useAtomValue(activeTabAtom);
 
   const [branch, setBranch] = useState<string>('');
+  const [syncStatus, setSyncStatus] = useState<{ ahead: number; behind: number }>({ ahead: 0, behind: 0 });
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [cursorPos, setCursorPos] = useState<{ line: number; col: number } | null>(null);
 
-  // 1. Fetch current Git branch if workspace root changes
+  // 1. Fetch Git info (branch & sync status) if workspace root changes
   useEffect(() => {
-    const fetchBranch = async () => {
+    let unlisten: (() => void) | null = null;
+
+    const fetchGitInfo = async () => {
       if (workspaceRoot) {
-        const current = await getCurrentBranch(workspaceRoot);
-        setBranch(current || 'main');
+        try {
+          const isGit = await isGitRepository(workspaceRoot);
+          if (!isGit) {
+            setBranch('');
+            setSyncStatus({ ahead: 0, behind: 0 });
+            return;
+          }
+
+          const [currentBranch, status] = await Promise.all([
+            getCurrentBranch(workspaceRoot),
+            getGitSyncStatus(workspaceRoot)
+          ]);
+          setBranch(currentBranch || 'main');
+          setSyncStatus(status || { ahead: 0, behind: 0 });
+        } catch (error) {
+          console.error('Failed to fetch Git info:', error);
+        }
       } else {
         setBranch('');
+        setSyncStatus({ ahead: 0, behind: 0 });
       }
     };
 
-    fetchBranch();
+    const setupGitWatcher = async () => {
+      if (workspaceRoot) {
+        const isGit = await isGitRepository(workspaceRoot);
+        if (!isGit) return;
+
+        await startWatchingGit(workspaceRoot);
+        unlisten = await onGitChanged(() => {
+          fetchGitInfo();
+        });
+      }
+    };
+
+    fetchGitInfo();
+    setupGitWatcher();
 
     // Check periodically (every 10s)
-    const interval = setInterval(fetchBranch, 10000);
-    return () => clearInterval(interval);
+    const interval = setInterval(fetchGitInfo, 500);
+
+    return () => {
+      clearInterval(interval);
+      if (unlisten) unlisten();
+      stopWatchingGit();
+    };
   }, [workspaceRoot]);
 
   // 2. Listen to custom editor cursor events from MonacoEditor
@@ -68,9 +105,13 @@ export function Footer() {
       const result = await gitPull(workspaceRoot);
       if (result.success) {
         toast.success('Git pull sync complete', { id: toastId });
-        // Refresh branch just in case
-        const current = await getCurrentBranch(workspaceRoot);
+        // Refresh branch and sync status
+        const [current, status] = await Promise.all([
+          getCurrentBranch(workspaceRoot),
+          getGitSyncStatus(workspaceRoot)
+        ]);
         setBranch(current || 'main');
+        setSyncStatus(status || { ahead: 0, behind: 0 });
       } else {
         toast.error(`Sync failed: ${result.output}`, { id: toastId });
       }
@@ -102,30 +143,34 @@ export function Footer() {
         {workspaceRoot && (
           <>
             {/* Git Branch Details */}
-            <div 
-              className="flex items-center gap-1 hover:text-foreground hover:bg-muted/50 px-1.5 py-0.5 rounded cursor-pointer transition-colors"
-              onClick={handleGitSync}
-              title="Git sync / Switch branch"
-            >
-              <GitBranch size={13} className="text-primary" />
-              <span className="font-medium text-foreground/80">{branch || 'detached'}</span>
-            </div>
+            {branch && (
+              <>
+                <div 
+                  className="flex items-center gap-1 hover:text-foreground hover:bg-muted/50 px-1.5 py-0.5 rounded cursor-pointer transition-colors"
+                  onClick={handleGitSync}
+                  title="Git sync / Switch branch"
+                >
+                  <GitBranch size={13} className="text-primary" />
+                  <span className="font-medium text-foreground/80">{branch}</span>
+                </div>
 
-            {/* Sync Pull trigger */}
-            <button
-              onClick={handleGitSync}
-              disabled={isSyncing}
-              className={cn(
-                "flex items-center gap-1.5 hover:text-foreground hover:bg-muted/50 px-1.5 py-0.5 rounded transition-all cursor-pointer",
-                isSyncing && "opacity-60"
-              )}
-              title="Sync (Git Pull)"
-            >
-              <RefreshCw size={11} className={cn("text-muted-foreground", isSyncing && "animate-spin text-primary")} />
-              <span>0 ↓ 11 ↑</span>
-            </button>
+                {/* Sync Pull trigger */}
+                <button
+                  onClick={handleGitSync}
+                  disabled={isSyncing}
+                  className={cn(
+                    "flex items-center gap-1.5 hover:text-foreground hover:bg-muted/50 px-1.5 py-0.5 rounded transition-all cursor-pointer",
+                    isSyncing && "opacity-60"
+                  )}
+                  title="Sync (Git Pull)"
+                >
+                  <RefreshCw size={11} className={cn("text-muted-foreground", isSyncing && "animate-spin text-primary")} />
+                  <span>{syncStatus.behind} ↓ {syncStatus.ahead} ↑</span>
+                </button>
 
-            <span className="h-3 w-[1px] bg-border/60" />
+                <span className="h-3 w-[1px] bg-border/60" />
+              </>
+            )}
 
             {/* Workspace Name */}
             <div className="flex items-center gap-1" title={workspaceRoot}>
@@ -140,7 +185,7 @@ export function Footer() {
 
       {/* Middle Section: System Status alerts */}
       <div className="flex items-center gap-3">
-        {workspaceRoot && (
+        {workspaceRoot && branch && (
           <div className="flex items-center gap-1.5 hover:text-foreground px-1 py-0.5 rounded cursor-help" title="0 warnings, 0 errors">
             <CheckCircle size={12} className="text-green-500" />
             <span className="text-[10px] text-green-500/80 font-medium">Synced</span>

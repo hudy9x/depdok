@@ -43,7 +43,7 @@ export function WeekView({
   };
 
   return (
-    <div className="h-full w-full overflow-y-auto flex items-start justify-center px-0 pt-6 pb-12 bg-background">
+    <div className="h-full w-full overflow-y-auto flex items-start justify-center px-0 pt-6 pb-12 bg-layout-content">
       <div className="w-full h-full">
         <div className="mx-auto max-w-lg h-full">
           {/* <ScrollArea className="h-[calc(100vh-100px)]"> */}

@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { listen, UnlistenFn } from "@tauri-apps/api/event";
 
 export async function getCurrentBranch(workingDir: string): Promise<string> {
     try {
@@ -135,3 +136,52 @@ export async function gitPull(workingDir: string): Promise<{ success: boolean; o
         return { success: false, output: String(error) };
     }
 }
+
+export async function getGitSyncStatus(
+    workingDir: string
+): Promise<{ ahead: number; behind: number }> {
+    try {
+        const [ahead, behind] = await invoke<[number, number]>("get_git_sync_status", { workingDir });
+        return { ahead, behind };
+    } catch (error) {
+        console.error("Failed to get git sync status:", error);
+        return { ahead: 0, behind: 0 };
+    }
+}
+
+export async function startWatchingGit(workspaceRoot: string): Promise<void> {
+    try {
+        await invoke("start_watching_git", { workspaceRoot });
+    } catch (error) {
+        console.error("Failed to start watching git:", error);
+    }
+}
+
+export async function stopWatchingGit(): Promise<void> {
+    try {
+        await invoke("stop_watching_git");
+    } catch (error) {
+        console.error("Failed to stop watching git:", error);
+    }
+}
+
+export async function onGitChanged(
+    callback: (workspaceRoot: string) => void
+): Promise<UnlistenFn> {
+    return await listen<string>("git-changed", (event) => {
+        callback(event.payload);
+    });
+}
+
+export async function isGitRepository(workingDir: string): Promise<boolean> {
+    try {
+        const isGit = await invoke<boolean>("is_git_repository", { workingDir });
+        return isGit;
+    } catch (error) {
+        console.error("Failed to check if git repository:", error);
+        return false;
+    }
+}
+
+
+

@@ -195,6 +195,9 @@ pub fn run() {
             // Initialize file watcher state
             app.manage(commands::file_watcher::init());
             
+            // Initialize Git watcher state
+            app.manage(commands::git::GitWatcher::new());
+            
             // Initialize file search state
             app.manage(commands::file_search::init());
             
@@ -328,6 +331,10 @@ pub fn run() {
             commands::git::switch_branch,
             commands::git::get_git_status,
             commands::git::git_pull,
+            commands::git::get_git_sync_status,
+            commands::git::start_watching_git,
+            commands::git::stop_watching_git,
+            commands::git::is_git_repository,
             commands::file_watcher::start_watching,
             commands::file_watcher::stop_watching,
             commands::file_explorer::open_folder_dialog,

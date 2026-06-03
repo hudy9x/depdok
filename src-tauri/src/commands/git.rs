@@ -1,5 +1,10 @@
 use tauri::command;
 use std::process::Command;
+use notify_debouncer_full::{new_debouncer, notify::RecursiveMode, DebounceEventResult};
+use std::path::PathBuf;
+use std::sync::{Arc, Mutex};
+use std::time::Duration;
+use tauri::{AppHandle, Emitter, Manager};
 
 #[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
@@ -23,9 +28,24 @@ pub fn get_current_branch(working_dir: String) -> Result<String, String> {
         return Err(String::from_utf8_lossy(&output.stderr).to_string());
     }
 
-    let branch = String::from_utf8_lossy(&output.stdout)
+    let mut branch = String::from_utf8_lossy(&output.stdout)
         .trim()
         .to_string();
+    
+    if !branch.is_empty() {
+        let mut status_cmd = Command::new("git");
+        status_cmd.current_dir(&working_dir)
+            .args(["status", "--porcelain"]);
+        
+        #[cfg(target_os = "windows")]
+        status_cmd.creation_flags(CREATE_NO_WINDOW);
+
+        if let Ok(status_output) = status_cmd.output() {
+            if status_output.status.success() && !status_output.stdout.is_empty() {
+                branch.push('*');
+            }
+        }
+    }
     
     Ok(branch)
 }
@@ -152,3 +172,182 @@ pub fn git_pull(working_dir: String) -> Result<String, String> {
 
     Ok(combined_output)
 }
+
+#[command]
+pub fn get_git_sync_status(working_dir: String) -> Result<(usize, usize), String> {
+    let mut cmd = Command::new("git");
+    cmd.current_dir(&working_dir)
+        .args(["rev-list", "--count", "--left-right", "HEAD...@{u}"]);
+    
+    #[cfg(target_os = "windows")]
+    cmd.creation_flags(CREATE_NO_WINDOW);
+    
+    let output = cmd.output()
+        .map_err(|e| format!("Failed to execute git command: {}", e))?;
+
+    if output.status.success() {
+        let output_str = String::from_utf8_lossy(&output.stdout);
+        let parts: Vec<&str> = output_str.trim().split_whitespace().collect();
+        if parts.len() == 2 {
+            let ahead = parts[0].parse::<usize>().unwrap_or(0);
+            let behind = parts[1].parse::<usize>().unwrap_or(0);
+            return Ok((ahead, behind));
+        }
+    }
+
+    // Fallback 1: Try comparing with origin/main
+    let mut fallback_cmd = Command::new("git");
+    fallback_cmd.current_dir(&working_dir)
+        .args(["rev-list", "--count", "--left-right", "HEAD...origin/main"]);
+    
+    #[cfg(target_os = "windows")]
+    fallback_cmd.creation_flags(CREATE_NO_WINDOW);
+
+    if let Ok(fallback_output) = fallback_cmd.output() {
+        if fallback_output.status.success() {
+            let output_str = String::from_utf8_lossy(&fallback_output.stdout);
+            let parts: Vec<&str> = output_str.trim().split_whitespace().collect();
+            if parts.len() == 2 {
+                let ahead = parts[0].parse::<usize>().unwrap_or(0);
+                let behind = parts[1].parse::<usize>().unwrap_or(0);
+                return Ok((ahead, behind));
+            }
+        }
+    }
+
+    // Fallback 2: Try comparing with main
+    let mut fallback_main_cmd = Command::new("git");
+    fallback_main_cmd.current_dir(&working_dir)
+        .args(["rev-list", "--count", "--left-right", "HEAD...main"]);
+    
+    #[cfg(target_os = "windows")]
+    fallback_main_cmd.creation_flags(CREATE_NO_WINDOW);
+
+    if let Ok(fallback_output) = fallback_main_cmd.output() {
+        if fallback_output.status.success() {
+            let output_str = String::from_utf8_lossy(&fallback_output.stdout);
+            let parts: Vec<&str> = output_str.trim().split_whitespace().collect();
+            if parts.len() == 2 {
+                let ahead = parts[0].parse::<usize>().unwrap_or(0);
+                let behind = parts[1].parse::<usize>().unwrap_or(0);
+                return Ok((ahead, behind));
+            }
+        }
+    }
+
+    Ok((0, 0))
+}
+
+pub struct GitWatcher {
+    pub current_workspace: Arc<Mutex<Option<String>>>,
+}
+
+impl GitWatcher {
+    pub fn new() -> Self {
+        Self {
+            current_workspace: Arc::new(Mutex::new(None)),
+        }
+    }
+}
+
+#[command]
+pub fn start_watching_git(workspace_root: String, app: AppHandle) -> Result<(), String> {
+    let git_path = PathBuf::from(&workspace_root).join(".git");
+    if !git_path.exists() {
+        return Err(format!("Not a git repository: {}", workspace_root));
+    }
+
+    let state = app.state::<GitWatcher>();
+    
+    // Update the current watched workspace
+    {
+        let mut current = state.current_workspace.lock().map_err(|e| e.to_string())?;
+        *current = Some(workspace_root.clone());
+    }
+
+    #[cfg(debug_assertions)]
+    println!("Started watching Git directory for: {}", workspace_root);
+
+    let watch_path = git_path.clone();
+    let workspace_root_clone = workspace_root.clone();
+    let app_handle = app.clone();
+    let current_workspace_ref = state.current_workspace.clone();
+
+    std::thread::spawn(move || {
+        let result = (|| -> Result<(), String> {
+            let app_clone = app_handle.clone();
+            let workspace_clone = workspace_root_clone.clone();
+            let workspace_for_closure = workspace_clone.clone();
+            let current_workspace_clone = current_workspace_ref.clone();
+
+            let mut debouncer = new_debouncer(
+                Duration::from_millis(500),
+                None,
+                move |result: DebounceEventResult| {
+                    match result {
+                        Ok(events) => {
+                            if !events.is_empty() {
+                                #[cfg(debug_assertions)]
+                                println!("Git repository changed: {}", workspace_for_closure);
+                                
+                                // Emit git-changed event to frontend
+                                let _ = app_clone.emit("git-changed", workspace_for_closure.clone());
+                            }
+                        }
+                        Err(_errors) => {
+                            #[cfg(debug_assertions)]
+                            eprintln!("Git watch error: {:?}", _errors);
+                        }
+                    }
+                },
+            ).map_err(|e| e.to_string())?;
+
+            // Watch the .git directory recursively
+            debouncer
+                .watch(watch_path.as_path(), RecursiveMode::Recursive)
+                .map_err(|e| e.to_string())?;
+
+            // Keep the debouncer alive
+            loop {
+                std::thread::sleep(Duration::from_secs(1));
+                
+                let current = current_workspace_clone.lock().ok()
+                    .and_then(|guard| guard.clone());
+                
+                if current.as_ref() != Some(&workspace_clone) {
+                    #[cfg(debug_assertions)]
+                    println!("Stopping Git watcher for: {}", workspace_clone);
+                    break;
+                }
+            }
+
+            Ok(())
+        })();
+
+        if let Err(e) = result {
+            eprintln!("Git watcher error: {}", e);
+        }
+    });
+
+    Ok(())
+}
+
+#[command]
+pub fn stop_watching_git(app: AppHandle) -> Result<(), String> {
+    let state = app.state::<GitWatcher>();
+    let mut current = state.current_workspace.lock().map_err(|e| e.to_string())?;
+    if let Some(_path) = current.take() {
+        #[cfg(debug_assertions)]
+        println!("Stopped watching Git for: {}", _path);
+    }
+    Ok(())
+}
+
+#[command]
+pub fn is_git_repository(working_dir: String) -> bool {
+    let git_path = PathBuf::from(&working_dir).join(".git");
+    git_path.exists()
+}
+
+
+

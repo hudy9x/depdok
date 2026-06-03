@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
-import { useAtomValue } from 'jotai';
-import { GitBranch, RefreshCw, FileCode, CheckCircle, Terminal } from 'lucide-react';
+import { useAtomValue, useSetAtom } from 'jotai';
+import { GitBranch, RefreshCw, FileCode, Terminal } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { workspaceRootAtom } from '@/features/FileExplorer/store';
+import { branchSelectorOpenAtom } from '@/features/BranchSelector/store';
 import { activeTabAtom } from '@/stores/TabStore';
 import { getCurrentBranch, gitPull, getGitSyncStatus, startWatchingGit, stopWatchingGit, onGitChanged, isGitRepository } from '@/lib/gitUtils';
 import { cn } from '@/lib/utils';
@@ -11,6 +12,7 @@ import { cn } from '@/lib/utils';
 export function Footer() {
   const workspaceRoot = useAtomValue(workspaceRootAtom);
   const activeTab = useAtomValue(activeTabAtom);
+  const setBranchSelectorOpen = useSetAtom(branchSelectorOpenAtom);
 
   const [branch, setBranch] = useState<string>('');
   const [syncStatus, setSyncStatus] = useState<{ ahead: number; behind: number }>({ ahead: 0, behind: 0 });
@@ -139,7 +141,7 @@ export function Footer() {
   return (
     <footer className="h-7 w-full flex items-center justify-between px-3 border-t border-border/80 bg-layout-chrome text-[11px] text-muted-foreground select-none shrink-0 z-50">
       {/* Left Side: Git Status, Sync, Workspace */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-2">
         {workspaceRoot && (
           <>
             {/* Git Branch Details */}
@@ -147,8 +149,8 @@ export function Footer() {
               <>
                 <div 
                   className="flex items-center gap-1 hover:text-foreground hover:bg-muted/50 px-1.5 py-0.5 rounded cursor-pointer transition-colors"
-                  onClick={handleGitSync}
-                  title="Git sync / Switch branch"
+                  onClick={() => setBranchSelectorOpen(true)}
+                  title="Switch branch / tag"
                 >
                   <GitBranch size={13} className="text-primary" />
                   <span className="font-medium text-foreground/80">{branch}</span>
@@ -171,27 +173,11 @@ export function Footer() {
                 <span className="h-3 w-[1px] bg-border/60" />
               </>
             )}
-
-            {/* Workspace Name */}
-            <div className="flex items-center gap-1" title={workspaceRoot}>
-              <Terminal size={12} className="text-muted-foreground/80" />
-              <span className="truncate max-w-[120px] font-semibold text-foreground/65">
-                {getWorkspaceName()}
-              </span>
-            </div>
           </>
         )}
       </div>
 
-      {/* Middle Section: System Status alerts */}
-      <div className="flex items-center gap-3">
-        {workspaceRoot && branch && (
-          <div className="flex items-center gap-1.5 hover:text-foreground px-1 py-0.5 rounded cursor-help" title="0 warnings, 0 errors">
-            <CheckCircle size={12} className="text-green-500" />
-            <span className="text-[10px] text-green-500/80 font-medium">Synced</span>
-          </div>
-        )}
-      </div>
+      
 
       {/* Right Side: Cursor Pos, Language */}
       <div className="flex items-center gap-4">

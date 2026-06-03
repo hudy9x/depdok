@@ -6,7 +6,6 @@ import {
   PanelLeft,
   Plus,
   Settings,
-  ChevronDown,
   ArrowLeft,
   ArrowRight
 } from 'lucide-react';
@@ -92,14 +91,14 @@ export function MacOSTitlebar() {
       >
         <div
           data-tauri-drag-region="false"
-          className="flex items-center gap-1 hover:bg-muted/30 px-2.5 py-1 rounded-md text-[12px] font-semibold text-foreground/80 cursor-pointer select-none transition-colors border border-transparent hover:border-border/30"
-          onClick={() => setShowSettings(true)}
+          className="flex items-center gap-1 hover:bg-muted/30 px-2.5 py-1 rounded-md text-[12px] text-foreground/80 cursor-pointer select-none transition-colors border border-transparent hover:border-border/30"
+          // onClick={() => setShowSettings(true)}
           title="Open Settings"
         >
           <span data-tauri-drag-region="false" className="truncate lowercase max-w-[200px]">
             {workspaceName}
           </span>
-          <ChevronDown data-tauri-drag-region="false" className="h-3 w-3 text-muted-foreground" />
+          {/* <ChevronDown data-tauri-drag-region="false" className="h-3 w-3 text-muted-foreground" /> */}
         </div>
       </div>
 

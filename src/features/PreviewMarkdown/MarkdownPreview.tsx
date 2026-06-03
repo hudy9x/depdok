@@ -33,7 +33,6 @@ import { useActiveHeading } from "@/hooks/useActiveHeading";
 import { MarkdownSizeControl, type MarkdownEditorSize } from "./MarkdownSizeControl";
 import Heading from "@tiptap/extension-heading";
 import { HeadingNodeView } from "./HeadingNodeView";
-import { LicenseGuard } from "@/components/LicenseGuard";
 import { Table } from "@tiptap/extension-table";
 import { TableRow } from "@tiptap/extension-table-row";
 import { TableHeader } from "@tiptap/extension-table-header";

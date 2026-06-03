@@ -349,5 +349,127 @@ pub fn is_git_repository(working_dir: String) -> bool {
     git_path.exists()
 }
 
+#[derive(serde::Serialize, serde::Deserialize, Clone)]
+pub struct GitRefInfo {
+    pub name: String,
+    pub ref_type: String, // "branch" or "tag"
+    pub date: String,
+    pub author: String,
+    pub subject: String,
+}
+
+#[command]
+pub fn get_git_refs(working_dir: String) -> Result<Vec<GitRefInfo>, String> {
+    let mut refs = Vec::new();
+
+    // 1. Fetch branches
+    let mut cmd = Command::new("git");
+    cmd.current_dir(&working_dir)
+        .args([
+            "for-each-ref",
+            "--sort=-committerdate",
+            "--format=%(refname:short)|%(committerdate:relative)|%(authorname)|%(subject)",
+            "refs/heads/"
+        ]);
+    
+    #[cfg(target_os = "windows")]
+    cmd.creation_flags(CREATE_NO_WINDOW);
+
+    if let Ok(output) = cmd.output() {
+        if output.status.success() {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            for line in stdout.lines() {
+                let parts: Vec<&str> = line.split('|').collect();
+                if parts.len() >= 4 {
+                    refs.push(GitRefInfo {
+                        name: parts[0].to_string(),
+                        ref_type: "branch".to_string(),
+                        date: parts[1].to_string(),
+                        author: parts[2].to_string(),
+                        subject: parts[3..].join("|"),
+                    });
+                }
+            }
+        }
+    }
+
+    // 2. Fetch tags
+    let mut cmd = Command::new("git");
+    cmd.current_dir(&working_dir)
+        .args([
+            "for-each-ref",
+            "--sort=-committerdate",
+            "--format=%(refname:short)|%(committerdate:relative)|%(authorname)|%(subject)",
+            "refs/tags/"
+        ]);
+    
+    #[cfg(target_os = "windows")]
+    cmd.creation_flags(CREATE_NO_WINDOW);
+
+    if let Ok(output) = cmd.output() {
+        if output.status.success() {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            for line in stdout.lines() {
+                let parts: Vec<&str> = line.split('|').collect();
+                if parts.len() >= 4 {
+                    refs.push(GitRefInfo {
+                        name: parts[0].to_string(),
+                        ref_type: "tag".to_string(),
+                        date: parts[1].to_string(),
+                        author: parts[2].to_string(),
+                        subject: parts[3..].join("|"),
+                    });
+                }
+            }
+        }
+    }
+
+    Ok(refs)
+}
+
+#[command]
+pub fn create_branch(working_dir: String, branch_name: String, base_branch: Option<String>) -> Result<String, String> {
+    let mut cmd = Command::new("git");
+    cmd.current_dir(&working_dir);
+    
+    if let Some(base) = base_branch {
+        cmd.args(["checkout", "-b", &branch_name, &base]);
+    } else {
+        cmd.args(["checkout", "-b", &branch_name]);
+    }
+
+    #[cfg(target_os = "windows")]
+    cmd.creation_flags(CREATE_NO_WINDOW);
+
+    let output = cmd.output()
+        .map_err(|e| format!("Failed to execute git command: {}", e))?;
+
+    if !output.status.success() {
+        return Err(String::from_utf8_lossy(&output.stderr).to_string());
+    }
+
+    Ok(format!("Created and switched to branch '{}'", branch_name))
+}
+
+#[command]
+pub fn checkout_detached(working_dir: String, name: String) -> Result<String, String> {
+    let mut cmd = Command::new("git");
+    cmd.current_dir(&working_dir)
+        .args(["checkout", "--detach", &name]);
+
+    #[cfg(target_os = "windows")]
+    cmd.creation_flags(CREATE_NO_WINDOW);
+
+    let output = cmd.output()
+        .map_err(|e| format!("Failed to execute git command: {}", e))?;
+
+    if !output.status.success() {
+        return Err(String::from_utf8_lossy(&output.stderr).to_string());
+    }
+
+    Ok(format!("Checked out '{}' in detached HEAD state", name))
+}
+
+
 
 

@@ -183,5 +183,57 @@ export async function isGitRepository(workingDir: string): Promise<boolean> {
     }
 }
 
+export interface GitRefInfo {
+    name: string;
+    ref_type: "branch" | "tag";
+    date: string;
+    author: string;
+    subject: string;
+}
+
+export async function getGitRefs(workingDir: string): Promise<GitRefInfo[]> {
+    try {
+        const refs = await invoke<GitRefInfo[]>("get_git_refs", { workingDir });
+        return refs;
+    } catch (error) {
+        console.error("Failed to get git refs:", error);
+        return [];
+    }
+}
+
+export async function createBranch(
+    workingDir: string,
+    branchName: string,
+    baseBranch?: string
+): Promise<{ success: boolean; output: string }> {
+    try {
+        const output = await invoke<string>("create_branch", {
+            workingDir,
+            branchName,
+            baseBranch: baseBranch || null,
+        });
+        return { success: true, output };
+    } catch (error) {
+        console.error("Failed to create branch:", error);
+        return { success: false, output: String(error) };
+    }
+}
+
+export async function checkoutDetached(
+    workingDir: string,
+    name: string
+): Promise<{ success: boolean; output: string }> {
+    try {
+        const output = await invoke<string>("checkout_detached", {
+            workingDir,
+            name,
+        });
+        return { success: true, output };
+    } catch (error) {
+        console.error("Failed to checkout detached:", error);
+        return { success: false, output: String(error) };
+    }
+}
+
 
 

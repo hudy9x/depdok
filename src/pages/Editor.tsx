@@ -2,13 +2,6 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import { useSetAtom, useAtomValue, useAtom } from "jotai";
 import { useEffect, useRef, useState } from "react";
 import { Panel, PanelGroup, PanelResizeHandle, ImperativePanelHandle } from "react-resizable-panels";
-import {
-  Files,
-  Search,
-  GitBranch,
-  Settings,
-  ChevronRight
-} from 'lucide-react';
 
 import { MonacoEditor } from "@/features/Editor/MonacoEditor";
 import { PreviewPanel } from "@/features/Preview/PreviewPanel";
@@ -20,7 +13,7 @@ import { EditorSave } from "@/features/Editor/EditorSaveHandler";
 import { FileExplorer } from "@/features/FileExplorer";
 import { isFileExplorerVisibleAtom, workspaceRootAtom } from "@/features/FileExplorer/store";
 import { SettingsDialog } from "@/features/SettingsDialog";
-import { cn } from "@/lib/utils";
+
 import {
   editorStateAtom,
   loadFileMetadataAtom,
@@ -38,41 +31,18 @@ import { getMonacoLanguage } from "@/lib/utils/getMonacoLanguage";
 import { useAutoSave } from "@/features/Editor/useAutoSave";
 import { FileSearchDialog } from "@/features/FileSearchDialog";
 import { ContentSearchDialog } from "@/features/ContentSearchDialog";
+import { BranchSelectorDialog } from "@/features/BranchSelector";
 import { useGlobalShortcuts } from "@/hooks/useGlobalShortcuts";
 import { EditorViewMode } from "@/features/EditorViewMode";
-import { licensePopoverOpenAtom } from "@/stores/license-popover";
 
-interface SidebarAccordionProps {
-  title: string;
-  children: React.ReactNode;
-}
 
-function SidebarAccordion({ title, children }: SidebarAccordionProps) {
-  const [isOpen, setIsOpen] = useState(true);
 
-  return (
-    <div className="w-full select-none flex flex-col">
-      <div
-        className="flex items-center gap-1.5 px-3 py-1.5 hover:bg-muted/30 cursor-pointer text-[9px] font-bold text-foreground/75 border-y border-border/40 transition-colors"
-        onClick={() => setIsOpen(!isOpen)}
-      >
-        <ChevronRight className={cn("w-3 h-3 text-muted-foreground transition-transform duration-200", isOpen && "rotate-90")} />
-        <span className="tracking-wider uppercase">{title}</span>
-      </div>
-      {isOpen && (
-        <div className="p-2 bg-layout-chrome max-h-[160px] overflow-y-auto custom-scrollbar">
-          {children}
-        </div>
-      )}
-    </div>
-  );
-}
 
 export default function Editor() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const editorState = useAtomValue(editorStateAtom);
-  const [viewMode, setViewMode] = useAtom(viewModeAtom);
+  const [viewMode] = useAtom(viewModeAtom);
   const loadFileMetadata = useSetAtom(loadFileMetadataAtom);
   const activeTab = useAtomValue(activeTabAtom);
   const createTab = useSetAtom(createTabAtom);
@@ -80,7 +50,6 @@ export default function Editor() {
   const [tabs] = useAtom(tabsAtom);
   const [isFileExplorerVisible, setIsFileExplorerVisible] = useAtom(isFileExplorerVisibleAtom);
   const workspaceRoot = useAtomValue(workspaceRootAtom);
-  const setLicenseOpen = useSetAtom(licensePopoverOpenAtom);
   const fileExplorerPanelRef = useRef<ImperativePanelHandle>(null);
 
   const [showSettings, setShowSettings] = useState(false);
@@ -174,6 +143,7 @@ export default function Editor() {
     <>
       <FileSearchDialog />
       <ContentSearchDialog />
+      <BranchSelectorDialog />
       <EditorSave />
       {/* <EditorViewMode /> */}
 

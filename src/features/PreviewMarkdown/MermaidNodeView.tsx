@@ -126,7 +126,7 @@ export function MermaidNodeView({ node, editor, getPos }: NodeViewProps) {
     <NodeViewWrapper className="mermaid-node-wrapper relative group my-4 transition-all duration-200">
       {/* Absolute controls (shown if editable) */}
       {editable && (
-        <div className={`absolute top-1 right-2 flex items-center gap-1.5 transition-opacity duration-200 z-20 select-none ${
+        <div className={`absolute top-0 right-2 flex items-center gap-1.5 transition-opacity duration-200 z-20 select-none ${
           isEditorFocused ? "opacity-100" : "opacity-0 group-hover:opacity-100"
         }`}>
           {/* Copy code button */}

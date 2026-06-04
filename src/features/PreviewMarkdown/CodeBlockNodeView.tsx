@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { NodeViewProps } from '@tiptap/react';
 import { MermaidNodeView } from './MermaidNodeView';
+import { PlantUMLNodeView } from './PlantUMLNodeView';
 
 export function CodeBlockNodeView(props: NodeViewProps) {
   const { node } = props;
@@ -11,9 +12,14 @@ export function CodeBlockNodeView(props: NodeViewProps) {
 
   const language = node.attrs.language;
   const isMermaid = ['mermaid', 'mmd', 'mindmap'].includes(language);
+  const isPlantUML = ['plantuml', 'puml', 'pu'].includes(language);
 
   if (isMermaid) {
     return <MermaidNodeView {...props} />;
+  }
+
+  if (isPlantUML) {
+    return <PlantUMLNodeView {...props} />;
   }
 
   const copyToClipboard = async () => {

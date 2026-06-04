@@ -3,9 +3,18 @@ import { Check, Copy } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { NodeViewProps } from '@tiptap/react';
+import { MermaidNodeView } from './MermaidNodeView';
 
-export function CodeBlockNodeView({ node }: NodeViewProps) {
+export function CodeBlockNodeView(props: NodeViewProps) {
+  const { node } = props;
   const [isCopied, setIsCopied] = useState(false);
+
+  const language = node.attrs.language;
+  const isMermaid = ['mermaid', 'mmd', 'mindmap'].includes(language);
+
+  if (isMermaid) {
+    return <MermaidNodeView {...props} />;
+  }
 
   const copyToClipboard = async () => {
     try {

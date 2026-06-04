@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAtomValue, useSetAtom } from 'jotai';
-import { GitBranch, RefreshCw, FileCode, Terminal } from 'lucide-react';
+import { GitBranch, RefreshCw, FileCode } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { workspaceRootAtom } from '@/features/FileExplorer/store';
@@ -125,10 +125,6 @@ export function Footer() {
     }
   };
 
-  const getWorkspaceName = () => {
-    if (!workspaceRoot) return '';
-    return workspaceRoot.split(/[/\\]/).pop() || 'WORKSPACE';
-  };
 
   const getLanguageLabel = () => {
     if (!activeTab) return '';

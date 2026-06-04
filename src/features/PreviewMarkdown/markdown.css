@@ -604,3 +604,22 @@
 .drag-handle[style*="visibility: visible"] {
   opacity: 1;
 }
+
+/* ── Custom Mermaid Node View Styling ────────────────────────── */
+.mermaid-node-wrapper {
+  margin-top: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+/* Ensure the SVG content scales properly and centers */
+.mermaid-render-container svg {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* Override styling of standard code block lowlight selection if selected */
+.ProseMirror-selectednode.mermaid-node-wrapper {
+  outline: 2px solid var(--primary);
+  opacity: 1 !important;
+}

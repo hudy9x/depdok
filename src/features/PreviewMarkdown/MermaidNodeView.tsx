@@ -178,7 +178,7 @@ export function MermaidNodeView({ node, editor, getPos }: NodeViewProps) {
         {/* CODE MODE */}
         <div className={mode === "code" ? "block" : "hidden"}>
           <pre className="relative p-4 font-mono text-sm leading-relaxed overflow-x-auto bg-zinc-950 text-zinc-50 border border-border m-0 rounded-lg">
-            <NodeViewContent className="outline-none" />
+            <NodeViewContent className="outline-none text-foreground" />
           </pre>
         </div>
 

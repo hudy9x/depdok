@@ -72,7 +72,6 @@ export function CreateTabButton() {
         <div
           className="h-[35px] w-8 p-0 rounded-none border-r border-b border-border bg-layout-chrome hover:bg-muted/30 text-muted-foreground hover:text-foreground cursor-pointer flex items-center justify-center transition-colors"
           title="Create new file"
-          data-tauri-drag-region="false"
         >
           <Plus className="w-4 h-4" />
         </div>

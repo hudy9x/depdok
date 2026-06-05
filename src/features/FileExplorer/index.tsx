@@ -4,7 +4,6 @@ import {
   isLoadingAtom,
 } from './store';
 
-import { useWindowDrag } from '@/hooks/useWindowDrag';
 import { FileOperationDialogs } from './FileOperationDialogs';
 import { EmptyExplorer } from './EmptyExplorer';
 import { ExplorerView } from './ExplorerView';
@@ -14,8 +13,6 @@ import { useFileExplorerShortcuts } from './hooks/useFileExplorerShortcuts';
 export function FileExplorer() {
   const workspaceRoot = useAtomValue(workspaceRootAtom);
   const isLoading = useAtomValue(isLoadingAtom);
-  const dragRef = useWindowDrag();
-
   // Initialize file explorer (load workspace, listen for events)
   useFileExplorerInitialization();
 
@@ -36,7 +33,6 @@ export function FileExplorer() {
 
   return (
     <div
-      ref={dragRef as React.RefObject<HTMLDivElement>}
       className="flex flex-col h-full outline-none"
       tabIndex={0}
       onKeyDown={handleKeyDown}

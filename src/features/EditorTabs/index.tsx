@@ -4,15 +4,12 @@ import { tabsAtom } from '@/stores/TabStore';
 import { TabItem } from './TabItem';
 import { CreateTabButton } from './CreateTabButton';
 import { CustomScroller } from '@/components/CustomScroller';
-import { useWindowDrag } from '@/hooks/useWindowDrag';
 
 export function EditorTabs() {
   const [tabs] = useAtom(tabsAtom);
 
-  useWindowDrag('[data-custom-scroller-content]');
-
   return (
-    <div className="flex items-end pt-0 h-[35px] w-full overflow-hidden bg-layout-chrome" data-tauri-drag-region>
+    <div className="flex items-end pt-0 h-[35px] w-full overflow-hidden bg-layout-chrome">
       {/* Tabs list with horizontal scroll */}
       <CustomScroller
         orientation="horizontal"

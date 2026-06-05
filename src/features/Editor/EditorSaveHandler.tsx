@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useAtomValue, useSetAtom } from "jotai";
-import { writeTextFile } from "@tauri-apps/plugin-fs";
 import { save } from "@tauri-apps/plugin-dialog";
+import { platform } from "@tauri-apps/plugin-os";
 import { toast } from "sonner";
 
 import { editorStateAtom, markAsSavedAtom } from "@/stores/EditorStore";
@@ -14,8 +14,9 @@ import {
   isDummyPath,
   extractFilenameFromDummyPath,
 } from "@/stores/TabStore";
-import { refreshDirectoryAtom } from "@/features/FileExplorer/store";
+import { refreshDirectoryAtom, workspaceRootAtom } from "@/features/FileExplorer/store";
 import { autoSaveEnabledAtom } from "@/stores/SettingsStore";
+import { writeFileContent } from "@/lib/fileOperations";
 
 const supportedFileTypes = ["md", "mmd", "txt", "pu", "format", "puml", "plantuml", "todo", "excalidraw", "logger"];
 
@@ -24,16 +25,43 @@ export function EditorSave() {
   const editorState = useAtomValue(editorStateAtom);
   const activeTab = useAtomValue(activeTabAtom);
   const autoSaveEnabled = useAtomValue(autoSaveEnabledAtom);
+  const workspaceRoot = useAtomValue(workspaceRootAtom);
   const markAsSaved = useSetAtom(markAsSavedAtom);
   const updateTabPath = useSetAtom(updateTabPathAtom);
   const markTabAsSaved = useSetAtom(markTabAsSavedAtom);
   const setIsSaving = useSetAtom(isSavingAtom);
   const refreshDirectory = useSetAtom(refreshDirectoryAtom);
 
+  const normalizeWindowsSavePath = (path: string): string => {
+    let normalized = path.replace(/\//g, "\\");
+
+    if (!workspaceRoot) return normalized;
+
+    const workspace = workspaceRoot.replace(/\//g, "\\").replace(/\\+$/, "");
+    const workspaceName = workspace.split(/[/\\]/).pop() || "";
+    const lastSlash = workspace.lastIndexOf("\\");
+    const parentDir = lastSlash >= 0 ? workspace.slice(0, lastSlash + 1) : "";
+
+    // Repair malformed path pattern seen on Windows: "<workspace>-<subpath>"
+    if (normalized.startsWith(`${workspace}-`)) {
+      const suffix = normalized.slice(workspace.length + 1).replace(/^[\\/]+/, "");
+      return `${workspace}\\${suffix}`;
+    }
+
+    // Repair variant: "<parent><workspaceName>-<subpath>"
+    if (workspaceName && parentDir && normalized.startsWith(`${parentDir}${workspaceName}-`)) {
+      const suffix = normalized.slice((`${parentDir}${workspaceName}-`).length).replace(/^[\\/]+/, "");
+      return `${workspace}\\${suffix}`;
+    }
+
+    return normalized;
+  };
+
   const handleSaveAs = async (currentPath: string) => {
     try {
       // Extract filename from UNTITLED://filename.ext
-      const filename = extractFilenameFromDummyPath(currentPath);
+      const rawFilename = extractFilenameFromDummyPath(currentPath);
+      const filename = rawFilename.split(/[/\\]/).pop() || rawFilename;
       const extMatch = filename.match(/\.([^.]+)$/);
       const ext = extMatch ? extMatch[1].toLowerCase() : "";
 
@@ -50,14 +78,23 @@ export function EditorSave() {
       });
 
       // Open save dialog
+      const isWindows = platform() === "windows";
+      const defaultPath = isWindows && workspaceRoot
+        ? `${workspaceRoot}\\${filename}`
+        : filename;
+
       const selected = await save({
-        defaultPath: filename,
+        defaultPath,
         filters,
       });
 
       if (!selected) {
         return; // User cancelled
       }
+
+      const selectedPath = isWindows
+        ? normalizeWindowsSavePath(selected)
+        : selected;
 
       // Get draft content
       let draft = await draftService.getDraft(currentPath);
@@ -81,21 +118,21 @@ export function EditorSave() {
       }
 
       // Set flag (with file path) to prevent file watcher from reacting
-      setIsSaving(selected);
+      setIsSaving(selectedPath);
 
       // Write to new location
-      await writeTextFile(selected, draft.content);
-      lastSavedContentMap.set(selected, draft.content);
+      await writeFileContent(selectedPath, draft.content);
+      lastSavedContentMap.set(selectedPath, draft.content);
 
       // Refresh file explorer for the parent folder
-      const parentDir = selected.substring(0, Math.max(selected.lastIndexOf('/'), selected.lastIndexOf('\\')));
+      const parentDir = selectedPath.substring(0, Math.max(selectedPath.lastIndexOf('/'), selectedPath.lastIndexOf('\\')));
       if (parentDir) {
         refreshDirectory(parentDir).catch(console.error);
       }
 
       // Update tab with real path
       if (activeTab) {
-        updateTabPath({ tabId: activeTab.id, newPath: selected });
+        updateTabPath({ tabId: activeTab.id, newPath: selectedPath });
         markTabAsSaved(activeTab.id);
       }
 
@@ -157,7 +194,7 @@ export function EditorSave() {
       // Set flag (with file path) to prevent file watcher from reacting
       setIsSaving(editorState.filePath);
 
-      await writeTextFile(editorState.filePath, contentToSave);
+      await writeFileContent(editorState.filePath, contentToSave);
       lastSavedContentMap.set(editorState.filePath, contentToSave);
       await draftService.removeDraft(editorState.filePath);
 

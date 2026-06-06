@@ -63,10 +63,21 @@ fn open_new_window(app: tauri::AppHandle) -> Result<(), String> {
         .inner_size(740.0, 850.0)
         .min_inner_size(MIN_WINDOW_WIDTH, MIN_WINDOW_HEIGHT)
         .decorations(false)
-        .transparent(true)
         .disable_drag_drop_handler();
 
+    #[cfg(target_os = "windows")]
+    let win_builder = win_builder
+        .transparent(false)
+        .background_color(tauri::window::Color(24, 24, 24, 255));
+
+    #[cfg(not(target_os = "windows"))]
+    let win_builder = win_builder.transparent(true);
+
+    #[cfg(target_os = "macos")]
     let window = win_builder.build().map_err(|e| e.to_string())?;
+
+    #[cfg(not(target_os = "macos"))]
+    let _window = win_builder.build().map_err(|e| e.to_string())?;
 
     #[cfg(target_os = "macos")]
     {
@@ -245,12 +256,21 @@ pub fn run() {
                 .inner_size(width, height)
                 .min_inner_size(MIN_WINDOW_WIDTH, MIN_WINDOW_HEIGHT)
                 .decorations(false)
-                .transparent(true)
                 .disable_drag_drop_handler(); // Disable Tauri's file drop to allow browser handling
 
+            #[cfg(target_os = "windows")]
+            let win_builder = win_builder
+                .transparent(false)
+                .background_color(tauri::window::Color(24, 24, 24, 255));
 
+            #[cfg(not(target_os = "windows"))]
+            let win_builder = win_builder.transparent(true);
 
+            #[cfg(target_os = "macos")]
             let window = win_builder.build().unwrap();
+
+            #[cfg(not(target_os = "macos"))]
+            let _window = win_builder.build().unwrap();
 
             // set background color only when building for macOS
             #[cfg(target_os = "macos")]

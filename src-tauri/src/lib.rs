@@ -63,10 +63,21 @@ fn open_new_window(app: tauri::AppHandle) -> Result<(), String> {
         .inner_size(740.0, 850.0)
         .min_inner_size(MIN_WINDOW_WIDTH, MIN_WINDOW_HEIGHT)
         .decorations(false)
-        .transparent(true)
         .disable_drag_drop_handler();
 
+    #[cfg(target_os = "windows")]
+    let win_builder = win_builder
+        .transparent(false)
+        .background_color(tauri::window::Color(24, 24, 24, 255));
+
+    #[cfg(not(target_os = "windows"))]
+    let win_builder = win_builder.transparent(true);
+
+    #[cfg(target_os = "macos")]
     let window = win_builder.build().map_err(|e| e.to_string())?;
+
+    #[cfg(not(target_os = "macos"))]
+    let _window = win_builder.build().map_err(|e| e.to_string())?;
 
     #[cfg(target_os = "macos")]
     {
@@ -195,6 +206,9 @@ pub fn run() {
             // Initialize file watcher state
             app.manage(commands::file_watcher::init());
             
+            // Initialize Git watcher state
+            app.manage(commands::git::GitWatcher::new());
+            
             // Initialize file search state
             app.manage(commands::file_search::init());
             
@@ -242,12 +256,21 @@ pub fn run() {
                 .inner_size(width, height)
                 .min_inner_size(MIN_WINDOW_WIDTH, MIN_WINDOW_HEIGHT)
                 .decorations(false)
-                .transparent(true)
                 .disable_drag_drop_handler(); // Disable Tauri's file drop to allow browser handling
 
+            #[cfg(target_os = "windows")]
+            let win_builder = win_builder
+                .transparent(false)
+                .background_color(tauri::window::Color(24, 24, 24, 255));
 
+            #[cfg(not(target_os = "windows"))]
+            let win_builder = win_builder.transparent(true);
 
+            #[cfg(target_os = "macos")]
             let window = win_builder.build().unwrap();
+
+            #[cfg(not(target_os = "macos"))]
+            let _window = win_builder.build().unwrap();
 
             // set background color only when building for macOS
             #[cfg(target_os = "macos")]
@@ -325,9 +348,17 @@ pub fn run() {
             commands::files::reveal_file,
             commands::git::get_current_branch,
             commands::git::get_all_branches,
+            commands::git::get_git_refs,
+            commands::git::create_branch,
+            commands::git::checkout_detached,
             commands::git::switch_branch,
             commands::git::get_git_status,
             commands::git::git_pull,
+            commands::git::has_git_upstream,
+            commands::git::get_git_sync_status,
+            commands::git::start_watching_git,
+            commands::git::stop_watching_git,
+            commands::git::is_git_repository,
             commands::file_watcher::start_watching,
             commands::file_watcher::stop_watching,
             commands::file_explorer::open_folder_dialog,

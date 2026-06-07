@@ -1,32 +1,75 @@
-import { Github, ExternalLink } from 'lucide-react';
-import { openUrl } from '@tauri-apps/plugin-opener';
+import { useEffect, useState } from 'react';
+import { useAtomValue } from 'jotai';
+import { FileCode } from 'lucide-react';
+
+import { activeTabAtom } from '@/stores/TabStore';
+import { FooterGitSection } from './FooterGitSection';
 
 export function Footer() {
-  const openLink = async (url: string) => {
-    await openUrl(url);
+  const activeTab = useAtomValue(activeTabAtom);
+  const [cursorPos, setCursorPos] = useState<{ line: number; col: number } | null>(null);
+
+  // 2. Listen to custom editor cursor events from MonacoEditor
+  useEffect(() => {
+    const handleCursorChange = (e: Event) => {
+      const customEvent = e as CustomEvent<{ lineNumber: number; column: number } | null>;
+      if (customEvent.detail) {
+        setCursorPos({
+          line: customEvent.detail.lineNumber,
+          col: customEvent.detail.column
+        });
+      } else {
+        setCursorPos(null);
+      }
+    };
+
+    window.addEventListener('editor-cursor', handleCursorChange);
+    return () => {
+      window.removeEventListener('editor-cursor', handleCursorChange);
+    };
+  }, []);
+
+  const getLanguageLabel = () => {
+    if (!activeTab) return '';
+    const ext = activeTab.fileExtension?.toLowerCase() || '';
+    if (ext === 'md' || ext === 'markdown') return 'Markdown';
+    if (ext === 'puml' || ext === 'pu' || ext === 'plantuml') return 'PlantUML';
+    return activeTab.fileExtension?.toUpperCase() || 'Text';
   };
 
   return (
-    <footer className="fixed bottom-0 left-0 right-0 h-8 flex items-center justify-center gap-4 bg-background backdrop-blur-sm border-t border-muted-foreground/30 text-xs text-muted-foreground z-[9998]">
-      <a
-        href="https://github.com/hudy9x/template-tauri"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="flex items-center gap-1.5 hover:text-foreground transition-colors"
-      >
-        <Github size={14} />
-        <span>GitHub</span>
-      </a>
+    <footer className="h-7 w-full flex items-center justify-between px-3 border-t border-border/80 bg-layout-chrome text-[11px] text-muted-foreground select-none shrink-0 z-50">
+      {/* Left Side: Git Status, Sync, Workspace */}
+      <div className="flex items-center gap-2">
+        <FooterGitSection />
+      </div>
 
-      <span className="text-muted-foreground/50">•</span>
+      
 
-      <button
-        onClick={() => openLink('https://hudy9x.com')}
-        className="flex items-center gap-1.5 hover:text-foreground transition-colors"
-      >
-        <span>hudy9x.com</span>
-        <ExternalLink size={10} />
-      </button>
+      {/* Right Side: Cursor Pos, Language */}
+      <div className="flex items-center gap-4">
+        {/* Cursor Position Coordinates */}
+        {cursorPos && (
+          <div className="font-mono text-[10px]">
+            Ln {cursorPos.line}, Col {cursorPos.col}
+          </div>
+        )}
+
+        {/* Cursor Tab indication (VS Code-like static tag) */}
+        {activeTab && (
+          <div className="flex items-center gap-1.5 bg-muted/30 hover:bg-muted/70 px-1.5 py-0.5 rounded font-mono text-[10px]">
+            <span>Tab size: 2</span>
+          </div>
+        )}
+
+        {/* Content Language Indicator */}
+        {activeTab && (
+          <div className="flex items-center gap-1 hover:text-foreground hover:bg-muted/50 px-1.5 py-0.5 rounded cursor-default transition-colors">
+            <FileCode size={12} className="text-primary" />
+            <span className="font-semibold text-foreground/80">{getLanguageLabel()}</span>
+          </div>
+        )}
+      </div>
     </footer>
   );
 }

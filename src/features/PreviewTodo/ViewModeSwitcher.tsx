@@ -11,7 +11,7 @@ export function ViewModeSwitcher({ mode, onModeChange, editable }: ViewModeSwitc
   if (!editable) return null;
 
   return (
-    <div className="fixed bottom-6 right-6 z-50">
+    <div className="fixed bottom-10 right-6 z-50">
       <ToggleGroup
         type="single"
         variant={"outline"}
@@ -24,7 +24,7 @@ export function ViewModeSwitcher({ mode, onModeChange, editable }: ViewModeSwitc
         <ToggleGroupItem
           value="kanban"
           aria-label="Kanban view"
-          className="gap-2"
+          className="gap-2 border border-border"
         >
           <LayoutGrid className="h-4 w-4" />
           Kanban
@@ -32,7 +32,7 @@ export function ViewModeSwitcher({ mode, onModeChange, editable }: ViewModeSwitc
         <ToggleGroupItem
           value="week"
           aria-label="Week view"
-          className="gap-2"
+          className="gap-2 border border-border"
         >
           <CalendarDays className="h-4 w-4" />
           Week

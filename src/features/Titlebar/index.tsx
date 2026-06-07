@@ -1,15 +1,9 @@
-import { useEffect, useState, ReactNode } from 'react';
+import { useEffect, useState } from 'react';
 import { platform } from '@tauri-apps/plugin-os';
 import { WindowsTitlebar } from './WindowsTitlebar';
 import { MacOSTitlebar } from './MacOSTitlebar';
 
-interface TitlebarProps {
-  left?: ReactNode;
-  center?: ReactNode;
-  right?: ReactNode;
-}
-
-export function Titlebar({ left, center, right }: TitlebarProps) {
+export function Titlebar() {
   const [currentPlatform, setCurrentPlatform] = useState<string>('');
 
   useEffect(() => {
@@ -21,18 +15,13 @@ export function Titlebar({ left, center, right }: TitlebarProps) {
     getPlatform();
   }, []);
 
-  // Return null while detecting platform to avoid flash
   if (!currentPlatform) {
     return null;
   }
 
-  // Render platform-specific titlebar
   if (currentPlatform === 'macos') {
-    // For debugging: Force Windows titlebar
-    return <MacOSTitlebar left={left} center={center} right={right} />;
-    // return <WindowsTitlebar left={left} center={center} right={right} />;
+    return <MacOSTitlebar />;
   }
 
-  // Default to Windows titlebar for Windows and Linux
-  return <WindowsTitlebar left={left} center={center} right={right} />;
+  return <WindowsTitlebar />;
 }

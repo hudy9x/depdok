@@ -50,3 +50,12 @@ export async function createFile(path: string): Promise<void> {
 export async function readFileContent(path: string): Promise<string> {
   return await invoke<string>('read_file_content', { path });
 }
+
+/**
+ * Write text content to a file
+ * @param path - Path of the file to write
+ * @param content - Text content to write
+ */
+export async function writeFileContent(path: string, content: string): Promise<void> {
+  await invoke('write_file_content', { path, content });
+}

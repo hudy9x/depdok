@@ -58,6 +58,8 @@
   /* Custom */
   --color-board: var(--board);
   --color-board-border: var(--board-border);
+  --color-layout-chrome: var(--layout-chrome);
+  --color-layout-content: var(--layout-content);
 }
 
 :root {
@@ -117,6 +119,8 @@
   /* Custom */
   --board: oklch(95.863% 0.00971 273.338);
   --board-border: oklch(91.327% 0.01631 285.986);
+  --layout-chrome: oklch(0.95 0.005 95);
+  --layout-content: oklch(1.00 0 0);
 }
 
 .dark {
@@ -173,7 +177,8 @@
   /* Custom */
   --board: oklch(32.006% 0.02837 284.677);
   --board-border: oklch(37.748% 0.0255 285.099);
-
+  --layout-chrome: oklch(0.20 0.003 106);
+  --layout-content: oklch(0.25 0.003 106);
 }
 
 @layer base {

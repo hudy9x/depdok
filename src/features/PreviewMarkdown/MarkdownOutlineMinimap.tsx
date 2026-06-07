@@ -39,7 +39,7 @@ export const MarkdownOutlineMinimap: React.FC<MarkdownOutlineMinimapProps> = ({
         onClick={onClick}
         className={cn(
           'flex flex-col items-end gap-2 w-[70px] px-2 py-2 rounded-md cursor-pointer group',
-          'bg-background/80 backdrop-blur-sm',
+          'bg-layout-content backdrop-blur-sm',
           'hover:border-border transition-all duration-200',
           className
         )}
@@ -48,7 +48,7 @@ export const MarkdownOutlineMinimap: React.FC<MarkdownOutlineMinimapProps> = ({
           const isActive = activeHeadingId === anchor.id;
           return (
             <Tooltip key={anchor.id}>
-              <TooltipTrigger asChild>
+              <TooltipTrigger asChild className="group/outline">
                 <div
                   className={cn(
                     'h-[2px] rounded-full transition-all duration-200',

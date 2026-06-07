@@ -31,18 +31,18 @@ export function ExplorerHeader() {
   if (!workspaceRoot) return null;
 
   return (
-    <div className="flex items-center justify-between px-2 py-1 border-b border-border shrink-0">
+    <div className="flex items-center justify-between px-2 py-1 shrink-0 group/explorer-header">
       <span className="text-xs font-semibold text-muted-foreground truncate" title={workspaceRoot}>
         {workspaceRoot.split(/[/\\]/).pop() || 'WORKSPACE'}
       </span>
-      <div className="flex items-center gap-0.5">
-        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={handleCreateFile} title="New File">
-          <FilePlus className="h-3.5 w-3.5" />
+      <div className="flex items-center gap-0.5 opacity-100 group-hover/explorer-header:opacity-100 transition-opacity">
+        <Button variant="ghost" size="icon" className="h-6 w-6 text-gray-500" onClick={handleCreateFile} title="New File">
+          <FilePlus className="!h-3.5 !w-3.5" />
         </Button>
-        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={handleCreateFolder} title="New Folder">
-          <FolderPlus className="h-3.5 w-3.5" />
+        <Button variant="ghost" size="icon" className="h-6 w-6 text-gray-500" onClick={handleCreateFolder} title="New Folder">
+          <FolderPlus className="h-3.5 !w-4" />
         </Button>
-        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={handleCollapseAll} title="Collapse All">
+        <Button variant="ghost" size="icon" className="h-6 w-6 text-gray-500" onClick={handleCollapseAll} title="Collapse All">
           <SquareEqual className="h-3.5 w-3.5" />
         </Button>
       </div>

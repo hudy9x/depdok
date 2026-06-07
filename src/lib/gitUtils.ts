@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { listen, UnlistenFn } from "@tauri-apps/api/event";
 
 export async function getCurrentBranch(workingDir: string): Promise<string> {
     try {
@@ -135,3 +136,145 @@ export async function gitPull(workingDir: string): Promise<{ success: boolean; o
         return { success: false, output: String(error) };
     }
 }
+
+export async function hasGitUpstream(workingDir: string): Promise<boolean> {
+    try {
+        return await invoke<boolean>("has_git_upstream", { workingDir });
+    } catch (error) {
+        console.error("Failed to determine git upstream:", error);
+        return false;
+    }
+}
+
+export async function getGitSyncStatus(
+    workingDir: string
+): Promise<{ ahead: number; behind: number }> {
+    try {
+        const [ahead, behind] = await invoke<[number, number]>("get_git_sync_status", { workingDir });
+        return { ahead, behind };
+    } catch (error) {
+        console.error("Failed to get git sync status:", error);
+        return { ahead: 0, behind: 0 };
+    }
+}
+
+export interface GitWorkingTreeSummary {
+    changed: number;
+    new: number;
+    deleted: number;
+}
+
+export function summarizeGitStatus(statusMap: Record<string, string>): GitWorkingTreeSummary {
+    return Object.values(statusMap).reduce<GitWorkingTreeSummary>(
+        (summary, status) => {
+            switch (status) {
+                case "added":
+                case "untracked":
+                    summary.new += 1;
+                    break;
+                case "deleted":
+                    summary.deleted += 1;
+                    break;
+                case "modified":
+                case "renamed":
+                case "copied":
+                    summary.changed += 1;
+                    break;
+                default:
+                    break;
+            }
+
+            return summary;
+        },
+        { changed: 0, new: 0, deleted: 0 }
+    );
+}
+
+export async function startWatchingGit(workspaceRoot: string): Promise<void> {
+    try {
+        await invoke("start_watching_git", { workspaceRoot });
+    } catch (error) {
+        console.error("Failed to start watching git:", error);
+    }
+}
+
+export async function stopWatchingGit(): Promise<void> {
+    try {
+        await invoke("stop_watching_git");
+    } catch (error) {
+        console.error("Failed to stop watching git:", error);
+    }
+}
+
+export async function onGitChanged(
+    callback: (workspaceRoot: string) => void
+): Promise<UnlistenFn> {
+    return await listen<string>("git-changed", (event) => {
+        callback(event.payload);
+    });
+}
+
+export async function isGitRepository(workingDir: string): Promise<boolean> {
+    try {
+        const isGit = await invoke<boolean>("is_git_repository", { workingDir });
+        return isGit;
+    } catch (error) {
+        console.error("Failed to check if git repository:", error);
+        return false;
+    }
+}
+
+export interface GitRefInfo {
+    name: string;
+    ref_type: "branch" | "tag";
+    date: string;
+    author: string;
+    subject: string;
+}
+
+export async function getGitRefs(workingDir: string): Promise<GitRefInfo[]> {
+    try {
+        const refs = await invoke<GitRefInfo[]>("get_git_refs", { workingDir });
+        return refs;
+    } catch (error) {
+        console.error("Failed to get git refs:", error);
+        return [];
+    }
+}
+
+export async function createBranch(
+    workingDir: string,
+    branchName: string,
+    baseBranch?: string
+): Promise<{ success: boolean; output: string }> {
+    try {
+        const output = await invoke<string>("create_branch", {
+            workingDir,
+            branchName,
+            baseBranch: baseBranch || null,
+        });
+        return { success: true, output };
+    } catch (error) {
+        console.error("Failed to create branch:", error);
+        return { success: false, output: String(error) };
+    }
+}
+
+export async function checkoutDetached(
+    workingDir: string,
+    name: string
+): Promise<{ success: boolean; output: string }> {
+    try {
+        const output = await invoke<string>("checkout_detached", {
+            workingDir,
+            name,
+        });
+        return { success: true, output };
+    } catch (error) {
+        console.error("Failed to checkout detached:", error);
+        return { success: false, output: String(error) };
+    }
+}
+
+
+

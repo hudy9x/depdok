@@ -33,7 +33,6 @@ import { useActiveHeading } from "@/hooks/useActiveHeading";
 import { MarkdownSizeControl, type MarkdownEditorSize } from "./MarkdownSizeControl";
 import Heading from "@tiptap/extension-heading";
 import { HeadingNodeView } from "./HeadingNodeView";
-import { LicenseGuard } from "@/components/LicenseGuard";
 import { Table } from "@tiptap/extension-table";
 import { TableRow } from "@tiptap/extension-table-row";
 import { TableHeader } from "@tiptap/extension-table-header";
@@ -250,7 +249,7 @@ export function MarkdownPreview({
   }, []);
 
   return (
-    <div className="w-full h-full overflow-hidden bg-background flex" ref={containerRef}>
+    <div className="w-full h-full overflow-hidden bg-layout-content flex" ref={containerRef}>
       <div className="flex-1 h-full relative min-w-0 flex flex-col">
         {!isOutlineOpen && (
           <div className="absolute top-2 right-2 z-10">
@@ -287,13 +286,13 @@ export function MarkdownPreview({
         <MarkdownSizeControl size={editorSize} onSizeChange={setEditorSize} />
       </div>
 
-      <LicenseGuard className="fixed top-12 right-6" title="" tooltipTitle="Enable Markdown Outline">
+      {/* <LicenseGuard className="fixed top-12 right-6" title="" tooltipTitle="Enable Markdown Outline"> */}
         <MarkdownOutlineWrapper
           anchors={tocAnchors}
           visible={isOutlineOpen}
           onToggle={() => setIsOutlineOpen(!isOutlineOpen)}
         />
-      </LicenseGuard>
+      {/* </LicenseGuard> */}
     </div>
   );
 }

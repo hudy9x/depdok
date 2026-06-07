@@ -87,7 +87,7 @@ export function KanbanView({ document, editable, handlers }: KanbanViewProps) {
       onDragEnd={handleDragEnd}
       onDragCancel={handleDragCancel}
     >
-      <div className="h-full w-full overflow-x-auto p-2 bg-background">
+      <div className="h-full w-full overflow-x-auto p-2 bg-layout-content">
         <SortableContext
           items={sectionsToRender.map(s => s._id)}
           strategy={horizontalListSortingStrategy}

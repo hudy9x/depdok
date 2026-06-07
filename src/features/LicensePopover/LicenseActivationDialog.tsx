@@ -49,7 +49,7 @@ export function LicenseActivationDialog({ open, onOpenChange, isGracePeriod }: L
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="bg-layout-content overflow-hidden border-0 p-0 sm:max-w-[430px]">
-        <DialogHeader className="relative overflow-hidden bg-gradient-to-b from-[#f5c5a3] via-[#fddfce] to-white px-6 pb-7 pt-8 text-center">
+        <DialogHeader className="relative overflow-hidden bg-gradient-to-b from-[#f5c5a3] via-[#fddfce] to-white px-6 pb-3 pt-8 text-center">
           <div className="pointer-events-none absolute left-4 top-[-52px] h-[220%] w-[3px] rotate-[24deg] bg-white/25" />
           <div className="pointer-events-none absolute left-16 top-[-44px] h-[210%] w-[2px] rotate-[24deg] bg-white/20" />
           <div className="pointer-events-none absolute right-10 top-[-40px] h-[220%] w-[2px] rotate-[24deg] bg-white/20" />
@@ -58,24 +58,24 @@ export function LicenseActivationDialog({ open, onOpenChange, isGracePeriod }: L
           <div className="absolute left-1/2 top-2 h-1 w-10 -translate-x-1/2 rounded-full bg-[#b46432]/25" />
 
           <div className="relative z-10 mb-5 flex justify-center">
-            <div className="flex h-[76px] w-[76px] items-center justify-center rounded-[20px] bg-gradient-to-br from-[#e8834a] to-[#d97757] shadow-[0_10px_28px_rgba(180,80,30,0.3)]">
-              <img src="/app-icon.png" alt="Depdok app icon" className="h-14 w-14 object-contain" />
+            <div className="flex p-0.5 items-center justify-center rounded-[18px] bg-white/30 backdrop-blur-xs shadow-[0_10px_28px_rgba(180,80,30,0.3)]">
+              <img src="/app-icon.png" alt="Depdok app icon" className="h-16 w-16 object-contain" />
             </div>
           </div>
 
           <DialogTitle className="relative z-10 text-center text-[34px] font-semibold tracking-tight text-[#3d1f0a]">
             {isGracePeriod ? 'Welcome to Pro' : 'Upgrade to Pro'}
           </DialogTitle>
-          <DialogDescription className="relative z-10 mt-1 text-center text-base leading-relaxed text-[#9a5535]">
+          <DialogDescription className="relative z-10 mt-1 text-center text-base leading-relaxed text-muted-foreground">
             {isGracePeriod
               ? `You have ${daysLeft} ${daysLeft === 1 ? 'day' : 'days'} of full access. Activate your key to keep all features unlocked.`
               : 'Unlock all premium features and continue your workflow without limits.'}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-3 px-6 pb-3 pt-3">
+        <div className="space-y-3 px-6 pb-3">
           <div className="space-y-2">
-            <div className="flex items-center justify-between">
+            {/* <div className="flex items-center justify-between">
               <Label
                 htmlFor="license-key"
                 className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400"
@@ -85,14 +85,14 @@ export function LicenseActivationDialog({ open, onOpenChange, isGracePeriod }: L
               {import.meta.env.DEV && (
                 <span className="text-xs text-muted-foreground">Dev: test-key-12345</span>
               )}
-            </div>
+            </div> */}
 
             <div className="relative">
               <KeyRound className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <Input
                 id="license-key"
                 type="text"
-                placeholder="XXXX - XXXX - XXXX - XXXX"
+                placeholder="Paste your license key here"
                 value={licenseKey}
                 onChange={(e) => setLicenseKey(e.target.value)}
                 onKeyDown={(e) => {
@@ -140,7 +140,7 @@ export function LicenseActivationDialog({ open, onOpenChange, isGracePeriod }: L
               rel="noreferrer"
               className="inline-flex items-center gap-1.5"
             >
-              Go to checkout
+              Get License Key
               <ArrowRight className="h-4 w-4" />
             </a>
           </Button>

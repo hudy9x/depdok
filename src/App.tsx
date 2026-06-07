@@ -1,6 +1,6 @@
 // import './App.css';
 
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Outlet } from 'react-router-dom';
 import { ThemeProvider } from 'next-themes';
 import { Toaster } from "@/components/ui/sonner"
 import { settingsService } from '@/lib/settings';
@@ -16,6 +16,14 @@ import { useSetAtom } from 'jotai';
 import { refreshLicenseStatusAtom } from './stores/license';
 import { useSyncRecentFoldersToDock } from './hooks/useSyncRecentFoldersToDock';
 import { useProjectStateSync } from './hooks/useProjectStateSync';
+
+function LayoutRoute() {
+  return (
+    <Layout>
+      <Outlet />
+    </Layout>
+  );
+}
 
 function App() {
   const savedTheme = settingsService.getSettings().theme;
@@ -33,16 +41,16 @@ function App() {
       <>
         <BrowserRouter>
           <AppMenuListener />
-          <Layout>
-            <Toaster position="bottom-right" richColors />
-            <LicensePopover />
-            <Routes>
+          <Toaster position="bottom-right" richColors />
+          <LicensePopover />
+          <Routes>
+            <Route path="/home" element={<Home />} />
+            <Route element={<LayoutRoute />}>
               <Route path="/" element={<Checking />} />
-              <Route path="/home" element={<Home />} />
               <Route path="/editor" element={<Editor />} />
               <Route path="/empty" element={<Empty />} />
-            </Routes>
-          </Layout>
+            </Route>
+          </Routes>
         </BrowserRouter>
       </>
     </ThemeProvider>

@@ -104,7 +104,7 @@ export default function Home() {
   return (
     <main
       className={cn(
-        "h-full w-full flex flex-col items-center justify-center bg-layout-chrome",
+        "h-screen w-screen flex flex-col items-center justify-center bg-layout-chrome",
         "transition-opacity duration-600 delay-[200ms] ease-in-out fill-mode-forwards",
         isVisible ? "opacity-100" : "opacity-0"
       )}

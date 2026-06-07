@@ -354,6 +354,7 @@ pub fn run() {
             commands::git::switch_branch,
             commands::git::get_git_status,
             commands::git::git_pull,
+            commands::git::has_git_upstream,
             commands::git::get_git_sync_status,
             commands::git::start_watching_git,
             commands::git::stop_watching_git,

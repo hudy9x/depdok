@@ -12,6 +12,33 @@ use std::os::windows::process::CommandExt;
 #[cfg(target_os = "windows")]
 const CREATE_NO_WINDOW: u32 = 0x08000000;
 
+fn git_has_upstream(working_dir: &str) -> Result<bool, String> {
+    let mut cmd = Command::new("git");
+    cmd.current_dir(working_dir)
+        .args(["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"]);
+
+    #[cfg(target_os = "windows")]
+    cmd.creation_flags(CREATE_NO_WINDOW);
+
+    let output = cmd.output()
+        .map_err(|e| format!("Failed to execute git command: {}", e))?;
+
+    if output.status.success() {
+        return Ok(!String::from_utf8_lossy(&output.stdout).trim().is_empty());
+    }
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    if stderr.contains("no upstream configured")
+        || stderr.contains("no upstream branch")
+        || stderr.contains("no tracking information")
+        || stderr.contains("does not point to a branch")
+    {
+        return Ok(false);
+    }
+
+    Err(stderr.trim().to_string())
+}
+
 #[command]
 pub fn get_current_branch(working_dir: String) -> Result<String, String> {
     let mut cmd = Command::new("git");
@@ -151,6 +178,12 @@ pub fn get_git_status(working_dir: String) -> Result<std::collections::HashMap<S
 
 #[command]
 pub fn git_pull(working_dir: String) -> Result<String, String> {
+    if !git_has_upstream(&working_dir)? {
+        return Err(
+            "Current branch has no upstream tracking branch. Set one with `git push -u <remote> <branch>` or `git branch --set-upstream-to=<remote>/<branch> <branch>`.".to_string()
+        );
+    }
+
     let mut cmd = Command::new("git");
     cmd.current_dir(&working_dir)
         .args(["pull"]);
@@ -171,6 +204,11 @@ pub fn git_pull(working_dir: String) -> Result<String, String> {
     }
 
     Ok(combined_output)
+}
+
+#[command]
+pub fn has_git_upstream(working_dir: String) -> Result<bool, String> {
+    git_has_upstream(&working_dir)
 }
 
 #[command]

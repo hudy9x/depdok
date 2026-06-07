@@ -137,6 +137,15 @@ export async function gitPull(workingDir: string): Promise<{ success: boolean; o
     }
 }
 
+export async function hasGitUpstream(workingDir: string): Promise<boolean> {
+    try {
+        return await invoke<boolean>("has_git_upstream", { workingDir });
+    } catch (error) {
+        console.error("Failed to determine git upstream:", error);
+        return false;
+    }
+}
+
 export async function getGitSyncStatus(
     workingDir: string
 ): Promise<{ ahead: number; behind: number }> {
@@ -147,6 +156,38 @@ export async function getGitSyncStatus(
         console.error("Failed to get git sync status:", error);
         return { ahead: 0, behind: 0 };
     }
+}
+
+export interface GitWorkingTreeSummary {
+    changed: number;
+    new: number;
+    deleted: number;
+}
+
+export function summarizeGitStatus(statusMap: Record<string, string>): GitWorkingTreeSummary {
+    return Object.values(statusMap).reduce<GitWorkingTreeSummary>(
+        (summary, status) => {
+            switch (status) {
+                case "added":
+                case "untracked":
+                    summary.new += 1;
+                    break;
+                case "deleted":
+                    summary.deleted += 1;
+                    break;
+                case "modified":
+                case "renamed":
+                case "copied":
+                    summary.changed += 1;
+                    break;
+                default:
+                    break;
+            }
+
+            return summary;
+        },
+        { changed: 0, new: 0, deleted: 0 }
+    );
 }
 
 export async function startWatchingGit(workspaceRoot: string): Promise<void> {

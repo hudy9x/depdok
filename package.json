@@ -2,6 +2,7 @@
   "name": "depdok",
   "private": true,
   "version": "0.35.13",
+  "packageManager": "pnpm@10.25.0",
   "type": "module",
   "scripts": {
     "dev": "vite",

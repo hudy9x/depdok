@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAtomValue, useSetAtom } from 'jotai';
-import { CirclePlus, GitBranch, Pencil, Plus, RefreshCw, Trash2, X } from 'lucide-react';
+import { GitBranch, Pencil, Plus, RefreshCw, X } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { branchSelectorOpenAtom } from '@/features/BranchSelector/store';

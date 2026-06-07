@@ -288,7 +288,7 @@ pub fn start_watching_git(workspace_root: String, app: AppHandle) -> Result<(), 
                         Ok(events) => {
                             if !events.is_empty() {
                                 #[cfg(debug_assertions)]
-                                println!("Git repository changed: {}", workspace_for_closure);
+                                // println!("Git repository changed: {}", workspace_for_closure);
                                 
                                 // Emit git-changed event to frontend
                                 let _ = app_clone.emit("git-changed", workspace_for_closure.clone());

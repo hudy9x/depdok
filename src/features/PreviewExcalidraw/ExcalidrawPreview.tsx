@@ -232,7 +232,7 @@ export function ExcalidrawPreview({ content, filePath, onContentChange }: Excali
               }}
             >
               <FolderPlus className="w-4 h-4" />
-              Import Library
+              Import
             </button>
           )}
           initialData={{

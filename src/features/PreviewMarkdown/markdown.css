@@ -475,13 +475,18 @@
 }
 
 /* HLJS Overrides */
+
+.code-block pre > [data-node-view-content] {
+  font-size: 0.8rem;
+}
+
 .hljs {
   background: transparent !important;
   color: var(--code-text) !important;
 }
 
 [class^="hljs"] {
-  font-size: 1em;
+  /* font-size: 1em; */
 }
 
 .hljs-keyword,

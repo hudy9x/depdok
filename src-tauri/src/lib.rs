@@ -48,6 +48,7 @@ mod commands;
 mod menu;
 mod license_manager;
 mod keychain;
+mod knowledge_base;
 #[cfg(target_os = "macos")]
 mod dock;
 
@@ -217,6 +218,18 @@ pub fn run() {
             
             // Initialize logger server state
             app.manage(commands::logger::LoggerServerState::new());
+
+            // Initialize knowledge base (SQLite + embedding model)
+            match knowledge_base::init_knowledge_base(app.handle()) {
+                Ok((kb_state, embedder_state)) => {
+                    app.manage(kb_state);
+                    app.manage(embedder_state);
+                    println!("[knowledge_base] initialized successfully");
+                }
+                Err(e) => {
+                    eprintln!("[knowledge_base] init failed: {e}");
+                }
+            }
             
             // Load saved window size from store
             let store = app.store("store.json").expect("Failed to get store");
@@ -378,6 +391,12 @@ pub fn run() {
             activate_license,
             commands::logger::start_logger_server,
             commands::logger::register_logger_channel,
+            knowledge_base::commands::insert_or_replace_document,
+            knowledge_base::commands::delete_document,
+            knowledge_base::commands::connect_to,
+            knowledge_base::commands::search_similar,
+            knowledge_base::commands::get_document,
+            knowledge_base::commands::test_database_query,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

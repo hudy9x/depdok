@@ -34,6 +34,7 @@ import { ContentSearchDialog } from "@/features/ContentSearchDialog";
 import { BranchSelectorDialog } from "@/features/BranchSelector";
 import { useGlobalShortcuts } from "@/hooks/useGlobalShortcuts";
 import { EditorViewMode } from "@/features/EditorViewMode";
+import { isKnowledgeGraphFile } from "@/lib/knowledgeGraph";
 
 
 
@@ -42,7 +43,7 @@ export default function Editor() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const editorState = useAtomValue(editorStateAtom);
-  const [viewMode] = useAtom(viewModeAtom);
+  const [viewMode, setViewMode] = useAtom(viewModeAtom);
   const loadFileMetadata = useSetAtom(loadFileMetadataAtom);
   const activeTab = useAtomValue(activeTabAtom);
   const createTab = useSetAtom(createTabAtom);
@@ -124,6 +125,12 @@ export default function Editor() {
 
   const currentFilePath = activeTab?.filePath;
 
+  useEffect(() => {
+    if (currentFilePath && isKnowledgeGraphFile(currentFilePath) && viewMode !== 'preview-only') {
+      setViewMode('preview-only');
+    }
+  }, [currentFilePath, viewMode, setViewMode]);
+
   if (!currentFilePath && !workspaceRoot) {
     return null;
   }
@@ -175,7 +182,7 @@ export default function Editor() {
             </Panel>
 
             {isFileExplorerVisible && (
-              <PanelResizeHandle className="w-[1px] bg-border hover:bg-primary/50 transition-colors" />
+              <PanelResizeHandle className="w-px bg-border hover:bg-primary/50 transition-colors" />
             )}
 
             {/* Right Pane: Tabs + Breadcrumbs + Monaco/Preview Panel */}

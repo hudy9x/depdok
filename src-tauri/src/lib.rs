@@ -204,6 +204,8 @@ pub fn run() {
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_store::Builder::default().build())
         .setup(|app| {
+            app.manage(knowledge_base::CurrentProjectGroup(Mutex::new(None)));
+
             // Initialize file watcher state
             app.manage(commands::file_watcher::init());
             
@@ -392,10 +394,13 @@ pub fn run() {
             commands::logger::start_logger_server,
             commands::logger::register_logger_channel,
             knowledge_base::commands::insert_or_replace_document,
+            knowledge_base::commands::index_markdown_document_sections,
             knowledge_base::commands::delete_document,
             knowledge_base::commands::connect_to,
             knowledge_base::commands::search_similar,
             knowledge_base::commands::get_document,
+            knowledge_base::commands::get_project_graph,
+            knowledge_base::commands::set_current_project_group,
             knowledge_base::commands::test_database_query,
         ])
         .run(tauri::generate_context!())

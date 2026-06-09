@@ -103,7 +103,7 @@ export function MacOSTitlebar() {
       </div>
 
       {/* Right Section: Pro upgrade, add file, settings */}
-      <div data-tauri-drag-region="false" className="flex items-center gap-3.5 pr-3 flex-shrink-0">
+      <div data-tauri-drag-region="false" className="flex items-center gap-1 pr-3 flex-shrink-0">
         {/* Upgrade to Pro button */}
         <button
           onClick={() => setLicenseOpen(true)}

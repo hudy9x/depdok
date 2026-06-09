@@ -6,6 +6,8 @@ import { TodoPreview } from "../PreviewTodo/TodoPreview";
 import { ExcalidrawPreview } from "../PreviewExcalidraw";
 import { FormatPreview } from "../PreviewFormat/FormatPreview";
 import { LoggerEditor } from "../LoggerEditor";
+import { KnowledgeGraphPreview } from "../KnowledgeGraph/KnowledgeGraphPreview";
+import { isKnowledgeGraphFile } from "@/lib/knowledgeGraph";
 
 interface PreviewPanelProps {
   content: string;
@@ -33,6 +35,10 @@ export function PreviewPanel({
         No file loaded
       </div>
     );
+  }
+
+  if (fileExtension === "md" && isKnowledgeGraphFile(filePath)) {
+    return <KnowledgeGraphPreview filePath={filePath || ""} />;
   }
 
   if (["md", "txt"].includes(fileExtension)) {

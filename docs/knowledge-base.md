@@ -1,270 +1,266 @@
-# Knowledge Base — Implementation Plan
+# Knowledge Base - Architecture and Semantic Search Guide
 
-## Goal
+## Purpose
 
-Implement a local, offline-first knowledge base and knowledge graph for a desktop markdown note application.  
-Storage: local SQLite via `rusqlite` + `sqlite-vec` for vector search.  
-Embeddings: generated on the Rust/backend side behind a **provider-agnostic `Embedder` trait** so the active backend can be swapped without touching commands or DB logic.  
-Default provider: `fastembed` (local ONNX, `all-MiniLM-L6-v2`, fully offline).  
-Future provider: OpenAI `text-embedding-3-large` (opt-in, requires API key).
+This document is the source of truth for how the local knowledge base works today.
+Use it when upgrading, debugging, or customizing semantic search.
 
----
-
-## 1. Dependencies (`Cargo.toml`)
-
-Add the following crates:
-
-- `rusqlite` with the `"bundled"` feature (statically compiles SQLite — no system SQLite required)
-- `sqlite-vec` for the `vec0` virtual table extension
-- `fastembed` — local ONNX embeddings (`all-MiniLM-L6-v2`, 384 dims, ~22 MB). Model is downloaded once on first run and cached; fully offline after that.
-- `reqwest` with `"json"` + `"blocking"` features — **optional**, only needed for the OpenAI provider. Gate behind a Cargo feature flag `openai-embeddings` so it is not compiled in by default.
-- `uuid` with the `"v4"` feature for generating document IDs
-- `serde` / `serde_json` (likely already present via Tauri) for serialising OpenAI request/response
+Design goals:
+- Offline-first by default.
+- Embeddings and chunking run in Rust backend.
+- Frontend only orchestrates file selection and command calls.
+- Data stored locally in SQLite and queried with sqlite-vec.
 
 ---
 
-## 2. Module Structure
+## Current Code Structure
 
-Place all knowledge-base code under `src-tauri/src/knowledge_base/` as a Rust submodule:
+### Backend (Rust)
 
-```
+```text
 src-tauri/src/knowledge_base/
-├── mod.rs                  # Re-exports; exposes init_knowledge_base() and state types
-├── db.rs                   # DB init, schema creation, managed-state setup
-├── commands.rs             # All #[tauri::command] functions
-└── embedding/
-    ├── mod.rs              # Embedder trait + EmbedderState type + init helper
-    ├── chunker.rs          # Text splitting logic (chunk size, overlap)
-    ├── fastembed.rs        # Local fastembed provider (default)
-    └── openai.rs           # OpenAI provider (compiled only with feature "openai-embeddings")
+|- mod.rs
+|- db.rs
+|- commands.rs
+|- markdown_chunking/
+|  |- mod.rs
+|- embedding/
+|  |- mod.rs
+|  |- chunker.rs
+|  |- fastembed.rs
+|  |- openai.rs (feature-gated)
 ```
 
-Register the module in `lib.rs` and add all commands to the `invoke_handler`.
+Responsibilities:
+- `db.rs`: initialize SQLite, schema, sqlite-vec extension.
+- `embedding/mod.rs`: `Embedder` trait + provider init.
+- `embedding/chunker.rs`: generic chunk splitting for embedding batches.
+- `markdown_chunking/mod.rs`: markdown heading section splitting and section id slugging.
+- `commands.rs`: all command entry points and internal operations.
+
+Command registration:
+- Commands are exported from `src-tauri/src/lib.rs` via `tauri::generate_handler!`.
+- Current knowledge-base commands include:
+  - `insert_or_replace_document`
+  - `index_markdown_document_sections`
+  - `delete_document`
+  - `connect_to`
+  - `search_similar`
+  - `get_document`
+  - `get_project_graph`
+  - `set_current_project_group`
+  - `test_database_query`
+
+### Frontend (TypeScript)
+
+```text
+src/api-client/knowledge-base.ts
+src/features/FileExplorer/MarkdownKnowledgeBaseDialog.tsx
+src/features/FileExplorer/KnowledgeBaseSearchDialog.tsx
+```
+
+Responsibilities:
+- `api-client/knowledge-base.ts`: typed invoke wrappers.
+- `MarkdownKnowledgeBaseDialog.tsx`: scans markdown files, reads raw content, calls backend indexing command.
+- `KnowledgeBaseSearchDialog.tsx`: runs semantic query and opens result file.
+
+Important boundary:
+- No markdown section chunking in frontend.
+- Section chunking is backend-only (`markdown_chunking/mod.rs`).
 
 ---
 
-## 3. State Management
+## Data Model
 
-Use Tauri's managed state to hold a single, shared `rusqlite::Connection` wrapped in a `Mutex`:
+Main tables:
+- `documents(id, title, content)`
+- `edges(id, source_id, target_id, type)`
+- `groups(id, title)`
+- `document_groups(document_id, group_id)`
+- `documents_embeddings` (sqlite-vec virtual table)
 
-```rust
-pub struct KbState(pub Mutex<Connection>);
-```
+Vector table notes:
+- Stores embedding vectors per chunk.
+- `chunk_id` format: `{document_id}#{index}`.
+- `document_id` links each vector chunk back to a logical document record.
 
-Registered at startup via `app.manage(KbState(...))`.  
-Every command receives `State<'_, KbState>` instead of re-opening the DB per call.
-
-Wrap the active embedder provider in managed state using a **trait object** so the concrete type is hidden from commands:
-
-```rust
-// embedding/mod.rs
-pub struct EmbedderState(pub Mutex<Box<dyn Embedder>>);
-```
-
-The concrete provider (`FastEmbedProvider` or `OpenAiProvider`) is chosen at startup and stored as `Box<dyn Embedder>`. Commands never depend on the concrete type.
-
-Both states are initialised inside Tauri's `.setup()` closure.
+Foreign key note:
+- sqlite-vec table does not support FK cascade.
+- Always manually delete rows in `documents_embeddings` when deleting or replacing a document.
 
 ---
 
-## 4. Database Initialization (`db.rs`)
+## Identifier Conventions
 
-Function signature:
-```rust
-pub fn init_database(app_handle: &tauri::AppHandle) -> Result<Connection, String>
+### Regular document id
+
+```text
+file:/absolute/path/to/file.md
 ```
 
-Steps:
-1. Resolve the OS app-data directory via `app_handle.path().app_data_dir()`.
-2. Call `sqlite3_auto_extension` to register the `sqlite-vec` extension before opening the connection.
-3. Open the SQLite connection.
-4. Enable `PRAGMA foreign_keys = ON` so cascading deletes on `edges` work.
-5. Create the schema (idempotent `CREATE TABLE IF NOT EXISTS` / `CREATE VIRTUAL TABLE IF NOT EXISTS`).
+### Section document id
 
-### Schema
-
-```sql
--- Plain document store
-CREATE TABLE IF NOT EXISTS documents (
-    id      TEXT PRIMARY KEY,   -- UUID v4
-    title   TEXT NOT NULL,
-    content TEXT NOT NULL
-);
-
--- Knowledge graph edges
-CREATE TABLE IF NOT EXISTS edges (
-    id        TEXT PRIMARY KEY,  -- UUID v4
-    source_id TEXT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
-    target_id TEXT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
-    type      TEXT               -- optional label, e.g. "related", "parent"
-);
-
--- Vector chunks (sqlite-vec virtual table)
--- The dimension count (e.g. 384 or 3072) is read from the active Embedder at init time
--- and interpolated into this statement by db.rs at runtime.
-CREATE VIRTUAL TABLE IF NOT EXISTS documents_embeddings USING vec0(
-    chunk_id    TEXT PRIMARY KEY,
-    document_id TEXT,
-    embedding   FLOAT[{dimensions}]  -- filled in from Embedder::dimensions()
-);
+```text
+file:/absolute/path/to/file.md#section:logout
 ```
 
-> Note: `vec0` does not natively support foreign keys, so `delete_document` must manually delete associated rows from `documents_embeddings` before (or after) deleting from `documents`.
+Duplicate heading handling:
+- If a slug repeats, suffix with incremented index.
+- Example: `#section:overview-2`.
+
+Section slug generation:
+- Lowercase.
+- Keep alphanumeric.
+- Convert whitespace and repeated separators to single hyphens.
+- Fallback slug: `section`.
 
 ---
 
-## 5. Embedding Subsystem (`embedding/`)
+## Semantic Search: End-to-End Flow
 
-### 5a. `Embedder` trait (`embedding/mod.rs`)
+## 1) Indexing markdown files
 
-Defines the provider-agnostic interface:
+Frontend flow:
+1. User opens Markdown scan dialog.
+2. Frontend lists markdown files and reads selected file content.
+3. For each file, frontend calls:
+   - `index_markdown_document_sections(filePath, documentTitle, content, groupIds)`
 
-```rust
-pub trait Embedder: Send + Sync {
-    /// Embed a single piece of text and return a float vector.
-    fn embed(&self, text: &str) -> Result<Vec<f32>, String>;
-    /// Number of dimensions this provider produces.
-    fn dimensions(&self) -> usize;
-    /// Human-readable provider name (for logging/UI).
-    fn name(&self) -> &'static str;
-}
-```
+Backend flow (`commands.rs`):
+1. Build base id: `file:{file_path}`.
+2. Find and delete stale rows for that file:
+   - base document id
+   - any prior section ids matching `file:{file_path}#section:%`
+3. Split markdown with `split_markdown_into_sections`.
+4. If no sections detected:
+   - upsert a single document with base id.
+5. If sections detected:
+   - create one document per section id.
+   - title pattern: `{document_title} - {section_title}`
+   - content is section-only content.
+6. For each document written, run embedding pipeline through `upsert_document_internal`.
 
-Also exposes the init helper that selects the provider based on runtime config:
+Result:
+- Search can match at section-level instead of full-file level.
 
-```rust
-pub fn init_embedder(/* config/settings */) -> Result<Box<dyn Embedder>, String>
-```
+## 2) Embedding generation
 
-For now this always returns `FastEmbedProvider`. When `openai-embeddings` feature is enabled and an API key is configured, it returns `OpenAiProvider` instead.
+For each logical document (whole file fallback or section doc):
+1. Split text into embedding chunks using `embedding/chunker.rs`.
+2. Embed each chunk via active provider (`Embedder` trait object).
+3. Store chunk vectors in `documents_embeddings` with `chunk_id = {document_id}#{index}`.
 
----
+## 3) Query-time semantic search
 
-### 5b. Text chunker (`embedding/chunker.rs`)
+Frontend:
+1. User enters query in search dialog.
+2. Frontend calls `search_similar(query, limit)`.
 
-Responsible for splitting long documents into overlapping chunks before embedding.
+Backend (`search_similar_internal`):
+1. Embed query text.
+2. Run sqlite-vec KNN query on `documents_embeddings` with `MATCH` and `k`.
+3. Join with `documents` to return:
+   - `id`
+   - `title`
+   - `distance`
 
-```rust
-pub struct ChunkOptions {
-    pub max_chars: usize,    // e.g. 512
-    pub overlap_chars: usize // e.g. 64
-}
+Frontend result handling:
+1. Display title and score (`distance`).
+2. Parse id for open action:
+   - remove `file:` prefix
+   - if id contains `#section:`, strip section suffix before opening editor tab.
 
-pub fn chunk_text(text: &str, opts: &ChunkOptions) -> Vec<String>
-```
-
-- Splits on sentence/paragraph boundaries where possible; falls back to hard character split.
-- Returns a `Vec<String>` of chunks. Each chunk is embedded independently.
-- A chunk's `chunk_id` is formatted as `"{document_id}#{index}"` (e.g. `"uuid-abc#0"`, `"uuid-abc#1"`).
-
----
-
-### 5c. Local provider (`embedding/fastembed.rs`)
-
-```rust
-pub struct FastEmbedProvider { /* holds TextEmbedding */ }
-
-impl FastEmbedProvider {
-    pub fn new() -> Result<Self, String> { ... }
-}
-
-impl Embedder for FastEmbedProvider {
-    fn embed(&self, text: &str) -> Result<Vec<f32>, String> { ... }
-    fn dimensions(&self) -> usize { 384 }
-    fn name(&self) -> &'static str { "fastembed/all-MiniLM-L6-v2" }
-}
-```
-
-- Loads `all-MiniLM-L6-v2` via `fastembed::TextEmbedding::try_new(InitOptions::default())`.
-- Model (~22 MB ONNX) is downloaded once to the OS cache dir; fully offline after that.
-- Multi-chunk input: call `model.embed(chunks, None)` then average the resulting vectors into one.
+Result:
+- Retrieval granularity is section-level.
+- Opening behavior still targets the source file.
 
 ---
 
-### 5d. OpenAI provider (`embedding/openai.rs`)
-
-> Compiled only when Cargo feature `openai-embeddings` is enabled.
-
-```rust
-#[cfg(feature = "openai-embeddings")]
-pub struct OpenAiProvider {
-    api_key: String,
-    model: String,   // e.g. "text-embedding-3-large"
-    dimensions: usize, // 3072 for text-embedding-3-large
-}
-
-#[cfg(feature = "openai-embeddings")]
-impl Embedder for OpenAiProvider {
-    fn embed(&self, text: &str) -> Result<Vec<f32>, String> { ... }
-    fn dimensions(&self) -> usize { self.dimensions }
-    fn name(&self) -> &'static str { "openai/text-embedding-3-large" }
-}
-```
-
-- Makes a `POST https://api.openai.com/v1/embeddings` call via `reqwest`.
-- API key is read from app settings (never hard-coded).
-- **Dimension note**: `text-embedding-3-large` produces 3072 dims by default. The `documents_embeddings` virtual table schema must match the active provider's `dimensions()` at init time. `db.rs` reads this value from the selected `Embedder` before creating the table.
-
----
-
-## 6. Tauri Commands (`commands.rs`)
-
-All commands are `async`, accept `tauri::State`, and return `Result<T, String>`.
+## Command Contracts
 
 ### `insert_or_replace_document`
-```
-insert_or_replace_document(state, embedder_state, id: Option<String>, title: String, content: String) -> Result<String, String>
-```
-- If `id` is `None`, generate a new UUID v4.
-- `INSERT OR REPLACE INTO documents`.
-- Split `content` into chunks via `chunker::chunk_text()` using default `ChunkOptions`.
-- Embed each chunk using `embedder_state` (calls `Embedder::embed()` on the active provider).
-- Delete any existing rows for this `document_id` in `documents_embeddings`, then insert the new chunk rows (`chunk_id = "{doc_id}#{i}"`).
-- Return the document `id`.
 
-### `delete_document`
-```
-delete_document(state, id: String) -> Result<(), String>
-```
-- Delete matching rows from `documents_embeddings` first (manual cascade since `vec0` doesn't support FK).
-- Then `DELETE FROM documents WHERE id = ?` — this cascades to `edges` automatically via FK.
+Use for generic programmatic upserts.
 
-### `connect_to`
-```
-connect_to(state, source_id: String, target_id: String, edge_type: Option<String>) -> Result<String, String>
-```
-- `INSERT INTO edges` with a freshly generated UUID.
-- Return the new edge `id`.
+Inputs:
+- `id: Option<String>`
+- `title: String`
+- `content: String`
+- `group_ids: Vec<String>`
+
+Output:
+- `Result<String, String>` returning final document id.
+
+### `index_markdown_document_sections`
+
+Use for markdown file indexing from UI and automation.
+
+Inputs:
+- `file_path: String`
+- `document_title: String`
+- `content: String`
+- `group_ids: Vec<String>`
+
+Output:
+- `Result<usize, String>` returning number of indexed section documents.
 
 ### `search_similar`
-```
-search_similar(state, embedder_state, query: String, limit: usize) -> Result<Vec<SearchResult>, String>
-```
-- Embed `query` using `embedder_state`.
-- Run `SELECT chunk_id, document_id, distance FROM documents_embeddings WHERE embedding MATCH ? ORDER BY distance LIMIT ?` using `sqlite-vec` KNN syntax.
-- Join with `documents` to return `id`, `title`, and `distance` for each result.
-- `SearchResult` is a serialisable struct: `{ id: String, title: String, distance: f32 }`.
 
-### `get_document`
-```
-get_document(state, id: String) -> Result<Option<DocumentRecord>, String>
-```
-- `SELECT id, title, content FROM documents WHERE id = ?`.
-- Returns `None` if not found.
-- `DocumentRecord`: `{ id: String, title: String, content: String }`.
+Inputs:
+- `query: String`
+- `limit: usize`
+
+Output:
+- `Result<Vec<SearchResult>, String>` where `SearchResult = { id, title, distance }`.
 
 ---
 
-## 7. Error Handling Rules
+## How To Extend Safely
 
-- Map all `rusqlite::Error` and `fastembed` errors to `String` via `.map_err(|e| e.to_string())`.
-- Never panic inside a command; always return `Err(...)`.
-- Embedding failures should not silently skip — surface the error to the frontend.
+## Add new embedding provider
+
+1. Implement `Embedder` in `embedding/`.
+2. Return provider from `embedding::init_embedder` based on config/feature.
+3. Ensure `dimensions()` matches vector schema initialization.
+4. Keep command layer unchanged.
+
+## Change markdown section parsing
+
+1. Edit only `markdown_chunking/mod.rs`.
+2. Preserve id format: `file:{path}#section:{slug}`.
+3. Keep duplicate slug disambiguation deterministic.
+4. Reindex documents after parser changes.
+
+## Tune retrieval behavior
+
+Options:
+- adjust search limit at caller.
+- add dedup/grouping by document id prefix if needed.
+- add score threshold post-filtering in backend.
+
+Guideline:
+- Prefer backend-side logic for ranking/filtering so behavior stays consistent across UI surfaces.
 
 ---
 
-## 8. Constraints
+## Operational Notes
 
-- No external network calls at runtime (model download on first launch is acceptable and must be documented in the UI).
-- No cloud APIs or remote vector stores.
-- All data lives in `{app_data_dir}/knowledge_base.db`.
+- Default provider is local fastembed (offline after first model download).
+- OpenAI provider is optional and feature-gated.
+- All command errors should return `Result<_, String>` without panic.
+- Database location is under app data directory as `knowledge_base.db`.
+
+---
+
+## AI Maintenance Rules
+
+When asked to modify semantic search:
+1. Check backend flow first (`commands.rs`, `markdown_chunking/mod.rs`, `embedding/`).
+2. Keep frontend free of chunking/parsing business logic.
+3. Preserve id conventions to avoid breaking result opening.
+4. If changing schema or id format, include migration or reindex path.
+5. Validate both:
+   - frontend build
+   - `cargo check` in `src-tauri`
+
+This prevents regressions and keeps retrieval behavior stable across upgrades.

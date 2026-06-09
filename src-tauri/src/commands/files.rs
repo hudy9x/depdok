@@ -38,6 +38,16 @@ pub struct FileEntry {
 static FILE_SYNC_SEQ: OnceLock<Mutex<HashMap<String, u64>>> = OnceLock::new();
 
 fn schedule_kb_upsert(app_handle: tauri::AppHandle, file_path: String) {
+    let file_name = Path::new(&file_path)
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+
+    if !file_name.ends_with(".md") || file_name == "knowledge-graph.md" {
+        return;
+    }
+
     let seq_map = FILE_SYNC_SEQ.get_or_init(|| Mutex::new(HashMap::new()));
 
     let seq = {
@@ -101,12 +111,18 @@ fn schedule_kb_upsert(app_handle: tauri::AppHandle, file_path: String) {
             return;
         };
 
+        let group_ids = app_handle
+            .try_state::<crate::knowledge_base::CurrentProjectGroup>()
+            .and_then(|state| state.0.lock().ok().and_then(|group| group.clone().map(|group_id| vec![group_id])))
+            .unwrap_or_default();
+
         match crate::knowledge_base::commands::upsert_document_internal(
             &kb_state,
             &embedder_state,
             Some(doc_id),
             title,
             content,
+            group_ids,
         ) {
             Ok(id) => {
                 println!(

@@ -3,6 +3,7 @@ import { Columns2, Code, Eye } from "lucide-react";
 import { useEffect, useMemo } from "react";
 import { viewModeAtom, editorStateAtom } from "@/stores/EditorStore";
 import { viewModeSettingAtom } from "@/stores/SettingsStore";
+import { isKnowledgeGraphFile } from "@/lib/knowledgeGraph";
 
 // ─── New version: inline group button with muted background for active ──────
 
@@ -33,10 +34,15 @@ export function EditorViewMode() {
   const editorState = useAtomValue(editorStateAtom);
 
   const ext = editorState.fileExtension?.toLowerCase() || "";
+  const isGraphFile = isKnowledgeGraphFile(editorState.filePath);
 
   const supportedModes = useMemo(() => {
+    if (isGraphFile) {
+      return ["preview-only"] as ViewMode[];
+    }
+
     return EXTENSION_SUPPORTED_MODES[ext] || ["editor-only", "side-by-side", "preview-only"];
-  }, [ext]);
+  }, [ext, isGraphFile]);
 
   useEffect(() => {
     if (!supportedModes.includes(viewMode) && supportedModes.length > 0) {

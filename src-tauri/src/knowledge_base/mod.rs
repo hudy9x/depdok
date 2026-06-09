@@ -6,11 +6,15 @@ use tauri::Manager;
 pub mod commands;
 pub mod db;
 pub mod embedding;
+pub mod markdown_chunking;
 #[cfg(test)]
 mod tests;
 
 /// Tauri managed state wrapping the shared SQLite connection.
 pub struct KbState(pub Mutex<Connection>);
+
+/// Current project/group selected by the UI.
+pub struct CurrentProjectGroup(pub Mutex<Option<String>>);
 
 /// Initialise both the database and the embedder, returning the two managed
 /// states to be registered with `app.manage(...)` inside Tauri's `.setup()`.

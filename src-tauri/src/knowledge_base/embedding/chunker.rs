@@ -52,11 +52,10 @@ pub fn chunk_text(text: &str, opts: &ChunkOptions) -> Vec<String> {
         }
 
         // Advance, backing up by `overlap_chars` for context continuity.
-        let next_start = if split > opts.overlap_chars {
-            split - opts.overlap_chars
-        } else {
-            split
-        };
+        // The computed byte index may fall inside a multibyte UTF-8 codepoint,
+        // so we round down to a valid character boundary.
+        let overlap_start = split.saturating_sub(opts.overlap_chars);
+        let next_start = floor_char_boundary(text, overlap_start);
 
         if next_start <= start {
             // Safety: avoid infinite loop on degenerate input.
@@ -106,6 +105,18 @@ fn ceil_char_boundary(s: &str, index: usize) -> usize {
     i
 }
 
+/// Round `index` down to the nearest UTF-8 character boundary in `s`.
+fn floor_char_boundary(s: &str, index: usize) -> usize {
+    if index >= s.len() {
+        return s.len();
+    }
+    let mut i = index;
+    while i > 0 && !s.is_char_boundary(i) {
+        i -= 1;
+    }
+    i
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -125,5 +136,20 @@ mod tests {
         for chunk in &chunks {
             assert!(chunk.len() <= 105); // slight slack for boundary rounding
         }
+    }
+
+    #[test]
+    fn does_not_panic_on_multibyte_overlap() {
+        let text = "## Mermaid Diagram Support\n\nNhiều ứng dụng hỗ trợ sơ đồ với ký tự tiếng Việt như: sự, ự, ắ, ề.\n\n".repeat(10);
+        let chunks = chunk_text(
+            &text,
+            &ChunkOptions {
+                max_chars: 128,
+                overlap_chars: 37,
+            },
+        );
+
+        assert!(!chunks.is_empty());
+        assert!(chunks.iter().all(|chunk| !chunk.is_empty()));
     }
 }

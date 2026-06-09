@@ -5,6 +5,7 @@ import { FileEntry, listDirectory } from './api';
 import { FlatTreeNode, flattenTree } from './utils';
 import { indexWorkspaceFiles } from '@/features/FileSearchDialog/api';
 import { load } from '@tauri-apps/plugin-store';
+import { setCurrentProjectGroup } from '@/api-client/knowledge-base';
 
 // Persisted workspace root path
 export const workspaceRootAtom = atomWithStorage<string | null>(
@@ -65,6 +66,9 @@ export const openWorkspaceAtom = atom(
     try {
       const entries = await listDirectory(rootPath);
       set(workspaceRootAtom, rootPath);
+      await setCurrentProjectGroup(rootPath).catch((error) => {
+        console.error('Failed to set current project group:', error);
+      });
 
       // Update recent folders
       const recent = get(recentFoldersAtom);

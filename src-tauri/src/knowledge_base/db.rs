@@ -49,6 +49,17 @@ pub fn init_database(
             content TEXT NOT NULL
         );
 
+        CREATE TABLE IF NOT EXISTS groups (
+            id    TEXT PRIMARY KEY,
+            title TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS document_groups (
+            document_id TEXT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+            group_id    TEXT NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+            PRIMARY KEY (document_id, group_id)
+        );
+
         CREATE TABLE IF NOT EXISTS edges (
             id        TEXT PRIMARY KEY,  -- UUID v4
             source_id TEXT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,

@@ -191,20 +191,42 @@ fn get_grace_period_info() -> Result<license_manager::GracePeriodInfo, String> {
 
 #[tauri::command]
 fn get_mcp_server_paths(app: tauri::AppHandle) -> Vec<String> {
-    let mut candidates = vec![
-        "/Applications/Depdok.app/Contents/MacOS/depdok-mcp-server".to_string(),
-    ];
+    let mut candidates = Vec::new();
 
-    if let Some(home) = std::env::var_os("HOME") {
-        let home_path = std::path::PathBuf::from(home)
-            .join("Applications")
-            .join("Depdok.app")
-            .join("Contents")
-            .join("MacOS")
-            .join("depdok-mcp-server");
-        candidates.push(home_path.to_string_lossy().to_string());
+    // macOS specific candidates
+    #[cfg(target_os = "macos")]
+    {
+        candidates.push("/Applications/Depdok.app/Contents/MacOS/depdok-mcp-server".to_string());
+        if let Some(home) = std::env::var_os("HOME") {
+            let home_path = std::path::PathBuf::from(home)
+                .join("Applications")
+                .join("Depdok.app")
+                .join("Contents")
+                .join("MacOS")
+                .join("depdok-mcp-server");
+            candidates.push(home_path.to_string_lossy().to_string());
+        }
     }
 
+    // Windows specific candidates
+    #[cfg(target_os = "windows")]
+    {
+        if let Some(local_app_data) = std::env::var_os("LOCALAPPDATA") {
+            let path = std::path::PathBuf::from(local_app_data)
+                .join("Programs")
+                .join("Depdok")
+                .join("depdok-mcp-server.exe");
+            candidates.push(path.to_string_lossy().to_string());
+        }
+        if let Some(program_files) = std::env::var_os("ProgramFiles") {
+            let path = std::path::PathBuf::from(program_files)
+                .join("Depdok")
+                .join("depdok-mcp-server.exe");
+            candidates.push(path.to_string_lossy().to_string());
+        }
+    }
+
+    // Resource directory candidate (both platforms)
     #[cfg(target_os = "windows")]
     let binary_name = "depdok-mcp-server.exe";
     #[cfg(not(target_os = "windows"))]
@@ -220,6 +242,94 @@ fn get_mcp_server_paths(app: tauri::AppHandle) -> Vec<String> {
         .filter(|path| std::path::Path::new(path).exists())
         .collect()
 }
+
+#[tauri::command]
+fn check_mcp_config_status(app: tauri::AppHandle, agent_id: String, workspace_root: Option<String>) -> bool {
+    let home_dir = app.path().home_dir().ok();
+    
+    // Check helper
+    let file_contains_depdok = |path: &std::path::Path| -> bool {
+        if !path.exists() {
+            return false;
+        }
+        if let Ok(content) = std::fs::read_to_string(path) {
+            content.contains("depdok")
+        } else {
+            false
+        }
+    };
+
+    match agent_id.as_str() {
+        "claude" => {
+            if let Some(home) = home_dir {
+                #[cfg(target_os = "windows")]
+                let path = app.path().app_config_dir().ok()
+                    .map(|p| p.join("Claude/claude_desktop_config.json"))
+                    .unwrap_or_else(|| home.join("AppData/Roaming/Claude/claude_desktop_config.json"));
+                
+                #[cfg(not(target_os = "windows"))]
+                let path = home.join("Library/Application Support/Claude/claude_desktop_config.json");
+                
+                return file_contains_depdok(&path);
+            }
+            false
+        }
+        "claudecode" => {
+            let mut configured = false;
+            if let Some(ref home) = home_dir {
+                let path = home.join(".claude.json");
+                configured = configured || file_contains_depdok(&path);
+            }
+            if let Some(ref root) = workspace_root {
+                let path = std::path::PathBuf::from(root).join(".mcp.json");
+                configured = configured || file_contains_depdok(&path);
+            }
+            configured
+        }
+        "copilot" => {
+            let mut configured = false;
+            if let Some(ref home) = home_dir {
+                let path = home.join(".copilot/mcp-config.json");
+                configured = configured || file_contains_depdok(&path);
+            }
+            if let Some(ref root) = workspace_root {
+                let path = std::path::PathBuf::from(root).join(".vscode/mcp.json");
+                configured = configured || file_contains_depdok(&path);
+            }
+            configured
+        }
+        "gemini" => {
+            let mut configured = false;
+            if let Some(ref home) = home_dir {
+                let path = home.join(".gemini/settings.json");
+                configured = configured || file_contains_depdok(&path);
+            }
+            if let Some(ref root) = workspace_root {
+                let path = std::path::PathBuf::from(root).join(".vscode/mcp.json");
+                configured = configured || file_contains_depdok(&path);
+            }
+            configured
+        }
+        "codex" => {
+            let mut configured = false;
+            if let Some(ref root) = workspace_root {
+                let path1 = std::path::PathBuf::from(root).join(".vscode/mcp.json");
+                let path2 = std::path::PathBuf::from(root).join("codex-config.json");
+                configured = configured || file_contains_depdok(&path1) || file_contains_depdok(&path2);
+            }
+            configured
+        }
+        "opencode" => {
+            if let Some(ref root) = workspace_root {
+                let path = std::path::PathBuf::from(root).join("opencode.jsonc");
+                return file_contains_depdok(&path);
+            }
+            false
+        }
+        _ => false
+    }
+}
+
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -424,6 +534,7 @@ pub fn run() {
             is_licensed,
             get_grace_period_info,
             get_mcp_server_paths,
+            check_mcp_config_status,
             activate_license,
             commands::logger::start_logger_server,
             commands::logger::register_logger_channel,

@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 export function McpServerPathSetting(): JSX.Element {
   const [paths, setPaths] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'claude' | 'copilot' | 'gemini' | 'codex'>('claude');
+  const [activeTab, setActiveTab] = useState<'claude' | 'claudecode' | 'copilot' | 'gemini' | 'codex' | 'opencode'>('claude');
   const writeAccess = true;
 
   useEffect(() => {
@@ -46,7 +46,7 @@ export function McpServerPathSetting(): JSX.Element {
   const serverPath = paths[0] || "/absolute/path/to/depdok-mcp-server";
 
   const getAgentConfig = (
-    tab: 'claude' | 'copilot' | 'gemini' | 'codex',
+    tab: 'claude' | 'claudecode' | 'copilot' | 'gemini' | 'codex' | 'opencode',
     pathVal: string,
     isWrite: boolean
   ) => {
@@ -59,6 +59,23 @@ export function McpServerPathSetting(): JSX.Element {
             {
               mcpServers: {
                 depdok: {
+                  command: pathVal,
+                  args: args
+                }
+              }
+            },
+            null,
+            2
+          )
+        };
+      case 'claudecode':
+        return {
+          path: ".mcp.json (Project root) or ~/.claude.json (User global)",
+          json: JSON.stringify(
+            {
+              mcpServers: {
+                depdok: {
+                  type: "stdio",
                   command: pathVal,
                   args: args
                 }
@@ -117,6 +134,23 @@ export function McpServerPathSetting(): JSX.Element {
             2
           )
         };
+      case 'opencode':
+        return {
+          path: "opencode.jsonc (Project root)",
+          json: JSON.stringify(
+            {
+              mcp: {
+                depdok: {
+                  type: "local",
+                  command: [pathVal, ...args],
+                  enabled: true
+                }
+              }
+            },
+            null,
+            2
+          )
+        };
     }
   };
 
@@ -133,10 +167,12 @@ export function McpServerPathSetting(): JSX.Element {
   };
 
   const agents = [
-    { id: "claude", name: "Claude" },
+    { id: "claude", name: "Claude Desktop" },
+    { id: "claudecode", name: "Claude Code" },
     { id: "copilot", name: "Copilot" },
     { id: "gemini", name: "Gemini" },
     { id: "codex", name: "Codex" },
+    { id: "opencode", name: "OpenCode" },
   ] as const;
 
   return (
@@ -153,7 +189,7 @@ export function McpServerPathSetting(): JSX.Element {
       ) : (
         <div className="space-y-4 w-full">
           {/* Agent tabs selector (matching style of Theme selector) */}
-          <div className="flex bg-muted p-1 rounded-lg text-muted-foreground gap-1">
+          <div className="grid grid-cols-3 sm:grid-cols-6 bg-muted p-1 rounded-lg text-muted-foreground gap-1">
             {agents.map((agent) => (
               <button
                 key={agent.id}
@@ -169,53 +205,14 @@ export function McpServerPathSetting(): JSX.Element {
             ))}
           </div>
 
-          {/* Write Access Toggle */}
-          {/* <div className="flex items-center justify-between rounded-lg border border-border p-3 bg-muted/20">
-            <div className="space-y-0.5">
-              <Label className="text-sm font-medium">Enable Write Access</Label>
-              <p className="text-xs text-muted-foreground">
-                Allows the agent to modify or create files in the knowledge base
-              </p>
-            </div>
-            <Switch
-              checked={writeAccess}
-              onCheckedChange={setWriteAccess}
-              aria-label="Toggle Write Access"
-            />
-          </div> */}
-
-          {/* Binary Path Info */}
-          {paths.length > 0 ? (
-            <div className="space-y-1 w-full min-w-0">
-              <Label className="text-xs truncate font-medium text-muted-foreground">Detected Binary Path</Label>
-              <div className="relative ">
-                {/* <code className="flex-1 text-xs truncate min-w-0">{serverPath}</code> */}
-                <Input readOnly value={serverPath} className="text-xs" />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="absolute right-2 top-1/2 -translate-y-1/2 h-7 w-7 cursor-pointer hover:bg-muted shrink-0"
-                  onClick={() => copyToClipboard(serverPath, "Copied binary path")}
-                >
-                  <Copy className="h-3.5 w-3.5" />
-                  <span className="sr-only">Copy binary path</span>
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <div className="text-xs text-amber-500 bg-amber-500/10 rounded-md border border-amber-500/20 p-2 w-full">
-              MCP server binary was not found in /Applications or ~/Applications. If you installed Depdok in a custom location, run: <code className="block mt-1 p-1 bg-amber-500/20 rounded break-all">find /Applications ~/Applications -name depdok-mcp-server 2&gt;/dev/null</code>
-            </div>
-          )}
-
           {/* Config file path and JSON code block */}
-          <div className="space-y-2 w-full">
-            {/* <div className="flex flex-col gap-1 w-full">
+          <div className="space-y-3 w-full">
+            <div className="flex flex-col gap-1 w-full">
               <Label className="text-xs font-medium text-muted-foreground">Config File Location</Label>
               <div className="relative">
-                <Input readOnly value={currentConfig.path} />
+                <Input readOnly value={currentConfig.path} className="text-xs pr-10" />
                 <Button
+                  type="button"
                   variant="ghost"
                   size="icon"
                   className="absolute right-2 top-1/2 -translate-y-1/2 h-7 w-7 cursor-pointer hover:bg-muted shrink-0"
@@ -225,7 +222,7 @@ export function McpServerPathSetting(): JSX.Element {
                   <span className="sr-only">Copy config file path</span>
                 </Button>
               </div>
-            </div> */}
+            </div>
 
             <div className="relative rounded-lg text-xs w-full bg-zinc-900 text-zinc-200">
               <div className="absolute top-2 right-2 flex gap-1 z-10">

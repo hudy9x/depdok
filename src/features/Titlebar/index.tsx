@@ -3,6 +3,8 @@ import { platform } from '@tauri-apps/plugin-os';
 import { WindowsTitlebar } from './WindowsTitlebar';
 import { MacOSTitlebar } from './MacOSTitlebar';
 
+export { HomeTitlebar } from './HomeTitlebar';
+
 export function Titlebar() {
   const [currentPlatform, setCurrentPlatform] = useState<string>('');
 

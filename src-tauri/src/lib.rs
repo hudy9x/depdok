@@ -190,7 +190,7 @@ fn get_grace_period_info() -> Result<license_manager::GracePeriodInfo, String> {
 }
 
 #[tauri::command]
-fn get_mcp_server_paths() -> Vec<String> {
+fn get_mcp_server_paths(app: tauri::AppHandle) -> Vec<String> {
     let mut candidates = vec![
         "/Applications/Depdok.app/Contents/MacOS/depdok-mcp-server".to_string(),
     ];
@@ -203,6 +203,16 @@ fn get_mcp_server_paths() -> Vec<String> {
             .join("MacOS")
             .join("depdok-mcp-server");
         candidates.push(home_path.to_string_lossy().to_string());
+    }
+
+    #[cfg(target_os = "windows")]
+    let binary_name = "depdok-mcp-server.exe";
+    #[cfg(not(target_os = "windows"))]
+    let binary_name = "depdok-mcp-server";
+
+    if let Ok(resource_dir) = app.path().resource_dir() {
+        let resource_binary = resource_dir.join(binary_name);
+        candidates.push(resource_binary.to_string_lossy().to_string());
     }
 
     candidates

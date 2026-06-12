@@ -67,9 +67,9 @@ export function McpServerPathSetting() {
           {paths.map((pathValue) => (
             <div
               key={pathValue}
-              className="flex items-center gap-2 rounded-md border bg-muted/50 px-2 py-1.5"
+              className="flex items-center gap-2 rounded-md border border-border bg-muted/50 px-2 py-1.5"
             >
-              <code className="flex-1 text-xs break-all">{pathValue}</code>
+              <code className="flex-1 text-xs ">{pathValue}</code>
               <Button
                 type="button"
                 variant="outline"

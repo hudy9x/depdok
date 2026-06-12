@@ -4,6 +4,7 @@ version = "0.0.1"
 description = "Depdok"
 authors = ["hudy9x"]
 edition = "2021"
+default-run = "Depdok"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -47,6 +48,8 @@ fastembed = "4"
 axum = "0.8.8"
 tokio = { version = "1", features = ["full"] }
 tower-http = { version = "0.6.8", features = ["cors"] }
+pulldown-cmark = { version = "0.12", default-features = false }
+async-trait = "0.1"
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-updater = "2"

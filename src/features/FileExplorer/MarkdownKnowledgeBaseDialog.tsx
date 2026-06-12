@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { LoaderCircle, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 
-import { indexMarkdownDocumentSections } from '@/api-client/knowledge-base';
+import { indexMarkdownDocumentSections, rebuildAllEdges } from '@/api-client/knowledge-base';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -144,6 +144,9 @@ export function MarkdownKnowledgeBaseDialog({
         );
         indexedDocumentCount += indexedSections;
       }
+
+      // Rebuild edges so all markdown links are correctly created in the graph
+      await rebuildAllEdges();
 
       toast.success(`Indexed ${indexedDocumentCount} section${indexedDocumentCount === 1 ? '' : 's'} from ${selectedFiles.length} markdown file${selectedFiles.length === 1 ? '' : 's'}`);
       onOpenChange(false);

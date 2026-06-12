@@ -7,6 +7,13 @@
         "serve",
         "--mcp"
       ]
+    },
+    "depdok": {
+      "type": "stdio",
+      "command": "/Users/hudy/ws/depdok/src-tauri/target/release/depdok-mcp-server",
+      "args": [
+        "--write-enabled"
+      ]
     }
   }
 }

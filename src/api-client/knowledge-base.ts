@@ -80,3 +80,7 @@ export async function connectDocuments(
 export async function searchSimilar(query: string, limit = 20): Promise<KnowledgeSearchResult[]> {
   return await invoke<KnowledgeSearchResult[]>('search_similar', { query, limit });
 }
+
+export async function rebuildAllEdges(): Promise<void> {
+  await invoke('rebuild_all_edges');
+}

@@ -106,24 +106,18 @@ fn schedule_kb_upsert(app_handle: tauri::AppHandle, file_path: String) {
             eprintln!("[knowledge_base] state unavailable; skipping auto upsert");
             return;
         };
-        let Some(embedder_state) = app_handle.try_state::<crate::knowledge_base::embedding::EmbedderState>() else {
-            eprintln!("[knowledge_base] embedder state unavailable; skipping auto upsert");
-            return;
-        };
 
         let group_ids = app_handle
             .try_state::<crate::knowledge_base::CurrentProjectGroup>()
             .and_then(|state| state.0.lock().ok().and_then(|group| group.clone().map(|group_id| vec![group_id])))
             .unwrap_or_default();
 
-        match crate::knowledge_base::commands::upsert_document_internal(
-            &kb_state,
-            &embedder_state,
+        match kb_state.0.upsert_document(
             Some(doc_id),
             title,
             content,
             group_ids,
-        ) {
+        ).await {
             Ok(id) => {
                 println!(
                     "[knowledge_base] debounced auto upsert executed for {} (document_id={})",

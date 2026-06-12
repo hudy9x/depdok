@@ -4,17 +4,19 @@
 //
 // Integration notes:
 // - An OpenAI API key must be provided at runtime (read from app settings — never hard-coded).
-// - Each `embed()` call performs a synchronous HTTP request. For high-throughput use, refactor
-//   the Embedder trait to be async.
+// - Each `embed()` call performs an async HTTP request.
 // - `text-embedding-3-large` produces 3072 dimensions. The vec0 table is created with the
 //   dimension count from `Embedder::dimensions()`, so switching providers requires
 //   re-initialising (or migrating) the database.
 
 #[cfg(feature = "openai-embeddings")]
 use super::Embedder;
+#[cfg(feature = "openai-embeddings")]
+use async_trait::async_trait;
 
 #[cfg(feature = "openai-embeddings")]
 pub struct OpenAiProvider {
+    client: reqwest::Client,
     api_key: String,
     /// Model identifier, e.g. `"text-embedding-3-large"`.
     model: String,
@@ -26,6 +28,7 @@ pub struct OpenAiProvider {
 impl OpenAiProvider {
     pub fn new(api_key: String) -> Self {
         Self {
+            client: reqwest::Client::new(),
             api_key,
             model: "text-embedding-3-large".to_string(),
             dimensions: 3072,
@@ -42,33 +45,31 @@ impl OpenAiProvider {
 }
 
 #[cfg(feature = "openai-embeddings")]
+#[async_trait]
 impl Embedder for OpenAiProvider {
-    fn embed(&self, text: &str) -> Result<Vec<f32>, String> {
-        // Uses reqwest blocking client. Requires the `blocking` feature on reqwest.
-        // Add to Cargo.toml if not already present:
-        //   reqwest = { ..., features = ["json", "blocking", ...] }
-        let client = reqwest::blocking::Client::new();
-
+    async fn embed(&self, text: &str) -> Result<Vec<f32>, String> {
         let body = serde_json::json!({
             "input": text,
             "model": self.model,
         });
 
-        let response = client
+        let response = self.client
             .post("https://api.openai.com/v1/embeddings")
             .bearer_auth(&self.api_key)
             .json(&body)
             .send()
+            .await
             .map_err(|e| format!("OpenAI request failed: {e}"))?;
 
         if !response.status().is_success() {
             let status = response.status();
-            let body = response.text().unwrap_or_default();
+            let body = response.text().await.unwrap_or_default();
             return Err(format!("OpenAI API error {status}: {body}"));
         }
 
         let json: serde_json::Value = response
             .json()
+            .await
             .map_err(|e| format!("Failed to parse OpenAI response: {e}"))?;
 
         let embedding = json["data"][0]["embedding"]

@@ -1,5 +1,5 @@
 use std::path::PathBuf;
-use std::sync::Mutex;
+use async_trait::async_trait;
 
 pub mod chunker;
 pub mod fastembed;
@@ -8,9 +8,10 @@ pub mod openai;
 
 /// Provider-agnostic embedding interface.
 /// Any type implementing this trait can be swapped in as the active provider.
+#[async_trait]
 pub trait Embedder: Send + Sync {
     /// Embed a single piece of text and return a float vector.
-    fn embed(&self, text: &str) -> Result<Vec<f32>, String>;
+    async fn embed(&self, text: &str) -> Result<Vec<f32>, String>;
     /// Number of dimensions produced by this provider (used when creating the vec0 table).
     fn dimensions(&self) -> usize;
     /// Human-readable provider name for logging / UI.
@@ -18,9 +19,11 @@ pub trait Embedder: Send + Sync {
     fn name(&self) -> &'static str;
 }
 
-/// Tauri managed state wrapping the active embedder as a trait object.
+use std::sync::Arc;
+
+/// Tauri managed state wrapping the active embedder as a shared trait object.
 /// Commands receive `State<'_, EmbedderState>` and never depend on the concrete type.
-pub struct EmbedderState(pub Mutex<Box<dyn Embedder>>);
+pub struct EmbedderState(pub Arc<tokio::sync::RwLock<Box<dyn Embedder>>>);
 
 /// Select and initialise the active embedder provider.
 /// - Default (no feature flags): local `fastembed` provider.
@@ -29,10 +32,6 @@ pub fn init_embedder(cache_dir: Option<PathBuf>) -> Result<Box<dyn Embedder>, St
     #[cfg(feature = "openai-embeddings")]
     {
         // TODO: read API key from app settings; if present, return OpenAiProvider.
-        // Example:
-        //   if let Some(key) = read_openai_key_from_settings() {
-        //       return Ok(Box::new(openai::OpenAiProvider::new(key)));
-        //   }
     }
 
     let provider = fastembed::FastEmbedProvider::new(cache_dir)?;

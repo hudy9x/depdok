@@ -9,6 +9,14 @@
         "--mcp"
       ],
       "enabled": true
+    },
+    "depdok": {
+      "type": "local",
+      "command": [
+        "/Users/hudy/ws/depdok/src-tauri/target/release/depdok-mcp-server",
+        "--write-enabled"
+      ],
+      "enabled": true
     }
   }
 }

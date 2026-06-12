@@ -1,5 +1,6 @@
 use std::path::PathBuf;
-
+use std::sync::Arc;
+use async_trait::async_trait;
 use fastembed::{EmbeddingModel, InitOptions, TextEmbedding};
 
 use super::Embedder;
@@ -10,7 +11,7 @@ use super::Embedder;
 /// The ONNX model file is downloaded once to `cache_dir` on first launch;
 /// subsequent runs are fully offline.
 pub struct FastEmbedProvider {
-    model: TextEmbedding,
+    model: Arc<TextEmbedding>,
 }
 
 impl FastEmbedProvider {
@@ -28,21 +29,28 @@ impl FastEmbedProvider {
         let model = TextEmbedding::try_new(opts)
             .map_err(|e| format!("Failed to initialise fastembed model: {e}"))?;
 
-        Ok(Self { model })
+        Ok(Self { model: Arc::new(model) })
     }
 }
 
+#[async_trait]
 impl Embedder for FastEmbedProvider {
     /// Embed a single text snippet and return its 384-dimensional vector.
-    fn embed(&self, text: &str) -> Result<Vec<f32>, String> {
-        let mut results = self
-            .model
-            .embed(vec![text], None)
-            .map_err(|e| format!("fastembed embed error: {e}"))?;
+    async fn embed(&self, text: &str) -> Result<Vec<f32>, String> {
+        let model = self.model.clone();
+        let text_owned = text.to_string();
+        
+        tokio::task::spawn_blocking(move || {
+            let mut results = model
+                .embed(vec![text_owned], None)
+                .map_err(|e| format!("fastembed embed error: {e}"))?;
 
-        results
-            .pop()
-            .ok_or_else(|| "fastembed returned no embedding".to_string())
+            results
+                .pop()
+                .ok_or_else(|| "fastembed returned no embedding".to_string())
+        })
+        .await
+        .map_err(|e| format!("spawn_blocking join error: {e}"))?
     }
 
     fn dimensions(&self) -> usize {

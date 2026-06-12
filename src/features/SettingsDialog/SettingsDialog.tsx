@@ -14,6 +14,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { autoSaveEnabledAtom, /*autoSaveDelayAtom,*/ themeAtom } from "@/stores/SettingsStore";
 import { Monitor, Moon, Sun } from "lucide-react";
 import { AssetsFolderSetting } from "./AssetsFolderSetting";
+import { McpServerPathSetting } from "./McpServerPathSetting";
 import { MonacoThemeSetting } from "./MonacoThemeSetting";
 import { PlantUmlServerSetting } from "./PlantUmlServerSetting";
 
@@ -142,6 +143,9 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
 
           {/* Assets Folder Setting */}
           <AssetsFolderSetting />
+
+          {/* MCP Server Path */}
+          <McpServerPathSetting />
         </div>
       </DialogContent>
     </Dialog>

@@ -49,6 +49,7 @@ mod menu;
 mod license_manager;
 mod keychain;
 mod knowledge_base;
+pub mod mcp_server;
 #[cfg(target_os = "macos")]
 mod dock;
 
@@ -186,6 +187,28 @@ fn is_licensed(app_handle: tauri::AppHandle) -> Result<bool, String> {
 #[tauri::command]
 fn get_grace_period_info() -> Result<license_manager::GracePeriodInfo, String> {
     license_manager::get_grace_period_info()
+}
+
+#[tauri::command]
+fn get_mcp_server_paths() -> Vec<String> {
+    let mut candidates = vec![
+        "/Applications/Depdok.app/Contents/MacOS/depdok-mcp-server".to_string(),
+    ];
+
+    if let Some(home) = std::env::var_os("HOME") {
+        let home_path = std::path::PathBuf::from(home)
+            .join("Applications")
+            .join("Depdok.app")
+            .join("Contents")
+            .join("MacOS")
+            .join("depdok-mcp-server");
+        candidates.push(home_path.to_string_lossy().to_string());
+    }
+
+    candidates
+        .into_iter()
+        .filter(|path| std::path::Path::new(path).exists())
+        .collect()
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -390,6 +413,7 @@ pub fn run() {
             remove_license_key,
             is_licensed,
             get_grace_period_info,
+            get_mcp_server_paths,
             activate_license,
             commands::logger::start_logger_server,
             commands::logger::register_logger_channel,
@@ -402,6 +426,7 @@ pub fn run() {
             knowledge_base::commands::get_project_graph,
             knowledge_base::commands::set_current_project_group,
             knowledge_base::commands::test_database_query,
+            knowledge_base::commands::rebuild_all_edges,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

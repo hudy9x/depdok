@@ -41,7 +41,8 @@ pub fn chunk_text(text: &str, opts: &ChunkOptions) -> Vec<String> {
 
         // Try to find a natural split point searching backwards from `end`.
         let split = if end < len {
-            find_split_point(text, start, end)
+            let min_split = start + opts.overlap_chars.min(opts.max_chars - 1);
+            find_split_point(text, start, end, min_split)
         } else {
             end
         };
@@ -69,24 +70,35 @@ pub fn chunk_text(text: &str, opts: &ChunkOptions) -> Vec<String> {
 
 /// Walk backwards from `end` inside `text[start..end]` looking for a
 /// natural split point: paragraph break > sentence end > semicolon > space.
-fn find_split_point(text: &str, start: usize, end: usize) -> usize {
+/// We reject split points that are less than or equal to `min_split` to guarantee
+/// forward progress and prevent infinite loop safety triggers.
+fn find_split_point(text: &str, start: usize, end: usize, min_split: usize) -> usize {
     let window = &text[start..end];
 
     // Prefer paragraph boundary.
     if let Some(pos) = window.rfind("\n\n") {
-        return start + pos + 2;
+        let split = start + pos + 2;
+        if split > min_split {
+            return split;
+        }
     }
 
     // Sentence-ending punctuation.
     for delim in ['\n', '.', '!', '?', ';'] {
         if let Some(pos) = window.rfind(delim) {
-            return start + pos + 1;
+            let split = start + pos + 1;
+            if split > min_split {
+                return split;
+            }
         }
     }
 
     // Word boundary.
     if let Some(pos) = window.rfind(' ') {
-        return start + pos + 1;
+        let split = start + pos + 1;
+        if split > min_split {
+            return split;
+        }
     }
 
     // Hard split — guaranteed valid UTF-8 boundary.
@@ -136,6 +148,19 @@ mod tests {
         for chunk in &chunks {
             assert!(chunk.len() <= 105); // slight slack for boundary rounding
         }
+    }
+
+    #[test]
+    fn splits_by_paragraph_without_infinite_loop_bug() {
+        let content = format!(
+            "{}\n\n{}\n\n{}",
+            "First chunk content that is relatively short. ".repeat(15),
+            "Second chunk content that describes another thing. ".repeat(15),
+            "Third chunk content concluding the document. ".repeat(15)
+        );
+        let chunks = chunk_text(&content, &ChunkOptions::default());
+        assert!(chunks.len() >= 3);
+        assert!(chunks.iter().any(|c| c.contains("Second")));
     }
 
     #[test]

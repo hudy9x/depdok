@@ -187,7 +187,7 @@ export function MarkdownKnowledgeBaseDialog({
 
         <div className="border border-border rounded-md min-h-0 flex-1 overflow-hidden">
           <ScrollArea className="h-[420px]">
-            <div className="divide-y divide-border">
+            <div className="divide-y divide-border bg-layout-content">
               {!isLoading && files.length === 0 && (
                 <div className="px-4 py-8 text-sm text-center text-muted-foreground">
                   No markdown files found in this workspace.

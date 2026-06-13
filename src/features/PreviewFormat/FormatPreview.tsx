@@ -72,10 +72,10 @@ const CustomConnectionLine = ({
 const HoverDiffNode = ({ data }: any) => {
   return (
     <div className="w-[500px] pointer-events-none opacity-95 transition-opacity select-none shadow-2xl">
-      <DiffViewer 
-        sourceContent={data.sourceContent} 
-        targetContent={data.targetContent} 
-        formatType={data.formatType} 
+      <DiffViewer
+        sourceContent={data.sourceContent}
+        targetContent={data.targetContent}
+        formatType={data.formatType}
         title="Live Diff Preview"
       />
     </div>
@@ -96,7 +96,7 @@ export function FormatPreview({ content, editable = false, readOnly = false, onC
   const [rfInstance, setRfInstance] = useState<ReactFlowInstance | null>(null);
   const [localContent, setLocalContent] = useState(content);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [hoverDiffs, setHoverDiffs] = useState<Record<string, {sourceIndex: number; targetIndex: number; x: number; y: number}>>({});
+  const [hoverDiffs, setHoverDiffs] = useState<Record<string, { sourceIndex: number; targetIndex: number; x: number; y: number }>>({});
 
   // Track content emitted by this component so we can detect round-trips.
   // When the parent echoes back the same string we just saved, we skip re-syncing
@@ -146,7 +146,7 @@ export function FormatPreview({ content, editable = false, readOnly = false, onC
         // Offset slightly so it spawns roughly in the middle, assuming block is ~300x200
         position.x -= 150;
         position.y -= 100;
-        
+
         position.x += offsetIndex * 50;
         position.y += offsetIndex * 50;
 
@@ -166,21 +166,21 @@ export function FormatPreview({ content, editable = false, readOnly = false, onC
   const handleDrop = useCallback(async (e: React.DragEvent) => {
     e.preventDefault();
     setIsProcessing(true);
-    
+
     try {
       const files = Array.from(e.dataTransfer.files);
       let addedCount = 0;
-      
+
       for (const file of files) {
         const ext = file.name.split('.').pop()?.toLowerCase();
         if (!ext) continue;
-        
+
         let detectedType: FormatBlockType | null = null;
         if (ext === 'json') detectedType = 'json';
         else if (ext === 'xml') detectedType = 'xml';
         else if (ext === 'html' || ext === 'htm') detectedType = 'html';
         else if (ext === 'yaml' || ext === 'yml') detectedType = 'yaml';
-        
+
         if (detectedType) {
           const text = await file.text();
           // allow ui to render loading state and sequence block generation safely
@@ -193,7 +193,7 @@ export function FormatPreview({ content, editable = false, readOnly = false, onC
           });
         }
       }
-      
+
       await new Promise(r => setTimeout(r, 300));
     } finally {
       setIsProcessing(false);
@@ -271,11 +271,11 @@ export function FormatPreview({ content, editable = false, readOnly = false, onC
     const targetIndex = parseInt(match[2]);
     const block = parsedBlocks[sourceIndex];
     if (!block) return;
-    
+
     const connections = (block.metadata?.connections || []).filter((idx: number) => idx !== targetIndex);
     const newMetadata = { ...block.metadata, connections };
     if (connections.length === 0) delete newMetadata.connections;
-    
+
     const updated = updateBlockMetadata(localContent, parsedBlocks, sourceIndex, newMetadata);
     setLocalContent(updated);
     emitContentChange(updated);
@@ -286,10 +286,10 @@ export function FormatPreview({ content, editable = false, readOnly = false, onC
     const targetIndex = parseInt(targetId.replace("block-", ""));
     const block = parsedBlocks[sourceIndex];
     if (!block) return;
-    
+
     const connections = Array.from(new Set([...(block.metadata?.connections || []), targetIndex]));
     const newMetadata = { ...block.metadata, connections };
-    
+
     const updated = updateBlockMetadata(localContent, parsedBlocks, sourceIndex, newMetadata);
     setLocalContent(updated);
     emitContentChange(updated);
@@ -313,63 +313,63 @@ export function FormatPreview({ content, editable = false, readOnly = false, onC
   // Compute and persist overlapping blocks as preview diffs dynamically
   useEffect(() => {
     if (!rfInstance || nodes.length === 0) return;
-    
+
     // Only process overlaps once nodes have properly mounted dimensions
     const allMeasured = nodes.every(n => n.measured && (n.measured.width || n.measured.height));
     if (!allMeasured) return;
 
-    const newDiffs: Record<string, {sourceIndex: number, targetIndex: number, x: number, y: number}> = {};
+    const newDiffs: Record<string, { sourceIndex: number, targetIndex: number, x: number, y: number }> = {};
     const newHoverTargetIds = new Set<string>();
 
     nodes.forEach(node => {
       // Find intersections
       const intersections = rfInstance.getIntersectingNodes(node);
       const targetNode = intersections.find(n => n.type === 'formatBlock' && n.id !== node.id && n.id > node.id);
-      
+
       if (targetNode) {
         const sourceIndex = parseInt(node.id.replace('block-', ''));
         const targetIndex = parseInt(targetNode.id.replace('block-', ''));
-        
+
         const sourceBlock = parsedBlocks[sourceIndex];
         const targetBlock = parsedBlocks[targetIndex];
-        
+
         if (sourceBlock && targetBlock && sourceBlock.type === targetBlock.type && sourceBlock.type !== 'text') {
-           const minX = Math.min(targetNode.position.x, node.position.x) - 520;
-           const minY = Math.min(targetNode.position.y, node.position.y);
-           const diffId = `hover-${node.id}-${targetNode.id}`;
-           newDiffs[diffId] = { sourceIndex, targetIndex, x: minX, y: minY };
-           
-           newHoverTargetIds.add(targetNode.id);
-           newHoverTargetIds.add(node.id);
+          const minX = Math.min(targetNode.position.x, node.position.x) - 520;
+          const minY = Math.min(targetNode.position.y, node.position.y);
+          const diffId = `hover-${node.id}-${targetNode.id}`;
+          newDiffs[diffId] = { sourceIndex, targetIndex, x: minX, y: minY };
+
+          newHoverTargetIds.add(targetNode.id);
+          newHoverTargetIds.add(node.id);
         }
       }
     });
 
     setHoverDiffs(prev => {
-       const nextKeys = Object.keys(newDiffs);
-       const prevKeys = Object.keys(prev);
-       if (prevKeys.length !== nextKeys.length) return newDiffs;
-       
-       for (const k of nextKeys) {
-         if (!prev[k] || prev[k].x !== newDiffs[k].x || prev[k].y !== newDiffs[k].y || prev[k].sourceIndex !== newDiffs[k].sourceIndex || prev[k].targetIndex !== newDiffs[k].targetIndex) {
-            return newDiffs;
-         }
-       }
-       return prev;
+      const nextKeys = Object.keys(newDiffs);
+      const prevKeys = Object.keys(prev);
+      if (prevKeys.length !== nextKeys.length) return newDiffs;
+
+      for (const k of nextKeys) {
+        if (!prev[k] || prev[k].x !== newDiffs[k].x || prev[k].y !== newDiffs[k].y || prev[k].sourceIndex !== newDiffs[k].sourceIndex || prev[k].targetIndex !== newDiffs[k].targetIndex) {
+          return newDiffs;
+        }
+      }
+      return prev;
     });
 
     // Safely update specific nodes with hover highlights
     setNodes((nds) => {
-       let changed = false;
-       const nextNds = nds.map(n => {
-          const isTarget = newHoverTargetIds.has(n.id);
-          if (n.data.isHoverTarget !== isTarget) {
-             changed = true;
-             return { ...n, data: { ...n.data, isHoverTarget: isTarget } };
-          }
-          return n;
-       });
-       return changed ? nextNds : nds;
+      let changed = false;
+      const nextNds = nds.map(n => {
+        const isTarget = newHoverTargetIds.has(n.id);
+        if (n.data.isHoverTarget !== isTarget) {
+          changed = true;
+          return { ...n, data: { ...n.data, isHoverTarget: isTarget } };
+        }
+        return n;
+      });
+      return changed ? nextNds : nds;
     });
 
   }, [rfInstance, nodes, parsedBlocks, setNodes]);
@@ -466,7 +466,7 @@ export function FormatPreview({ content, editable = false, readOnly = false, onC
   // Empty state
   if (!hasTypedBlocks) {
     return (
-      <div 
+      <div
         className="relative w-full h-full flex flex-col items-center justify-center gap-4 px-6 text-center outline-none"
         tabIndex={0}
         onDrop={readOnly ? undefined : handleDrop}
@@ -493,7 +493,7 @@ export function FormatPreview({ content, editable = false, readOnly = false, onC
         <p className="text-xs text-muted-foreground/60">
           Or type <code className="px-1 rounded bg-muted">~~~json</code> directly in the editor
         </p>
-        
+
         {isProcessing && (
           <div className="absolute inset-0 z-[100] flex flex-col items-center justify-center bg-background/50 backdrop-blur-sm">
             <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -504,8 +504,8 @@ export function FormatPreview({ content, editable = false, readOnly = false, onC
   }
 
   return (
-    <div 
-      className="relative w-full h-full bg-muted outline-none" 
+    <div
+      className="relative w-full h-full bg-layout-content outline-none"
       tabIndex={0}
       onDrop={readOnly ? undefined : handleDrop}
       onDragOver={readOnly ? undefined : handleDragOver}

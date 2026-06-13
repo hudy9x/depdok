@@ -13,7 +13,10 @@ import {
   FolderOpen,
   Download,
   CheckCircle2,
+  RefreshCw,
+  ExternalLink,
 } from "lucide-react";
+import { openUrl } from "@tauri-apps/plugin-opener";
 
 import {
   getCurrentEmbeddingModel,
@@ -36,6 +39,7 @@ interface ModelInfo {
   sizeMb?: number;
   languages: string;
   description: string;
+  url: string;
 }
 
 const LOCAL_MODELS: ModelInfo[] = [
@@ -47,6 +51,7 @@ const LOCAL_MODELS: ModelInfo[] = [
     sizeMb: 22,
     languages: "English",
     description: "Fast, lightweight model. Ideal for low-memory environments.",
+    url: "https://huggingface.co/Qdrant/all-MiniLM-L6-v2-onnx",
   },
   {
     id: "all-MiniLM-L12-v2",
@@ -56,6 +61,7 @@ const LOCAL_MODELS: ModelInfo[] = [
     sizeMb: 45,
     languages: "English",
     description: "Slightly more accurate MiniLM variant with similar latency.",
+    url: "https://huggingface.co/Xenova/all-MiniLM-L12-v2",
   },
   {
     id: "bge-small-en-v1.5",
@@ -65,6 +71,7 @@ const LOCAL_MODELS: ModelInfo[] = [
     sizeMb: 45,
     languages: "English",
     description: "High performance small model by BAAI. English-focused.",
+    url: "https://huggingface.co/Qdrant/bge-small-en-v1.5-onnx-quantized",
   },
   {
     id: "bge-base-en-v1.5",
@@ -74,6 +81,7 @@ const LOCAL_MODELS: ModelInfo[] = [
     sizeMb: 110,
     languages: "English",
     description: "BAAI's base model. Superior search accuracy, moderate size.",
+    url: "https://huggingface.co/Qdrant/bge-base-en-v1.5-onnx-quantized",
   },
   {
     id: "bge-large-en-v1.5",
@@ -83,6 +91,7 @@ const LOCAL_MODELS: ModelInfo[] = [
     sizeMb: 1340,
     languages: "English",
     description: "BAAI's large model. State-of-the-art accuracy, but high disk/RAM footprint.",
+    url: "https://huggingface.co/Qdrant/bge-large-en-v1.5-onnx-quantized",
   },
   {
     id: "nomic-embed-text-v1.5",
@@ -92,6 +101,7 @@ const LOCAL_MODELS: ModelInfo[] = [
     sizeMb: 280,
     languages: "English",
     description: "Local model with extended token context window (8k).",
+    url: "https://huggingface.co/nomic-ai/nomic-embed-text-v1.5",
   },
   {
     id: "multilingual-e5-small",
@@ -101,6 +111,7 @@ const LOCAL_MODELS: ModelInfo[] = [
     sizeMb: 45,
     languages: "Multilingual (100+)",
     description: "Microsoft's E5 small multilingual model. Fast and low memory footprint.",
+    url: "https://huggingface.co/intfloat/multilingual-e5-small",
   },
   {
     id: "multilingual-e5-base",
@@ -110,6 +121,7 @@ const LOCAL_MODELS: ModelInfo[] = [
     sizeMb: 110,
     languages: "Multilingual (100+)",
     description: "Microsoft's E5 base multilingual model. Good balance of speed and accuracy.",
+    url: "https://huggingface.co/intfloat/multilingual-e5-base",
   },
   {
     id: "multilingual-e5-large",
@@ -119,6 +131,7 @@ const LOCAL_MODELS: ModelInfo[] = [
     sizeMb: 560,
     languages: "Multilingual (100+)",
     description: "Microsoft's E5 large multilingual model. Outstanding accuracy.",
+    url: "https://huggingface.co/intfloat/multilingual-e5-large",
   },
   {
     id: "paraphrase-multilingual-MiniLM-L12-v2",
@@ -128,6 +141,7 @@ const LOCAL_MODELS: ModelInfo[] = [
     sizeMb: 220,
     languages: "Multilingual (50+)",
     description: "Lightweight and efficient multilingual sentence transformer.",
+    url: "https://huggingface.co/sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
   },
   {
     id: "bge-small-zh-v1.5",
@@ -137,6 +151,7 @@ const LOCAL_MODELS: ModelInfo[] = [
     sizeMb: 90,
     languages: "Chinese, English",
     description: "BAAI's small Chinese-English bilingual model. Excellent for Chinese search.",
+    url: "https://huggingface.co/BAAI/bge-small-zh-v1.5",
   },
   {
     id: "bge-large-zh-v1.5",
@@ -146,6 +161,7 @@ const LOCAL_MODELS: ModelInfo[] = [
     sizeMb: 640,
     languages: "Chinese, English",
     description: "BAAI's large Chinese-English bilingual model. State-of-the-art accuracy for Chinese search.",
+    url: "https://huggingface.co/BAAI/bge-large-zh-v1.5",
   },
 ];
 
@@ -157,6 +173,7 @@ const REMOTE_MODELS: ModelInfo[] = [
     dims: 1536,
     languages: "Multilingual (100+)",
     description: "OpenAI's latest generation efficient remote embedder.",
+    url: "https://platform.openai.com/docs/guides/embeddings",
   },
   {
     id: "text-embedding-3-large",
@@ -165,6 +182,7 @@ const REMOTE_MODELS: ModelInfo[] = [
     dims: 3072,
     languages: "Multilingual (100+)",
     description: "OpenAI's most capable remote embedding model.",
+    url: "https://platform.openai.com/docs/guides/embeddings",
   },
   {
     id: "text-embedding-ada-002",
@@ -173,6 +191,7 @@ const REMOTE_MODELS: ModelInfo[] = [
     dims: 1536,
     languages: "Multilingual",
     description: "OpenAI's legacy standard embedding model.",
+    url: "https://platform.openai.com/docs/guides/embeddings",
   },
 ];
 
@@ -192,7 +211,6 @@ export function EmbeddingModelSetting(): JSX.Element {
 
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isReindexing, setIsReindexing] = useState<boolean>(false);
-  const [indexedCount, setIndexedCount] = useState<number | null>(null);
   const [downloadedModels, setDownloadedModels] = useState<string[]>([]);
   const [downloadPercent, setDownloadPercent] = useState<number | null>(null);
   const [cacheDir, setCacheDir] = useState<string>("");
@@ -278,15 +296,16 @@ export function EmbeddingModelSetting(): JSX.Element {
       return;
     }
 
+    const isDownloaded = activeTab === "remote" || downloadedModels.includes(modelId);
+
     setIsReindexing(true);
-    setIndexedCount(null);
     setSelectedModel(modelId);
-    setDownloadPercent(activeTab === "local" ? 0 : null);
+    setDownloadPercent(isDownloaded ? null : 0);
 
     const modelInfo = LOCAL_MODELS.find((m) => m.id === modelId);
     const sizeMb = modelInfo?.sizeMb || 22;
 
-    if (activeTab === "local") {
+    if (activeTab === "local" && !isDownloaded) {
       if (intervalRef.current) clearInterval(intervalRef.current);
       intervalRef.current = setInterval(async () => {
         try {
@@ -309,8 +328,12 @@ export function EmbeddingModelSetting(): JSX.Element {
       workspaceRoot
     );
 
+    const toastLoadingText = isDownloaded
+      ? `Re-indexing knowledge base with ${modelId}...`
+      : `Downloading model weights and re-indexing knowledge base with ${modelId}...`;
+
     toast.promise(promise, {
-      loading: `Downloading model weights and re-indexing knowledge base with ${modelId}...`,
+      loading: toastLoadingText,
       success: (count) => {
         if (intervalRef.current) {
           clearInterval(intervalRef.current);
@@ -318,7 +341,6 @@ export function EmbeddingModelSetting(): JSX.Element {
         }
         setDownloadPercent(null);
         setIsReindexing(false);
-        setIndexedCount(count);
         setCurrentModel({
           type: activeTab,
           name: modelId,
@@ -326,7 +348,9 @@ export function EmbeddingModelSetting(): JSX.Element {
           isDownloaded: true,
         });
         void fetchDownloaded();
-        return `Successfully downloaded and re-indexed ${count} sections!`;
+        return isDownloaded
+          ? `Successfully re-indexed ${count} sections!`
+          : `Successfully downloaded and re-indexed ${count} sections!`;
       },
       error: (err: unknown) => {
         if (intervalRef.current) {
@@ -521,7 +545,7 @@ export function EmbeddingModelSetting(): JSX.Element {
                 <th className="py-3 px-4 text-center">Languages</th>
                 <th className="py-3 px-4 text-center">Disk Size</th>
                 <th className="py-3 px-4 text-center w-24">Status</th>
-                <th className="py-3 px-4">Description</th>
+                <th className="py-3 px-4 text-center w-24">Re-index</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border text-xs">
@@ -545,9 +569,27 @@ export function EmbeddingModelSetting(): JSX.Element {
                         {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
                       </div>
                     </td>
-                    <td className="py-3 px-4 font-semibold text-foreground">
+                    <td className="py-3 px-4 text-foreground">
                       <div className="flex items-center gap-2">
-                        <span>{model.name}</span>
+                        <span className="font-semibold">{model.name}</span>
+                        {model.url && (
+                          <button
+                            type="button"
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              try {
+                                await openUrl(model.url);
+                              } catch (err) {
+                                console.error("Failed to open model URL:", err);
+                                toast.error("Failed to open link in browser");
+                              }
+                            }}
+                            className="text-muted-foreground/60 hover:text-primary hover:bg-muted/80 p-0.5 rounded transition-all cursor-pointer inline-flex items-center justify-center"
+                            title="Open download source page in browser"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                         {isActive && (
                           <span className={`text-[10px] px-1.5 py-0.2 rounded border font-medium ${currentModel?.isDownloaded
                             ? "bg-green-500/20 text-green-600 dark:text-green-400 border-green-500/30"
@@ -557,6 +599,9 @@ export function EmbeddingModelSetting(): JSX.Element {
                           </span>
                         )}
                       </div>
+                      <p className="text-[11px] text-muted-foreground font-normal mt-0.5 max-w-md">
+                        {model.description}
+                      </p>
                     </td>
                     <td className="py-3 px-4 text-center font-medium text-muted-foreground">
                       {model.dims}
@@ -591,8 +636,21 @@ export function EmbeddingModelSetting(): JSX.Element {
                         <span className="text-muted-foreground/40">-</span>
                       )}
                     </td>
-                    <td className="py-3 px-4 text-muted-foreground max-w-xs truncate" title={model.description}>
-                      {model.description}
+                    <td className="py-3 px-4 text-center">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 hover:bg-muted/80 text-muted-foreground hover:text-foreground cursor-pointer flex items-center justify-center mx-auto"
+                        title={`Re-index workspace using ${model.name}`}
+                        disabled={isReindexing || !workspaceRoot}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void handleDownloadModel(model.id);
+                        }}
+                      >
+                        <RefreshCw className={`w-3.5 h-3.5 ${isReindexing && selectedModel === model.id ? "animate-spin text-primary" : ""}`} />
+                      </Button>
                     </td>
                   </tr>
                 );
@@ -700,15 +758,6 @@ export function EmbeddingModelSetting(): JSX.Element {
               </div>
             </div>
           )}
-        </div>
-      )}
-
-      {indexedCount !== null && (
-        <div className="flex items-center gap-2 p-3 bg-green-500/10 rounded-lg border border-green-500/20 max-w-md text-green-600 dark:text-green-400">
-          <Check className="w-4 h-4 stroke-[3]" />
-          <span className="text-[11px] font-medium">
-            Successfully completed! Re-indexed {indexedCount} markdown sections.
-          </span>
         </div>
       )}
     </div>

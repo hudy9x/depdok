@@ -1,10 +1,15 @@
-import { useMemo, useState } from 'react';
-import { useSetAtom } from 'jotai';
-import { Search, LoaderCircle } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { useAtomValue, useSetAtom } from 'jotai';
+import { Search, LoaderCircle, AlertTriangle, Database } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
-import { searchSimilar, type KnowledgeSearchResult } from '@/api-client/knowledge-base';
+import {
+  searchSimilar,
+  getCurrentEmbeddingModel,
+  updateEmbeddingModelAndReindex,
+  type KnowledgeSearchResult
+} from '@/api-client/knowledge-base';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -17,6 +22,8 @@ import {
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { createTabAtom } from '@/stores/TabStore';
+import { workspaceRootAtom } from '@/features/FileExplorer/store';
+import { SettingsDialog } from '@/features/SettingsDialog';
 
 interface KnowledgeBaseSearchDialogProps {
   open: boolean;
@@ -42,11 +49,62 @@ export function KnowledgeBaseSearchDialog({
   open,
   onOpenChange,
 }: KnowledgeBaseSearchDialogProps) {
+  const workspaceRoot = useAtomValue(workspaceRootAtom);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<KnowledgeSearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [isModelDownloaded, setIsModelDownloaded] = useState<boolean | null>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  
   const createTab = useSetAtom(createTabAtom);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (open) {
+      getCurrentEmbeddingModel()
+        .then((status) => {
+          setIsModelDownloaded(status.isDownloaded);
+        })
+        .catch((err) => {
+          console.error('Failed to get current embedding model:', err);
+          setIsModelDownloaded(false);
+        });
+    } else {
+      setIsModelDownloaded(null);
+      setIsDownloading(false);
+      setQuery('');
+      setResults([]);
+    }
+  }, [open]);
+
+  const handleDownloadDefaultModel = async () => {
+    if (!workspaceRoot) {
+      toast.error('Please open a workspace first.');
+      return;
+    }
+    setIsDownloading(true);
+    const promise = updateEmbeddingModelAndReindex(
+      'local',
+      'all-MiniLM-L6-v2',
+      undefined,
+      workspaceRoot
+    );
+
+    toast.promise(promise, {
+      loading: 'Downloading model weights and indexing database (approx. 22 MB)...',
+      success: (count) => {
+        setIsDownloading(false);
+        setIsModelDownloaded(true);
+        return `Model downloaded and indexed ${count} sections successfully!`;
+      },
+      error: (err: unknown) => {
+        setIsDownloading(false);
+        console.error('Failed to download model:', err);
+        return `Download failed: ${String(err)}`;
+      },
+    });
+  };
 
   const hasQuery = query.trim().length > 0;
   const resultCountLabel = useMemo(() => {
@@ -90,6 +148,92 @@ export function KnowledgeBaseSearchDialog({
     navigate('/editor');
     onOpenChange(false);
   };
+
+  if (!open) return null;
+
+  if (isModelDownloaded === null) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-md py-12 flex flex-col items-center justify-center">
+          <LoaderCircle className="h-8 w-8 animate-spin text-muted-foreground" />
+          <span className="text-xs text-muted-foreground mt-3">Checking embedding model status...</span>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  if (isModelDownloaded === false) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-warning">
+              <AlertTriangle className="h-5 w-5 text-yellow-500" />
+              Embedding Model Required
+            </DialogTitle>
+            <DialogDescription className="pt-2 leading-relaxed text-sm">
+              Depdok performs semantic searches using a local embedding model that runs fully offline on your device.
+              <br /><br />
+              No embedding model has been downloaded yet. To enable knowledge base features, you must download a model.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex flex-col gap-4 py-4">
+            {isDownloading ? (
+              <div className="flex flex-col items-center justify-center p-6 bg-secondary/20 border border-border/40 rounded-xl space-y-3">
+                <LoaderCircle className="h-8 w-8 animate-spin text-primary" />
+                <span className="text-sm font-semibold text-foreground">Downloading Embedding Model...</span>
+                <span className="text-xs text-muted-foreground text-center">
+                  Downloading weights for <code className="px-1.5 py-0.5 rounded bg-muted">all-MiniLM-L6-v2</code> (approx. 22 MB). This will only happen once.
+                </span>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2.5">
+                <Button
+                  type="button"
+                  onClick={handleDownloadDefaultModel}
+                  disabled={isDownloading}
+                  className="w-full font-semibold"
+                >
+                  <Database className="mr-2 h-4 w-4" />
+                  Download Default Model (22 MB)
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowSettings(true)}
+                  disabled={isDownloading}
+                  className="w-full"
+                >
+                  Configure Other Models
+                </Button>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} disabled={isDownloading}>
+              Cancel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+        {showSettings && (
+          <SettingsDialog
+            open={showSettings}
+            onOpenChange={(openVal) => {
+              setShowSettings(openVal);
+              if (!openVal) {
+                getCurrentEmbeddingModel()
+                  .then((status) => setIsModelDownloaded(status.isDownloaded))
+                  .catch(() => {});
+              }
+            }}
+            defaultTab="embeddings"
+          />
+        )}
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

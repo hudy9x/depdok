@@ -23,15 +23,23 @@ import { PlantUmlServerSetting } from "./PlantUmlServerSetting";
 interface SettingsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  defaultTab?: SettingsTab;
 }
 
 type SettingsTab = "general" | "integrations" | "mcp" | "embeddings";
 
-export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
+export function SettingsDialog({ open, onOpenChange, defaultTab }: SettingsDialogProps) {
   const [autoSaveEnabled, setAutoSaveEnabled] = useAtom(autoSaveEnabledAtom);
   const [selectedTheme, setSelectedTheme] = useAtom(themeAtom);
   const { setTheme } = useTheme();
   const [activeTab, setActiveTab] = useState<SettingsTab>("general");
+
+  // Sync activeTab with defaultTab when the dialog opens
+  useEffect(() => {
+    if (open && defaultTab) {
+      setActiveTab(defaultTab);
+    }
+  }, [open, defaultTab]);
 
   // Sync theme changes with next-themes
   useEffect(() => {

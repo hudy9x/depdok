@@ -89,6 +89,7 @@ export interface CurrentModelStatus {
   modelType: 'local' | 'remote';
   modelName: string;
   openaiKey?: string;
+  isDownloaded: boolean;
 }
 
 export async function getCurrentEmbeddingModel(): Promise<CurrentModelStatus> {

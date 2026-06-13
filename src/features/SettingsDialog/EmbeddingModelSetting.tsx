@@ -176,12 +176,13 @@ export function EmbeddingModelSetting(): JSX.Element {
     type: string;
     name: string;
     key?: string;
+    isDownloaded: boolean;
   } | null>(null);
 
   const [selectedModel, setSelectedModel] = useState<string>("all-MiniLM-L6-v2");
   const [openaiKey, setOpenaiKey] = useState<string>("");
   const [showKey, setShowKey] = useState<boolean>(false);
-  
+
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isReindexing, setIsReindexing] = useState<boolean>(false);
   const [indexedCount, setIndexedCount] = useState<number | null>(null);
@@ -196,6 +197,7 @@ export function EmbeddingModelSetting(): JSX.Element {
             type: res.modelType,
             name: res.modelName,
             key: res.openaiKey,
+            isDownloaded: res.isDownloaded,
           });
           setSelectedModel(res.modelName);
           setActiveTab(res.modelType);
@@ -226,7 +228,7 @@ export function EmbeddingModelSetting(): JSX.Element {
       toast.error("Please enter a valid OpenAI API Key.");
       return;
     }
-    
+
     if (!workspaceRoot) {
       toast.error("No active workspace. Please open a folder first.");
       return;
@@ -251,6 +253,7 @@ export function EmbeddingModelSetting(): JSX.Element {
           type: activeTab,
           name: selectedModel,
           key: activeTab === "remote" ? openaiKey : undefined,
+          isDownloaded: true,
         });
         return `Successfully re-indexed ${count} sections!`;
       },
@@ -265,7 +268,8 @@ export function EmbeddingModelSetting(): JSX.Element {
   const hasChanged =
     currentModel?.type !== activeTab ||
     currentModel?.name !== selectedModel ||
-    (activeTab === "remote" && currentModel?.key !== openaiKey);
+    (activeTab === "remote" && currentModel?.key !== openaiKey) ||
+    currentModel?.isDownloaded === false;
 
   if (isLoading) {
     return (
@@ -294,17 +298,21 @@ export function EmbeddingModelSetting(): JSX.Element {
                 <span className="font-semibold text-foreground text-sm">
                   {currentActiveModelInfo.name}
                 </span>
-                <span className="text-xs px-2 py-0.5 rounded-full bg-secondary font-medium text-secondary-foreground flex items-center gap-1">
-                  {currentActiveModelInfo.type === "local" ? (
-                    <>
+                {currentActiveModelInfo.type === "local" ? (
+                  currentModel?.isDownloaded ? (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-secondary font-medium text-secondary-foreground flex items-center gap-1">
                       <Cpu className="w-3 h-3" /> Offline (Local)
-                    </>
+                    </span>
                   ) : (
-                    <>
-                      <Sparkles className="w-3 h-3" /> Online (Remote)
-                    </>
-                  )}
-                </span>
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-500/20 text-yellow-800 dark:text-yellow-800 border border-yellow-500/30 font-medium flex items-center gap-1 animate-pulse">
+                      <AlertTriangle className="w-3 h-3 text-yellow-500" /> Offline (Not Downloaded)
+                    </span>
+                  )
+                ) : (
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-secondary font-medium text-secondary-foreground flex items-center gap-1">
+                    <Sparkles className="w-3 h-3" /> Online (Remote)
+                  </span>
+                )}
               </div>
               <p className="text-xs text-muted-foreground max-w-xl">
                 {currentActiveModelInfo.description}
@@ -342,11 +350,10 @@ export function EmbeddingModelSetting(): JSX.Element {
         <button
           type="button"
           disabled={isReindexing}
-          className={`flex items-center justify-center gap-2 rounded-md py-1.5 text-xs font-medium transition-all cursor-pointer ${
-            activeTab === "local"
-              ? "bg-background text-foreground shadow-sm font-semibold"
-              : "text-muted-foreground hover:text-foreground hover:bg-background/20"
-          }`}
+          className={`flex items-center justify-center gap-2 rounded-md py-1.5 text-xs font-medium transition-all cursor-pointer ${activeTab === "local"
+            ? "bg-background text-foreground shadow-sm font-semibold"
+            : "text-muted-foreground hover:text-foreground hover:bg-background/20"
+            }`}
           onClick={() => {
             setActiveTab("local");
             setSelectedModel(LOCAL_MODELS[0].id);
@@ -358,11 +365,10 @@ export function EmbeddingModelSetting(): JSX.Element {
         <button
           type="button"
           disabled={isReindexing}
-          className={`flex items-center justify-center gap-2 rounded-md py-1.5 text-xs font-medium transition-all cursor-pointer ${
-            activeTab === "remote"
-              ? "bg-background text-foreground shadow-sm font-semibold"
-              : "text-muted-foreground hover:text-foreground hover:bg-background/20"
-          }`}
+          className={`flex items-center justify-center gap-2 rounded-md py-1.5 text-xs font-medium transition-all cursor-pointer ${activeTab === "remote"
+            ? "bg-background text-foreground shadow-sm font-semibold"
+            : "text-muted-foreground hover:text-foreground hover:bg-background/20"
+            }`}
           onClick={() => {
             setActiveTab("remote");
             setSelectedModel(REMOTE_MODELS[0].id);
@@ -394,18 +400,16 @@ export function EmbeddingModelSetting(): JSX.Element {
                 return (
                   <tr
                     key={model.id}
-                    className={`hover:bg-muted/30 transition-colors cursor-pointer ${
-                      isSelected ? "bg-primary/5 dark:bg-primary/10" : ""
-                    }`}
+                    className={`hover:bg-muted/30 transition-colors cursor-pointer ${isSelected ? "bg-primary/5 dark:bg-primary/10" : ""
+                      }`}
                     onClick={() => !isReindexing && handleSelectModel(model)}
                   >
                     <td className="py-3 px-4 text-center">
                       <div
-                        className={`w-4 h-4 rounded-full border flex items-center justify-center transition-all ${
-                          isSelected
-                            ? "border-primary bg-primary text-primary-foreground"
-                            : "border-muted-foreground/30 bg-transparent"
-                        }`}
+                        className={`w-4 h-4 rounded-full border flex items-center justify-center transition-all ${isSelected
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : "border-muted-foreground/30 bg-transparent"
+                          }`}
                       >
                         {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
                       </div>
@@ -414,8 +418,11 @@ export function EmbeddingModelSetting(): JSX.Element {
                       <div className="flex items-center gap-2">
                         <span>{model.name}</span>
                         {isActive && (
-                          <span className="text-[10px] px-1.5 py-0.2 bg-green-500/20 text-green-600 dark:text-green-400 rounded border border-green-500/30 font-medium">
-                            Active
+                          <span className={`text-[10px] px-1.5 py-0.2 rounded border font-medium ${currentModel?.isDownloaded
+                            ? "bg-green-500/20 text-green-600 dark:text-green-400 border-green-500/30"
+                            : "bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 border-yellow-500/30"
+                            }`}>
+                            {currentModel?.isDownloaded ? "Active" : "Active (Missing weights)"}
                           </span>
                         )}
                       </div>

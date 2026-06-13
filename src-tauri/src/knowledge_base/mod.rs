@@ -40,7 +40,7 @@ pub fn init_knowledge_base(
         ("local".to_string(), "all-MiniLM-L6-v2".to_string(), None)
     };
 
-    let embedder = embedding::init_embedder_with_config(cache_dir, &model_type, &model_name, openai_key)?;
+    let embedder = embedding::init_embedder_with_config(cache_dir, &model_type, &model_name, openai_key, false)?;
     let dims = embedder.dimensions();
 
     let conn = db::init_database(app_handle, dims)?;

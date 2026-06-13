@@ -198,12 +198,16 @@ pub struct CurrentModelStatus {
     pub model_name: String,
     #[serde(rename = "openaiKey")]
     pub openai_key: Option<String>,
+    #[serde(rename = "isDownloaded")]
+    pub is_downloaded: bool,
 }
 
 #[tauri::command]
 pub fn get_current_embedding_model(app: tauri::AppHandle) -> Result<CurrentModelStatus, String> {
     use tauri_plugin_store::StoreExt;
-    if let Ok(store) = app.store("store.json") {
+    let cache_dir = app.path().app_cache_dir().ok();
+
+    let (model_type, model_name, openai_key) = if let Ok(store) = app.store("store.json") {
         let model_type = store.get("embedding_model_type")
             .and_then(|v| v.as_str().map(|s| s.to_string()))
             .unwrap_or_else(|| "local".to_string());
@@ -212,14 +216,25 @@ pub fn get_current_embedding_model(app: tauri::AppHandle) -> Result<CurrentModel
             .unwrap_or_else(|| "all-MiniLM-L6-v2".to_string());
         let openai_key = store.get("openai_api_key")
             .and_then(|v| v.as_str().map(|s| s.to_string()));
-        Ok(CurrentModelStatus { model_type, model_name, openai_key })
+        (model_type, model_name, openai_key)
     } else {
-        Ok(CurrentModelStatus {
-            model_type: "local".to_string(),
-            model_name: "all-MiniLM-L6-v2".to_string(),
-            openai_key: None,
-        })
-    }
+        ("local".to_string(), "all-MiniLM-L6-v2".to_string(), None)
+    };
+
+    let is_downloaded = if model_type == "remote" {
+        true
+    } else if let Some(ref cache) = cache_dir {
+        super::embedding::is_model_downloaded(cache, &model_name)
+    } else {
+        false
+    };
+
+    Ok(CurrentModelStatus {
+        model_type,
+        model_name,
+        openai_key,
+        is_downloaded,
+    })
 }
 
 #[tauri::command]
@@ -234,13 +249,14 @@ pub async fn update_embedding_model_and_reindex(
 ) -> Result<usize, String> {
     use tauri_plugin_store::StoreExt;
     
-    // 1. Re-initialize embedder
+    // 1. Re-initialize embedder (forcing download since user requested this change)
     let cache_dir = app.path().app_cache_dir().ok();
     let new_embedder = super::embedding::init_embedder_with_config(
         cache_dir,
         &model_type,
         &model_name,
         openai_key.clone(),
+        true,
     )?;
     let new_dims = new_embedder.dimensions();
 

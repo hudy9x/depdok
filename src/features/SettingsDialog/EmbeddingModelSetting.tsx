@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAtomValue } from "jotai";
 import { toast } from "sonner";
 import {
@@ -10,11 +10,18 @@ import {
   EyeOff,
   LoaderCircle,
   Sparkles,
+  FolderOpen,
+  Download,
+  CheckCircle2,
 } from "lucide-react";
 
 import {
   getCurrentEmbeddingModel,
   updateEmbeddingModelAndReindex,
+  getDownloadedModels,
+  revealCacheDir,
+  getModelDownloadSize,
+  getCacheDir,
 } from "@/api-client/knowledge-base";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -179,13 +186,34 @@ export function EmbeddingModelSetting(): JSX.Element {
     isDownloaded: boolean;
   } | null>(null);
 
-  const [selectedModel, setSelectedModel] = useState<string>("all-MiniLM-L6-v2");
+  const [selectedModel, setSelectedModel] = useState<string>("");
   const [openaiKey, setOpenaiKey] = useState<string>("");
   const [showKey, setShowKey] = useState<boolean>(false);
 
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isReindexing, setIsReindexing] = useState<boolean>(false);
   const [indexedCount, setIndexedCount] = useState<number | null>(null);
+  const [downloadedModels, setDownloadedModels] = useState<string[]>([]);
+  const [downloadPercent, setDownloadPercent] = useState<number | null>(null);
+  const [cacheDir, setCacheDir] = useState<string>("");
+  const intervalRef = useRef<any>(null);
+
+  useEffect(() => {
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
+  }, []);
+
+  const fetchDownloaded = async () => {
+    try {
+      const list = await getDownloadedModels();
+      setDownloadedModels(list);
+    } catch (err) {
+      console.error("Failed to fetch downloaded models:", err);
+    }
+  };
 
   useEffect(() => {
     let active = true;
@@ -199,8 +227,12 @@ export function EmbeddingModelSetting(): JSX.Element {
             key: res.openaiKey,
             isDownloaded: res.isDownloaded,
           });
-          setSelectedModel(res.modelName);
-          setActiveTab(res.modelType);
+          if (res.isDownloaded) {
+            setSelectedModel(res.modelName);
+            setActiveTab(res.modelType);
+          } else {
+            setSelectedModel(""); // Unselect model if not downloaded!
+          }
           if (res.openaiKey) {
             setOpenaiKey(res.openaiKey);
           }
@@ -213,7 +245,19 @@ export function EmbeddingModelSetting(): JSX.Element {
         }
       }
     };
+    const fetchCacheDirectory = async () => {
+      try {
+        const dir = await getCacheDir();
+        if (active) {
+          setCacheDir(dir);
+        }
+      } catch (err) {
+        console.error("Failed to fetch cache directory:", err);
+      }
+    };
     void fetchCurrentModel();
+    void fetchDownloaded();
+    void fetchCacheDirectory();
     return () => {
       active = false;
     };
@@ -223,7 +267,7 @@ export function EmbeddingModelSetting(): JSX.Element {
     setSelectedModel(model.id);
   };
 
-  const handleApplyModel = async () => {
+  const handleDownloadModel = async (modelId: string) => {
     if (activeTab === "remote" && !openaiKey.trim()) {
       toast.error("Please enter a valid OpenAI API Key.");
       return;
@@ -236,33 +280,73 @@ export function EmbeddingModelSetting(): JSX.Element {
 
     setIsReindexing(true);
     setIndexedCount(null);
+    setSelectedModel(modelId);
+    setDownloadPercent(activeTab === "local" ? 0 : null);
+
+    const modelInfo = LOCAL_MODELS.find((m) => m.id === modelId);
+    const sizeMb = modelInfo?.sizeMb || 22;
+
+    if (activeTab === "local") {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      intervalRef.current = setInterval(async () => {
+        try {
+          const bytes = await getModelDownloadSize(modelId);
+          const targetBytes = sizeMb * 1024 * 1024;
+          let pct = Math.floor((bytes / targetBytes) * 100);
+          if (pct > 99) pct = 99;
+          if (pct < 0) pct = 0;
+          setDownloadPercent(pct);
+        } catch (err) {
+          console.error(err);
+        }
+      }, 400);
+    }
 
     const promise = updateEmbeddingModelAndReindex(
       activeTab,
-      selectedModel,
+      modelId,
       activeTab === "remote" ? openaiKey : undefined,
       workspaceRoot
     );
 
     toast.promise(promise, {
-      loading: `Re-indexing knowledge base with ${selectedModel}...`,
+      loading: `Downloading model weights and re-indexing knowledge base with ${modelId}...`,
       success: (count) => {
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current);
+          intervalRef.current = null;
+        }
+        setDownloadPercent(null);
         setIsReindexing(false);
         setIndexedCount(count);
         setCurrentModel({
           type: activeTab,
-          name: selectedModel,
+          name: modelId,
           key: activeTab === "remote" ? openaiKey : undefined,
           isDownloaded: true,
         });
-        return `Successfully re-indexed ${count} sections!`;
+        void fetchDownloaded();
+        return `Successfully downloaded and re-indexed ${count} sections!`;
       },
       error: (err: unknown) => {
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current);
+          intervalRef.current = null;
+        }
+        setDownloadPercent(null);
         setIsReindexing(false);
-        console.error("Reindexing failed:", err);
-        return `Failed to update model and re-index: ${String(err)}`;
+        console.error("Download/reindexing failed:", err);
+        return `Failed to download model and re-index: ${String(err)}`;
       },
     });
+  };
+
+  const handleApplyModel = async () => {
+    if (!selectedModel) {
+      toast.error("Please select a model first.");
+      return;
+    }
+    await handleDownloadModel(selectedModel);
   };
 
   const hasChanged =
@@ -317,8 +401,18 @@ export function EmbeddingModelSetting(): JSX.Element {
               <p className="text-xs text-muted-foreground max-w-xl">
                 {currentActiveModelInfo.description}
               </p>
+              <p>
+                {cacheDir && (
+                  <span
+                    className="text-xs text-muted-foreground py-0.5 select-all truncate max-w-[200px] text-left cursor-text"
+                    title={cacheDir}
+                  >
+                    {cacheDir}
+                  </span>
+                )}
+              </p>
             </div>
-            <div className="text-right shrink-0">
+            <div className="text-right shrink-0 flex flex-col items-end gap-1.5">
               <div className="text-xs text-muted-foreground font-medium">
                 Dimensions: {currentActiveModelInfo.dims}
               </div>
@@ -333,7 +427,35 @@ export function EmbeddingModelSetting(): JSX.Element {
             </div>
           </div>
         ) : (
-          <p className="text-xs text-muted-foreground">No model active or configured.</p>
+          <div className="flex items-center justify-between gap-4 w-full">
+            <p className="text-xs text-muted-foreground">No model active or configured.</p>
+            <div className="flex items-center gap-1.5 shrink-0">
+              {cacheDir && (
+                <span
+                  className="text-[10px] text-muted-foreground bg-muted/60 px-2 py-0.5 rounded border border-border/40 select-all truncate max-w-[240px] text-left cursor-text"
+                  title={cacheDir}
+                >
+                  {cacheDir}
+                </span>
+              )}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-7 text-[10px] gap-1 px-2.5 border-border/60 hover:bg-muted/80 cursor-pointer shrink-0"
+                onClick={async () => {
+                  try {
+                    await revealCacheDir();
+                  } catch (err) {
+                    toast.error(`Failed to open directory: ${String(err)}`);
+                  }
+                }}
+              >
+                <FolderOpen className="w-3.5 h-3.5" />
+                Open
+              </Button>
+            </div>
+          </div>
         )}
       </div>
 
@@ -356,7 +478,11 @@ export function EmbeddingModelSetting(): JSX.Element {
             }`}
           onClick={() => {
             setActiveTab("local");
-            setSelectedModel(LOCAL_MODELS[0].id);
+            if (currentModel?.type === "local" && currentModel?.isDownloaded) {
+              setSelectedModel(currentModel.name);
+            } else {
+              setSelectedModel("");
+            }
           }}
         >
           <Cpu className="w-3.5 h-3.5" />
@@ -371,7 +497,11 @@ export function EmbeddingModelSetting(): JSX.Element {
             }`}
           onClick={() => {
             setActiveTab("remote");
-            setSelectedModel(REMOTE_MODELS[0].id);
+            if (currentModel?.type === "remote") {
+              setSelectedModel(currentModel.name);
+            } else {
+              setSelectedModel("");
+            }
           }}
         >
           <Sparkles className="w-3.5 h-3.5" />
@@ -390,6 +520,7 @@ export function EmbeddingModelSetting(): JSX.Element {
                 <th className="py-3 px-4 text-center">Dims</th>
                 <th className="py-3 px-4 text-center">Languages</th>
                 <th className="py-3 px-4 text-center">Disk Size</th>
+                <th className="py-3 px-4 text-center w-24">Status</th>
                 <th className="py-3 px-4">Description</th>
               </tr>
             </thead>
@@ -435,6 +566,30 @@ export function EmbeddingModelSetting(): JSX.Element {
                     </td>
                     <td className="py-3 px-4 text-center text-muted-foreground">
                       {model.sizeMb ? `${model.sizeMb} MB` : "N/A"}
+                    </td>
+                    <td className="py-3 px-4 text-center">
+                      {model.type === "local" ? (
+                        downloadedModels.includes(model.id) ? (
+                          <div className="flex items-center justify-center text-green-500" title="Downloaded">
+                            <CheckCircle2 className="w-4 h-4" />
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              void handleDownloadModel(model.id);
+                            }}
+                            className="p-1 rounded hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-colors cursor-pointer inline-flex items-center justify-center"
+                            title="Download model weights"
+                            disabled={isReindexing}
+                          >
+                            <Download className="w-4 h-4" />
+                          </button>
+                        )
+                      ) : (
+                        <span className="text-muted-foreground/40">-</span>
+                      )}
                     </td>
                     <td className="py-3 px-4 text-muted-foreground max-w-xs truncate" title={model.description}>
                       {model.description}
@@ -526,11 +681,25 @@ export function EmbeddingModelSetting(): JSX.Element {
       )}
 
       {isReindexing && (
-        <div className="flex items-center gap-2 p-3 bg-primary/5 dark:bg-primary/10 rounded-lg border border-primary/20 max-w-md">
-          <LoaderCircle className="w-4 h-4 animate-spin text-primary" />
-          <span className="text-[11px] text-primary font-medium">
-            Re-indexing files in workspace directory. Please do not close settings or exit the app.
-          </span>
+        <div className="flex flex-col gap-2 p-3 bg-primary/5 dark:bg-primary/10 rounded-lg border border-primary/20 max-w-md w-full">
+          <div className="flex items-center gap-2">
+            <LoaderCircle className="w-4 h-4 animate-spin text-primary" />
+            <span className="text-[11px] text-primary font-medium">
+              {downloadPercent !== null
+                ? `Downloading model weights...`
+                : "Downloading model & re-indexing files in workspace directory..."}
+            </span>
+          </div>
+          {downloadPercent !== null && (
+            <div className="w-full bg-secondary rounded-full overflow-hidden">
+              <div
+                className="bg-primary text-[10px] font-semibold text-primary-foreground text-center p-0.5 leading-none rounded-full h-4 flex items-center justify-center transition-all duration-300 min-w-[2rem]"
+                style={{ width: `${downloadPercent}%` }}
+              >
+                {downloadPercent}%
+              </div>
+            </div>
+          )}
         </div>
       )}
 

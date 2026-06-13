@@ -349,3 +349,104 @@ pub async fn update_embedding_model_and_reindex(
     Ok(total_indexed)
 }
 
+#[tauri::command]
+pub fn get_downloaded_models(app: tauri::AppHandle) -> Result<Vec<String>, String> {
+    let cache_dir = app.path().app_cache_dir().ok();
+    let mut downloaded = Vec::new();
+    if let Some(ref cache) = cache_dir {
+        let local_model_ids = vec![
+            "all-MiniLM-L6-v2",
+            "all-MiniLM-L12-v2",
+            "bge-small-en-v1.5",
+            "bge-base-en-v1.5",
+            "bge-large-en-v1.5",
+            "nomic-embed-text-v1.5",
+            "multilingual-e5-small",
+            "multilingual-e5-base",
+            "multilingual-e5-large",
+            "paraphrase-multilingual-MiniLM-L12-v2",
+            "bge-small-zh-v1.5",
+            "bge-large-zh-v1.5",
+        ];
+        for id in local_model_ids {
+            if super::embedding::is_model_downloaded(cache, id) {
+                downloaded.push(id.to_string());
+            }
+        }
+    }
+    Ok(downloaded)
+}
+
+#[tauri::command]
+pub fn reveal_cache_dir(app: tauri::AppHandle) -> Result<(), String> {
+    if let Some(cache) = app.path().app_cache_dir().ok() {
+        if !cache.exists() {
+            let _ = std::fs::create_dir_all(&cache);
+        }
+        let path_str = cache.to_string_lossy().to_string();
+        #[cfg(target_os = "macos")]
+        {
+            std::process::Command::new("open")
+                .arg(&path_str)
+                .spawn()
+                .map_err(|e| e.to_string())?;
+        }
+        #[cfg(target_os = "windows")]
+        {
+            std::process::Command::new("explorer")
+                .arg(&path_str)
+                .spawn()
+                .map_err(|e| e.to_string())?;
+        }
+    }
+    Ok(())
+}
+
+fn get_dir_size(path: &std::path::Path) -> u64 {
+    let mut total = 0;
+    if let Ok(entries) = std::fs::read_dir(path) {
+        for entry in entries.flatten() {
+            if let Ok(meta) = entry.metadata() {
+                if meta.is_dir() {
+                    total += get_dir_size(&entry.path());
+                } else {
+                    total += meta.len();
+                }
+            }
+        }
+    }
+    total
+}
+
+#[tauri::command]
+pub fn get_model_download_size(app: tauri::AppHandle, model_name: String) -> u64 {
+    let cache_dir = app.path().app_cache_dir().ok();
+    let search_term = model_name.to_lowercase();
+    if let Some(ref cache) = cache_dir {
+        if let Ok(entries) = std::fs::read_dir(cache) {
+            for entry in entries.flatten() {
+                if let Ok(meta) = entry.metadata() {
+                    if meta.is_dir() {
+                        let name = entry.file_name().to_string_lossy().to_lowercase();
+                        if name.starts_with("models--") && name.contains(&search_term) {
+                            return get_dir_size(&entry.path());
+                        }
+                    }
+                }
+            }
+        }
+    }
+    0
+}
+
+#[tauri::command]
+pub fn get_cache_dir(app: tauri::AppHandle) -> Result<String, String> {
+    if let Some(cache) = app.path().app_cache_dir().ok() {
+        Ok(cache.to_string_lossy().to_string())
+    } else {
+        Err("Failed to resolve cache dir".to_string())
+    }
+}
+
+
+

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import { useAtomValue, useSetAtom } from 'jotai';
 import { Search, LoaderCircle, AlertTriangle, Database } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -8,6 +8,7 @@ import {
   searchSimilar,
   getCurrentEmbeddingModel,
   updateEmbeddingModelAndReindex,
+  getModelDownloadSize,
   type KnowledgeSearchResult
 } from '@/api-client/knowledge-base';
 import { Button } from '@/components/ui/button';
@@ -56,9 +57,19 @@ export function KnowledgeBaseSearchDialog({
   const [isModelDownloaded, setIsModelDownloaded] = useState<boolean | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [downloadPercent, setDownloadPercent] = useState<number | null>(null);
+  const intervalRef = useRef<any>(null);
   
   const createTab = useSetAtom(createTabAtom);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (open) {
@@ -73,6 +84,11 @@ export function KnowledgeBaseSearchDialog({
     } else {
       setIsModelDownloaded(null);
       setIsDownloading(false);
+      setDownloadPercent(null);
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
       setQuery('');
       setResults([]);
     }
@@ -84,6 +100,22 @@ export function KnowledgeBaseSearchDialog({
       return;
     }
     setIsDownloading(true);
+    setDownloadPercent(0);
+
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    intervalRef.current = setInterval(async () => {
+      try {
+        const bytes = await getModelDownloadSize('all-MiniLM-L6-v2');
+        const targetBytes = 22 * 1024 * 1024; // 22 MB
+        let pct = Math.floor((bytes / targetBytes) * 100);
+        if (pct > 99) pct = 99;
+        if (pct < 0) pct = 0;
+        setDownloadPercent(pct);
+      } catch (err) {
+        console.error(err);
+      }
+    }, 400);
+
     const promise = updateEmbeddingModelAndReindex(
       'local',
       'all-MiniLM-L6-v2',
@@ -94,12 +126,22 @@ export function KnowledgeBaseSearchDialog({
     toast.promise(promise, {
       loading: 'Downloading model weights and indexing database (approx. 22 MB)...',
       success: (count) => {
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current);
+          intervalRef.current = null;
+        }
         setIsDownloading(false);
+        setDownloadPercent(null);
         setIsModelDownloaded(true);
         return `Model downloaded and indexed ${count} sections successfully!`;
       },
       error: (err: unknown) => {
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current);
+          intervalRef.current = null;
+        }
         setIsDownloading(false);
+        setDownloadPercent(null);
         console.error('Failed to download model:', err);
         return `Download failed: ${String(err)}`;
       },
@@ -180,9 +222,21 @@ export function KnowledgeBaseSearchDialog({
 
           <div className="flex flex-col gap-4 py-4">
             {isDownloading ? (
-              <div className="flex flex-col items-center justify-center p-6 bg-secondary/20 border border-border/40 rounded-xl space-y-3">
+              <div className="flex flex-col items-center justify-center p-6 bg-secondary/20 border border-border/40 rounded-xl space-y-3 w-full">
                 <LoaderCircle className="h-8 w-8 animate-spin text-primary" />
-                <span className="text-sm font-semibold text-foreground">Downloading Embedding Model...</span>
+                <span className="text-sm font-semibold text-foreground">
+                  Downloading Embedding Model...
+                </span>
+                {downloadPercent !== null && (
+                  <div className="w-full bg-secondary rounded-full overflow-hidden">
+                    <div
+                      className="bg-primary text-[10px] font-semibold text-primary-foreground text-center p-0.5 leading-none rounded-full h-4 flex items-center justify-center transition-all duration-300 min-w-[2rem]"
+                      style={{ width: `${downloadPercent}%` }}
+                    >
+                      {downloadPercent}%
+                    </div>
+                  </div>
+                )}
                 <span className="text-xs text-muted-foreground text-center">
                   Downloading weights for <code className="px-1.5 py-0.5 rounded bg-muted">all-MiniLM-L6-v2</code> (approx. 22 MB). This will only happen once.
                 </span>

@@ -43,6 +43,25 @@ impl Embedder for DummyEmbedder {
     }
 }
 
+fn has_onnx_file(path: &std::path::Path) -> bool {
+    if path.is_file() {
+        if let Some(ext) = path.extension() {
+            if ext == "onnx" {
+                return true;
+            }
+        }
+    } else if path.is_dir() {
+        if let Ok(entries) = std::fs::read_dir(path) {
+            for entry in entries.flatten() {
+                if has_onnx_file(&entry.path()) {
+                    return true;
+                }
+            }
+        }
+    }
+    false
+}
+
 /// Check if the specified local model is cached/downloaded in the app's cache directory.
 pub fn is_model_downloaded(cache_dir: &std::path::Path, model_name: &str) -> bool {
     let search_term = model_name.to_lowercase();
@@ -58,14 +77,8 @@ pub fn is_model_downloaded(cache_dir: &std::path::Path, model_name: &str) -> boo
                                 for snap_entry in snap_entries.flatten() {
                                     if let Ok(snap_type) = snap_entry.file_type() {
                                         if snap_type.is_dir() {
-                                            if let Ok(files) = std::fs::read_dir(snap_entry.path()) {
-                                                for file in files.flatten() {
-                                                    if let Some(ext) = file.path().extension() {
-                                                        if ext == "onnx" {
-                                                            return true;
-                                                        }
-                                                    }
-                                                }
+                                            if has_onnx_file(&snap_entry.path()) {
+                                                return true;
                                             }
                                         }
                                     }

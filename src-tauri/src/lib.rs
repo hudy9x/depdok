@@ -550,6 +550,10 @@ pub fn run() {
             knowledge_base::commands::rebuild_all_edges,
             knowledge_base::commands::get_current_embedding_model,
             knowledge_base::commands::update_embedding_model_and_reindex,
+            knowledge_base::commands::get_downloaded_models,
+            knowledge_base::commands::reveal_cache_dir,
+            knowledge_base::commands::get_model_download_size,
+            knowledge_base::commands::get_cache_dir,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

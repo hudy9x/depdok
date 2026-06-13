@@ -109,3 +109,19 @@ export async function updateEmbeddingModelAndReindex(
     workspaceRoot: workspaceRoot || '',
   });
 }
+
+export async function getDownloadedModels(): Promise<string[]> {
+  return await invoke<string[]>('get_downloaded_models');
+}
+
+export async function revealCacheDir(): Promise<void> {
+  await invoke('reveal_cache_dir');
+}
+
+export async function getModelDownloadSize(modelName: string): Promise<number> {
+  return await invoke<number>('get_model_download_size', { modelName });
+}
+
+export async function getCacheDir(): Promise<string> {
+  return await invoke<string>('get_cache_dir');
+}

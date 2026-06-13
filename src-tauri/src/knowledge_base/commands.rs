@@ -1,6 +1,9 @@
 use rusqlite::params;
 use serde::Serialize;
-use tauri::{State, Manager};
+use tauri::{State, Manager, Emitter};
+use futures_util::StreamExt;
+use tokio::io::AsyncWriteExt;
+use std::fs;
 
 use super::{
     embedding::EmbedderState,
@@ -448,19 +451,391 @@ pub fn get_cache_dir(app: tauri::AppHandle) -> Result<String, String> {
     }
 }
 
+struct ModelDownloadInfo {
+    repo_id: &'static str,
+    onnx_file: &'static str,
+    additional_files: &'static [&'static str],
+}
+
+fn get_model_download_info(model_name: &str) -> Option<ModelDownloadInfo> {
+    match model_name {
+        "all-MiniLM-L6-v2" => Some(ModelDownloadInfo {
+            repo_id: "Qdrant/all-MiniLM-L6-v2-onnx",
+            onnx_file: "model.onnx",
+            additional_files: &[],
+        }),
+        "all-MiniLM-L12-v2" => Some(ModelDownloadInfo {
+            repo_id: "Xenova/all-MiniLM-L12-v2",
+            onnx_file: "onnx/model.onnx",
+            additional_files: &[],
+        }),
+        "bge-small-en-v1.5" => Some(ModelDownloadInfo {
+            repo_id: "Xenova/bge-small-en-v1.5",
+            onnx_file: "onnx/model.onnx",
+            additional_files: &[],
+        }),
+        "bge-base-en-v1.5" => Some(ModelDownloadInfo {
+            repo_id: "Xenova/bge-base-en-v1.5",
+            onnx_file: "onnx/model.onnx",
+            additional_files: &[],
+        }),
+        "bge-large-en-v1.5" => Some(ModelDownloadInfo {
+            repo_id: "Xenova/bge-large-en-v1.5",
+            onnx_file: "onnx/model.onnx",
+            additional_files: &[],
+        }),
+        "nomic-embed-text-v1.5" => Some(ModelDownloadInfo {
+            repo_id: "nomic-ai/nomic-embed-text-v1.5",
+            onnx_file: "onnx/model.onnx",
+            additional_files: &[],
+        }),
+        "multilingual-e5-small" => Some(ModelDownloadInfo {
+            repo_id: "intfloat/multilingual-e5-small",
+            onnx_file: "onnx/model.onnx",
+            additional_files: &[],
+        }),
+        "multilingual-e5-base" => Some(ModelDownloadInfo {
+            repo_id: "intfloat/multilingual-e5-base",
+            onnx_file: "onnx/model.onnx",
+            additional_files: &[],
+        }),
+        "multilingual-e5-large" => Some(ModelDownloadInfo {
+            repo_id: "Qdrant/multilingual-e5-large-onnx",
+            onnx_file: "model.onnx",
+            additional_files: &["model.onnx_data"],
+        }),
+        "paraphrase-multilingual-MiniLM-L12-v2" => Some(ModelDownloadInfo {
+            repo_id: "Xenova/paraphrase-multilingual-MiniLM-L12-v2",
+            onnx_file: "onnx/model.onnx",
+            additional_files: &[],
+        }),
+        "bge-small-zh-v1.5" => Some(ModelDownloadInfo {
+            repo_id: "Xenova/bge-small-zh-v1.5",
+            onnx_file: "onnx/model.onnx",
+            additional_files: &[],
+        }),
+        "bge-large-zh-v1.5" => Some(ModelDownloadInfo {
+            repo_id: "Xenova/bge-large-zh-v1.5",
+            onnx_file: "onnx/model.onnx",
+            additional_files: &[],
+        }),
+        _ => None,
+    }
+}
+
+async fn get_model_commit_sha(repo_id: &str) -> Result<String, String> {
+    let client = reqwest::Client::new();
+    let url = format!("https://huggingface.co/api/models/{}", repo_id);
+    let res = client.get(&url)
+        .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+        .send()
+        .await
+        .map_err(|e| format!("Failed to get model info from HF: {}", e))?;
+    
+    if !res.status().is_success() {
+        return Err(format!("HuggingFace API returned status code: {}", res.status()));
+    }
+    
+    #[derive(serde::Deserialize)]
+    struct HFModelInfo {
+        sha: String,
+    }
+    
+    let info = res.json::<HFModelInfo>().await
+        .map_err(|e| format!("Failed to parse HF model info JSON: {}", e))?;
+    
+    Ok(info.sha)
+}
+
+#[derive(Clone, serde::Serialize)]
+struct DownloadPayload {
+    progress: f64,
+    downloaded: u64,
+    total: u64,
+}
+
+fn log_debug(app: &tauri::AppHandle, msg: &str) {
+    let now = chrono::Local::now().format("%Y-%m-%d %H:%M:%S.%3f").to_string();
+    let text = format!("[download_model][{}] {}\n", now, msg);
+    print!("{}", text);
+    use std::io::Write;
+    let _ = std::io::stdout().flush();
+
+    if let Some(cache) = app.path().app_cache_dir().ok() {
+        let log_file = cache.join("download_debug.log");
+        if let Ok(mut file) = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&log_file)
+        {
+            let _ = file.write_all(text.as_bytes());
+        }
+    }
+}
+
 #[tauri::command]
 pub async fn download_embedding_model(
     app: tauri::AppHandle,
     model_name: String,
 ) -> Result<(), String> {
-    let cache_dir = app.path().app_cache_dir().ok();
-    let _ = super::embedding::init_embedder_with_config(
-        cache_dir,
-        "local",
-        &model_name,
-        None,
-        true,
-    )?;
+    let cache_dir = app.path().app_cache_dir().ok()
+        .ok_or_else(|| "Failed to resolve cache directory".to_string())?;
+
+    // Clear or initialize the log file
+    let log_file = cache_dir.join("download_debug.log");
+    if let Ok(mut file) = std::fs::File::create(&log_file) {
+        let now = chrono::Local::now().format("%Y-%m-%d %H:%M:%S.%3f").to_string();
+        let _ = std::io::Write::write_all(&mut file, format!("=== START DOWNLOAD FOR {} AT {} ===\n", model_name, now).as_bytes());
+    }
+
+    log_debug(&app, &format!("Starting custom model download for: {}", model_name));
+    log_debug(&app, &format!("Log file is located at: {:?}", log_file));
+
+    let info = get_model_download_info(&model_name)
+        .ok_or_else(|| {
+            let err_msg = format!("Unknown local model name: {}", model_name);
+            log_debug(&app, &err_msg);
+            err_msg
+        })?;
+
+    // 1. Get current commit sha from HF api
+    log_debug(&app, &format!("Fetching commit SHA from HF API for repo: {}", info.repo_id));
+    let sha = match get_model_commit_sha(info.repo_id).await {
+        Ok(s) => {
+            log_debug(&app, &format!("Resolved commit SHA: {}", s));
+            s
+        }
+        Err(e) => {
+            let err_msg = format!("Failed to get commit SHA: {}", e);
+            log_debug(&app, &err_msg);
+            return Err(err_msg);
+        }
+    };
+
+    let repo_id_escaped = info.repo_id.replace("/", "--");
+    let model_dir = cache_dir.join(format!("models--{}", repo_id_escaped));
+    let target_dir = model_dir.join("snapshots").join(&sha);
+
+    log_debug(&app, &format!("Target download directory: {:?}", target_dir));
+
+    // Create directories
+    if let Err(e) = fs::create_dir_all(&target_dir) {
+        let err_msg = format!("Failed to create target directory: {}", e);
+        log_debug(&app, &err_msg);
+        return Err(err_msg);
+    }
+
+    let client = reqwest::Client::new();
+
+    // 2. Download small metadata files first (if present)
+    let meta_files = vec![
+        "config.json",
+        "tokenizer.json",
+        "tokenizer_config.json",
+        "special_tokens_map.json",
+    ];
+
+    for file_name in meta_files {
+        let file_url = format!("https://huggingface.co/{}/resolve/{}/{}", info.repo_id, sha, file_name);
+        log_debug(&app, &format!("Fetching metadata file: {} from URL: {}", file_name, file_url));
+        let res = client.get(&file_url)
+            .header("User-Agent", "Mozilla/5.0")
+            .send()
+            .await;
+        
+        match res {
+            Ok(response) => {
+                let status = response.status();
+                log_debug(&app, &format!("Metadata file {} response status: {}", file_name, status));
+                if status.is_success() {
+                    match response.bytes().await {
+                        Ok(bytes) => {
+                            let dest = target_dir.join(file_name);
+                            if let Err(e) = fs::write(&dest, &bytes) {
+                                log_debug(&app, &format!("Failed to write metadata file to {:?}: {}", dest, e));
+                            } else {
+                                log_debug(&app, &format!("Successfully saved metadata file: {} ({} bytes)", file_name, bytes.len()));
+                            }
+                        }
+                        Err(e) => {
+                            log_debug(&app, &format!("Failed to read bytes for metadata file {}: {}", file_name, e));
+                        }
+                    }
+                } else {
+                    log_debug(&app, &format!("Metadata file {} not found or failed (status: {})", file_name, status));
+                }
+            }
+            Err(e) => {
+                log_debug(&app, &format!("Failed to request metadata file {}: {}", file_name, e));
+            }
+        }
+    }
+
+    // 3. Download the main ONNX file and additional files with progress tracking
+    let mut files_to_track = vec![info.onnx_file];
+    for f in info.additional_files {
+        files_to_track.push(f);
+    }
+
+    log_debug(&app, &format!("Files to track/download: {:?}", files_to_track));
+
+    // Calculate total size first for progress calculation
+    let mut total_size: u64 = 0;
+    let mut file_sizes = Vec::new();
+
+    for file_name in &files_to_track {
+        let file_url = format!("https://huggingface.co/{}/resolve/{}/{}", info.repo_id, sha, file_name);
+        log_debug(&app, &format!("Sending GET request (headers only) to resolve size of {} at URL: {}", file_name, file_url));
+        let res = match client.get(&file_url)
+            .header("User-Agent", "Mozilla/5.0")
+            .send()
+            .await {
+                Ok(r) => r,
+                Err(e) => {
+                    let err_msg = format!("GET size request failed for {}: {}", file_name, e);
+                    log_debug(&app, &err_msg);
+                    return Err(err_msg);
+                }
+            };
+        
+        let status = res.status();
+        log_debug(&app, &format!("GET size request status for {}: {}", file_name, status));
+        if !status.is_success() {
+            let err_msg = format!("GET size request returned non-success status for {}: {}", file_name, status);
+            log_debug(&app, &err_msg);
+            return Err(err_msg);
+        }
+
+        let size = match res.content_length() {
+            Some(s) => s,
+            None => {
+                let err_msg = format!("Could not resolve content length for {}", file_name);
+                log_debug(&app, &err_msg);
+                return Err(err_msg);
+            }
+        };
+        total_size += size;
+        file_sizes.push(size);
+        log_debug(&app, &format!("File {} resolved to {} bytes ({:.2} MB)", file_name, size, size as f64 / 1024.0 / 1024.0));
+    }
+    log_debug(&app, &format!("Total download size for all tracked files: {} bytes ({:.2} MB)", total_size, total_size as f64 / 1024.0 / 1024.0));
+
+    let mut downloaded: u64 = 0;
+    let mut last_emitted_pct: Option<u64> = None;
+    let mut chunk_count = 0;
+
+    for file_name in files_to_track {
+        let file_url = format!("https://huggingface.co/{}/resolve/{}/{}", info.repo_id, sha, file_name);
+        log_debug(&app, &format!("Sending GET request to start download stream for: {}", file_name));
+        let response = match client.get(&file_url)
+            .header("User-Agent", "Mozilla/5.0")
+            .send()
+            .await {
+                Ok(r) => r,
+                Err(e) => {
+                    let err_msg = format!("Download request failed for {}: {}", file_name, e);
+                    log_debug(&app, &err_msg);
+                    return Err(err_msg);
+                }
+            };
+
+        let status = response.status();
+        log_debug(&app, &format!("GET response status for {}: {}", file_name, status));
+        if !status.is_success() {
+            let err_msg = format!("GET request returned non-success status for {}: {}", file_name, status);
+            log_debug(&app, &err_msg);
+            return Err(err_msg);
+        }
+
+        let file_total_size = response.content_length().unwrap_or(0);
+        log_debug(&app, &format!("Streaming GET response Content-Length for {} is {} bytes", file_name, file_total_size));
+        if total_size == 0 || total_size < downloaded + file_total_size {
+            total_size = if total_size == 0 { file_total_size } else { total_size.max(downloaded + file_total_size) };
+            log_debug(&app, &format!("Adjusted total_size dynamically to {}", total_size));
+        }
+
+        let dest_path = target_dir.join(file_name);
+        if let Some(parent) = dest_path.parent() {
+            if let Err(e) = fs::create_dir_all(parent) {
+                let err_msg = format!("Failed to create parent directory for file {:?}: {}", dest_path, e);
+                log_debug(&app, &err_msg);
+                return Err(err_msg);
+            }
+        }
+
+        log_debug(&app, &format!("Creating file at path: {:?}", dest_path));
+        let mut file = match tokio::fs::File::create(&dest_path).await {
+            Ok(f) => f,
+            Err(e) => {
+                let err_msg = format!("Failed to create file {:?}: {}", dest_path, e);
+                log_debug(&app, &err_msg);
+                return Err(err_msg);
+            }
+        };
+        let mut stream = response.bytes_stream();
+
+        log_debug(&app, &format!("Entering stream chunk loop for {}", file_name));
+        while let Some(chunk_result) = stream.next().await {
+            chunk_count += 1;
+            let chunk = match chunk_result {
+                Ok(c) => c,
+                Err(e) => {
+                    let err_msg = format!("Error reading stream chunk #{}: {}", chunk_count, e);
+                    log_debug(&app, &err_msg);
+                    return Err(err_msg);
+                }
+            };
+
+            if let Err(e) = file.write_all(&chunk).await {
+                let err_msg = format!("Failed to write chunk #{} (size: {}) to disk: {}", chunk_count, chunk.len(), e);
+                log_debug(&app, &err_msg);
+                return Err(err_msg);
+            }
+
+            downloaded += chunk.len() as u64;
+            let progress = (downloaded as f64 / total_size as f64) * 100.0;
+            let current_pct = progress.floor() as u64;
+
+            // Log every 50 chunks to trace activity without spamming stdout too much (still written to log_debug)
+            if chunk_count % 50 == 0 {
+                log_debug(&app, &format!("Stream progress: chunk #{}, chunk_size={} bytes, total_downloaded={} bytes, progress={:.2}%", 
+                    chunk_count, chunk.len(), downloaded, progress));
+            }
+
+            if last_emitted_pct.map_or(true, |last| current_pct > last) {
+                last_emitted_pct = Some(current_pct);
+                let msg = format!("Emitting download-progress event: progress={:.2}%, bytes={}/{}, chunks={}", progress, downloaded, total_size, chunk_count);
+                log_debug(&app, &msg);
+
+                // Emit progress event
+                if let Err(e) = app.emit("download-progress", DownloadPayload {
+                    progress,
+                    downloaded,
+                    total: total_size,
+                }) {
+                    log_debug(&app, &format!("WARNING: failed to emit event: {:?}", e));
+                }
+            }
+        }
+        log_debug(&app, &format!("Completed stream chunk loop for file {}. Total chunks: {}", file_name, chunk_count));
+    }
+
+    // 4. Write ref main
+    let refs_dir = model_dir.join("refs");
+    log_debug(&app, &format!("Writing ref main reference... refs_dir: {:?}", refs_dir));
+    if let Err(e) = fs::create_dir_all(&refs_dir) {
+        let err_msg = format!("Failed to create refs directory: {}", e);
+        log_debug(&app, &err_msg);
+        return Err(err_msg);
+    }
+    if let Err(e) = fs::write(refs_dir.join("main"), &sha) {
+        let err_msg = format!("Failed to write refs/main: {}", e);
+        log_debug(&app, &err_msg);
+        return Err(err_msg);
+    }
+    log_debug(&app, &format!("Reference main successfully set to SHA: {}", sha));
+
+    log_debug(&app, "Custom download process finished successfully!");
     Ok(())
 }
 

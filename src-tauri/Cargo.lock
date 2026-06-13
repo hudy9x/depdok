@@ -12,6 +12,7 @@ dependencies = [
  "dotenvy",
  "fastembed",
  "fs_extra",
+ "futures-util",
  "grep-regex",
  "grep-searcher",
  "ignore",

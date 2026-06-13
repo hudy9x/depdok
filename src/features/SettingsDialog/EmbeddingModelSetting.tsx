@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useAtomValue } from "jotai";
 import { toast } from "sonner";
 import {
@@ -17,13 +17,13 @@ import {
   Trash2,
 } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
+import { listen } from "@tauri-apps/api/event";
 
 import {
   getCurrentEmbeddingModel,
   updateEmbeddingModelAndReindex,
   getDownloadedModels,
   revealCacheDir,
-  getModelDownloadSize,
   getCacheDir,
   downloadEmbeddingModel,
   deleteEmbeddingModel,
@@ -217,17 +217,8 @@ export function EmbeddingModelSetting(): JSX.Element {
   const [downloadedModels, setDownloadedModels] = useState<string[]>([]);
   const [downloadPercent, setDownloadPercent] = useState<number | null>(null);
   const [cacheDir, setCacheDir] = useState<string>("");
-  const intervalRef = useRef<any>(null);
 
   const isBusy = isReindexing || downloadPercent !== null || isDeleting;
-
-  useEffect(() => {
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
-    };
-  }, []);
 
   const fetchDownloaded = async () => {
     try {
@@ -307,26 +298,28 @@ export function EmbeddingModelSetting(): JSX.Element {
     setSelectedModel(modelId);
     setDownloadPercent(isDownloaded ? null : 0);
 
-    const modelInfo = LOCAL_MODELS.find((m) => m.id === modelId);
-    const sizeMb = modelInfo?.sizeMb || 22;
+    let unlisten: (() => void) | null = null;
 
     if (activeTab === "local" && !isDownloaded) {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-      intervalRef.current = setInterval(async () => {
-        try {
-          const bytes = await getModelDownloadSize(modelId);
-          const targetBytes = sizeMb * 1024 * 1024;
-          let pct = Math.floor((bytes / targetBytes) * 100);
+      try {
+        console.log("[frontend] setting up progress listener in handleDownloadModel");
+        unlisten = await listen<{ progress: number }>("download-progress", (event) => {
+          let pct = Math.floor(event.payload.progress);
+          console.log("[frontend] download-progress event:", event.payload, "pct:", pct);
           if (pct > 99) pct = 99;
           if (pct < 0) pct = 0;
           setDownloadPercent(pct);
-        } catch (err) {
-          console.error(err);
-        }
-      }, 400);
+        });
+      } catch (err) {
+        console.error("Failed to setup progress listener:", err);
+      }
     }
 
     try {
+      if (activeTab === "local" && !isDownloaded) {
+        await downloadEmbeddingModel(modelId);
+      }
+
       const count = await updateEmbeddingModelAndReindex(
         activeTab,
         modelId,
@@ -334,10 +327,6 @@ export function EmbeddingModelSetting(): JSX.Element {
         workspaceRoot
       );
 
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
       setDownloadPercent(null);
       setIsReindexing(false);
       setCurrentModel({
@@ -353,14 +342,14 @@ export function EmbeddingModelSetting(): JSX.Element {
           : `Successfully downloaded and re-indexed ${count} sections!`
       );
     } catch (err: unknown) {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
       setDownloadPercent(null);
       setIsReindexing(false);
       console.error("Download/reindexing failed:", err);
       toast.error(`Failed to download model and re-index: ${String(err)}`);
+    } finally {
+      if (unlisten) {
+        unlisten();
+      }
     }
   };
 
@@ -368,41 +357,30 @@ export function EmbeddingModelSetting(): JSX.Element {
     setSelectedModel(modelId);
     setDownloadPercent(0);
 
-    const modelInfo = LOCAL_MODELS.find((m) => m.id === modelId);
-    const sizeMb = modelInfo?.sizeMb || 22;
-
-    if (intervalRef.current) clearInterval(intervalRef.current);
-    intervalRef.current = setInterval(async () => {
-      try {
-        const bytes = await getModelDownloadSize(modelId);
-        const targetBytes = sizeMb * 1024 * 1024;
-        let pct = Math.floor((bytes / targetBytes) * 100);
+    let unlisten: (() => void) | null = null;
+    try {
+      console.log("[frontend] setting up progress listener in handleDownloadOnly");
+      unlisten = await listen<{ progress: number }>("download-progress", (event) => {
+        let pct = Math.floor(event.payload.progress);
+        console.log("[frontend] download-progress event:", event.payload, "pct:", pct);
         if (pct > 99) pct = 99;
         if (pct < 0) pct = 0;
         setDownloadPercent(pct);
-      } catch (err) {
-        console.error(err);
-      }
-    }, 400);
+      });
 
-    try {
       await downloadEmbeddingModel(modelId);
 
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
       setDownloadPercent(null);
       void fetchDownloaded();
       toast.success(`Successfully downloaded model ${modelId}!`);
     } catch (err: unknown) {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
       setDownloadPercent(null);
       console.error("Download failed:", err);
       toast.error(`Failed to download model: ${String(err)}`);
+    } finally {
+      if (unlisten) {
+        unlisten();
+      }
     }
   };
 
@@ -826,7 +804,7 @@ export function EmbeddingModelSetting(): JSX.Element {
           )}
 
           {(isReindexing || downloadPercent !== null) && (
-            <div className="w-full bg-background/95 px-8 py-3 flex flex-col gap-2 backdrop-blur-sm">
+            <div className="w-full bg-background/95 py-3 flex flex-col gap-2 backdrop-blur-sm">
               <div className="flex items-center justify-between text-[11px] font-medium">
                 <span className="text-foreground flex items-center gap-1.5">
                   <LoaderCircle className="w-3.5 h-3.5 animate-spin text-primary" />

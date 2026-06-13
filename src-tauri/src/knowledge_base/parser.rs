@@ -5,6 +5,7 @@ pub struct ParsedSection {
     pub id: String,
     pub title: String,
     pub content: String,
+    #[allow(dead_code)]
     pub level: u32,
 }
 

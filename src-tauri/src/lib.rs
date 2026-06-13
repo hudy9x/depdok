@@ -232,6 +232,17 @@ fn get_mcp_server_paths(app: tauri::AppHandle) -> Vec<String> {
     #[cfg(not(target_os = "windows"))]
     let binary_name = "depdok-mcp-server";
 
+    // In dev mode, check the target/debug directory as well
+    #[cfg(debug_assertions)]
+    {
+        if let Ok(current_dir) = std::env::current_dir() {
+            let debug_binary1 = current_dir.join("target").join("debug").join(binary_name);
+            let debug_binary2 = current_dir.join("src-tauri").join("target").join("debug").join(binary_name);
+            candidates.push(debug_binary1.to_string_lossy().to_string());
+            candidates.push(debug_binary2.to_string_lossy().to_string());
+        }
+    }
+
     if let Ok(resource_dir) = app.path().resource_dir() {
         let resource_binary = resource_dir.join(binary_name);
         candidates.push(resource_binary.to_string_lossy().to_string());
@@ -239,7 +250,10 @@ fn get_mcp_server_paths(app: tauri::AppHandle) -> Vec<String> {
 
     candidates
         .into_iter()
-        .filter(|path| std::path::Path::new(path).exists())
+        .filter(|path| {
+            let p = std::path::Path::new(path);
+            p.exists() && p.metadata().map(|m| m.len() > 0).unwrap_or(false)
+        })
         .collect()
 }
 
@@ -543,6 +557,8 @@ pub fn run() {
             knowledge_base::commands::delete_document,
             knowledge_base::commands::connect_to,
             knowledge_base::commands::search_similar,
+            knowledge_base::commands::search_hybrid,
+            knowledge_base::commands::get_chunk_context,
             knowledge_base::commands::get_document,
             knowledge_base::commands::get_project_graph,
             knowledge_base::commands::set_current_project_group,
@@ -554,6 +570,7 @@ pub fn run() {
             knowledge_base::commands::reveal_cache_dir,
             knowledge_base::commands::get_model_download_size,
             knowledge_base::commands::get_cache_dir,
+            knowledge_base::commands::download_embedding_model,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

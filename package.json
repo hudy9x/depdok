@@ -92,6 +92,7 @@
     "diff": "^8.0.3",
     "graphology": "^0.26.0",
     "graphology-layout": "^0.6.1",
+    "graphology-layout-force": "^0.2.4",
     "highlight.js": "^11.11.1",
     "html-to-image": "^1.11.13",
     "idb": "^8.0.3",

@@ -233,6 +233,9 @@ importers:
       graphology-layout:
         specifier: ^0.6.1
         version: 0.6.1(graphology-types@0.24.8)
+      graphology-layout-force:
+        specifier: ^0.2.4
+        version: 0.2.4(graphology-types@0.24.8)
       highlight.js:
         specifier: ^11.11.1
         version: 11.11.1
@@ -3089,6 +3092,11 @@ packages:
 
   graceful-fs@4.2.11:
     resolution: {integrity: sha512-RbJ5/jmFcNNCcDV5o9eTnBLJ/HszWV0P73bc+Ff4nS/rJj+YaS6IGyiOL0VoBYX+l1Wrl3k63h/KrH+nhJ0XvQ==}
+
+  graphology-layout-force@0.2.4:
+    resolution: {integrity: sha512-NYZz0YAnDkn5pkm30cvB0IScFoWGtbzJMrqaiH070dYlYJiag12Oc89dbVfaMaVR/w8DMIKxn/ix9Bqj+Umm9Q==}
+    peerDependencies:
+      graphology-types: '>=0.19.0'
 
   graphology-layout@0.6.1:
     resolution: {integrity: sha512-m9aMvbd0uDPffUCFPng5ibRkb2pmfNvdKjQWeZrf71RS1aOoat5874+DcyNfMeCT4aQguKC7Lj9eCbqZj/h8Ag==}
@@ -6825,6 +6833,11 @@ snapshots:
   glur@1.1.2: {}
 
   graceful-fs@4.2.11: {}
+
+  graphology-layout-force@0.2.4(graphology-types@0.24.8):
+    dependencies:
+      graphology-types: 0.24.8
+      graphology-utils: 2.5.2(graphology-types@0.24.8)
 
   graphology-layout@0.6.1(graphology-types@0.24.8):
     dependencies:

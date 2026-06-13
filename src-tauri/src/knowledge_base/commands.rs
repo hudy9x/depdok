@@ -448,5 +448,21 @@ pub fn get_cache_dir(app: tauri::AppHandle) -> Result<String, String> {
     }
 }
 
+#[tauri::command]
+pub async fn download_embedding_model(
+    app: tauri::AppHandle,
+    model_name: String,
+) -> Result<(), String> {
+    let cache_dir = app.path().app_cache_dir().ok();
+    let _ = super::embedding::init_embedder_with_config(
+        cache_dir,
+        "local",
+        &model_name,
+        None,
+        true,
+    )?;
+    Ok(())
+}
+
 
 

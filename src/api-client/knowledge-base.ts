@@ -125,3 +125,7 @@ export async function getModelDownloadSize(modelName: string): Promise<number> {
 export async function getCacheDir(): Promise<string> {
   return await invoke<string>('get_cache_dir');
 }
+
+export async function downloadEmbeddingModel(modelName: string): Promise<void> {
+  await invoke('download_embedding_model', { modelName });
+}

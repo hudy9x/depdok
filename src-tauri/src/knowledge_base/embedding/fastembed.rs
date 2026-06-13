@@ -14,6 +14,7 @@ pub struct FastEmbedProvider {
 
 impl FastEmbedProvider {
     /// Load (or download) the default model.
+    #[allow(dead_code)]
     pub fn new(cache_dir: Option<PathBuf>) -> Result<Self, String> {
         Self::new_with_model(cache_dir, "all-MiniLM-L6-v2")
     }

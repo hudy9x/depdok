@@ -25,6 +25,7 @@ import {
   revealCacheDir,
   getModelDownloadSize,
   getCacheDir,
+  downloadEmbeddingModel,
 } from "@/api-client/knowledge-base";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -321,48 +322,87 @@ export function EmbeddingModelSetting(): JSX.Element {
       }, 400);
     }
 
-    const promise = updateEmbeddingModelAndReindex(
-      activeTab,
-      modelId,
-      activeTab === "remote" ? openaiKey : undefined,
-      workspaceRoot
-    );
+    try {
+      const count = await updateEmbeddingModelAndReindex(
+        activeTab,
+        modelId,
+        activeTab === "remote" ? openaiKey : undefined,
+        workspaceRoot
+      );
 
-    const toastLoadingText = isDownloaded
-      ? `Re-indexing knowledge base with ${modelId}...`
-      : `Downloading model weights and re-indexing knowledge base with ${modelId}...`;
-
-    toast.promise(promise, {
-      loading: toastLoadingText,
-      success: (count) => {
-        if (intervalRef.current) {
-          clearInterval(intervalRef.current);
-          intervalRef.current = null;
-        }
-        setDownloadPercent(null);
-        setIsReindexing(false);
-        setCurrentModel({
-          type: activeTab,
-          name: modelId,
-          key: activeTab === "remote" ? openaiKey : undefined,
-          isDownloaded: true,
-        });
-        void fetchDownloaded();
-        return isDownloaded
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+      setDownloadPercent(null);
+      setIsReindexing(false);
+      setCurrentModel({
+        type: activeTab,
+        name: modelId,
+        key: activeTab === "remote" ? openaiKey : undefined,
+        isDownloaded: true,
+      });
+      void fetchDownloaded();
+      toast.success(
+        isDownloaded
           ? `Successfully re-indexed ${count} sections!`
-          : `Successfully downloaded and re-indexed ${count} sections!`;
-      },
-      error: (err: unknown) => {
-        if (intervalRef.current) {
-          clearInterval(intervalRef.current);
-          intervalRef.current = null;
-        }
-        setDownloadPercent(null);
-        setIsReindexing(false);
-        console.error("Download/reindexing failed:", err);
-        return `Failed to download model and re-index: ${String(err)}`;
-      },
-    });
+          : `Successfully downloaded and re-indexed ${count} sections!`
+      );
+    } catch (err: unknown) {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+      setDownloadPercent(null);
+      setIsReindexing(false);
+      console.error("Download/reindexing failed:", err);
+      toast.error(`Failed to download model and re-index: ${String(err)}`);
+    }
+  };
+
+  const handleDownloadOnly = async (modelId: string) => {
+    setIsReindexing(true);
+    setSelectedModel(modelId);
+    setDownloadPercent(0);
+
+    const modelInfo = LOCAL_MODELS.find((m) => m.id === modelId);
+    const sizeMb = modelInfo?.sizeMb || 22;
+
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    intervalRef.current = setInterval(async () => {
+      try {
+        const bytes = await getModelDownloadSize(modelId);
+        const targetBytes = sizeMb * 1024 * 1024;
+        let pct = Math.floor((bytes / targetBytes) * 100);
+        if (pct > 99) pct = 99;
+        if (pct < 0) pct = 0;
+        setDownloadPercent(pct);
+      } catch (err) {
+        console.error(err);
+      }
+    }, 400);
+
+    try {
+      await downloadEmbeddingModel(modelId);
+
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+      setDownloadPercent(null);
+      setIsReindexing(false);
+      void fetchDownloaded();
+      toast.success(`Successfully downloaded model ${modelId}!`);
+    } catch (err: unknown) {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+      setDownloadPercent(null);
+      setIsReindexing(false);
+      console.error("Download failed:", err);
+      toast.error(`Failed to download model: ${String(err)}`);
+    }
   };
 
   const handleApplyModel = async () => {
@@ -393,7 +433,7 @@ export function EmbeddingModelSetting(): JSX.Element {
   );
 
   return (
-    <div className="space-y-6 w-full">
+    <div className="space-y-6 w-full relative pb-16">
       {/* Active Model Indicator */}
       <div className="flex flex-col gap-1.5 p-4 rounded-xl border border-border/60 bg-muted/20">
         <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -623,7 +663,7 @@ export function EmbeddingModelSetting(): JSX.Element {
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
-                              void handleDownloadModel(model.id);
+                              void handleDownloadOnly(model.id);
                             }}
                             className="p-1 rounded hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-colors cursor-pointer inline-flex items-center justify-center"
                             title="Download model weights"
@@ -739,25 +779,28 @@ export function EmbeddingModelSetting(): JSX.Element {
       )}
 
       {isReindexing && (
-        <div className="flex flex-col gap-2 p-3 bg-primary/5 dark:bg-primary/10 rounded-lg border border-primary/20 max-w-md w-full">
-          <div className="flex items-center gap-2">
-            <LoaderCircle className="w-4 h-4 animate-spin text-primary" />
-            <span className="text-[11px] text-primary font-medium">
+        <div className="absolute bottom-0 left-0 right-0 w-full bg-background/95 border border-border/80 rounded-lg shadow-md p-3 z-20 flex flex-col gap-2 backdrop-blur-sm">
+          <div className="flex items-center justify-between text-[11px] font-medium">
+            <span className="text-foreground flex items-center gap-1.5">
+              <LoaderCircle className="w-3.5 h-3.5 animate-spin text-primary" />
               {downloadPercent !== null
                 ? `Downloading model weights...`
-                : "Downloading model & re-indexing files in workspace directory..."}
+                : "Re-indexing workspace files..."}
+            </span>
+            <span className="text-muted-foreground font-semibold">
+              {downloadPercent !== null ? `${downloadPercent}%` : "Please wait..."}
             </span>
           </div>
-          {downloadPercent !== null && (
-            <div className="w-full bg-secondary rounded-full overflow-hidden">
-              <div
-                className="bg-primary text-[10px] font-semibold text-primary-foreground text-center p-0.5 leading-none rounded-full h-4 flex items-center justify-center transition-all duration-300 min-w-[2rem]"
-                style={{ width: `${downloadPercent}%` }}
-              >
-                {downloadPercent}%
-              </div>
-            </div>
-          )}
+          <div className="w-full bg-secondary h-2 rounded-full overflow-hidden">
+            <div
+              className={`h-full transition-all duration-300 ${
+                downloadPercent !== null ? "bg-primary" : "bg-primary/60 animate-pulse"
+              }`}
+              style={{
+                width: downloadPercent !== null ? `${downloadPercent}%` : "100%",
+              }}
+            />
+          </div>
         </div>
       )}
     </div>

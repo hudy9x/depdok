@@ -6,7 +6,6 @@ pub mod commands;
 pub mod db;
 pub mod embedding;
 pub mod manager;
-pub mod markdown_chunking;
 pub mod parser;
 #[cfg(test)]
 mod tests;

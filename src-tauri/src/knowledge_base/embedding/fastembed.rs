@@ -6,21 +6,53 @@ use fastembed::{EmbeddingModel, InitOptions, TextEmbedding};
 use super::Embedder;
 
 /// Local, offline embedding provider backed by `fastembed` + ONNX Runtime.
-///
-/// Uses the `all-MiniLM-L6-v2` model (384 dimensions, ~22 MB).
-/// The ONNX model file is downloaded once to `cache_dir` on first launch;
-/// subsequent runs are fully offline.
 pub struct FastEmbedProvider {
     model: Arc<TextEmbedding>,
+    model_name: String,
+    dims: usize,
 }
 
 impl FastEmbedProvider {
-    /// Load (or download) the model.
-    ///
-    /// `cache_dir`: where the ONNX model is stored. Defaults to the system
-    /// cache directory when `None`.
+    /// Load (or download) the default model.
     pub fn new(cache_dir: Option<PathBuf>) -> Result<Self, String> {
-        let mut opts = InitOptions::new(EmbeddingModel::AllMiniLML6V2);
+        Self::new_with_model(cache_dir, "all-MiniLM-L6-v2")
+    }
+
+    /// Load (or download) the specified model.
+    pub fn new_with_model(cache_dir: Option<PathBuf>, model_name: &str) -> Result<Self, String> {
+        let model_enum = match model_name {
+            "all-MiniLM-L6-v2" => EmbeddingModel::AllMiniLML6V2,
+            "all-MiniLM-L12-v2" => EmbeddingModel::AllMiniLML12V2,
+            "bge-small-en-v1.5" => EmbeddingModel::BGESmallENV15,
+            "bge-base-en-v1.5" => EmbeddingModel::BGEBaseENV15,
+            "bge-large-en-v1.5" => EmbeddingModel::BGELargeENV15,
+            "nomic-embed-text-v1.5" => EmbeddingModel::NomicEmbedTextV15,
+            "multilingual-e5-small" => EmbeddingModel::MultilingualE5Small,
+            "multilingual-e5-base" => EmbeddingModel::MultilingualE5Base,
+            "multilingual-e5-large" => EmbeddingModel::MultilingualE5Large,
+            "paraphrase-multilingual-MiniLM-L12-v2" => EmbeddingModel::ParaphraseMLMiniLML12V2,
+            "bge-small-zh-v1.5" => EmbeddingModel::BGESmallZHV15,
+            "bge-large-zh-v1.5" => EmbeddingModel::BGELargeZHV15,
+            _ => EmbeddingModel::AllMiniLML6V2,
+        };
+
+        let dims = match model_name {
+            "all-MiniLM-L6-v2" => 384,
+            "all-MiniLM-L12-v2" => 384,
+            "bge-small-en-v1.5" => 384,
+            "bge-base-en-v1.5" => 768,
+            "bge-large-en-v1.5" => 1024,
+            "nomic-embed-text-v1.5" => 768,
+            "multilingual-e5-small" => 384,
+            "multilingual-e5-base" => 768,
+            "multilingual-e5-large" => 1024,
+            "paraphrase-multilingual-MiniLM-L12-v2" => 384,
+            "bge-small-zh-v1.5" => 512,
+            "bge-large-zh-v1.5" => 1024,
+            _ => 384,
+        };
+
+        let mut opts = InitOptions::new(model_enum);
 
         if let Some(dir) = cache_dir {
             opts = opts.with_cache_dir(dir);
@@ -29,13 +61,17 @@ impl FastEmbedProvider {
         let model = TextEmbedding::try_new(opts)
             .map_err(|e| format!("Failed to initialise fastembed model: {e}"))?;
 
-        Ok(Self { model: Arc::new(model) })
+        Ok(Self {
+            model: Arc::new(model),
+            model_name: model_name.to_string(),
+            dims,
+        })
     }
 }
 
 #[async_trait]
 impl Embedder for FastEmbedProvider {
-    /// Embed a single text snippet and return its 384-dimensional vector.
+    /// Embed a single text snippet and return its float vector.
     async fn embed(&self, text: &str) -> Result<Vec<f32>, String> {
         let model = self.model.clone();
         let text_owned = text.to_string();
@@ -54,10 +90,24 @@ impl Embedder for FastEmbedProvider {
     }
 
     fn dimensions(&self) -> usize {
-        384
+        self.dims
     }
 
     fn name(&self) -> &'static str {
-        "fastembed/all-MiniLM-L6-v2"
+        match self.model_name.as_str() {
+            "all-MiniLM-L6-v2" => "fastembed/all-MiniLM-L6-v2",
+            "all-MiniLM-L12-v2" => "fastembed/all-MiniLM-L12-v2",
+            "bge-small-en-v1.5" => "fastembed/bge-small-en-v1.5",
+            "bge-base-en-v1.5" => "fastembed/bge-base-en-v1.5",
+            "bge-large-en-v1.5" => "fastembed/bge-large-en-v1.5",
+            "nomic-embed-text-v1.5" => "fastembed/nomic-embed-text-v1.5",
+            "multilingual-e5-small" => "fastembed/multilingual-e5-small",
+            "multilingual-e5-base" => "fastembed/multilingual-e5-base",
+            "multilingual-e5-large" => "fastembed/multilingual-e5-large",
+            "paraphrase-multilingual-MiniLM-L12-v2" => "fastembed/paraphrase-multilingual-MiniLM-L12-v2",
+            "bge-small-zh-v1.5" => "fastembed/bge-small-zh-v1.5",
+            "bge-large-zh-v1.5" => "fastembed/bge-large-zh-v1.5",
+            _ => "fastembed/all-MiniLM-L6-v2",
+        }
     }
 }

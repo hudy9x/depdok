@@ -9,12 +9,9 @@
 //   dimension count from `Embedder::dimensions()`, so switching providers requires
 //   re-initialising (or migrating) the database.
 
-#[cfg(feature = "openai-embeddings")]
 use super::Embedder;
-#[cfg(feature = "openai-embeddings")]
 use async_trait::async_trait;
 
-#[cfg(feature = "openai-embeddings")]
 pub struct OpenAiProvider {
     client: reqwest::Client,
     api_key: String,
@@ -24,7 +21,6 @@ pub struct OpenAiProvider {
     dimensions: usize,
 }
 
-#[cfg(feature = "openai-embeddings")]
 impl OpenAiProvider {
     pub fn new(api_key: String) -> Self {
         Self {
@@ -44,7 +40,6 @@ impl OpenAiProvider {
     }
 }
 
-#[cfg(feature = "openai-embeddings")]
 #[async_trait]
 impl Embedder for OpenAiProvider {
     async fn embed(&self, text: &str) -> Result<Vec<f32>, String> {
@@ -91,6 +86,11 @@ impl Embedder for OpenAiProvider {
     }
 
     fn name(&self) -> &'static str {
-        "openai/text-embedding-3-large"
+        match self.model.as_str() {
+            "text-embedding-3-small" => "openai/text-embedding-3-small",
+            "text-embedding-3-large" => "openai/text-embedding-3-large",
+            "text-embedding-ada-002" => "openai/text-embedding-ada-002",
+            _ => "openai/text-embedding-3-large",
+        }
     }
 }

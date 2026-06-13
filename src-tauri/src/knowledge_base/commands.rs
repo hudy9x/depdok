@@ -1,6 +1,6 @@
 use rusqlite::params;
 use serde::Serialize;
-use tauri::State;
+use tauri::{State, Manager};
 
 use super::{
     embedding::EmbedderState,
@@ -188,5 +188,148 @@ pub async fn rebuild_all_edges(
     kb_state: State<'_, KbState>,
 ) -> Result<(), String> {
     kb_state.0.rebuild_all_edges().await
+}
+
+#[derive(serde::Serialize)]
+pub struct CurrentModelStatus {
+    #[serde(rename = "modelType")]
+    pub model_type: String,
+    #[serde(rename = "modelName")]
+    pub model_name: String,
+    #[serde(rename = "openaiKey")]
+    pub openai_key: Option<String>,
+}
+
+#[tauri::command]
+pub fn get_current_embedding_model(app: tauri::AppHandle) -> Result<CurrentModelStatus, String> {
+    use tauri_plugin_store::StoreExt;
+    if let Ok(store) = app.store("store.json") {
+        let model_type = store.get("embedding_model_type")
+            .and_then(|v| v.as_str().map(|s| s.to_string()))
+            .unwrap_or_else(|| "local".to_string());
+        let model_name = store.get("embedding_model_name")
+            .and_then(|v| v.as_str().map(|s| s.to_string()))
+            .unwrap_or_else(|| "all-MiniLM-L6-v2".to_string());
+        let openai_key = store.get("openai_api_key")
+            .and_then(|v| v.as_str().map(|s| s.to_string()));
+        Ok(CurrentModelStatus { model_type, model_name, openai_key })
+    } else {
+        Ok(CurrentModelStatus {
+            model_type: "local".to_string(),
+            model_name: "all-MiniLM-L6-v2".to_string(),
+            openai_key: None,
+        })
+    }
+}
+
+#[tauri::command]
+pub async fn update_embedding_model_and_reindex(
+    app: tauri::AppHandle,
+    kb_state: State<'_, KbState>,
+    embedder_state: State<'_, EmbedderState>,
+    model_type: String,
+    model_name: String,
+    openai_key: Option<String>,
+    workspace_root: String,
+) -> Result<usize, String> {
+    use tauri_plugin_store::StoreExt;
+    
+    // 1. Re-initialize embedder
+    let cache_dir = app.path().app_cache_dir().ok();
+    let new_embedder = super::embedding::init_embedder_with_config(
+        cache_dir,
+        &model_type,
+        &model_name,
+        openai_key.clone(),
+    )?;
+    let new_dims = new_embedder.dimensions();
+
+    // 2. Save settings to store.json
+    if let Ok(store) = app.store("store.json") {
+        store.set("embedding_model_type", serde_json::json!(model_type));
+        store.set("embedding_model_name", serde_json::json!(model_name));
+        if let Some(ref key) = openai_key {
+            store.set("openai_api_key", serde_json::json!(key));
+        } else {
+            // Remove the key if switching to local
+            let _ = store.delete("openai_api_key");
+        }
+        let _ = store.save();
+    }
+
+    // 3. Drop/recreate vec0 table, delete document_chunks
+    {
+        let conn_arc = kb_state.0.db_lock();
+        let mut conn = conn_arc.lock().await;
+        
+        let tx = conn.transaction().map_err(|e| e.to_string())?;
+        tx.execute("DROP TABLE IF EXISTS documents_embeddings;", []).map_err(|e| e.to_string())?;
+        tx.execute("DELETE FROM document_chunks;", []).map_err(|e| e.to_string())?;
+        
+        let create_vec = format!(
+            "CREATE VIRTUAL TABLE IF NOT EXISTS documents_embeddings USING vec0(
+                chunk_id    TEXT PRIMARY KEY,
+                document_id TEXT,
+                embedding   FLOAT[{new_dims}]
+            );"
+        );
+        tx.execute_batch(&create_vec).map_err(|e| e.to_string())?;
+        tx.commit().map_err(|e| e.to_string())?;
+    }
+
+    // 4. Update the shared embedder state
+    {
+        let mut active_embedder = embedder_state.0.write().await;
+        *active_embedder = new_embedder;
+    }
+
+    // 5. Re-index all markdown files if workspace_root is valid
+    let mut total_indexed = 0;
+    if !workspace_root.is_empty() && std::path::Path::new(&workspace_root).exists() {
+        let walker = ignore::WalkBuilder::new(&workspace_root)
+            .hidden(false)
+            .git_ignore(true)
+            .git_exclude(true)
+            .build();
+
+        let mut files_to_index = Vec::new();
+        for result in walker {
+            if let Ok(entry) = result {
+                if let Some(file_type) = entry.file_type() {
+                    if file_type.is_file() {
+                        let path = entry.path();
+                        if path.extension().map_or(false, |ext| ext == "md") {
+                            files_to_index.push(path.to_path_buf());
+                        }
+                    }
+                }
+            }
+        }
+
+        for path in files_to_index {
+            if let Ok(content) = std::fs::read_to_string(&path) {
+                let file_path_str = path.to_string_lossy().to_string();
+                let title = path.file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or("Untitled")
+                    .to_string();
+                
+                match kb_state.0.index_markdown_document_sections(
+                    file_path_str,
+                    title,
+                    content,
+                    vec![workspace_root.clone()],
+                ).await {
+                    Ok(count) => total_indexed += count,
+                    Err(e) => eprintln!("Error indexing file {:?}: {}", path, e),
+                }
+            }
+        }
+
+        // Rebuild edges
+        let _ = kb_state.0.rebuild_all_edges().await;
+    }
+
+    Ok(total_indexed)
 }
 

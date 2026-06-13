@@ -1,5 +1,5 @@
 import { useAtom } from "jotai";
-import { Bot, Monitor, Moon, Puzzle, Settings, Sun, X } from "lucide-react";
+import { Bot, Database, Monitor, Moon, Puzzle, Settings, Sun, X } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 
@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import { autoSaveEnabledAtom, themeAtom } from "@/stores/SettingsStore";
 
 import { AssetsFolderSetting } from "./AssetsFolderSetting";
+import { EmbeddingModelSetting } from "./EmbeddingModelSetting";
 import { McpServerPathSetting } from "./McpServerPathSetting";
 import { MonacoThemeSetting } from "./MonacoThemeSetting";
 import { PlantUmlServerSetting } from "./PlantUmlServerSetting";
@@ -24,7 +25,7 @@ interface SettingsDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-type SettingsTab = "general" | "integrations" | "mcp";
+type SettingsTab = "general" | "integrations" | "mcp" | "embeddings";
 
 export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   const [autoSaveEnabled, setAutoSaveEnabled] = useAtom(autoSaveEnabledAtom);
@@ -49,6 +50,12 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
       name: "Integrations",
       icon: Puzzle,
       desc: "Third-party tools and plugins",
+    },
+    {
+      id: "embeddings",
+      name: "Embedding Models",
+      icon: Database,
+      desc: "Configure local or remote AI embedding models",
     },
     {
       id: "mcp",
@@ -207,6 +214,12 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                 <div>
                   <AssetsFolderSetting />
                 </div>
+              </div>
+            )}
+
+            {activeTab === "embeddings" && (
+              <div className="space-y-6">
+                <EmbeddingModelSetting />
               </div>
             )}
 

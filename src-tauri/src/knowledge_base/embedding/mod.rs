@@ -3,7 +3,6 @@ use async_trait::async_trait;
 
 pub mod chunker;
 pub mod fastembed;
-#[cfg(feature = "openai-embeddings")]
 pub mod openai;
 
 /// Provider-agnostic embedding interface.
@@ -25,15 +24,34 @@ use std::sync::Arc;
 /// Commands receive `State<'_, EmbedderState>` and never depend on the concrete type.
 pub struct EmbedderState(pub Arc<tokio::sync::RwLock<Box<dyn Embedder>>>);
 
-/// Select and initialise the active embedder provider.
-/// - Default (no feature flags): local `fastembed` provider.
-/// - With `openai-embeddings` feature + API key configured: OpenAI provider.
+/// Select and initialise the active embedder provider with defaults.
 pub fn init_embedder(cache_dir: Option<PathBuf>) -> Result<Box<dyn Embedder>, String> {
-    #[cfg(feature = "openai-embeddings")]
-    {
-        // TODO: read API key from app settings; if present, return OpenAiProvider.
-    }
+    init_embedder_with_config(cache_dir, "local", "all-MiniLM-L6-v2", None)
+}
 
-    let provider = fastembed::FastEmbedProvider::new(cache_dir)?;
-    Ok(Box::new(provider))
+/// Select and initialise the active embedder provider with explicit configuration.
+pub fn init_embedder_with_config(
+    cache_dir: Option<PathBuf>,
+    model_type: &str,
+    model_name: &str,
+    openai_key: Option<String>,
+) -> Result<Box<dyn Embedder>, String> {
+    if model_type == "remote" {
+        let key = openai_key.unwrap_or_default();
+        if key.is_empty() {
+            return Err("OpenAI API Key is required for remote models".to_string());
+        }
+        let dims = match model_name {
+            "text-embedding-3-large" => 3072,
+            "text-embedding-3-small" => 1536,
+            "text-embedding-ada-002" => 1536,
+            _ => 1536,
+        };
+        let provider = openai::OpenAiProvider::new(key)
+            .with_model(model_name, dims);
+        Ok(Box::new(provider))
+    } else {
+        let provider = fastembed::FastEmbedProvider::new_with_model(cache_dir, model_name)?;
+        Ok(Box::new(provider))
+    }
 }

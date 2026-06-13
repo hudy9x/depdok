@@ -84,3 +84,27 @@ export async function searchSimilar(query: string, limit = 20): Promise<Knowledg
 export async function rebuildAllEdges(): Promise<void> {
   await invoke('rebuild_all_edges');
 }
+
+export interface CurrentModelStatus {
+  modelType: 'local' | 'remote';
+  modelName: string;
+  openaiKey?: string;
+}
+
+export async function getCurrentEmbeddingModel(): Promise<CurrentModelStatus> {
+  return await invoke<CurrentModelStatus>('get_current_embedding_model');
+}
+
+export async function updateEmbeddingModelAndReindex(
+  modelType: string,
+  modelName: string,
+  openaiKey?: string,
+  workspaceRoot?: string
+): Promise<number> {
+  return await invoke<number>('update_embedding_model_and_reindex', {
+    modelType,
+    modelName,
+    openaiKey: openaiKey || null,
+    workspaceRoot: workspaceRoot || '',
+  });
+}

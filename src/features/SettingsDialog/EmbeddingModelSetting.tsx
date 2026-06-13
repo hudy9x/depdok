@@ -27,6 +27,7 @@ import {
   getCacheDir,
   downloadEmbeddingModel,
   deleteEmbeddingModel,
+  getModelDownloadSize,
 } from "@/api-client/knowledge-base";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,6 +43,7 @@ interface ModelInfo {
   languages: string;
   description: string;
   url: string;
+  downloadUrl?: string;
 }
 
 const LOCAL_MODELS: ModelInfo[] = [
@@ -50,40 +52,44 @@ const LOCAL_MODELS: ModelInfo[] = [
     name: "all-MiniLM-L6-v2",
     type: "local",
     dims: 384,
-    sizeMb: 22,
+    sizeMb: 91,
     languages: "English",
     description: "Fast, lightweight model. Ideal for low-memory environments.",
     url: "https://huggingface.co/Qdrant/all-MiniLM-L6-v2-onnx",
+    downloadUrl: "https://huggingface.co/Qdrant/all-MiniLM-L6-v2-onnx/resolve/main/model.onnx",
   },
   {
     id: "all-MiniLM-L12-v2",
     name: "all-MiniLM-L12-v2",
     type: "local",
     dims: 384,
-    sizeMb: 45,
+    sizeMb: 129,
     languages: "English",
     description: "Slightly more accurate MiniLM variant with similar latency.",
     url: "https://huggingface.co/Xenova/all-MiniLM-L12-v2",
+    downloadUrl: "https://huggingface.co/Xenova/all-MiniLM-L12-v2/resolve/main/onnx/model.onnx",
   },
   {
     id: "bge-small-en-v1.5",
     name: "bge-small-en-v1.5",
     type: "local",
     dims: 384,
-    sizeMb: 45,
+    sizeMb: 129,
     languages: "English",
     description: "High performance small model by BAAI. English-focused.",
-    url: "https://huggingface.co/Qdrant/bge-small-en-v1.5-onnx-quantized",
+    url: "https://huggingface.co/Xenova/bge-small-en-v1.5",
+    downloadUrl: "https://huggingface.co/Xenova/bge-small-en-v1.5/resolve/main/onnx/model.onnx",
   },
   {
     id: "bge-base-en-v1.5",
     name: "bge-base-en-v1.5",
     type: "local",
     dims: 768,
-    sizeMb: 110,
+    sizeMb: 417,
     languages: "English",
     description: "BAAI's base model. Superior search accuracy, moderate size.",
-    url: "https://huggingface.co/Qdrant/bge-base-en-v1.5-onnx-quantized",
+    url: "https://huggingface.co/Xenova/bge-base-en-v1.5",
+    downloadUrl: "https://huggingface.co/Xenova/bge-base-en-v1.5/resolve/main/onnx/model.onnx",
   },
   {
     id: "bge-large-en-v1.5",
@@ -93,57 +99,63 @@ const LOCAL_MODELS: ModelInfo[] = [
     sizeMb: 1340,
     languages: "English",
     description: "BAAI's large model. State-of-the-art accuracy, but high disk/RAM footprint.",
-    url: "https://huggingface.co/Qdrant/bge-large-en-v1.5-onnx-quantized",
+    url: "https://huggingface.co/Xenova/bge-large-en-v1.5",
+    downloadUrl: "https://huggingface.co/Xenova/bge-large-en-v1.5/resolve/main/onnx/model.onnx",
   },
   {
     id: "nomic-embed-text-v1.5",
     name: "nomic-embed-text-v1.5",
     type: "local",
     dims: 768,
-    sizeMb: 280,
+    sizeMb: 550,
     languages: "English",
     description: "Local model with extended token context window (8k).",
     url: "https://huggingface.co/nomic-ai/nomic-embed-text-v1.5",
+    downloadUrl: "https://huggingface.co/nomic-ai/nomic-embed-text-v1.5/resolve/main/onnx/model.onnx",
   },
   {
     id: "multilingual-e5-small",
     name: "multilingual-e5-small",
     type: "local",
     dims: 384,
-    sizeMb: 45,
+    sizeMb: 470,
     languages: "Multilingual (100+)",
     description: "Microsoft's E5 small multilingual model. Fast and low memory footprint.",
     url: "https://huggingface.co/intfloat/multilingual-e5-small",
+    downloadUrl: "https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/onnx/model.onnx",
   },
   {
     id: "multilingual-e5-base",
     name: "multilingual-e5-base",
     type: "local",
     dims: 768,
-    sizeMb: 110,
+    sizeMb: 1110,
     languages: "Multilingual (100+)",
     description: "Microsoft's E5 base multilingual model. Good balance of speed and accuracy.",
     url: "https://huggingface.co/intfloat/multilingual-e5-base",
+    downloadUrl: "https://huggingface.co/intfloat/multilingual-e5-base/resolve/main/onnx/model.onnx",
   },
   {
     id: "multilingual-e5-large",
     name: "multilingual-e5-large",
     type: "local",
     dims: 1024,
-    sizeMb: 560,
+    sizeMb: 2240,
     languages: "Multilingual (100+)",
     description: "Microsoft's E5 large multilingual model. Outstanding accuracy.",
-    url: "https://huggingface.co/intfloat/multilingual-e5-large",
+    url: "https://huggingface.co/Qdrant/multilingual-e5-large-onnx",
+    downloadUrl: "https://huggingface.co/Qdrant/multilingual-e5-large-onnx/resolve/main/model.onnx",
   },
   {
     id: "paraphrase-multilingual-MiniLM-L12-v2",
     name: "paraphrase-multilingual-MiniLM-L12-v2",
     type: "local",
     dims: 384,
-    sizeMb: 220,
+    sizeMb: 450,
     languages: "Multilingual (50+)",
     description: "Lightweight and efficient multilingual sentence transformer.",
-    url: "https://huggingface.co/sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+    url: "https://huggingface.co/Xenova/paraphrase-multilingual-MiniLM-L12-v2",
+    downloadUrl: "https://huggingface.co/Xenova/paraphrase-multilingual-MiniLM-L12-v2/resolve/main/onnx/model.onnx",
   },
   {
     id: "bge-small-zh-v1.5",
@@ -153,7 +165,8 @@ const LOCAL_MODELS: ModelInfo[] = [
     sizeMb: 90,
     languages: "Chinese, English",
     description: "BAAI's small Chinese-English bilingual model. Excellent for Chinese search.",
-    url: "https://huggingface.co/BAAI/bge-small-zh-v1.5",
+    url: "https://huggingface.co/Xenova/bge-small-zh-v1.5",
+    downloadUrl: "https://huggingface.co/Xenova/bge-small-zh-v1.5/resolve/main/onnx/model.onnx",
   },
   {
     id: "bge-large-zh-v1.5",
@@ -163,7 +176,8 @@ const LOCAL_MODELS: ModelInfo[] = [
     sizeMb: 640,
     languages: "Chinese, English",
     description: "BAAI's large Chinese-English bilingual model. State-of-the-art accuracy for Chinese search.",
-    url: "https://huggingface.co/BAAI/bge-large-zh-v1.5",
+    url: "https://huggingface.co/Xenova/bge-large-zh-v1.5",
+    downloadUrl: "https://huggingface.co/Xenova/bge-large-zh-v1.5/resolve/main/onnx/model.onnx",
   },
 ];
 
@@ -216,6 +230,7 @@ export function EmbeddingModelSetting(): JSX.Element {
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
   const [downloadedModels, setDownloadedModels] = useState<string[]>([]);
   const [downloadPercent, setDownloadPercent] = useState<number | null>(null);
+  const [actualSizes, setActualSizes] = useState<Record<string, number>>({});
   const [cacheDir, setCacheDir] = useState<string>("");
 
   const isBusy = isReindexing || downloadPercent !== null || isDeleting;
@@ -224,6 +239,19 @@ export function EmbeddingModelSetting(): JSX.Element {
     try {
       const list = await getDownloadedModels();
       setDownloadedModels(list);
+
+      const sizes: Record<string, number> = {};
+      for (const id of list) {
+        try {
+          const bytes = await getModelDownloadSize(id);
+          if (bytes > 0) {
+            sizes[id] = bytes;
+          }
+        } catch (err) {
+          console.error(`Failed to fetch size for ${id}:`, err);
+        }
+      }
+      setActualSizes(sizes);
     } catch (err) {
       console.error("Failed to fetch downloaded models:", err);
     }
@@ -630,6 +658,30 @@ export function EmbeddingModelSetting(): JSX.Element {
                               <ExternalLink className="w-3.5 h-3.5" />
                             </button>
                           )}
+                          {(() => {
+                            const dlUrl = model.downloadUrl;
+                            if (dlUrl) {
+                              return (
+                                <button
+                                  type="button"
+                                  onClick={async (e) => {
+                                    e.stopPropagation();
+                                    try {
+                                      await openUrl(dlUrl);
+                                    } catch (err) {
+                                      console.error("Failed to open download URL:", err);
+                                      toast.error("Failed to open link in browser");
+                                    }
+                                  }}
+                                  className="text-muted-foreground/60 hover:text-primary hover:bg-muted/80 p-0.5 rounded transition-all cursor-pointer inline-flex items-center justify-center"
+                                  title="Download model weights file directly in browser"
+                                >
+                                  <Download className="w-3.5 h-3.5" />
+                                </button>
+                              );
+                            }
+                            return null;
+                          })()}
                           {isActive && (
                             <span className={`text-[10px] px-1.5 py-0.2 rounded border font-medium ${currentModel?.isDownloaded
                               ? "bg-green-500/20 text-green-600 dark:text-green-400 border-green-500/30"
@@ -649,8 +701,12 @@ export function EmbeddingModelSetting(): JSX.Element {
                       <td className="py-3 px-4 text-center font-medium text-muted-foreground">
                         {model.languages}
                       </td>
-                      <td className="py-3 px-4 text-center text-muted-foreground">
-                        {model.sizeMb ? `${model.sizeMb} MB` : "N/A"}
+                      <td className="py-3 px-4 text-center text-muted-foreground font-medium">
+                        {actualSizes[model.id]
+                          ? `${(actualSizes[model.id] / (1024 * 1024)).toFixed(1)} MB`
+                          : model.sizeMb
+                            ? `${model.sizeMb} MB`
+                            : "N/A"}
                       </td>
                       <td className="py-3 px-4 text-center group/status relative">
                         {model.type === "local" ? (

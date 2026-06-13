@@ -28,7 +28,7 @@ src-tauri/src/knowledge_base/
 |  |- mod.rs
 |  |- chunker.rs
 |  |- fastembed.rs
-|  |- openai.rs (feature-gated)
+|  |- openai.rs (unconditionally compiled)
 ```
 
 Responsibilities:
@@ -50,6 +50,8 @@ Command registration:
   - `get_project_graph`
   - `set_current_project_group`
   - `test_database_query`
+  - `get_current_embedding_model`
+  - `update_embedding_model_and_reindex`
 
 ### Frontend (TypeScript)
 
@@ -243,12 +245,48 @@ Guideline:
 
 ---
 
+## Dynamic Embedding Models
+
+The application supports selecting from a list of local (offline) and remote (online) embedding models. 
+
+### Local Models (Offline)
+Supported local models include:
+- `all-MiniLM-L6-v2` (384 dimensions)
+- `all-MiniLM-L12-v2` (384 dimensions)
+- `bge-small-en-v1.5` (384 dimensions)
+- `bge-base-en-v1.5` (768 dimensions)
+- `bge-large-en-v1.5` (1024 dimensions)
+- `nomic-embed-text-v1.5` (768 dimensions)
+- `multilingual-e5-small` (384 dimensions, Multilingual 100+)
+- `multilingual-e5-base` (768 dimensions, Multilingual 100+)
+- `multilingual-e5-large` (1024 dimensions, Multilingual 100+)
+- `paraphrase-multilingual-MiniLM-L12-v2` (384 dimensions, Multilingual 50+)
+- `bge-small-zh-v1.5` (512 dimensions, Chinese & English)
+- `bge-large-zh-v1.5` (1024 dimensions, Chinese & English)
+
+### Remote Models (Online)
+Supported remote models include:
+- `text-embedding-3-small` (1536 dimensions)
+- `text-embedding-3-large` (3072 dimensions)
+- `text-embedding-ada-002` (1536 dimensions)
+
+*Note: Remote models require an OpenAI API Key configured in Settings.*
+
+### Changing Embedding Models & Reindexing
+Because `sqlite-vec` virtual tables (vec0) do not support changing embedding dimensions dynamically after creation:
+1. When switching models, the backend starts a transaction to **drop** the `documents_embeddings` table and **delete** all existing document chunk rows.
+2. It recreates `documents_embeddings` with the new dimension count of the selected model.
+3. The active workspace root directory is traversed to re-index all markdown files and re-generate vector embeddings.
+
+---
+
 ## Operational Notes
 
 - Default provider is local fastembed (offline after first model download).
-- OpenAI provider is optional and feature-gated.
+- OpenAI provider is unconditionally compiled and requires a user-provided API key stored in `store.json`.
 - All command errors should return `Result<_, String>` without panic.
 - Database location is under app data directory as `knowledge_base.db`.
+- The active model type, name, and api keys are persisted in `store.json`.
 
 ---
 

@@ -133,9 +133,16 @@ export function SettingsDialog({ open, onOpenChange, defaultTab }: SettingsDialo
           </div>
 
           {/* Settings Scrollable View */}
-          <div className="flex-1 overflow-y-auto p-8 space-y-6">
+          <div
+            className={cn(
+              "flex-1",
+              activeTab === "embeddings"
+                ? "overflow-hidden flex flex-col"
+                : "overflow-y-auto space-y-6"
+            )}
+          >
             {activeTab === "general" && (
-              <div className="space-y-6">
+              <div className="space-y-6  p-8">
                 {/* Theme Switcher */}
                 <div className="flex items-center justify-between border-b pb-6 border-border/40">
                   <div className="space-y-0.5">
@@ -215,7 +222,7 @@ export function SettingsDialog({ open, onOpenChange, defaultTab }: SettingsDialo
             )}
 
             {activeTab === "integrations" && (
-              <div className="space-y-6">
+              <div className="space-y-6  p-8">
                 <div className="border-b pb-6 border-border/40">
                   <PlantUmlServerSetting />
                 </div>
@@ -226,13 +233,11 @@ export function SettingsDialog({ open, onOpenChange, defaultTab }: SettingsDialo
             )}
 
             {activeTab === "embeddings" && (
-              <div className="space-y-6">
-                <EmbeddingModelSetting />
-              </div>
+              <EmbeddingModelSetting />
             )}
 
             {activeTab === "mcp" && (
-              <div className="space-y-6">
+              <div className="space-y-6 p-8">
                 <McpServerPathSetting />
               </div>
             )}

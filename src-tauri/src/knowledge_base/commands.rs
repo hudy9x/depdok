@@ -464,5 +464,31 @@ pub async fn download_embedding_model(
     Ok(())
 }
 
+#[tauri::command]
+pub fn delete_embedding_model(
+    app: tauri::AppHandle,
+    model_name: String,
+) -> Result<(), String> {
+    let cache_dir = app.path().app_cache_dir().ok();
+    let search_term = model_name.to_lowercase();
+    if let Some(ref cache) = cache_dir {
+        if let Ok(entries) = std::fs::read_dir(cache) {
+            for entry in entries.flatten() {
+                if let Ok(meta) = entry.metadata() {
+                    if meta.is_dir() {
+                        let name = entry.file_name().to_string_lossy().to_lowercase();
+                        if name.starts_with("models--") && name.contains(&search_term) {
+                            std::fs::remove_dir_all(entry.path())
+                                .map_err(|e| format!("Failed to delete model directory: {}", e))?;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+
 
 

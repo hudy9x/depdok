@@ -129,3 +129,7 @@ export async function getCacheDir(): Promise<string> {
 export async function downloadEmbeddingModel(modelName: string): Promise<void> {
   await invoke('download_embedding_model', { modelName });
 }
+
+export async function deleteEmbeddingModel(modelName: string): Promise<void> {
+  await invoke('delete_embedding_model', { modelName });
+}

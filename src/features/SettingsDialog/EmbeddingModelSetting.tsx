@@ -5,7 +5,6 @@ import {
   AlertTriangle,
   Check,
   Cpu,
-  Database,
   Eye,
   EyeOff,
   LoaderCircle,
@@ -15,6 +14,7 @@ import {
   CheckCircle2,
   RefreshCw,
   ExternalLink,
+  Trash2,
 } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 
@@ -26,6 +26,7 @@ import {
   getModelDownloadSize,
   getCacheDir,
   downloadEmbeddingModel,
+  deleteEmbeddingModel,
 } from "@/api-client/knowledge-base";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -212,10 +213,13 @@ export function EmbeddingModelSetting(): JSX.Element {
 
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isReindexing, setIsReindexing] = useState<boolean>(false);
+  const [isDeleting, setIsDeleting] = useState<boolean>(false);
   const [downloadedModels, setDownloadedModels] = useState<string[]>([]);
   const [downloadPercent, setDownloadPercent] = useState<number | null>(null);
   const [cacheDir, setCacheDir] = useState<string>("");
   const intervalRef = useRef<any>(null);
+
+  const isBusy = isReindexing || downloadPercent !== null || isDeleting;
 
   useEffect(() => {
     return () => {
@@ -361,7 +365,6 @@ export function EmbeddingModelSetting(): JSX.Element {
   };
 
   const handleDownloadOnly = async (modelId: string) => {
-    setIsReindexing(true);
     setSelectedModel(modelId);
     setDownloadPercent(0);
 
@@ -390,7 +393,6 @@ export function EmbeddingModelSetting(): JSX.Element {
         intervalRef.current = null;
       }
       setDownloadPercent(null);
-      setIsReindexing(false);
       void fetchDownloaded();
       toast.success(`Successfully downloaded model ${modelId}!`);
     } catch (err: unknown) {
@@ -399,9 +401,25 @@ export function EmbeddingModelSetting(): JSX.Element {
         intervalRef.current = null;
       }
       setDownloadPercent(null);
-      setIsReindexing(false);
       console.error("Download failed:", err);
       toast.error(`Failed to download model: ${String(err)}`);
+    }
+  };
+
+  const handleDeleteModel = async (modelId: string) => {
+    setIsDeleting(true);
+    try {
+      await deleteEmbeddingModel(modelId);
+      void fetchDownloaded();
+      toast.success(`Successfully deleted model weights for ${modelId}`);
+      if (selectedModel === modelId) {
+        setSelectedModel("");
+      }
+    } catch (err: unknown) {
+      console.error("Failed to delete model weights:", err);
+      toast.error(`Failed to delete model: ${String(err)}`);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -433,374 +451,404 @@ export function EmbeddingModelSetting(): JSX.Element {
   );
 
   return (
-    <div className="space-y-6 w-full relative pb-16">
-      {/* Active Model Indicator */}
-      <div className="flex flex-col gap-1.5 p-4 rounded-xl border border-border/60 bg-muted/20">
-        <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          Active Embedding Model
-        </Label>
-        {currentActiveModelInfo ? (
-          <div className="flex items-start justify-between gap-4">
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <span className="font-semibold text-foreground text-sm">
-                  {currentActiveModelInfo.name}
-                </span>
-                {currentActiveModelInfo.type === "local" ? (
-                  currentModel?.isDownloaded ? (
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-secondary font-medium text-secondary-foreground flex items-center gap-1">
-                      <Cpu className="w-3 h-3" /> Offline (Local)
+    <div className="flex flex-col h-full overflow-hidden space-y-6">
+      {/* Second Section: Scrollable Content */}
+      <div className="flex-1 overflow-y-auto scrollbar-hide min-h-0 space-y-6 p-8">
+        {/* First Section: Header */}
+        <div className="shrink-0 space-y-6 pb-2">
+          {/* Active Model Indicator */}
+          <div className="flex flex-col gap-1.5 p-4 rounded-xl border border-border/60 bg-muted/20">
+            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Active Embedding Model
+            </Label>
+            {currentActiveModelInfo ? (
+              <div className="flex items-start justify-between gap-4">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-foreground text-sm">
+                      {currentActiveModelInfo.name}
                     </span>
-                  ) : (
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-500/20 text-yellow-800 dark:text-yellow-800 border border-yellow-500/30 font-medium flex items-center gap-1 animate-pulse">
-                      <AlertTriangle className="w-3 h-3 text-yellow-500" /> Offline (Not Downloaded)
-                    </span>
-                  )
-                ) : (
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-secondary font-medium text-secondary-foreground flex items-center gap-1">
-                    <Sparkles className="w-3 h-3" /> Online (Remote)
-                  </span>
-                )}
-              </div>
-              <p className="text-xs text-muted-foreground max-w-xl">
-                {currentActiveModelInfo.description}
-              </p>
-              <p>
-                {cacheDir && (
-                  <span
-                    className="text-xs text-muted-foreground py-0.5 select-all truncate max-w-[200px] text-left cursor-text"
-                    title={cacheDir}
-                  >
-                    {cacheDir}
-                  </span>
-                )}
-              </p>
-            </div>
-            <div className="text-right shrink-0 flex flex-col items-end gap-1.5">
-              <div className="text-xs text-muted-foreground font-medium">
-                Dimensions: {currentActiveModelInfo.dims}
-              </div>
-              {currentActiveModelInfo.sizeMb && (
-                <div className="text-xs text-muted-foreground">
-                  Model Size: {currentActiveModelInfo.sizeMb} MB
+                    {currentActiveModelInfo.type === "local" ? (
+                      currentModel?.isDownloaded ? (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-secondary font-medium text-secondary-foreground flex items-center gap-1">
+                          <Cpu className="w-3 h-3" /> Offline (Local)
+                        </span>
+                      ) : (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-500/20 text-yellow-800 dark:text-yellow-800 border border-yellow-500/30 font-medium flex items-center gap-1 animate-pulse">
+                          <AlertTriangle className="w-3 h-3 text-yellow-500" /> Offline (Not Downloaded)
+                        </span>
+                      )
+                    ) : (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-secondary font-medium text-secondary-foreground flex items-center gap-1">
+                        <Sparkles className="w-3 h-3" /> Online (Remote)
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground max-w-xl">
+                    {currentActiveModelInfo.description}
+                  </p>
+                  <p>
+                    {cacheDir && (
+                      <span
+                        className="text-xs text-muted-foreground py-0.5 select-all truncate max-w-[200px] text-left cursor-text"
+                        title={cacheDir}
+                      >
+                        {cacheDir}
+                      </span>
+                    )}
+                  </p>
                 </div>
-              )}
-              <div className="text-xs text-muted-foreground font-medium">
-                Languages: {currentActiveModelInfo.languages}
+                <div className="text-right shrink-0 flex flex-col items-end gap-1.5">
+                  <div className="text-xs text-muted-foreground font-medium">
+                    Dimensions: {currentActiveModelInfo.dims}
+                  </div>
+                  {currentActiveModelInfo.sizeMb && (
+                    <div className="text-xs text-muted-foreground">
+                      Model Size: {currentActiveModelInfo.sizeMb} MB
+                    </div>
+                  )}
+                  <div className="text-xs text-muted-foreground font-medium">
+                    Languages: {currentActiveModelInfo.languages}
+                  </div>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="flex items-center justify-between gap-4 w-full">
+                <p className="text-xs text-muted-foreground">No model active or configured.</p>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {cacheDir && (
+                    <span
+                      className="text-[10px] text-muted-foreground bg-muted/60 px-2 py-0.5 rounded border border-border/40 select-all truncate max-w-[240px] text-left cursor-text"
+                      title={cacheDir}
+                    >
+                      {cacheDir}
+                    </span>
+                  )}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-[10px] gap-1 px-2.5 border-border/60 hover:bg-muted/80 cursor-pointer shrink-0"
+                    onClick={async () => {
+                      try {
+                        await revealCacheDir();
+                      } catch (err) {
+                        toast.error(`Failed to open directory: ${String(err)}`);
+                      }
+                    }}
+                  >
+                    <FolderOpen className="w-3.5 h-3.5" />
+                    Open
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
-        ) : (
-          <div className="flex items-center justify-between gap-4 w-full">
-            <p className="text-xs text-muted-foreground">No model active or configured.</p>
-            <div className="flex items-center gap-1.5 shrink-0">
-              {cacheDir && (
-                <span
-                  className="text-[10px] text-muted-foreground bg-muted/60 px-2 py-0.5 rounded border border-border/40 select-all truncate max-w-[240px] text-left cursor-text"
-                  title={cacheDir}
-                >
-                  {cacheDir}
-                </span>
-              )}
+
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Select Embedding Model</Label>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Choose a model for text vectorization. Offline models run fully on your device,
+              while remote models require internet access and API keys.
+            </p>
+          </div>
+        </div>
+        {/* Model Type Selector */}
+        <div className="grid grid-cols-2 bg-muted p-1 rounded-lg text-muted-foreground gap-1 max-w-sm">
+          <button
+            type="button"
+            disabled={isBusy}
+            className={`flex items-center justify-center gap-2 rounded-md py-1.5 text-xs font-medium transition-all cursor-pointer ${activeTab === "local"
+              ? "bg-background text-foreground shadow-sm font-semibold"
+              : "text-muted-foreground hover:text-foreground hover:bg-background/20"
+              }`}
+            onClick={() => {
+              setActiveTab("local");
+              if (currentModel?.type === "local" && currentModel?.isDownloaded) {
+                setSelectedModel(currentModel.name);
+              } else {
+                setSelectedModel("");
+              }
+            }}
+          >
+            <Cpu className="w-3.5 h-3.5" />
+            <span>Local Models (Offline)</span>
+          </button>
+          <button
+            type="button"
+            disabled={isBusy}
+            className={`flex items-center justify-center gap-2 rounded-md py-1.5 text-xs font-medium transition-all cursor-pointer ${activeTab === "remote"
+              ? "bg-background text-foreground shadow-sm font-semibold"
+              : "text-muted-foreground hover:text-foreground hover:bg-background/20"
+              }`}
+            onClick={() => {
+              setActiveTab("remote");
+              if (currentModel?.type === "remote") {
+                setSelectedModel(currentModel.name);
+              } else {
+                setSelectedModel("");
+              }
+            }}
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>Remote Models (Online)</span>
+          </button>
+        </div>
+
+        {/* Models List Table */}
+        <div className="border border-border rounded-lg overflow-hidden bg-card">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="border-b border-border bg-muted/40 text-xs font-medium text-muted-foreground">
+                  <th className="py-3 px-4 w-10"></th>
+                  <th className="py-3 px-4">Model Name</th>
+                  <th className="py-3 px-4 text-center">Dims</th>
+                  <th className="py-3 px-4 text-center">Languages</th>
+                  <th className="py-3 px-4 text-center">Disk Size</th>
+                  <th className="py-3 px-4 text-center w-24">Status</th>
+                  <th className="py-3 px-4 text-center w-24">Re-index</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border text-xs">
+                {activeModels.map((model) => {
+                  const isSelected = selectedModel === model.id;
+                  const isActive = currentModel?.name === model.id && currentModel?.type === activeTab;
+                  return (
+                    <tr
+                      key={model.id}
+                      className={`hover:bg-muted/30 transition-colors cursor-pointer ${isSelected ? "bg-primary/5 dark:bg-primary/10" : ""
+                        }`}
+                      onClick={() => !isBusy && handleSelectModel(model)}
+                    >
+                      <td className="py-3 px-4 text-center">
+                        <div
+                          className={`w-4 h-4 rounded-full border flex items-center justify-center transition-all ${isSelected
+                            ? "border-primary bg-primary text-primary-foreground"
+                            : "border-muted-foreground/30 bg-transparent"
+                            }`}
+                        >
+                          {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
+                        </div>
+                      </td>
+                      <td className="py-3 px-4 text-foreground">
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold">{model.name}</span>
+                          {model.url && (
+                            <button
+                              type="button"
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                try {
+                                  await openUrl(model.url);
+                                } catch (err) {
+                                  console.error("Failed to open model URL:", err);
+                                  toast.error("Failed to open link in browser");
+                                }
+                              }}
+                              className="text-muted-foreground/60 hover:text-primary hover:bg-muted/80 p-0.5 rounded transition-all cursor-pointer inline-flex items-center justify-center"
+                              title="Open download source page in browser"
+                            >
+                              <ExternalLink className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                          {isActive && (
+                            <span className={`text-[10px] px-1.5 py-0.2 rounded border font-medium ${currentModel?.isDownloaded
+                              ? "bg-green-500/20 text-green-600 dark:text-green-400 border-green-500/30"
+                              : "bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 border-yellow-500/30"
+                              }`}>
+                              {currentModel?.isDownloaded ? "Active" : "Active (Missing weights)"}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-muted-foreground font-normal mt-0.5 max-w-md">
+                          {model.description}
+                        </p>
+                      </td>
+                      <td className="py-3 px-4 text-center font-medium text-muted-foreground">
+                        {model.dims}
+                      </td>
+                      <td className="py-3 px-4 text-center font-medium text-muted-foreground">
+                        {model.languages}
+                      </td>
+                      <td className="py-3 px-4 text-center text-muted-foreground">
+                        {model.sizeMb ? `${model.sizeMb} MB` : "N/A"}
+                      </td>
+                      <td className="py-3 px-4 text-center group/status relative">
+                        {model.type === "local" ? (
+                          downloadedModels.includes(model.id) ? (
+                            isActive ? (
+                              <div className="flex items-center justify-center text-green-500" title="Downloaded & Active">
+                                <CheckCircle2 className="w-4 h-4" />
+                              </div>
+                            ) : (
+                              <div className="flex items-center justify-center min-h-[28px]">
+                                <div className="group-hover/status:hidden text-green-500" title="Downloaded">
+                                  <CheckCircle2 className="w-4 h-4" />
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    void handleDeleteModel(model.id);
+                                  }}
+                                  className="hidden group-hover/status:inline-flex p-1 rounded hover:bg-red-500/10 text-red-500 transition-colors cursor-pointer items-center justify-center"
+                                  title="Delete model weights"
+                                  disabled={isBusy}
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            )
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                void handleDownloadOnly(model.id);
+                              }}
+                              className="p-1 rounded hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-colors cursor-pointer inline-flex items-center justify-center"
+                              title="Download model weights"
+                              disabled={isBusy}
+                            >
+                              <Download className="w-4 h-4" />
+                            </button>
+                          )
+                        ) : (
+                          <span className="text-muted-foreground/40">-</span>
+                        )}
+                      </td>
+                      <td className="py-3 px-4 text-center">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 hover:bg-muted/80 text-muted-foreground hover:text-foreground cursor-pointer flex items-center justify-center mx-auto"
+                          title={`Re-index workspace using ${model.name}`}
+                          disabled={isBusy || !workspaceRoot}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            void handleDownloadModel(model.id);
+                          }}
+                        >
+                          <RefreshCw className={`w-3.5 h-3.5 ${isReindexing && selectedModel === model.id ? "animate-spin text-primary" : ""}`} />
+                        </Button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Remote Model API Key Input */}
+        {activeTab === "remote" && (
+          <div className="space-y-2 max-w-md pb-4">
+            <Label htmlFor="openai-key" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              OpenAI API Key
+            </Label>
+            <div className="relative">
+              <Input
+                id="openai-key"
+                type={showKey ? "text" : "password"}
+                placeholder="sk-..."
+                value={openaiKey}
+                disabled={isBusy}
+                onChange={(e) => setOpenaiKey(e.target.value)}
+                className="text-xs pr-10 border-border/80"
+              />
               <Button
                 type="button"
-                variant="outline"
-                size="sm"
-                className="h-7 text-[10px] gap-1 px-2.5 border-border/60 hover:bg-muted/80 cursor-pointer shrink-0"
-                onClick={async () => {
-                  try {
-                    await revealCacheDir();
-                  } catch (err) {
-                    toast.error(`Failed to open directory: ${String(err)}`);
-                  }
-                }}
+                variant="ghost"
+                size="icon"
+                disabled={isBusy}
+                className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 cursor-pointer hover:bg-muted"
+                onClick={() => setShowKey(!showKey)}
               >
-                <FolderOpen className="w-3.5 h-3.5" />
-                Open
+                {showKey ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                <span className="sr-only">Toggle key visibility</span>
               </Button>
             </div>
+            <p className="text-[11px] text-muted-foreground">
+              Required to send queries and document chunks to OpenAI embedding endpoints.
+            </p>
           </div>
         )}
       </div>
 
-      <div className="space-y-2">
-        <Label className="text-sm font-medium">Select Embedding Model</Label>
-        <p className="text-xs text-muted-foreground leading-relaxed">
-          Choose a model for text vectorization. Offline models run fully on your device,
-          while remote models require internet access and API keys.
-        </p>
-      </div>
-
-      {/* Model Type Selector */}
-      <div className="grid grid-cols-2 bg-muted p-1 rounded-lg text-muted-foreground gap-1 max-w-sm">
-        <button
-          type="button"
-          disabled={isReindexing}
-          className={`flex items-center justify-center gap-2 rounded-md py-1.5 text-xs font-medium transition-all cursor-pointer ${activeTab === "local"
-            ? "bg-background text-foreground shadow-sm font-semibold"
-            : "text-muted-foreground hover:text-foreground hover:bg-background/20"
-            }`}
-          onClick={() => {
-            setActiveTab("local");
-            if (currentModel?.type === "local" && currentModel?.isDownloaded) {
-              setSelectedModel(currentModel.name);
-            } else {
-              setSelectedModel("");
-            }
-          }}
-        >
-          <Cpu className="w-3.5 h-3.5" />
-          <span>Local Models (Offline)</span>
-        </button>
-        <button
-          type="button"
-          disabled={isReindexing}
-          className={`flex items-center justify-center gap-2 rounded-md py-1.5 text-xs font-medium transition-all cursor-pointer ${activeTab === "remote"
-            ? "bg-background text-foreground shadow-sm font-semibold"
-            : "text-muted-foreground hover:text-foreground hover:bg-background/20"
-            }`}
-          onClick={() => {
-            setActiveTab("remote");
-            if (currentModel?.type === "remote") {
-              setSelectedModel(currentModel.name);
-            } else {
-              setSelectedModel("");
-            }
-          }}
-        >
-          <Sparkles className="w-3.5 h-3.5" />
-          <span>Remote Models (Online)</span>
-        </button>
-      </div>
-
-      {/* Models List Table */}
-      <div className="border border-border rounded-lg overflow-hidden bg-card">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="border-b border-border bg-muted/40 text-xs font-medium text-muted-foreground">
-                <th className="py-3 px-4 w-10"></th>
-                <th className="py-3 px-4">Model Name</th>
-                <th className="py-3 px-4 text-center">Dims</th>
-                <th className="py-3 px-4 text-center">Languages</th>
-                <th className="py-3 px-4 text-center">Disk Size</th>
-                <th className="py-3 px-4 text-center w-24">Status</th>
-                <th className="py-3 px-4 text-center w-24">Re-index</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border text-xs">
-              {activeModels.map((model) => {
-                const isSelected = selectedModel === model.id;
-                const isActive = currentModel?.name === model.id && currentModel?.type === activeTab;
-                return (
-                  <tr
-                    key={model.id}
-                    className={`hover:bg-muted/30 transition-colors cursor-pointer ${isSelected ? "bg-primary/5 dark:bg-primary/10" : ""
-                      }`}
-                    onClick={() => !isReindexing && handleSelectModel(model)}
-                  >
-                    <td className="py-3 px-4 text-center">
-                      <div
-                        className={`w-4 h-4 rounded-full border flex items-center justify-center transition-all ${isSelected
-                          ? "border-primary bg-primary text-primary-foreground"
-                          : "border-muted-foreground/30 bg-transparent"
-                          }`}
-                      >
-                        {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
-                      </div>
-                    </td>
-                    <td className="py-3 px-4 text-foreground">
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold">{model.name}</span>
-                        {model.url && (
-                          <button
-                            type="button"
-                            onClick={async (e) => {
-                              e.stopPropagation();
-                              try {
-                                await openUrl(model.url);
-                              } catch (err) {
-                                console.error("Failed to open model URL:", err);
-                                toast.error("Failed to open link in browser");
-                              }
-                            }}
-                            className="text-muted-foreground/60 hover:text-primary hover:bg-muted/80 p-0.5 rounded transition-all cursor-pointer inline-flex items-center justify-center"
-                            title="Open download source page in browser"
-                          >
-                            <ExternalLink className="w-3.5 h-3.5" />
-                          </button>
-                        )}
-                        {isActive && (
-                          <span className={`text-[10px] px-1.5 py-0.2 rounded border font-medium ${currentModel?.isDownloaded
-                            ? "bg-green-500/20 text-green-600 dark:text-green-400 border-green-500/30"
-                            : "bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 border-yellow-500/30"
-                            }`}>
-                            {currentModel?.isDownloaded ? "Active" : "Active (Missing weights)"}
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-[11px] text-muted-foreground font-normal mt-0.5 max-w-md">
-                        {model.description}
-                      </p>
-                    </td>
-                    <td className="py-3 px-4 text-center font-medium text-muted-foreground">
-                      {model.dims}
-                    </td>
-                    <td className="py-3 px-4 text-center font-medium text-muted-foreground">
-                      {model.languages}
-                    </td>
-                    <td className="py-3 px-4 text-center text-muted-foreground">
-                      {model.sizeMb ? `${model.sizeMb} MB` : "N/A"}
-                    </td>
-                    <td className="py-3 px-4 text-center">
-                      {model.type === "local" ? (
-                        downloadedModels.includes(model.id) ? (
-                          <div className="flex items-center justify-center text-green-500" title="Downloaded">
-                            <CheckCircle2 className="w-4 h-4" />
-                          </div>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              void handleDownloadOnly(model.id);
-                            }}
-                            className="p-1 rounded hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-colors cursor-pointer inline-flex items-center justify-center"
-                            title="Download model weights"
-                            disabled={isReindexing}
-                          >
-                            <Download className="w-4 h-4" />
-                          </button>
-                        )
-                      ) : (
-                        <span className="text-muted-foreground/40">-</span>
-                      )}
-                    </td>
-                    <td className="py-3 px-4 text-center">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 hover:bg-muted/80 text-muted-foreground hover:text-foreground cursor-pointer flex items-center justify-center mx-auto"
-                        title={`Re-index workspace using ${model.name}`}
-                        disabled={isReindexing || !workspaceRoot}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          void handleDownloadModel(model.id);
-                        }}
-                      >
-                        <RefreshCw className={`w-3.5 h-3.5 ${isReindexing && selectedModel === model.id ? "animate-spin text-primary" : ""}`} />
-                      </Button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Remote Model API Key Input */}
-      {activeTab === "remote" && (
-        <div className="space-y-2 max-w-md">
-          <Label htmlFor="openai-key" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            OpenAI API Key
-          </Label>
-          <div className="relative">
-            <Input
-              id="openai-key"
-              type={showKey ? "text" : "password"}
-              placeholder="sk-..."
-              value={openaiKey}
-              disabled={isReindexing}
-              onChange={(e) => setOpenaiKey(e.target.value)}
-              className="text-xs pr-10 border-border/80"
-            />
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              disabled={isReindexing}
-              className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 cursor-pointer hover:bg-muted"
-              onClick={() => setShowKey(!showKey)}
-            >
-              {showKey ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-              <span className="sr-only">Toggle key visibility</span>
-            </Button>
-          </div>
-          <p className="text-[11px] text-muted-foreground">
-            Required to send queries and document chunks to OpenAI embedding endpoints.
-          </p>
-        </div>
-      )}
-
-      {/* Warnings & Action Section */}
-      {hasChanged && (
-        <div className="space-y-4">
-          <div className="flex gap-3 p-4 rounded-lg bg-yellow-500/10 border border-yellow-500/20 text-yellow-600 dark:text-yellow-400">
-            <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
-            <div className="space-y-1">
-              <h4 className="text-xs font-semibold">Database Updates Required</h4>
-              <p className="text-[11px] leading-normal opacity-90">
-                Selecting a new embedding model requires dropping the current vector tables and
-                re-scanning your active workspace. Your notes will remain untouched on disk, but the
-                vector databases will be wiped and re-indexed.
-              </p>
+      {/* Third Section: Warnings & Action Section (Download / Progress) */}
+      {(hasChanged || isReindexing || downloadPercent !== null) && (
+        <div className="shrink-0 space-y-4 border-t border-border pt-4 px-8 mt-2">
+          {hasChanged && !isReindexing && downloadPercent === null && (
+            <div className="space-y-4">
+              <div className="flex gap-3 p-4 rounded-lg bg-yellow-500/10 border border-yellow-500/20 text-yellow-600 dark:text-yellow-700">
+                <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <h4 className="text-xs font-semibold">Database Updates Required</h4>
+                  <p className="text-[11px] leading-normal opacity-90">
+                    Selecting a new embedding model requires dropping the current vector tables and
+                    re-scanning your active workspace. Your notes will remain untouched on disk, but the
+                    vector databases will be wiped and re-indexed.
+                  </p>
+                </div>
+              </div>
+              <div className="flex justify-end gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={isBusy}
+                  onClick={() => {
+                    if (currentModel) {
+                      setSelectedModel(currentModel.name);
+                      setActiveTab(currentModel.type as "local" | "remote");
+                      if (currentModel.type === "remote" && currentModel.key) {
+                        setOpenaiKey(currentModel.key);
+                      }
+                    }
+                  }}
+                >
+                  Reset
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={isBusy || !workspaceRoot}
+                  onClick={handleApplyModel}
+                  className="gap-2"
+                >
+                  <Check className="w-4 h-4" />
+                  Apply & Re-index
+                </Button>
+              </div>
             </div>
-          </div>
+          )}
 
-          <div className="flex items-center gap-4">
-            <Button
-              type="button"
-              variant="default"
-              disabled={isReindexing || !workspaceRoot}
-              onClick={handleApplyModel}
-              className="font-semibold text-xs py-2 px-4 flex items-center gap-2 cursor-pointer shadow-sm"
-            >
-              {isReindexing ? (
-                <>
-                  <LoaderCircle className="w-3.5 h-3.5 animate-spin" />
-                  <span>Re-indexing...</span>
-                </>
-              ) : (
-                <>
-                  <Database className="w-3.5 h-3.5" />
-                  <span>Apply & Re-index Database</span>
-                </>
-              )}
-            </Button>
-            {!workspaceRoot && (
-              <span className="text-xs text-destructive font-medium">
-                Please open a workspace folder to enable re-indexing.
-              </span>
-            )}
-          </div>
-        </div>
-      )}
-
-      {isReindexing && (
-        <div className="absolute bottom-0 left-0 right-0 w-full bg-background/95 border border-border/80 rounded-lg shadow-md p-3 z-20 flex flex-col gap-2 backdrop-blur-sm">
-          <div className="flex items-center justify-between text-[11px] font-medium">
-            <span className="text-foreground flex items-center gap-1.5">
-              <LoaderCircle className="w-3.5 h-3.5 animate-spin text-primary" />
-              {downloadPercent !== null
-                ? `Downloading model weights...`
-                : "Re-indexing workspace files..."}
-            </span>
-            <span className="text-muted-foreground font-semibold">
-              {downloadPercent !== null ? `${downloadPercent}%` : "Please wait..."}
-            </span>
-          </div>
-          <div className="w-full bg-secondary h-2 rounded-full overflow-hidden">
-            <div
-              className={`h-full transition-all duration-300 ${
-                downloadPercent !== null ? "bg-primary" : "bg-primary/60 animate-pulse"
-              }`}
-              style={{
-                width: downloadPercent !== null ? `${downloadPercent}%` : "100%",
-              }}
-            />
-          </div>
+          {(isReindexing || downloadPercent !== null) && (
+            <div className="w-full bg-background/95 px-8 py-3 flex flex-col gap-2 backdrop-blur-sm">
+              <div className="flex items-center justify-between text-[11px] font-medium">
+                <span className="text-foreground flex items-center gap-1.5">
+                  <LoaderCircle className="w-3.5 h-3.5 animate-spin text-primary" />
+                  {downloadPercent !== null
+                    ? `Downloading model weights...`
+                    : "Re-indexing workspace files..."}
+                </span>
+                <span className="text-muted-foreground font-semibold">
+                  {downloadPercent !== null ? `${downloadPercent}%` : "Please wait..."}
+                </span>
+              </div>
+              <div className="w-full bg-secondary h-2 rounded-full overflow-hidden">
+                <div
+                  className={`h-full transition-all duration-300 ${downloadPercent !== null ? "bg-primary" : "bg-primary/60 animate-pulse"
+                    }`}
+                  style={{
+                    width: downloadPercent !== null ? `${downloadPercent}%` : "100%",
+                  }}
+                />
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

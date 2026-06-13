@@ -571,6 +571,7 @@ pub fn run() {
             knowledge_base::commands::get_model_download_size,
             knowledge_base::commands::get_cache_dir,
             knowledge_base::commands::download_embedding_model,
+            knowledge_base::commands::delete_embedding_model,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

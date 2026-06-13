@@ -280,6 +280,128 @@ Because `sqlite-vec` virtual tables (vec0) do not support changing embedding dim
 
 ---
 
+## Visual Architecture Flows
+
+### 1) Indexing & Embedding Pipeline (Inserting Vectors)
+This flow occurs when you open a workspace, perform a scan, or modify a markdown file.
+
+```text
+[ Markdown File on Disk ] (.md)
+          │
+          ▼
+┌────────────────────────────────────────────────────────┐
+│ Rust Backend: Markdown Parsing & Section Splitting     │
+│ - Reads file content and parses headings               │
+│ - Splits file into section-level documents             │
+│ - e.g., "file.md" -> "file.md#section:introduction"    │
+└────────────────────────────────────────────────────────┘
+          │
+          ▼
+┌────────────────────────────────────────────────────────┐
+│ Rust Backend: Text Chunking                            │
+│ - Splits section text into small token segments        │
+│   (using a sliding window to keep context intact)      │
+└────────────────────────────────────────────────────────┘
+          │
+          ▼
+┌────────────────────────────────────────────────────────┐
+│ Active Embedder Provider (Dynamic)                     │
+│                                                        │
+│   [ Local Model (OFFLINE) ]   [ Remote Model (ONLINE) ]│
+│   - fastembed + ONNX Runtime  - OpenAI Embedding API  │
+│   - Runs locally on CPU/GPU   - Requires API Key      │
+└────────────────────────────────────────────────────────┘
+          │
+          ▼
+   [ Float Vector: e.g., 384 or 1536 float dimensions ]
+          │
+          ▼
+┌────────────────────────────────────────────────────────┐
+│ SQLite Database (.db file)                             │
+│                                                        │
+│  ┌───────────────────────┐   ┌──────────────────────┐  │
+│  │   documents Table     │   │ documents_embeddings │  │
+│  │ (id, title, content)  │   │  (sqlite-vec Table)  │  │
+│  │                       │   │   [chunk_id, vector] │  │
+│  └───────────┬───────────┘   └───────────┬──────────┘  │
+│              │                           │             │
+│              └───────────── JOIN ────────┘             │
+└────────────────────────────────────────────────────────┘
+```
+
+### 2) Query-Time Semantic Search Flow
+This flow occurs when a user inputs a search term in the UI to find relevant notes.
+
+```text
+  [ User Types Search Query ] (e.g., "how to authenticate")
+              │
+              ▼
+┌────────────────────────────────────────────────────────┐
+│ Frontend React UI                                      │
+│ - Invokes Tauri command: `search_similar(query)`       │
+└────────────────────────────────────────────────────────┘
+              │ (Tauri IPC Bridge)
+              ▼
+┌────────────────────────────────────────────────────────┐
+│ Rust Backend: Query Vectorization                      │
+│ - Sends search text to the ACTIVE Embedder             │
+│ - Obtains query vector: [ 0.12, -0.04, 0.89, ... ]     │
+└────────────────────────────────────────────────────────┘
+              │
+              ▼
+┌────────────────────────────────────────────────────────┐
+│ SQLite Search (sqlite-vec K-Nearest Neighbors)         │
+│                                                        │
+│   SELECT chunk_id, distance                            │
+│   FROM documents_embeddings                            │
+│   WHERE embedding MATCH :query_vector                  │
+│   ORDER BY distance                                    │
+│   LIMIT :limit                                         │
+└────────────────────────────────────────────────────────┘
+              │
+              ▼
+┌────────────────────────────────────────────────────────┐
+│ Metadata Fetch                                         │
+│ - Joins matching chunk IDs with standard `documents`   │
+│   table to resolve full path, title, and preview.      │
+└────────────────────────────────────────────────────────┘
+              │
+              ▼
+┌────────────────────────────────────────────────────────┐
+│ Frontend UI                                            │
+│ - Receives ranked list of matching documents.          │
+│ - Renders results; clicking opens file to target line. │
+└────────────────────────────────────────────────────────┘
+```
+
+### 3) Model Context Protocol (MCP) Integration Flow
+The Model Context Protocol allows external AI assistants (like Claude Desktop or other dev agents) to retrieve knowledge from your database.
+
+```text
+┌────────────────────────────────────────────────────────┐
+│ External AI Client (e.g. Claude Desktop, VS Code)      │
+└────────────────────────────────────────────────────────┘
+       │                              ▲
+       │ 1) Tool Call Request         │ 4) Markdown Context
+       │ (e.g., "search_knowledge")   │    (JSON Payload)
+       ▼                              │
+┌────────────────────────────────────────────────────────┐
+│ Depdok MCP Server (Process running in background)      │
+│ - Listens to standard input/output (stdio JSON-RPC)    │
+└────────────────────────────────────────────────────────┘
+       │                              ▲
+       │ 2) Internal DB Query         │ 3) Raw Text Data
+       │    or Semantic Search        │
+       ▼                              │
+┌────────────────────────────────────────────────────────┐
+│ SQLite Database (`app.db` or `knowledge_base.db`)       │
+│ - Runs Full-Text Search (FTS5)                         │
+│ - Runs Vector Search (sqlite-vec)                      │
+└────────────────────────────────────────────────────────┘
+```
+
+---
+
 ## Operational Notes
 
 - Default provider is local fastembed (offline after first model download).

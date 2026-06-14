@@ -232,14 +232,26 @@ fn get_mcp_server_paths(app: tauri::AppHandle) -> Vec<String> {
     #[cfg(not(target_os = "windows"))]
     let binary_name = "depdok-mcp-server";
 
-    // In dev mode, check the target/debug directory as well
+    // In dev mode, check the target/debug and target/release directories as well
     #[cfg(debug_assertions)]
     {
         if let Ok(current_dir) = std::env::current_dir() {
             let debug_binary1 = current_dir.join("target").join("debug").join(binary_name);
             let debug_binary2 = current_dir.join("src-tauri").join("target").join("debug").join(binary_name);
+            let release_binary1 = current_dir.join("target").join("release").join(binary_name);
+            let release_binary2 = current_dir.join("src-tauri").join("target").join("release").join(binary_name);
             candidates.push(debug_binary1.to_string_lossy().to_string());
             candidates.push(debug_binary2.to_string_lossy().to_string());
+            candidates.push(release_binary1.to_string_lossy().to_string());
+            candidates.push(release_binary2.to_string_lossy().to_string());
+        }
+    }
+
+    // Sibling of the current running executable
+    if let Ok(exe_path) = std::env::current_exe() {
+        if let Some(exe_dir) = exe_path.parent() {
+            let exe_dir_binary = exe_dir.join(binary_name);
+            candidates.push(exe_dir_binary.to_string_lossy().to_string());
         }
     }
 

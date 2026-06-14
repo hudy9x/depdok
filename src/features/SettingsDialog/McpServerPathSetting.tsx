@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
+import hljs from "highlight.js";
 import { Copy } from "lucide-react";
 import { toast } from "sonner";
+import "highlight.js/styles/github-dark.css";
 
 import { getMcpServerPaths } from "@/api-client/mcp";
 import { Button } from "@/components/ui/button";
@@ -43,7 +45,8 @@ export function McpServerPathSetting(): JSX.Element {
     };
   }, []);
 
-  const serverPath = paths[0] || "/absolute/path/to/depdok-mcp-server";
+  const isWindows = typeof navigator !== "undefined" && navigator.userAgent.toLowerCase().includes("win");
+  const serverPath = paths[0] || (isWindows ? "C:\\absolute\\path\\to\\depdok-mcp-server.exe" : "/absolute/path/to/depdok-mcp-server");
 
   const getAgentConfig = (
     tab: 'claude' | 'claudecode' | 'copilot' | 'gemini' | 'codex' | 'opencode',
@@ -54,7 +57,9 @@ export function McpServerPathSetting(): JSX.Element {
     switch (tab) {
       case 'claude':
         return {
-          path: "~/Library/Application Support/Claude/claude_desktop_config.json",
+          path: isWindows
+            ? "%APPDATA%\\Claude\\claude_desktop_config.json"
+            : "~/Library/Application Support/Claude/claude_desktop_config.json",
           json: JSON.stringify(
             {
               mcpServers: {
@@ -167,12 +172,12 @@ export function McpServerPathSetting(): JSX.Element {
   };
 
   const agents = [
-    { id: "claude", name: "Claude Desktop" },
-    { id: "claudecode", name: "Claude Code" },
-    { id: "copilot", name: "Copilot" },
-    { id: "gemini", name: "Gemini" },
-    { id: "codex", name: "Codex" },
-    { id: "opencode", name: "OpenCode" },
+    { id: "claude", name: "Claude Desktop", icon: "/ai-icons/claude-color.svg" },
+    { id: "claudecode", name: "Claude Code", icon: "/ai-icons/claudecode-color.svg" },
+    { id: "copilot", name: "Copilot", icon: "/ai-icons/copilot-color.svg" },
+    { id: "gemini", name: "Gemini", icon: "/ai-icons/gemini-color.svg" },
+    { id: "codex", name: "Codex", icon: "/ai-icons/openai.webp" },
+    { id: "opencode", name: "OpenCode", icon: "/ai-icons/opencode.webp" },
   ] as const;
 
   return (
@@ -194,12 +199,13 @@ export function McpServerPathSetting(): JSX.Element {
               <button
                 key={agent.id}
                 type="button"
-                className={`flex-1 rounded-md py-1.5 text-xs font-medium transition-all cursor-pointer ${activeTab === agent.id
+                className={`flex-1 rounded-md py-1.5 text-xs font-medium transition-all cursor-pointer flex items-center justify-center gap-1.5 ${activeTab === agent.id
                   ? "bg-background text-foreground shadow-sm font-semibold"
                   : "text-muted-foreground hover:text-foreground hover:bg-background/20"
                   }`}
                 onClick={() => setActiveTab(agent.id)}
               >
+                <img src={agent.icon} alt={agent.name} className="h-3.5 w-3.5 object-contain shrink-0" />
                 {agent.name}
               </button>
             ))}
@@ -237,9 +243,14 @@ export function McpServerPathSetting(): JSX.Element {
 
                 </Button>
               </div>
-              <div className="overflow-x-auto py-2 px-3 w-full whitespace-pre-wrap">
-                {currentConfig.json}
-              </div>
+              <pre className="overflow-x-auto py-2 px-3 w-full whitespace-pre-wrap font-mono">
+                <code
+                  className="hljs language-json bg-transparent p-0 block"
+                  dangerouslySetInnerHTML={{
+                    __html: hljs.highlight(currentConfig.json, { language: "json" }).value,
+                  }}
+                />
+              </pre>
             </div>
           </div>
         </div>

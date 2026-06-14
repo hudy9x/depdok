@@ -11,7 +11,7 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "app-dev": "tauri dev",
-    "app-build": "tauri build",
+    "app-build": "cargo build --manifest-path src-tauri/Cargo.toml --release --bin depdok-mcp-server && tauri build",
     "app-upver": "node scripts/generate-changelog.js && node scripts/version-upgrade.js",
     "app-sign": "rm ./key && rm ./key.pub && pnpm tauri signer generate -w key",
     "rename": "node scripts/rename-app.js"

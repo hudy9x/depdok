@@ -102,6 +102,16 @@ jobs:
       # End ----------------------------------
 
 
+      # Build MCP server
+      - name: Build MCP server
+        shell: bash
+        run: |
+          TARGET_FLAG=""
+          if [[ "${{ matrix.args }}" =~ --target\ ([a-zA-Z0-9_-]+) ]]; then
+            TARGET_FLAG="--target ${BASH_REMATCH[1]}"
+          fi
+          cargo build --manifest-path src-tauri/Cargo.toml --release --bin depdok-mcp-server $TARGET_FLAG
+
       # Build and upload release
       - uses: tauri-apps/tauri-action@v0
         name: Build and upload release

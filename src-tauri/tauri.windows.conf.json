@@ -1,7 +1,0 @@
-{
-  "bundle": {
-    "resources": {
-      "target/release/depdok-mcp-server.exe": "depdok-mcp-server.exe"
-    }
-  }
-}

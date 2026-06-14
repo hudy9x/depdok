@@ -63,3 +63,11 @@ objc2 = "0.6"
 default = []
 # Enable the OpenAI embedding provider (adds network calls; requires an API key at runtime)
 openai-embeddings = []
+
+[profile.release]
+opt-level = "z"      # Optimize for size
+lto = true           # Enable Link-Time Optimization (LTO)
+codegen-units = 1    # Maximize LTO optimization
+panic = "abort"      # Remove panic unwinding to reduce binary size
+strip = true         # Strip symbols and debuginfo automatically
+

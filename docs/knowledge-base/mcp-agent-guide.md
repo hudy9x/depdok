@@ -177,38 +177,6 @@ Return all documents and edges belonging to a project group — useful for under
 
 ### Write tools (require `--write-enabled`)
 
-#### `kb_upsert_document`
-Create or update a document and regenerate its vector embeddings.
-
-```json
-{
-  "id": "file:/Users/me/project/auth.md",   // optional; generated if omitted
-  "title": "Authentication flow",            // required
-  "content": "# Auth\n...",                  // required (Markdown)
-  "groupIds": ["my-project"]                 // optional
-}
-```
-
-Returns the document ID.
-
----
-
-#### `kb_index_markdown_document_sections`
-Split a Markdown file into heading-based sections and index each one separately. This gives finer-grained search results than indexing the whole file.
-
-```json
-{
-  "filePath": "/Users/me/project/auth.md",   // required
-  "documentTitle": "Authentication flow",     // required
-  "content": "# Auth\n...",                   // required (full file content)
-  "groupIds": ["my-project"]                  // optional
-}
-```
-
-Returns the number of sections indexed.
-
----
-
 #### `kb_connect_documents`
 Create a directed edge between two documents, recording a semantic relationship.
 
@@ -237,14 +205,6 @@ Delete a document, its embeddings, and any edges connected to it.
 
 ## Typical agent workflows
 
-### Index a project
-```
-1. Read each .md file in the project folder
-2. Call kb_index_markdown_document_sections for each file
-   (pass groupIds: ["<project-name>"] to group them together)
-3. Use kb_search_similar to verify the index is populated
-```
-
 ### Explore relationships
 ```
 1. Call kb_get_project_graph to get the full node/edge map
@@ -265,4 +225,5 @@ Delete a document, its embeddings, and any edges connected to it.
 
 - The MCP server communicates over **stdin / stdout** using JSON-RPC 2.0 (the standard MCP `stdio` transport).
 - Embeddings are generated locally using [FastEmbed](https://github.com/Anush008/fastembed-rs) — no network calls are required for indexing or search.
-- The same SQLite database is shared between the Depdok desktop app and the MCP server, so documents indexed by the agent appear immediately in the app's Knowledge Graph view.
+- The same SQLite database is shared between the Depdok desktop app and the MCP server, so any modifications or connections appear immediately in the app's Knowledge Graph view.
+

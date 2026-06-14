@@ -250,42 +250,6 @@ fn build_tool_list(write_enabled: bool) -> Vec<ToolDefinition> {
     if write_enabled {
         tools.extend([
             ToolDefinition {
-                name: "kb_upsert_document",
-                description: "Create or update a document and regenerate its embeddings.",
-                input_schema: json!({
-                    "type": "object",
-                    "properties": {
-                        "id": {"type": ["string", "null"]},
-                        "title": {"type": "string"},
-                        "content": {"type": "string"},
-                        "groupIds": {
-                            "type": "array",
-                            "items": {"type": "string"}
-                        }
-                    },
-                    "required": ["title", "content"],
-                    "additionalProperties": false
-                }),
-            },
-            ToolDefinition {
-                name: "kb_index_markdown_document_sections",
-                description: "Split markdown into sections and index each section as a document.",
-                input_schema: json!({
-                    "type": "object",
-                    "properties": {
-                        "filePath": {"type": "string"},
-                        "documentTitle": {"type": "string"},
-                        "content": {"type": "string"},
-                        "groupIds": {
-                            "type": "array",
-                            "items": {"type": "string"}
-                        }
-                    },
-                    "required": ["filePath", "documentTitle", "content"],
-                    "additionalProperties": false
-                }),
-            },
-            ToolDefinition {
                 name: "kb_connect_documents",
                 description: "Create a directed edge between two documents.",
                 input_schema: json!({
@@ -408,52 +372,6 @@ async fn handle_tool_call(state: &ServerState, params: Value) -> Result<Value, S
                 "structuredContent": graph,
             }))
         }
-        "kb_upsert_document" => {
-            ensure_writes_enabled(state)?;
-            let id = optional_string(&arguments, "id");
-            let title = required_string(&arguments, "title")?;
-            let content = required_string(&arguments, "content")?;
-            let group_ids = optional_string_array(&arguments, "groupIds");
-            let document_id = state.kb_manager.upsert_document(
-                id,
-                title,
-                content,
-                if group_ids.is_empty() {
-                    vec![state.config.default_group_id.clone()]
-                } else {
-                    group_ids
-                },
-            ).await?;
-
-            let document_id_text = document_id.clone();
-
-            Ok(json!({
-                "content": [text_content(&document_id_text)],
-                "structuredContent": {"id": document_id},
-            }))
-        }
-        "kb_index_markdown_document_sections" => {
-            ensure_writes_enabled(state)?;
-            let file_path = required_string(&arguments, "filePath")?;
-            let document_title = required_string(&arguments, "documentTitle")?;
-            let content = required_string(&arguments, "content")?;
-            let group_ids = optional_string_array(&arguments, "groupIds");
-            let indexed_count = state.kb_manager.index_markdown_document_sections(
-                file_path,
-                document_title,
-                content,
-                if group_ids.is_empty() {
-                    vec![state.config.default_group_id.clone()]
-                } else {
-                    group_ids
-                },
-            ).await?;
-
-            Ok(json!({
-                "content": [text_content(&indexed_count.to_string())],
-                "structuredContent": {"indexedCount": indexed_count},
-            }))
-        }
         "kb_connect_documents" => {
             ensure_writes_enabled(state)?;
             let source_id = required_string(&arguments, "sourceId")?;
@@ -523,20 +441,6 @@ fn optional_usize(arguments: &Value, key: &str) -> Option<usize> {
     arguments.get(key).and_then(Value::as_u64).map(|value| value as usize)
 }
 
-fn optional_string_array(arguments: &Value, key: &str) -> Vec<String> {
-    arguments
-        .get(key)
-        .and_then(Value::as_array)
-        .map(|items| {
-            items
-                .iter()
-                .filter_map(Value::as_str)
-                .map(|value| value.to_string())
-                .collect()
-        })
-        .unwrap_or_default()
-}
-
 fn text_content(text: &str) -> TextContent<'_> {
     TextContent { kind: "text", text }
 }
@@ -582,9 +486,9 @@ mod tests {
         let tools = build_tool_list(true);
         let names: BTreeMap<_, _> = tools.into_iter().map(|tool| (tool.name, tool.description)).collect();
 
-        assert!(names.contains_key("kb_upsert_document"));
-        assert!(names.contains_key("kb_index_markdown_document_sections"));
         assert!(names.contains_key("kb_connect_documents"));
         assert!(names.contains_key("kb_delete_document"));
+        assert!(!names.contains_key("kb_upsert_document"));
+        assert!(!names.contains_key("kb_index_markdown_document_sections"));
     }
 }

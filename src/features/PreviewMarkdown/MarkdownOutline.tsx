@@ -180,7 +180,7 @@ export const MarkdownOutlineWrapper: React.FC<{
   if (!visible) return null;
 
   return (
-    <div className="w-48 xl:w-64 border-l rounded-tl-md rounded-bl-md border-border bg-muted h-full flex-shrink-0 flex flex-col transition-all duration-300 ease-in-out">
+    <div className="w-48 xl:w-64 border-l rounded-tl-md rounded-bl-md border-border bg-layout-chrome h-full flex flex-col transition-all duration-300 ease-in-out">
       <div className="p-2 py-1 border-b border-border flex items-center justify-between shrink-0">
         <span className="text-sm font-medium text-muted-foreground pl-2">Outline</span>
         <Button

@@ -95,6 +95,12 @@ When adding new shadcn/ui components, use: `pnpm dlx shadcn@latest add [componen
 - Page components should be placed in `src/pages/`
 - Use React Router's data loading patterns where applicable
 
+## Knowledge Base, Embedding Models, & MCP
+This repository includes a semantic knowledge base, support for local & remote embedding models, and a Model Context Protocol (MCP) server:
+- **Knowledge Base & Semantic Search**: Uses `sqlite-vec` in the Rust backend for vector embeddings and KNN search, with Markdown split at the section/heading level. Documentation on schema, query flows, and reindexing is at [docs/knowledge-base/knowledge-base.md](file:///Users/hudy/ws/depdok/docs/knowledge-base/knowledge-base.md).
+- **Dynamic Embedding Models**: Supports offline local models (e.g., E5 multilingual, BGE Chinese/English, nomic-embed) and online remote models (OpenAI). Switching models triggers a vector database wipe and re-indexing. Details are in [docs/knowledge-base/knowledge-base.md](file:///Users/hudy/ws/depdok/docs/knowledge-base/knowledge-base.md#dynamic-embedding-models).
+- **Depdok MCP Server**: Exposes tools for other AI agents to interact with the workspace and the knowledge base. Run configurations, setup, and tools documentation is at [docs/knowledge-base/mcp-agent-guide.md](file:///Users/hudy/ws/depdok/docs/knowledge-base/mcp-agent-guide.md).
+
 ## Tooling rules
 - Cursor / Copilot rules: no `.cursor` or `.cursorrules` and no `.github/copilot-instructions.md` were found in repo — none to enforce.
 

@@ -475,57 +475,62 @@
 }
 
 /* HLJS Overrides */
-.hljs {
+
+.code-block pre > [data-node-view-content] {
+  font-size: 0.8rem;
+}
+
+.prose .hljs {
   background: transparent !important;
   color: var(--code-text) !important;
 }
 
-[class^="hljs"] {
-  font-size: 1em;
+.prose [class^="hljs"] {
+  /* font-size: 1em; */
 }
 
-.hljs-keyword,
-.hljs-selector-tag,
-.hljs-built_in,
-.hljs-name,
-.hljs-tag {
+.prose .hljs-keyword,
+.prose .hljs-selector-tag,
+.prose .hljs-built_in,
+.prose .hljs-name,
+.prose .hljs-tag {
   color: var(--code-keyword) !important;
 }
 
-.hljs-comment,
-.hljs-quote {
+.prose .hljs-comment,
+.prose .hljs-quote {
   color: var(--code-comment) !important;
 }
 
-.hljs-string,
-.hljs-literal,
-.hljs-type,
-.hljs-symbol,
-.hljs-bullet,
-.hljs-addition {
+.prose .hljs-string,
+.prose .hljs-literal,
+.prose .hljs-type,
+.prose .hljs-symbol,
+.prose .hljs-bullet,
+.prose .hljs-addition {
   color: var(--code-string) !important;
 }
 
-.hljs-title,
-.hljs-section,
-.hljs-function {
+.prose .hljs-title,
+.prose .hljs-section,
+.prose .hljs-function {
   color: var(--code-function) !important;
 }
 
-.hljs-attr,
-.hljs-attribute,
-.hljs-variable,
-.hljs-template-variable {
+.prose .hljs-attr,
+.prose .hljs-attribute,
+.prose .hljs-variable,
+.prose .hljs-template-variable {
   color: var(--code-variable) !important;
 }
 
-.hljs-number,
-.hljs-deletion {
+.prose .hljs-number,
+.prose .hljs-deletion {
   color: var(--code-number) !important;
 }
 
-.hljs-operator,
-.hljs-punctuation {
+.prose .hljs-operator,
+.prose .hljs-punctuation {
   color: var(--code-operator) !important;
 }
 

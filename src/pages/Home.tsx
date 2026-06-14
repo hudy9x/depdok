@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import { createTabAtom, createUntitledTabAtom, tabsAtom } from "@/stores/TabStore";
 import { openWorkspaceAtom, recentFoldersAtom } from "@/features/FileExplorer/store";
 import { openFolderDialog } from "@/features/FileExplorer/api";
+import { HomeTitlebar } from "@/features/Titlebar";
 
 const supportedFileTypes = ["md", "mmd", "txt", "pu", "format", "puml", "plantuml", "todo", "excalidraw", "logger"];
 
@@ -102,14 +103,16 @@ export default function Home() {
   };
 
   return (
-    <main
-      className={cn(
-        "h-screen w-screen flex flex-col items-center justify-center bg-layout-chrome",
-        "transition-opacity duration-600 delay-[200ms] ease-in-out fill-mode-forwards",
-        isVisible ? "opacity-100" : "opacity-0"
-      )}
-    >
-      <Empty>
+    <div className="h-screen w-screen flex flex-col overflow-hidden bg-layout-chrome">
+      <HomeTitlebar />
+      <main
+        className={cn(
+          "flex-1 flex flex-col items-center justify-center",
+          "transition-opacity duration-600 delay-[200ms] ease-in-out fill-mode-forwards",
+          isVisible ? "opacity-100" : "opacity-0"
+        )}
+      >
+        <Empty>
         <EmptyHeader>
           <EmptyMedia>
             <img src="/app-icon.png" alt="App Icon" className="w-24 h-24 rounded-none" />
@@ -167,6 +170,7 @@ export default function Home() {
           </div>
         )}
       </Empty>
-    </main>
+      </main>
+    </div>
   );
 }

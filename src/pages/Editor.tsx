@@ -34,6 +34,7 @@ import { ContentSearchDialog } from "@/features/ContentSearchDialog";
 import { BranchSelectorDialog } from "@/features/BranchSelector";
 import { useGlobalShortcuts } from "@/hooks/useGlobalShortcuts";
 import { EditorViewMode } from "@/features/EditorViewMode";
+import { isKnowledgeGraphFile } from "@/lib/knowledgeGraph";
 
 
 
@@ -42,7 +43,7 @@ export default function Editor() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const editorState = useAtomValue(editorStateAtom);
-  const [viewMode] = useAtom(viewModeAtom);
+  const [viewMode, setViewMode] = useAtom(viewModeAtom);
   const loadFileMetadata = useSetAtom(loadFileMetadataAtom);
   const activeTab = useAtomValue(activeTabAtom);
   const createTab = useSetAtom(createTabAtom);
@@ -50,6 +51,9 @@ export default function Editor() {
   const [tabs] = useAtom(tabsAtom);
   const [isFileExplorerVisible, setIsFileExplorerVisible] = useAtom(isFileExplorerVisibleAtom);
   const workspaceRoot = useAtomValue(workspaceRootAtom);
+  const layoutGroupId = workspaceRoot 
+    ? `depdok-editor-layout-${workspaceRoot.replace(/[^a-zA-Z0-9]/g, '_')}` 
+    : 'depdok-editor-layout-default';
   const fileExplorerPanelRef = useRef<ImperativePanelHandle>(null);
 
   const [showSettings, setShowSettings] = useState(false);
@@ -68,9 +72,19 @@ export default function Editor() {
 
   const filePath = searchParams.get("path") || "";
   const isInitialMount = useRef(true);
+  const isFirstExplorerSync = useRef(true);
+
+  // Reset first sync flag when workspaceRoot changes (e.g. on mount or when loading new project layout)
+  useEffect(() => {
+    isFirstExplorerSync.current = true;
+  }, [workspaceRoot]);
 
   // Control panel collapse/expand
   useEffect(() => {
+    if (isFirstExplorerSync.current) {
+      isFirstExplorerSync.current = false;
+      return;
+    }
     if (fileExplorerPanelRef.current) {
       if (isFileExplorerVisible) {
         fileExplorerPanelRef.current.expand();
@@ -124,6 +138,12 @@ export default function Editor() {
 
   const currentFilePath = activeTab?.filePath;
 
+  useEffect(() => {
+    if (currentFilePath && isKnowledgeGraphFile(currentFilePath) && viewMode !== 'preview-only') {
+      setViewMode('preview-only');
+    }
+  }, [currentFilePath, viewMode, setViewMode]);
+
   if (!currentFilePath && !workspaceRoot) {
     return null;
   }
@@ -151,7 +171,7 @@ export default function Editor() {
       <div className="w-full h-full flex bg-layout-chrome overflow-hidden">
         {/* 2. Main Content pane with Resizable Sidebar & Editor */}
         <div className="flex-1 h-full min-w-0">
-          <PanelGroup direction="horizontal" id="editor-layout" autoSaveId="depdok-editor-layout">
+          <PanelGroup direction="horizontal" id="editor-layout" autoSaveId={layoutGroupId}>
             {/* Left Sidebar Pane: Explorer & accordions */}
             <Panel
               ref={fileExplorerPanelRef}
@@ -175,7 +195,7 @@ export default function Editor() {
             </Panel>
 
             {isFileExplorerVisible && (
-              <PanelResizeHandle className="w-[1px] bg-border hover:bg-primary/50 transition-colors" />
+              <PanelResizeHandle className="w-px bg-border hover:bg-primary/50 transition-colors" />
             )}
 
             {/* Right Pane: Tabs + Breadcrumbs + Monaco/Preview Panel */}

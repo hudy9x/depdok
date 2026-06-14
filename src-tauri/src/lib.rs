@@ -48,6 +48,8 @@ mod commands;
 mod menu;
 mod license_manager;
 mod keychain;
+mod knowledge_base;
+pub mod mcp_server;
 #[cfg(target_os = "macos")]
 mod dock;
 
@@ -187,6 +189,174 @@ fn get_grace_period_info() -> Result<license_manager::GracePeriodInfo, String> {
     license_manager::get_grace_period_info()
 }
 
+#[tauri::command]
+fn get_mcp_server_paths(app: tauri::AppHandle) -> Vec<String> {
+    let mut candidates = Vec::new();
+
+    // macOS specific candidates
+    #[cfg(target_os = "macos")]
+    {
+        candidates.push("/Applications/Depdok.app/Contents/MacOS/depdok-mcp-server".to_string());
+        if let Some(home) = std::env::var_os("HOME") {
+            let home_path = std::path::PathBuf::from(home)
+                .join("Applications")
+                .join("Depdok.app")
+                .join("Contents")
+                .join("MacOS")
+                .join("depdok-mcp-server");
+            candidates.push(home_path.to_string_lossy().to_string());
+        }
+    }
+
+    // Windows specific candidates
+    #[cfg(target_os = "windows")]
+    {
+        if let Some(local_app_data) = std::env::var_os("LOCALAPPDATA") {
+            let path = std::path::PathBuf::from(local_app_data)
+                .join("Programs")
+                .join("Depdok")
+                .join("depdok-mcp-server.exe");
+            candidates.push(path.to_string_lossy().to_string());
+        }
+        if let Some(program_files) = std::env::var_os("ProgramFiles") {
+            let path = std::path::PathBuf::from(program_files)
+                .join("Depdok")
+                .join("depdok-mcp-server.exe");
+            candidates.push(path.to_string_lossy().to_string());
+        }
+    }
+
+    // Resource directory candidate (both platforms)
+    #[cfg(target_os = "windows")]
+    let binary_name = "depdok-mcp-server.exe";
+    #[cfg(not(target_os = "windows"))]
+    let binary_name = "depdok-mcp-server";
+
+    // In dev mode, check the target/debug and target/release directories as well
+    #[cfg(debug_assertions)]
+    {
+        if let Ok(current_dir) = std::env::current_dir() {
+            let debug_binary1 = current_dir.join("target").join("debug").join(binary_name);
+            let debug_binary2 = current_dir.join("src-tauri").join("target").join("debug").join(binary_name);
+            let release_binary1 = current_dir.join("target").join("release").join(binary_name);
+            let release_binary2 = current_dir.join("src-tauri").join("target").join("release").join(binary_name);
+            candidates.push(debug_binary1.to_string_lossy().to_string());
+            candidates.push(debug_binary2.to_string_lossy().to_string());
+            candidates.push(release_binary1.to_string_lossy().to_string());
+            candidates.push(release_binary2.to_string_lossy().to_string());
+        }
+    }
+
+    // Sibling of the current running executable
+    if let Ok(exe_path) = std::env::current_exe() {
+        if let Some(exe_dir) = exe_path.parent() {
+            let exe_dir_binary = exe_dir.join(binary_name);
+            candidates.push(exe_dir_binary.to_string_lossy().to_string());
+        }
+    }
+
+    if let Ok(resource_dir) = app.path().resource_dir() {
+        let resource_binary = resource_dir.join(binary_name);
+        candidates.push(resource_binary.to_string_lossy().to_string());
+    }
+
+    candidates
+        .into_iter()
+        .filter(|path| {
+            let p = std::path::Path::new(path);
+            p.exists() && p.metadata().map(|m| m.len() > 0).unwrap_or(false)
+        })
+        .collect()
+}
+
+#[tauri::command]
+fn check_mcp_config_status(app: tauri::AppHandle, agent_id: String, workspace_root: Option<String>) -> bool {
+    let home_dir = app.path().home_dir().ok();
+    
+    // Check helper
+    let file_contains_depdok = |path: &std::path::Path| -> bool {
+        if !path.exists() {
+            return false;
+        }
+        if let Ok(content) = std::fs::read_to_string(path) {
+            content.contains("depdok")
+        } else {
+            false
+        }
+    };
+
+    match agent_id.as_str() {
+        "claude" => {
+            if let Some(home) = home_dir {
+                #[cfg(target_os = "windows")]
+                let path = app.path().app_config_dir().ok()
+                    .map(|p| p.join("Claude/claude_desktop_config.json"))
+                    .unwrap_or_else(|| home.join("AppData/Roaming/Claude/claude_desktop_config.json"));
+                
+                #[cfg(not(target_os = "windows"))]
+                let path = home.join("Library/Application Support/Claude/claude_desktop_config.json");
+                
+                return file_contains_depdok(&path);
+            }
+            false
+        }
+        "claudecode" => {
+            let mut configured = false;
+            if let Some(ref home) = home_dir {
+                let path = home.join(".claude.json");
+                configured = configured || file_contains_depdok(&path);
+            }
+            if let Some(ref root) = workspace_root {
+                let path = std::path::PathBuf::from(root).join(".mcp.json");
+                configured = configured || file_contains_depdok(&path);
+            }
+            configured
+        }
+        "copilot" => {
+            let mut configured = false;
+            if let Some(ref home) = home_dir {
+                let path = home.join(".copilot/mcp-config.json");
+                configured = configured || file_contains_depdok(&path);
+            }
+            if let Some(ref root) = workspace_root {
+                let path = std::path::PathBuf::from(root).join(".vscode/mcp.json");
+                configured = configured || file_contains_depdok(&path);
+            }
+            configured
+        }
+        "gemini" => {
+            let mut configured = false;
+            if let Some(ref home) = home_dir {
+                let path = home.join(".gemini/settings.json");
+                configured = configured || file_contains_depdok(&path);
+            }
+            if let Some(ref root) = workspace_root {
+                let path = std::path::PathBuf::from(root).join(".vscode/mcp.json");
+                configured = configured || file_contains_depdok(&path);
+            }
+            configured
+        }
+        "codex" => {
+            let mut configured = false;
+            if let Some(ref root) = workspace_root {
+                let path1 = std::path::PathBuf::from(root).join(".vscode/mcp.json");
+                let path2 = std::path::PathBuf::from(root).join("codex-config.json");
+                configured = configured || file_contains_depdok(&path1) || file_contains_depdok(&path2);
+            }
+            configured
+        }
+        "opencode" => {
+            if let Some(ref root) = workspace_root {
+                let path = std::path::PathBuf::from(root).join("opencode.jsonc");
+                return file_contains_depdok(&path);
+            }
+            false
+        }
+        _ => false
+    }
+}
+
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // Load .env file (ignore errors if file doesn't exist)
@@ -203,6 +373,8 @@ pub fn run() {
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_store::Builder::default().build())
         .setup(|app| {
+            app.manage(knowledge_base::CurrentProjectGroup(Mutex::new(None)));
+
             // Initialize file watcher state
             app.manage(commands::file_watcher::init());
             
@@ -217,6 +389,18 @@ pub fn run() {
             
             // Initialize logger server state
             app.manage(commands::logger::LoggerServerState::new());
+
+            // Initialize knowledge base (SQLite + embedding model)
+            match knowledge_base::init_knowledge_base(app.handle()) {
+                Ok((kb_state, embedder_state)) => {
+                    app.manage(kb_state);
+                    app.manage(embedder_state);
+                    println!("[knowledge_base] initialized successfully");
+                }
+                Err(e) => {
+                    eprintln!("[knowledge_base] init failed: {e}");
+                }
+            }
             
             // Load saved window size from store
             let store = app.store("store.json").expect("Failed to get store");
@@ -375,9 +559,31 @@ pub fn run() {
             remove_license_key,
             is_licensed,
             get_grace_period_info,
+            get_mcp_server_paths,
+            check_mcp_config_status,
             activate_license,
             commands::logger::start_logger_server,
             commands::logger::register_logger_channel,
+            knowledge_base::commands::insert_or_replace_document,
+            knowledge_base::commands::index_markdown_document_sections,
+            knowledge_base::commands::delete_document,
+            knowledge_base::commands::connect_to,
+            knowledge_base::commands::search_similar,
+            knowledge_base::commands::search_hybrid,
+            knowledge_base::commands::get_chunk_context,
+            knowledge_base::commands::get_document,
+            knowledge_base::commands::get_project_graph,
+            knowledge_base::commands::set_current_project_group,
+            knowledge_base::commands::test_database_query,
+            knowledge_base::commands::rebuild_all_edges,
+            knowledge_base::commands::get_current_embedding_model,
+            knowledge_base::commands::update_embedding_model_and_reindex,
+            knowledge_base::commands::get_downloaded_models,
+            knowledge_base::commands::reveal_cache_dir,
+            knowledge_base::commands::get_model_download_size,
+            knowledge_base::commands::get_cache_dir,
+            knowledge_base::commands::download_embedding_model,
+            knowledge_base::commands::delete_embedding_model,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

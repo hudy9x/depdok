@@ -3,14 +3,12 @@ import { useAtom, useSetAtom, useAtomValue } from 'jotai';
 import { useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
-  ArrowRight,
   Plus,
   Settings
 } from 'lucide-react';
 import { BsLayoutSidebar, BsLayoutSidebarInset } from 'react-icons/bs';
 
 import { Button } from '@/components/ui/button';
-import { toast } from 'sonner';
 
 import { SettingsDialog } from '@/features/SettingsDialog';
 import { workspaceRootAtom, isFileExplorerVisibleAtom } from '@/features/FileExplorer/store';
@@ -54,31 +52,23 @@ export function MacOSTitlebar() {
             title={isFileExplorerVisible ? "Collapse Sidebar (Cmd+B)" : "Expand Sidebar (Cmd+B)"}
           >
             {isFileExplorerVisible ? (
-              <BsLayoutSidebarInset className="h-3.5 w-3.5 text-primary" />
+              <BsLayoutSidebarInset className="h-3.5 w-3.5" />
             ) : (
               <BsLayoutSidebar className="h-3.5 w-3.5" />
             )}
           </Button>
         )}
-        {/* Back/Forward Navigation arrows */}
+
+        {/* Back Navigation arrow */}
         <div className="flex items-center gap-0.5">
           <Button
             variant="ghost"
             size="icon"
-            className="h-6 w-6 opacity-20 text-muted-foreground hover:text-foreground cursor-pointer"
-            onClick={() => toast.info("This feature is under development")}
-            title="Go Back"
+            className="h-6 w-6 text-muted-foreground hover:text-foreground cursor-pointer"
+            onClick={() => navigate('/home')}
+            title="Go Back to Home"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-6 w-6 opacity-20 text-muted-foreground hover:text-foreground cursor-pointer"
-            onClick={() => toast.info("This feature is under development")}
-            title="Go Forward"
-          >
-            <ArrowRight className="h-3.5 w-3.5" />
           </Button>
         </div>
 

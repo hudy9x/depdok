@@ -2,22 +2,23 @@ import { useState } from 'react';
 import { useAtom, useSetAtom, useAtomValue } from 'jotai';
 import { useNavigate } from 'react-router-dom';
 import { 
+  ChevronDown,
   ChevronLeft, 
   ChevronRight, 
-  PanelLeftClose, 
-  PanelLeft, 
   Plus, 
-  Settings, 
-  ChevronDown
+  Settings
 } from 'lucide-react';
+import { BsLayoutSidebar, BsLayoutSidebarInset } from 'react-icons/bs';
 
-import { TitlebarContainer } from './TitlebarContainer';
-import { WindowsButtons } from './WindowsButtons';
 import { Button } from '@/components/ui/button';
+
 import { SettingsDialog } from '@/features/SettingsDialog';
 import { workspaceRootAtom, isFileExplorerVisibleAtom } from '@/features/FileExplorer/store';
 import { createUntitledTabAtom } from '@/stores/TabStore';
 import { licensePopoverOpenAtom } from '@/stores/license-popover';
+
+import { TitlebarContainer } from './TitlebarContainer';
+import { WindowsButtons } from './WindowsButtons';
 
 export function WindowsTitlebar() {
   const navigate = useNavigate();
@@ -75,9 +76,9 @@ export function WindowsTitlebar() {
             title={isFileExplorerVisible ? "Collapse Sidebar (Cmd+B)" : "Expand Sidebar (Cmd+B)"}
           >
             {isFileExplorerVisible ? (
-              <PanelLeftClose className="h-3.5 w-3.5 text-primary" />
+              <BsLayoutSidebarInset className="h-3.5 w-3.5 text-primary" />
             ) : (
-              <PanelLeft className="h-3.5 w-3.5" />
+              <BsLayoutSidebar className="h-3.5 w-3.5" />
             )}
           </Button>
         )}

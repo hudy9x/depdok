@@ -1,5 +1,6 @@
 import { useAtom } from 'jotai';
-import { PanelLeftClose, PanelLeft } from 'lucide-react';
+import { BsLayoutSidebar, BsLayoutSidebarInset } from 'react-icons/bs';
+
 import { isFileExplorerVisibleAtom } from './store';
 
 export function ToggleButton() {
@@ -19,9 +20,9 @@ export function ToggleButton() {
       data-tauri-drag-region="false"
     >
       {isFileExplorerVisible ? (
-        <PanelLeftClose className="w-4 h-4 pointer-events-none" data-tauri-drag-region="false" />
+        <BsLayoutSidebarInset className="w-4 h-4 pointer-events-none" data-tauri-drag-region="false" />
       ) : (
-        <PanelLeft className="w-4 h-4 pointer-events-none" data-tauri-drag-region="false" />
+        <BsLayoutSidebar className="w-4 h-4 pointer-events-none" data-tauri-drag-region="false" />
       )}
     </button>
   );

@@ -2,25 +2,27 @@ import { useRef, useState } from "react";
 import { Editor } from "@tiptap/react";
 import {
   Bold,
-  Italic,
-  Strikethrough,
   Code,
+  FileCode,
   Heading1,
   Heading2,
   Heading3,
   Heading4,
+  Highlighter,
+  Image,
+  Italic,
+  Link,
   List,
   ListOrdered,
-  FileCode,
-  Image,
-  Trash,
-  Table as TableIcon,
-  Highlighter,
-  Link,
+  Strikethrough,
   Subscript,
   Superscript,
+  Table as TableIcon,
+  Trash,
   Unlink,
 } from "lucide-react";
+import { RiDoubleQuotesL } from "react-icons/ri";
+
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -176,6 +178,12 @@ export function FormatButtons({ editor }: FormatButtonsProps) {
         title="Code"
         icon={<Code className="w-4 h-4" />}
       />
+      <MenuButton
+        onClick={() => editor.chain().focus().toggleBlockquote().run()}
+        isActive={editor.isActive('blockquote')}
+        title="Quote"
+        icon={<RiDoubleQuotesL className="w-4 h-4" />}
+      />
       <div className="w-[1px] h-4 bg-border mx-1" />
       <MenuButton
         onClick={() => editor.chain().focus().toggleHighlight().run()}
@@ -240,6 +248,12 @@ export function BlockButtons({ editor }: FormatButtonsProps) {
         isActive={editor.isActive('orderedList')}
         title="Ordered List"
         icon={<ListOrdered className="w-4 h-4" />}
+      />
+      <MenuButton
+        onClick={() => editor.chain().focus().toggleBlockquote().run()}
+        isActive={editor.isActive('blockquote')}
+        title="Quote"
+        icon={<RiDoubleQuotesL className="w-4 h-4" />}
       />
       <MenuButton
         onClick={() => editor.chain().focus().toggleCodeBlock().run()}

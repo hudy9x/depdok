@@ -79,7 +79,7 @@ export function PanelSectionGroup({ children, storageKey, className }: PanelSect
       const deltaX = upEvent.clientX - startX;
       const adjustedDelta = direction === "left" ? -deltaX : deltaX;
       const finalWidth = Math.max(config.minWidth, Math.min(config.maxWidth, startWidth + adjustedDelta));
-      
+
       setPanelSizes((prev) => {
         const updated = { ...prev, [targetId]: finalWidth };
         if (storageKey) {
@@ -161,7 +161,7 @@ export function PanelSectionItem({
           if (map && typeof map[panelId] === "number") {
             return Math.max(minWidth, Math.min(maxWidth, map[panelId]));
           }
-        } catch {}
+        } catch { }
       }
     }
     return defaultWidth;
@@ -200,16 +200,23 @@ export function PanelSectionHandle({
   className,
 }: PanelSectionHandleProps): ReactElement | null {
   const { startResize } = usePanelSection();
+  const handleThickness = 10
+  const margin = handleThickness / 2 * -1
 
   if (!visible) return null;
 
   return (
     <div
       onMouseDown={(e) => startResize(e, targetId, resizeDirection)}
-      className={cn(
-        "w-1 cursor-col-resize shrink-0 select-none relative z-10",
-        className
-      )}
-    />
+      style={{ width: handleThickness, marginLeft: margin, marginRight: margin }}
+      className="cursor-col-resize shrink-0 select-none relative z-50 group"
+    >
+      <div
+        className={cn(
+          "absolute inset-y-0 left-1/2 -translate-x-1/2 w-px bg-border group-hover:bg-primary/50 transition-colors pointer-events-none",
+          className
+        )}
+      />
+    </div>
   );
 }

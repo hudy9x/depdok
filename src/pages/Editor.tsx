@@ -1,7 +1,6 @@
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useSetAtom, useAtomValue, useAtom } from "jotai";
 import { useEffect, useRef, useState } from "react";
-import { Panel, PanelGroup, PanelResizeHandle, ImperativePanelHandle } from "react-resizable-panels";
 
 import { MonacoEditor } from "@/features/Editor/MonacoEditor";
 import { PreviewPanel } from "@/features/Preview/PreviewPanel";
@@ -13,6 +12,7 @@ import { EditorSave } from "@/features/Editor/EditorSaveHandler";
 import { FileExplorer } from "@/features/FileExplorer";
 import { isFileExplorerVisibleAtom, workspaceRootAtom } from "@/features/FileExplorer/store";
 import { SettingsDialog } from "@/features/SettingsDialog";
+import { PanelSectionGroup, PanelSectionItem, PanelSectionHandle } from "@/components/ui/panel-section";
 
 import {
   editorStateAtom,
@@ -49,13 +49,8 @@ export default function Editor() {
   const createTab = useSetAtom(createTabAtom);
   const switchTab = useSetAtom(switchTabAtom);
   const [tabs] = useAtom(tabsAtom);
-  const [isFileExplorerVisible, setIsFileExplorerVisible] = useAtom(isFileExplorerVisibleAtom);
+  const isFileExplorerVisible = useAtomValue(isFileExplorerVisibleAtom);
   const workspaceRoot = useAtomValue(workspaceRootAtom);
-  const layoutGroupId = workspaceRoot 
-    ? `depdok-editor-layout-${workspaceRoot.replace(/[^a-zA-Z0-9]/g, '_')}` 
-    : 'depdok-editor-layout-default';
-  const fileExplorerPanelRef = useRef<ImperativePanelHandle>(null);
-
   const [showSettings, setShowSettings] = useState(false);
 
   // Initialize global shortcuts (e.g. Cmd+B to toggle explorer)
@@ -72,27 +67,6 @@ export default function Editor() {
 
   const filePath = searchParams.get("path") || "";
   const isInitialMount = useRef(true);
-  const isFirstExplorerSync = useRef(true);
-
-  // Reset first sync flag when workspaceRoot changes (e.g. on mount or when loading new project layout)
-  useEffect(() => {
-    isFirstExplorerSync.current = true;
-  }, [workspaceRoot]);
-
-  // Control panel collapse/expand
-  useEffect(() => {
-    if (isFirstExplorerSync.current) {
-      isFirstExplorerSync.current = false;
-      return;
-    }
-    if (fileExplorerPanelRef.current) {
-      if (isFileExplorerVisible) {
-        fileExplorerPanelRef.current.expand();
-      } else {
-        fileExplorerPanelRef.current.collapse();
-      }
-    }
-  }, [isFileExplorerVisible]);
 
   // Sync Active Tab -> URL
   useEffect(() => {
@@ -170,144 +144,113 @@ export default function Editor() {
       {/* Main Body Workspace Container */}
       <div className="w-full h-full flex bg-layout-chrome overflow-hidden">
         {/* 2. Main Content pane with Resizable Sidebar & Editor */}
-        <div className="flex-1 h-full min-w-0">
-          <PanelGroup direction="horizontal" id="editor-layout" autoSaveId={layoutGroupId}>
-            {/* Left Sidebar Pane: Explorer & accordions */}
-            <Panel
-              ref={fileExplorerPanelRef}
-              defaultSize={22}
-              minSize={15}
-              maxSize={40}
-              id="file-explorer"
-              collapsible={true}
-              collapsedSize={0}
-              onCollapse={() => setIsFileExplorerVisible(false)}
-              onExpand={() => setIsFileExplorerVisible(true)}
-            >
-              {isFileExplorerVisible && (
-                <div className="h-full bg-layout-chrome flex flex-col select-none">
-                  {/* File tree browser */}
-                  <div className="flex-1 min-h-0 overflow-y-auto">
-                    <FileExplorer />
+        <PanelSectionGroup storageKey="depdok-editor-layouts">
+          <PanelSectionItem
+            id="sidebar"
+            visible={isFileExplorerVisible}
+            minWidth={180}
+            maxWidth={400}
+            defaultWidth={240}
+            className="bg-layout-chrome flex flex-col select-none"
+          >
+            <div className="flex-1 min-h-0 overflow-y-auto">
+              <FileExplorer />
+            </div>
+          </PanelSectionItem>
+
+          <PanelSectionHandle
+            targetId="sidebar"
+            visible={isFileExplorerVisible}
+            resizeDirection="right"
+            className="bg-border hover:bg-primary/50 transition-colors"
+          />
+
+          <PanelSectionItem flex={1} className="bg-layout-content">
+            <div className="h-full w-full flex flex-col bg-layout-content">
+              {currentFilePath ? (
+                <>
+                  {/* Row 1: Tab list header */}
+                  <div className="h-[35px] border-b border-transparent bg-layout-content shrink-0 flex items-end">
+                    <EditorTabs />
+                  </div>
+
+                  {/* Row 2: Breadcrumbs path and Preview/Markdown switch */}
+                  <div className="h-8 bg-layout-content shrink-0 px-3 flex items-center justify-between">
+                    {/* Breadcrumbs */}
+                    <div className="flex items-center gap-1 text-[11px] text-muted-foreground truncate select-none font-mono">
+                      {getBreadcrumbs().map((segment, idx) => (
+                        <div key={idx} className="flex items-center gap-1">
+                          {idx > 0 && <span className="text-muted-foreground/30 font-mono text-[9px]">&gt;</span>}
+                          {idx === getBreadcrumbs().length - 1 ? (
+                            <span className="font-semibold text-foreground/80 lowercase">{segment}</span>
+                          ) : (
+                            <span className="hover:text-foreground cursor-pointer lowercase transition-colors">{segment}</span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Segmented view switch control */}
+                    <div className="">
+                      <EditorViewMode />
+                    </div>
+                  </div>
+
+                  {/* Row 3: Active Document Content with background contrast */}
+                  <div className="flex-1 min-h-0 bg-layout-content relative">
+                    <LoadFileContent filePath={currentFilePath} onMetadataLoad={loadFileMetadata}>
+                      {(initialContent) => (
+                        <div className="w-full h-full bg-layout-content">
+                          {viewMode === 'side-by-side' && (
+                            <SideBySide
+                              initialContent={initialContent}
+                              enableFileWatcher={true}
+                              lineNumber={activeTab?.lineNumber}
+                            />
+                          )}
+
+                          {viewMode === 'editor-only' && (
+                            <MonacoEditor
+                              initialContent={initialContent}
+                              language={getMonacoLanguage(editorState.fileExtension)}
+                              enableFileWatcher={true}
+                              lineNumber={activeTab?.lineNumber}
+                            />
+                          )}
+
+                          {viewMode === 'preview-only' && (
+                            <PreviewFileWatcher
+                              content={initialContent}
+                              enableFileWatcher={true}
+                              onContentReload={handleExternalReload}
+                            >
+                              {(content) => (
+                                <PreviewPanel
+                                  content={content}
+                                  fileExtension={editorState.fileExtension}
+                                  filePath={currentFilePath}
+                                  editable={true}
+                                  onContentChange={handleSaveContent}
+                                />
+                              )}
+                            </PreviewFileWatcher>
+                          )}
+                        </div>
+                      )}
+                    </LoadFileContent>
+                  </div>
+                </>
+              ) : (
+                <div className="h-full w-full flex flex-col items-center justify-center bg-layout-chrome text-muted-foreground p-8">
+                  <div className="flex flex-col items-center gap-4 max-w-sm text-center">
+                    <img src="/app-icon.png" alt="App Icon" className="w-16 h-16 opacity-20 grayscale" />
+                    <p className="text-xs">Select a file from the explorer to start editing or create a new file.</p>
                   </div>
                 </div>
               )}
-            </Panel>
-
-            {isFileExplorerVisible && (
-              <PanelResizeHandle className="w-px bg-border hover:bg-primary/50 transition-colors" />
-            )}
-
-            {/* Right Pane: Tabs + Breadcrumbs + Monaco/Preview Panel */}
-            <Panel defaultSize={78} id="editor-content">
-              <div className="h-full w-full flex flex-col bg-layout-content">
-                {currentFilePath ? (
-                  <>
-                    {/* Row 1: Tab list header */}
-                    <div className="h-[35px] border-b border-transparent bg-layout-content shrink-0 flex items-end">
-                      <EditorTabs />
-                    </div>
-
-                    {/* Row 2: Breadcrumbs path and Preview/Markdown switch */}
-                    <div className="h-8 bg-layout-content shrink-0 px-3 flex items-center justify-between">
-                      {/* Breadcrumbs */}
-                      <div className="flex items-center gap-1 text-[11px] text-muted-foreground truncate select-none font-mono">
-                        {getBreadcrumbs().map((segment, idx) => (
-                          <div key={idx} className="flex items-center gap-1">
-                            {idx > 0 && <span className="text-muted-foreground/30 font-mono text-[9px]">&gt;</span>}
-                            {idx === getBreadcrumbs().length - 1 ? (
-                              <span className="font-semibold text-foreground/80 lowercase">{segment}</span>
-                            ) : (
-                              <span className="hover:text-foreground cursor-pointer lowercase transition-colors">{segment}</span>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-
-                      {/* Segmented view switch control */}
-                      <div className="">
-                        <EditorViewMode />
-                        {/* <button
-                          onClick={() => setViewMode('preview-only')}
-                          className={cn(
-                            "px-2.5 py-0.5 rounded text-[10px] font-semibold transition-all cursor-pointer",
-                            viewMode === 'preview-only' 
-                              ? "bg-layout-content text-foreground shadow-xs" 
-                              : "text-muted-foreground hover:text-foreground"
-                          )}
-                        >
-                          Preview
-                        </button>
-                        <button
-                          onClick={() => setViewMode('editor-only')}
-                          className={cn(
-                            "px-2.5 py-0.5 rounded text-[10px] font-semibold transition-all cursor-pointer",
-                            viewMode === 'editor-only' || viewMode === 'side-by-side'
-                              ? "bg-layout-content text-foreground shadow-xs" 
-                              : "text-muted-foreground hover:text-foreground"
-                          )}
-                        >
-                          Markdown
-                        </button> */}
-                      </div>
-                    </div>
-
-                    {/* Row 3: Active Document Content with background contrast */}
-                    <div className="flex-1 min-h-0 bg-layout-content relative">
-                      <LoadFileContent filePath={currentFilePath} onMetadataLoad={loadFileMetadata}>
-                        {(initialContent) => (
-                          <div className="w-full h-full bg-layout-content">
-                            {viewMode === 'side-by-side' && (
-                              <SideBySide
-                                initialContent={initialContent}
-                                enableFileWatcher={true}
-                                lineNumber={activeTab?.lineNumber}
-                              />
-                            )}
-
-                            {viewMode === 'editor-only' && (
-                              <MonacoEditor
-                                initialContent={initialContent}
-                                language={getMonacoLanguage(editorState.fileExtension)}
-                                enableFileWatcher={true}
-                                lineNumber={activeTab?.lineNumber}
-                              />
-                            )}
-
-                            {viewMode === 'preview-only' && (
-                              <PreviewFileWatcher
-                                content={initialContent}
-                                enableFileWatcher={true}
-                                onContentReload={handleExternalReload}
-                              >
-                                {(content) => (
-                                  <PreviewPanel
-                                    content={content}
-                                    fileExtension={editorState.fileExtension}
-                                    filePath={currentFilePath}
-                                    editable={true}
-                                    onContentChange={handleSaveContent}
-                                  />
-                                )}
-                              </PreviewFileWatcher>
-                            )}
-                          </div>
-                        )}
-                      </LoadFileContent>
-                    </div>
-                  </>
-                ) : (
-                  <div className="h-full w-full flex flex-col items-center justify-center bg-layout-chrome text-muted-foreground p-8">
-                    <div className="flex flex-col items-center gap-4 max-w-sm text-center">
-                      <img src="/app-icon.png" alt="App Icon" className="w-16 h-16 opacity-20 grayscale" />
-                      <p className="text-xs">Select a file from the explorer to start editing or create a new file.</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </Panel>
-          </PanelGroup>
-        </div>
+            </div>
+          </PanelSectionItem>
+        </PanelSectionGroup>
       </div>
 
       <SettingsDialog open={showSettings} onOpenChange={setShowSettings} />

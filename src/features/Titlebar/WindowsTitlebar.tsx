@@ -2,22 +2,22 @@ import { useState } from 'react';
 import { useAtom, useSetAtom, useAtomValue } from 'jotai';
 import { useNavigate } from 'react-router-dom';
 import { 
+  ChevronDown,
   ChevronLeft, 
-  ChevronRight, 
-  PanelLeftClose, 
-  PanelLeft, 
   Plus, 
-  Settings, 
-  ChevronDown
+  Settings
 } from 'lucide-react';
+import { BsLayoutSidebar, BsLayoutSidebarInset } from 'react-icons/bs';
 
-import { TitlebarContainer } from './TitlebarContainer';
-import { WindowsButtons } from './WindowsButtons';
 import { Button } from '@/components/ui/button';
+
 import { SettingsDialog } from '@/features/SettingsDialog';
 import { workspaceRootAtom, isFileExplorerVisibleAtom } from '@/features/FileExplorer/store';
 import { createUntitledTabAtom } from '@/stores/TabStore';
 import { licensePopoverOpenAtom } from '@/stores/license-popover';
+
+import { TitlebarContainer } from './TitlebarContainer';
+import { WindowsButtons } from './WindowsButtons';
 
 export function WindowsTitlebar() {
   const navigate = useNavigate();
@@ -43,25 +43,16 @@ export function WindowsTitlebar() {
       <div data-tauri-drag-region="false" className="flex items-center gap-2 pl-3 flex-shrink-0">
         <img src="/app-icon.png" alt="App Icon" className="w-4 h-4 pointer-events-none mr-1.5" />
         
-        {/* Back/Forward Navigation arrows */}
+        {/* Back Navigation arrow */}
         <div className="flex items-center gap-0.5">
           <Button
             variant="ghost"
             size="icon"
             className="h-6 w-6 text-muted-foreground hover:text-foreground cursor-pointer"
-            onClick={() => navigate(-1)}
-            title="Go Back"
+            onClick={() => navigate('/home')}
+            title="Go Back to Home"
           >
             <ChevronLeft className="h-3.5 w-3.5" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-6 w-6 text-muted-foreground hover:text-foreground cursor-pointer"
-            onClick={() => navigate(1)}
-            title="Go Forward"
-          >
-            <ChevronRight className="h-3.5 w-3.5" />
           </Button>
         </div>
 
@@ -75,9 +66,9 @@ export function WindowsTitlebar() {
             title={isFileExplorerVisible ? "Collapse Sidebar (Cmd+B)" : "Expand Sidebar (Cmd+B)"}
           >
             {isFileExplorerVisible ? (
-              <PanelLeftClose className="h-3.5 w-3.5 text-primary" />
+              <BsLayoutSidebarInset className="h-3.5 w-3.5" />
             ) : (
-              <PanelLeft className="h-3.5 w-3.5" />
+              <BsLayoutSidebar className="h-3.5 w-3.5" />
             )}
           </Button>
         )}

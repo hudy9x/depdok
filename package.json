@@ -1,7 +1,7 @@
 {
   "name": "depdok",
   "private": true,
-  "version": "0.37.6",
+  "version": "0.38.5",
   "packageManager": "pnpm@10.25.0",
   "type": "module",
   "scripts": {

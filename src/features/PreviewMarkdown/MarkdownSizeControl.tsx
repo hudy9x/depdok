@@ -64,7 +64,7 @@ export function MarkdownSizeControl({ size, onSizeChange, className }: MarkdownS
               <Button
                 variant={size === s.value ? "secondary" : "ghost"}
                 size="icon"
-                className={`h-7 w-7 ${i === 0 ? "rounded-l-full" : ""} ${i === sizes.length - 1 ? "rounded-r-full" : ""}`}
+                className={`h-7 w-7 ${i === sizes.length - 1 ? "rounded-r-full !rounded-l-md" : ""}`}
                 onClick={() => onSizeChange(s.value)}
                 aria-label={s.label}
               >

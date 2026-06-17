@@ -62,7 +62,7 @@ export function MarkdownPreview({
   const TauriImage = createTauriImage(editorState.filePath);
   const isUpdatingRef = useRef(false);
   const [isOutlineOpen, setIsOutlineOpen] = useLocalStorage('markdown-outline-open', false);
-  const [editorSize, setEditorSize] = useLocalStorage<MarkdownEditorSize>('markdown-editor-size', 'small');
+  const [editorSize, setEditorSize] = useLocalStorage<MarkdownEditorSize>('markdown-editor-size', 'wide');
   const [tocAnchors, setTocAnchors] = useState<TocAnchor[]>([]);
   const activeHeadingId = useActiveHeading(tocAnchors, null);
   // containerRef moved here so it can be referenced in TableOfContents scrollParent
@@ -291,11 +291,11 @@ export function MarkdownPreview({
       </div>
 
       {/* <LicenseGuard className="fixed top-12 right-6" title="" tooltipTitle="Enable Markdown Outline"> */}
-        <MarkdownOutlineWrapper
-          anchors={tocAnchors}
-          visible={isOutlineOpen}
-          onToggle={() => setIsOutlineOpen(!isOutlineOpen)}
-        />
+      <MarkdownOutlineWrapper
+        anchors={tocAnchors}
+        visible={isOutlineOpen}
+        onToggle={() => setIsOutlineOpen(!isOutlineOpen)}
+      />
       {/* </LicenseGuard> */}
     </div>
   );

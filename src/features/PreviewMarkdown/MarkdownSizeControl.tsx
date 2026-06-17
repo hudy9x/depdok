@@ -12,6 +12,7 @@ export type MarkdownEditorSize = "full" | "wide" | "small";
 interface MarkdownSizeControlProps {
   size: MarkdownEditorSize;
   onSizeChange: (size: MarkdownEditorSize) => void;
+  className?: string;
 }
 
 const SizeSmallIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -53,17 +54,17 @@ const sizes: { label: string; value: MarkdownEditorSize; icon: React.ReactNode }
   },
 ];
 
-export function MarkdownSizeControl({ size, onSizeChange }: MarkdownSizeControlProps) {
+export function MarkdownSizeControl({ size, onSizeChange, className }: MarkdownSizeControlProps) {
   return (
     <TooltipProvider>
-      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-0.5 rounded-full border border-border bg-background/80 backdrop-blur-sm px-1.5 py-1 shadow-md">
+      <div className={className || "absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-0.5 rounded-full border border-border bg-background/80 backdrop-blur-sm px-1.5 py-1 shadow-md"}>
         {sizes.map((s, i) => (
           <Tooltip key={s.value}>
             <TooltipTrigger asChild>
               <Button
                 variant={size === s.value ? "secondary" : "ghost"}
                 size="icon"
-                className={`h-7 w-7 ${i === 0 ? "rounded-l-full" : ""} ${i === sizes.length - 1 ? "rounded-r-full" : ""}`}
+                className={`h-7 w-7 ${i === sizes.length - 1 ? "rounded-r-full !rounded-l-md" : ""}`}
                 onClick={() => onSizeChange(s.value)}
                 aria-label={s.label}
               >

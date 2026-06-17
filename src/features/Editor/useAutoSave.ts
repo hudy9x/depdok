@@ -20,13 +20,14 @@
 
 import { useAtomValue, useSetAtom } from "jotai";
 import { useDebouncedCallback } from "use-debounce";
-import { writeTextFile } from "@tauri-apps/plugin-fs";
+
+import { writeFileContent } from "@/lib/fileOperations";
+import { draftService } from "@/lib/indexeddb";
 
 import { editorStateAtom, markAsDirtyAtom, markAsSavedAtom } from "@/stores/EditorStore";
-import { activeTabAtom, markTabAsDirtyAtom, markTabAsSavedAtom, isDummyPath } from "@/stores/TabStore";
-import { autoSaveEnabledAtom, autoSaveDelayAtom } from "@/stores/SettingsStore";
 import { isSavingAtom, lastSavedContentMap } from "@/stores/FileWatchStore";
-import { draftService } from "@/lib/indexeddb";
+import { autoSaveDelayAtom, autoSaveEnabledAtom } from "@/stores/SettingsStore";
+import { activeTabAtom, isDummyPath, markTabAsDirtyAtom, markTabAsSavedAtom } from "@/stores/TabStore";
 
 export function useAutoSave() {
   const editorState = useAtomValue(editorStateAtom);
@@ -61,7 +62,7 @@ export function useAutoSave() {
       console.log("[useAutoSave] 💾 Auto-saving:", editorState.filePath, "| setting isSaving =", editorState.filePath);
       setIsSaving(editorState.filePath);
 
-      await writeTextFile(editorState.filePath, newContent);
+      await writeFileContent(editorState.filePath, newContent);
       // Record exactly what we wrote so useFileWatcher can skip false-positive toasts
       lastSavedContentMap.set(editorState.filePath, newContent);
       await draftService.removeDraft(editorState.filePath);

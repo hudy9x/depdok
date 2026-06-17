@@ -15,7 +15,7 @@ export function MarkdownDragHandle({ editor }: MarkdownDragHandleProps) {
       computePositionConfig={{
         placement: "left-start",
         strategy: "fixed",
-        middleware: [{ name: 'offset', fn: ({ x, y }) => ({ x, y: y + 2 }) }],
+        middleware: [{ name: 'offset', fn: ({ x, y }) => ({ x: x - 20, y: y + 2 }) }],
       }}
     >
       <div className="flex items-center justify-center w-5 h-5 rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">

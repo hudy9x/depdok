@@ -15,11 +15,12 @@ import "highlight.js/styles/github-dark.css";
 import "./markdown.css";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
+import { MarkdownBottomMenu } from "./MarkdownBottomMenu";
 import { MarkdownBubbleMenu } from "./MarkdownBubbleMenu";
-import { MarkdownFloatingMenu } from "./MarkdownFloatingMenu";
 import { MarkdownDragHandle } from "./MarkdownDragHandle";
-import { useLocalLinkHandler } from "./useLocalLinkHandler";
+import { type MarkdownEditorSize } from "./MarkdownSizeControl";
 import { useFileHandler } from "./useFileHandler";
+import { useLocalLinkHandler } from "./useLocalLinkHandler";
 
 import { createTauriImage } from "./TauriImage";
 import { CodeBlockNodeView } from "./CodeBlockNodeView";
@@ -30,7 +31,6 @@ import { TableOfContents } from "@tiptap/extension-table-of-contents";
 
 import { MarkdownOutlineMinimap } from "./MarkdownOutlineMinimap";
 import { useActiveHeading } from "@/hooks/useActiveHeading";
-import { MarkdownSizeControl, type MarkdownEditorSize } from "./MarkdownSizeControl";
 import Heading from "@tiptap/extension-heading";
 import { HeadingNodeView } from "./HeadingNodeView";
 import { Table } from "@tiptap/extension-table";
@@ -62,7 +62,7 @@ export function MarkdownPreview({
   const TauriImage = createTauriImage(editorState.filePath);
   const isUpdatingRef = useRef(false);
   const [isOutlineOpen, setIsOutlineOpen] = useLocalStorage('markdown-outline-open', false);
-  const [editorSize, setEditorSize] = useLocalStorage<MarkdownEditorSize>('markdown-editor-size', 'small');
+  const [editorSize, setEditorSize] = useLocalStorage<MarkdownEditorSize>('markdown-editor-size', 'wide');
   const [tocAnchors, setTocAnchors] = useState<TocAnchor[]>([]);
   const activeHeadingId = useActiveHeading(tocAnchors, null);
   // containerRef moved here so it can be referenced in TableOfContents scrollParent
@@ -265,7 +265,6 @@ export function MarkdownPreview({
           {editable && (
             <>
               <MarkdownBubbleMenu editor={editor} />
-              <MarkdownFloatingMenu editor={editor} />
               <MarkdownDragHandle editor={editor} />
             </>
           )}
@@ -283,15 +282,20 @@ export function MarkdownPreview({
             <EditorContent editor={editor} spellCheck={false} className="min-h-full" />
           </div>
         </ScrollArea>
-        <MarkdownSizeControl size={editorSize} onSizeChange={setEditorSize} />
+        <MarkdownBottomMenu
+          editor={editor}
+          editable={editable}
+          size={editorSize}
+          onSizeChange={setEditorSize}
+        />
       </div>
 
       {/* <LicenseGuard className="fixed top-12 right-6" title="" tooltipTitle="Enable Markdown Outline"> */}
-        <MarkdownOutlineWrapper
-          anchors={tocAnchors}
-          visible={isOutlineOpen}
-          onToggle={() => setIsOutlineOpen(!isOutlineOpen)}
-        />
+      <MarkdownOutlineWrapper
+        anchors={tocAnchors}
+        visible={isOutlineOpen}
+        onToggle={() => setIsOutlineOpen(!isOutlineOpen)}
+      />
       {/* </LicenseGuard> */}
     </div>
   );

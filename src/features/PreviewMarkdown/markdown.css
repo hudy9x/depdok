@@ -2,6 +2,8 @@
 
 :root {
   /* Light Theme */
+  --selection-bg: #0055fb38;
+  --selection-fg: #1f1f83;
   --code-background: #eeeff0;
   --code-text: #24292f;
   --code-keyword: #cf222e;
@@ -18,6 +20,8 @@
 
 .dark {
   /* Dark Theme */
+  --selection-bg: #0b338342;
+  --selection-fg: #6a99eb;
   --code-background: #211f23;
   --code-text: #c9d1d9;
   --code-keyword: #ff7b72;
@@ -39,9 +43,9 @@
 }
 
 .prose *::selection {
-  background-color: var(--foreground);
+  background-color: var(--selection-bg);
   /* The highlight color */
-  color: var(--background);
+  color: var(--selection-fg);
   /* The text color when highlighted */
 }
 
@@ -113,7 +117,9 @@
   margin-top: 1.25em;
   margin-bottom: 1.25em;
   line-height: 1.75;
-  color: var(--muted-foreground);
+  /* color: var(--muted-foreground); */
+  color: var(--foreground);
+
 }
 
 /* Links */
@@ -476,7 +482,7 @@
 
 /* HLJS Overrides */
 
-.code-block pre > [data-node-view-content] {
+.code-block pre>[data-node-view-content] {
   font-size: 0.8rem;
 }
 
@@ -586,9 +592,9 @@
 
 /* Cmd+Click selects a node (NodeSelection) — show it at 0.5 opacity */
 .ProseMirror-selectednode {
-  opacity: 0.5 !important;
-  background: var(--primary);
-  transition: opacity 0.15s ease;
+  /* opacity: 0.5 !important; */
+  background: var(--selection-bg);
+  /* transition: opacity 0.15s ease; */
 }
 
 /* ── TipTap DragHandle container ────────────────────────── */

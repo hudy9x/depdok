@@ -19,6 +19,7 @@ import { EmbeddingModelSetting } from "./EmbeddingModelSetting";
 import { McpServerPathSetting } from "./McpServerPathSetting";
 import { MonacoThemeSetting } from "./MonacoThemeSetting";
 import { PlantUmlServerSetting } from "./PlantUmlServerSetting";
+import { CliCommandSetting } from "./CliCommandSetting";
 
 interface SettingsDialogProps {
   open: boolean;
@@ -226,8 +227,11 @@ export function SettingsDialog({ open, onOpenChange, defaultTab }: SettingsDialo
                 <div className="border-b pb-6 border-border/40">
                   <PlantUmlServerSetting />
                 </div>
-                <div>
+                <div className="border-b pb-6 border-border/40">
                   <AssetsFolderSetting />
+                </div>
+                <div>
+                  <CliCommandSetting />
                 </div>
               </div>
             )}

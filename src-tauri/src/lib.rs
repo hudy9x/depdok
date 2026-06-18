@@ -329,6 +329,119 @@ async fn get_cli_info() -> Result<CliInfo, String> {
 }
 
 #[tauri::command]
+async fn check_context_menu_status() -> Result<bool, String> {
+    #[cfg(target_os = "windows")]
+    {
+        use std::process::Command;
+        
+        let output = Command::new("reg")
+            .args(&["query", "HKCU\\Software\\Classes\\*\\shell\\Depdok"])
+            .output()
+            .map_err(|e| e.to_string())?;
+            
+        Ok(output.status.success())
+    }
+    
+    #[cfg(not(target_os = "windows"))]
+    {
+        Ok(false)
+    }
+}
+
+#[tauri::command]
+async fn register_context_menu() -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        use std::process::Command;
+
+        let exe_path = std::env::current_exe().map_err(|e| e.to_string())?;
+        let exe_path_str = exe_path.to_string_lossy().to_string();
+        let icon_str = format!("{},0", exe_path_str);
+        
+        // 1. File Context Menu
+        Command::new("reg")
+            .args(&["add", "HKCU\\Software\\Classes\\*\\shell\\Depdok", "/ve", "/d", "Open with Depdok", "/f"])
+            .status()
+            .map_err(|e| e.to_string())?;
+        Command::new("reg")
+            .args(&["add", "HKCU\\Software\\Classes\\*\\shell\\Depdok", "/v", "Icon", "/d", &icon_str, "/f"])
+            .status()
+            .map_err(|e| e.to_string())?;
+        let cmd_val = format!("\"{}\" \"%1\"", exe_path_str);
+        Command::new("reg")
+            .args(&["add", "HKCU\\Software\\Classes\\*\\shell\\Depdok\\command", "/ve", "/d", &cmd_val, "/f"])
+            .status()
+            .map_err(|e| e.to_string())?;
+
+        // 2. Directory Context Menu
+        Command::new("reg")
+            .args(&["add", "HKCU\\Software\\Classes\\Directory\\shell\\Depdok", "/ve", "/d", "Open Folder with Depdok", "/f"])
+            .status()
+            .map_err(|e| e.to_string())?;
+        Command::new("reg")
+            .args(&["add", "HKCU\\Software\\Classes\\Directory\\shell\\Depdok", "/v", "Icon", "/d", &icon_str, "/f"])
+            .status()
+            .map_err(|e| e.to_string())?;
+        let dir_cmd_val = format!("\"{}\" \"%V\"", exe_path_str);
+        Command::new("reg")
+            .args(&["add", "HKCU\\Software\\Classes\\Directory\\shell\\Depdok\\command", "/ve", "/d", &dir_cmd_val, "/f"])
+            .status()
+            .map_err(|e| e.to_string())?;
+
+        // 3. Directory Background Context Menu
+        Command::new("reg")
+            .args(&["add", "HKCU\\Software\\Classes\\Directory\\Background\\shell\\Depdok", "/ve", "/d", "Open Folder with Depdok", "/f"])
+            .status()
+            .map_err(|e| e.to_string())?;
+        Command::new("reg")
+            .args(&["add", "HKCU\\Software\\Classes\\Directory\\Background\\shell\\Depdok", "/v", "Icon", "/d", &icon_str, "/f"])
+            .status()
+            .map_err(|e| e.to_string())?;
+        Command::new("reg")
+            .args(&["add", "HKCU\\Software\\Classes\\Directory\\Background\\shell\\Depdok\\command", "/ve", "/d", &dir_cmd_val, "/f"])
+            .status()
+            .map_err(|e| e.to_string())?;
+
+        Ok(())
+    }
+    
+    #[cfg(not(target_os = "windows"))]
+    {
+        Ok(())
+    }
+}
+
+#[tauri::command]
+async fn unregister_context_menu() -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        use std::process::Command;
+        
+        Command::new("reg")
+            .args(&["delete", "HKCU\\Software\\Classes\\*\\shell\\Depdok", "/f"])
+            .status()
+            .map_err(|e| e.to_string())?;
+            
+        Command::new("reg")
+            .args(&["delete", "HKCU\\Software\\Classes\\Directory\\shell\\Depdok", "/f"])
+            .status()
+            .map_err(|e| e.to_string())?;
+            
+        Command::new("reg")
+            .args(&["delete", "HKCU\\Software\\Classes\\Directory\\Background\\shell\\Depdok", "/f"])
+            .status()
+            .map_err(|e| e.to_string())?;
+            
+        Ok(())
+    }
+    
+    #[cfg(not(target_os = "windows"))]
+    {
+        Ok(())
+    }
+}
+
+#[tauri::command]
 fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
 }
@@ -863,6 +976,9 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             greet,
+            check_context_menu_status,
+            register_context_menu,
+            unregister_context_menu,
             get_pending_open_paths,
             install_cli,
             uninstall_cli,

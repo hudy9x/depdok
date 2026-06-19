@@ -8,6 +8,7 @@ import { PreviewFileWatcher } from "@/features/Preview/PreviewFileWatcher";
 import { SideBySide } from "@/features/SidebySide";
 import { EditorTabs } from "@/features/EditorTabs";
 import { LoadFileContent } from "@/features/Editor/LoadFileContent";
+import { EditorBreadcrumbs } from "@/features/Editor/EditorBreadcrumbs";
 import { EditorSave } from "@/features/Editor/EditorSaveHandler";
 import { FileExplorer } from "@/features/FileExplorer";
 import { isFileExplorerVisibleAtom, workspaceRootAtom } from "@/features/FileExplorer/store";
@@ -122,17 +123,6 @@ export default function Editor() {
     return null;
   }
 
-  // Format breadcrumbs path: relative to workspaceRoot split by arrows
-  const getBreadcrumbs = (): string[] => {
-    if (!currentFilePath) return [];
-    let relPath = currentFilePath;
-    if (workspaceRoot && currentFilePath.startsWith(workspaceRoot)) {
-      relPath = currentFilePath.slice(workspaceRoot.length);
-    }
-    relPath = relPath.replace(/^[/\\]+/, '');
-    return relPath.split(/[/\\]/);
-  };
-
   return (
     <>
       <FileSearchDialog />
@@ -177,18 +167,7 @@ export default function Editor() {
                   {/* Row 2: Breadcrumbs path and Preview/Markdown switch */}
                   <div className="h-8 bg-layout-content shrink-0 px-3 flex items-center justify-between">
                     {/* Breadcrumbs */}
-                    <div className="flex items-center gap-1 text-[11px] text-muted-foreground truncate select-none font-mono">
-                      {getBreadcrumbs().map((segment, idx) => (
-                        <div key={idx} className="flex items-center gap-1">
-                          {idx > 0 && <span className="text-muted-foreground/30 font-mono text-[9px]">&gt;</span>}
-                          {idx === getBreadcrumbs().length - 1 ? (
-                            <span className="font-semibold text-foreground/80 lowercase">{segment}</span>
-                          ) : (
-                            <span className="hover:text-foreground cursor-pointer lowercase transition-colors">{segment}</span>
-                          )}
-                        </div>
-                      ))}
-                    </div>
+                    <EditorBreadcrumbs />
 
                     {/* Segmented view switch control */}
                     <div className="">

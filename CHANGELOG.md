@@ -1,12 +1,12 @@
 ## What's Changed
 
-✨ Features
+♻️ Refactoring
 
-- Command cli and windows context menu item like vscode (#44) ([b8784c5](../../commit/b8784c5))
+- Update markdown list styling for improved bullet and numbered list layout consistency ([dc1f21e](../../commit/dc1f21e))
 
 🔨 Other Changes
 
-- Upgrade version 0.38.5 ([139dcfd](../../commit/139dcfd))
+- Upgrade version 0.39.0 ([4e79840](../../commit/4e79840))
 
 
-📋 Full Changelog: [139dcfd...b8784c5](../../compare/139dcfd...b8784c5)
+📋 Full Changelog: [4e79840...dc1f21e](../../compare/4e79840...dc1f21e)

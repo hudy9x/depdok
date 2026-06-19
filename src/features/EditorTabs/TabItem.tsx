@@ -88,8 +88,8 @@ export function TabItem({ tab }: TabItemProps) {
           className={cn(
             'flex items-center gap-2 px-3 h-[35px] cursor-pointer border-r border-border group relative transition-all',
             'min-w-[120px] max-w-[200px]',
-            isActive 
-              ? 'bg-layout-content text-foreground border-b border-b-transparent border-r border-r-border' 
+            isActive
+              ? 'bg-layout-content text-foreground border-b border-b-transparent border-r border-r-border'
               : 'bg-layout-chrome text-muted-foreground hover:bg-muted/30 hover:text-foreground border-b border-border',
             tab.isPreview && 'italic'
           )}
@@ -108,7 +108,7 @@ export function TabItem({ tab }: TabItemProps) {
             {/* Dirty Indicator (visible when dirty, hidden on hover to show close button) */}
             {tab.isDirty && (
               <div
-                className="w-2 h-2 rounded-full bg-orange-500 absolute transition-opacity group-hover:opacity-0"
+                className="w-2 h-2 rounded-full bg-blue-500/80 absolute transition-opacity group-hover:opacity-0"
                 title="Unsaved changes"
               />
             )}

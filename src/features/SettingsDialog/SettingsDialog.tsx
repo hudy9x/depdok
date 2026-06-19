@@ -1,5 +1,5 @@
 import { useAtom } from "jotai";
-import { Bot, Database, Monitor, Moon, Puzzle, Settings, Sun, Terminal, X } from "lucide-react";
+import { Bot, Database, Puzzle, Settings, Terminal, X } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 
@@ -9,7 +9,7 @@ import {
   DialogContent,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { autoSaveEnabledAtom, themeAtom } from "@/stores/SettingsStore";
@@ -21,6 +21,7 @@ import { MonacoThemeSetting } from "./MonacoThemeSetting";
 import { PlantUmlServerSetting } from "./PlantUmlServerSetting";
 import { CliCommandSetting } from "./CliCommandSetting";
 import { ContextMenuSetting } from "./ContextMenuSetting";
+import { ThemeSetting } from "./ThemeSetting";
 
 interface SettingsDialogProps {
   open: boolean;
@@ -32,7 +33,7 @@ type SettingsTab = "general" | "integrations" | "system" | "mcp" | "embeddings";
 
 export function SettingsDialog({ open, onOpenChange, defaultTab }: SettingsDialogProps) {
   const [autoSaveEnabled, setAutoSaveEnabled] = useAtom(autoSaveEnabledAtom);
-  const [selectedTheme, setSelectedTheme] = useAtom(themeAtom);
+  const [selectedTheme] = useAtom(themeAtom);
   const { setTheme } = useTheme();
   const [activeTab, setActiveTab] = useState<SettingsTab>("general");
 
@@ -152,60 +153,8 @@ export function SettingsDialog({ open, onOpenChange, defaultTab }: SettingsDialo
             {activeTab === "general" && (
               <div className="space-y-6  p-8">
                 {/* Theme Switcher */}
-                <div className="flex items-center justify-between border-b pb-6 border-border/40">
-                  <div className="space-y-0.5">
-                    <Label htmlFor="theme" className="text-sm font-medium">Theme</Label>
-                    <p className="text-xs text-muted-foreground">
-                      Select your favorite interface theme
-                    </p>
-                  </div>
-                  <RadioGroup
-                    value={selectedTheme}
-                    onValueChange={(value) =>
-                      setSelectedTheme(value as "light" | "dark" | "system")
-                    }
-                    className="grid grid-cols-3 gap-0 bg-muted p-1 rounded-lg text-muted-foreground"
-                  >
-                    <div>
-                      <RadioGroupItem
-                        value="light"
-                        id="light"
-                        className="peer sr-only"
-                      />
-                      <Label
-                        htmlFor="light"
-                        className="flex items-center rounded justify-center p-2 hover:text-accent-foreground peer-data-[state=checked]:bg-background peer-data-[state=checked]:text-foreground peer-data-[state=checked]:shadow-sm cursor-pointer"
-                      >
-                        <Sun className="w-4 h-4" />
-                      </Label>
-                    </div>
-                    <div>
-                      <RadioGroupItem
-                        value="dark"
-                        id="dark"
-                        className="peer sr-only"
-                      />
-                      <Label
-                        htmlFor="dark"
-                        className="flex items-center rounded justify-center p-2 hover:text-accent-foreground peer-data-[state=checked]:bg-background peer-data-[state=checked]:text-foreground peer-data-[state=checked]:shadow-sm cursor-pointer"
-                      >
-                        <Moon className="w-4 h-4" />
-                      </Label>
-                    </div>
-                    <div>
-                      <RadioGroupItem
-                        value="system"
-                        id="system"
-                        className="peer sr-only"
-                      />
-                      <Label
-                        htmlFor="system"
-                        className="flex items-center rounded justify-center p-2 hover:text-accent-foreground peer-data-[state=checked]:bg-background peer-data-[state=checked]:text-foreground peer-data-[state=checked]:shadow-sm cursor-pointer"
-                      >
-                        <Monitor className="w-4 h-4" />
-                      </Label>
-                    </div>
-                  </RadioGroup>
+                <div className="border-b pb-6 border-border/40">
+                  <ThemeSetting />
                 </div>
 
                 <div className="border-b pb-6 border-border/40">

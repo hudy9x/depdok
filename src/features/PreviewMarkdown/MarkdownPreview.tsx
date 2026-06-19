@@ -46,6 +46,16 @@ import Placeholder from "@tiptap/extension-placeholder";
 
 const lowlight = createLowlight(common);
 
+// Intercept highlight calls and fallback to 'plaintext' for unregistered/unsupported languages
+const originalHighlight = lowlight.highlight;
+lowlight.highlight = (language, value, options) => {
+  if (language && !lowlight.registered(language)) {
+    return originalHighlight.call(lowlight, "plaintext", value, options);
+  }
+  return originalHighlight.call(lowlight, language, value, options);
+};
+
+
 interface MarkdownPreviewProps {
   content: string;
   editable?: boolean;

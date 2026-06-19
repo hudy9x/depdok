@@ -10,6 +10,7 @@ import Checking from './pages/Checking';
 import { Layout } from './components/Layout';
 import Empty from './pages/Empty';
 import { AppMenuListener } from './components/AppMenuListener';
+import { CLIListener } from './components/CLIListener';
 import { LicensePopover } from './features/LicensePopover';
 import { useEffect } from 'react';
 import { useSetAtom } from 'jotai';
@@ -41,6 +42,7 @@ function App() {
       <>
         <BrowserRouter>
           <AppMenuListener />
+          <CLIListener />
           <Toaster position="bottom-right" richColors />
           <LicensePopover />
           <Routes>

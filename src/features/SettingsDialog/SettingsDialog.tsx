@@ -1,5 +1,5 @@
 import { useAtom } from "jotai";
-import { Bot, Database, Monitor, Moon, Puzzle, Settings, Sun, X } from "lucide-react";
+import { Bot, Database, Monitor, Moon, Puzzle, Settings, Sun, Terminal, X } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 
@@ -19,6 +19,8 @@ import { EmbeddingModelSetting } from "./EmbeddingModelSetting";
 import { McpServerPathSetting } from "./McpServerPathSetting";
 import { MonacoThemeSetting } from "./MonacoThemeSetting";
 import { PlantUmlServerSetting } from "./PlantUmlServerSetting";
+import { CliCommandSetting } from "./CliCommandSetting";
+import { ContextMenuSetting } from "./ContextMenuSetting";
 
 interface SettingsDialogProps {
   open: boolean;
@@ -26,7 +28,7 @@ interface SettingsDialogProps {
   defaultTab?: SettingsTab;
 }
 
-type SettingsTab = "general" | "integrations" | "mcp" | "embeddings";
+type SettingsTab = "general" | "integrations" | "system" | "mcp" | "embeddings";
 
 export function SettingsDialog({ open, onOpenChange, defaultTab }: SettingsDialogProps) {
   const [autoSaveEnabled, setAutoSaveEnabled] = useAtom(autoSaveEnabledAtom);
@@ -58,6 +60,12 @@ export function SettingsDialog({ open, onOpenChange, defaultTab }: SettingsDialo
       name: "Integrations",
       icon: Puzzle,
       desc: "Third-party tools and plugins",
+    },
+    {
+      id: "system",
+      name: "OS Integration",
+      icon: Terminal,
+      desc: "Command line and file explorer integration options",
     },
     {
       id: "embeddings",
@@ -228,6 +236,17 @@ export function SettingsDialog({ open, onOpenChange, defaultTab }: SettingsDialo
                 </div>
                 <div>
                   <AssetsFolderSetting />
+                </div>
+              </div>
+            )}
+
+            {activeTab === "system" && (
+              <div className="space-y-6  p-8">
+                <div className="border-b pb-6 border-border/40">
+                  <CliCommandSetting />
+                </div>
+                <div>
+                  <ContextMenuSetting />
                 </div>
               </div>
             )}

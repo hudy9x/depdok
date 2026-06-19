@@ -1,32 +1,89 @@
-import { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useSetAtom } from 'jotai';
+import { toast } from 'sonner';
 
-export default function Checking() {
+import { getPendingOpenPaths } from '@/api-client/cli';
+import { createTabAtom } from '@/stores/TabStore';
+import { openWorkspaceAtom } from '@/features/FileExplorer/store';
+
+const Checking = (): JSX.Element => {
   const navigate = useNavigate();
+  const createTab = useSetAtom(createTabAtom);
+  const openWorkspace = useSetAtom(openWorkspaceAtom);
 
   useEffect(() => {
-    // Check sessionStorage for saved tabs
-    const savedTabs = sessionStorage.getItem("depdok-tabs");
-
-    if (savedTabs) {
+    const checkInitialPathsAndRedirect = async (): Promise<void> => {
       try {
-        const tabs = JSON.parse(savedTabs);
+        const pendingPaths = await getPendingOpenPaths();
+        if (pendingPaths && pendingPaths.length > 0) {
+          let hasOpenedWorkspace = false;
+          let firstOpenedTabId: string | null = null;
+          const missingPaths: string[] = [];
 
-        // If we have tabs, go to editor
-        if (Array.isArray(tabs) && tabs.length > 0) {
-          navigate("/editor", { replace: true });
-          return;
+          for (const item of pendingPaths) {
+            if (!item.exists) {
+              missingPaths.push(item.path);
+              continue;
+            }
+
+            if (item.is_dir) {
+              try {
+                await openWorkspace(item.path);
+                hasOpenedWorkspace = true;
+              } catch (err) {
+                console.error('Failed to open workspace:', item.path, err);
+              }
+            } else {
+              const parts = item.path.split(/[/\\]/);
+              const fileName = parts[parts.length - 1] || 'Untitled';
+              const isFirstFile = firstOpenedTabId === null;
+              
+              const tabId = createTab({
+                filePath: item.path,
+                fileName,
+                switchTo: isFirstFile,
+              });
+
+              if (isFirstFile) {
+                firstOpenedTabId = tabId;
+              }
+            }
+          }
+
+          if (missingPaths.length > 0) {
+            toast.error(`Some files do not exist:\n${missingPaths.join('\n')}`);
+          }
+
+          if (hasOpenedWorkspace || firstOpenedTabId) {
+            navigate('/editor', { replace: true });
+            return;
+          }
         }
       } catch (error) {
-        console.error("Error parsing saved tabs:", error);
+        console.error('Error checking pending open paths:', error);
       }
-    }
 
-    // No tabs or error parsing - go to home
-    navigate("/home", { replace: true });
-  }, [navigate]);
+      // Fallback: Check sessionStorage for saved tabs
+      const savedTabs = sessionStorage.getItem('depdok-tabs');
+      if (savedTabs) {
+        try {
+          const tabs = JSON.parse(savedTabs);
+          if (Array.isArray(tabs) && tabs.length > 0) {
+            navigate('/editor', { replace: true });
+            return;
+          }
+        } catch (error) {
+          console.error('Error parsing saved tabs:', error);
+        }
+      }
 
-  // Optional: Show a minimal loading state
+      navigate('/home', { replace: true });
+    };
+
+    checkInitialPathsAndRedirect();
+  }, [navigate, createTab, openWorkspace]);
+
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-secondary">
       <div className="flex flex-col items-center gap-4">
@@ -35,4 +92,6 @@ export default function Checking() {
       </div>
     </div>
   );
-}
+};
+
+export default Checking;

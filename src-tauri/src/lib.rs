@@ -1,6 +1,6 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 use std::sync::Mutex;
-use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
+use tauri::{Manager, WebviewUrl, WebviewWindowBuilder, Emitter};
 use tauri_plugin_store::StoreExt;
 
 const MIN_WINDOW_WIDTH: f64 = 609.0;
@@ -8,6 +8,438 @@ const MIN_WINDOW_HEIGHT: f64 = 627.0;
 
 // Global state to store the opened file path
 struct OpenedFilePath(Mutex<Option<String>>);
+
+#[derive(Clone, serde::Serialize, serde::Deserialize, Debug)]
+pub struct PendingPath {
+    pub path: String,
+    pub is_dir: bool,
+    pub exists: bool,
+}
+
+pub struct PendingOpenPaths(pub Mutex<Vec<PendingPath>>);
+
+fn normalize_path(path: &std::path::Path) -> String {
+    let s = path.to_string_lossy().to_string();
+    #[cfg(target_os = "windows")]
+    {
+        let s = s.replace("/", "\\");
+        if s.starts_with(r"\\?\") {
+            s[4..].to_string()
+        } else {
+            s
+        }
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        s
+    }
+}
+
+fn resolve_and_normalize_path(base_dir: &std::path::Path, arg: &str) -> PendingPath {
+    let path = std::path::PathBuf::from(arg);
+    let resolved = if path.is_absolute() {
+        path
+    } else {
+        base_dir.join(path)
+    };
+    
+    let (final_path, exists) = if resolved.exists() {
+        if let Ok(canon) = resolved.canonicalize() {
+            (canon, true)
+        } else {
+            (resolved, true)
+        }
+    } else {
+        (resolved, false)
+    };
+    
+    let normalized = normalize_path(&final_path);
+    let is_dir = exists && final_path.is_dir();
+    
+    PendingPath {
+        path: normalized,
+        is_dir,
+        exists,
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn parse_reg_path_output(output: &str) -> Option<(String, String)> {
+    for line in output.lines() {
+        if line.trim().starts_with("PATH") {
+            let parts: Vec<&str> = line.split_whitespace().collect();
+            if parts.len() >= 3 {
+                let reg_type = parts[1].to_string();
+                if let Some(type_idx) = line.find(&reg_type) {
+                    let val_start = type_idx + reg_type.len();
+                    let path_val = line[val_start..].trim().to_string();
+                    return Some((reg_type, path_val));
+                }
+            }
+        }
+    }
+    None
+}
+
+#[tauri::command]
+fn get_pending_open_paths(state: tauri::State<'_, PendingOpenPaths>) -> Vec<PendingPath> {
+    let mut guard = state.0.lock().unwrap();
+    std::mem::take(&mut *guard)
+}
+
+#[tauri::command]
+async fn install_cli() -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        use std::fs;
+        use std::process::Command;
+
+        let exe_path = std::env::current_exe().map_err(|e| e.to_string())?;
+        let exe_dir = exe_path.parent().ok_or_else(|| "Failed to get exe directory".to_string())?;
+        
+        // 1. Write depdok.cmd shim
+        let shim_path = exe_dir.join("depdok.cmd");
+        let shim_content = format!(
+            "@echo off\r\nstart \"\" \"{}\" %*\r\n",
+            exe_path.to_string_lossy()
+        );
+        fs::write(&shim_path, shim_content).map_err(|e| format!("Failed to write shim: {}", e))?;
+        
+        // 2. Add exe_dir to user PATH registry if not already present
+        let output = Command::new("reg")
+            .args(&["query", "HKCU\\Environment", "/v", "PATH"])
+            .output()
+            .map_err(|e| format!("Failed to read registry: {}", e))?;
+        
+        let path_str = String::from_utf8_lossy(&output.stdout);
+        let (reg_type, current_path) = if output.status.success() {
+            parse_reg_path_output(&path_str).unwrap_or(("REG_EXPAND_SZ".to_string(), "".to_string()))
+        } else {
+            ("REG_EXPAND_SZ".to_string(), "".to_string())
+        };
+
+        let target_dir = exe_dir.to_string_lossy().to_string();
+        let paths: Vec<&str> = current_path.split(';').map(|s| s.trim()).collect();
+        if !paths.contains(&target_dir.as_str()) {
+            let new_path = if current_path.is_empty() {
+                target_dir
+            } else {
+                format!("{};{}", current_path, target_dir)
+            };
+            
+            let status = Command::new("reg")
+                .args(&["add", "HKCU\\Environment", "/v", "PATH", "/t", &reg_type, "/d", &new_path, "/f"])
+                .status()
+                .map_err(|e| format!("Failed to update registry PATH variable: {}", e))?;
+                
+            if !status.success() {
+                return Err("Failed to update registry PATH variable".to_string());
+            }
+        }
+        Ok(())
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        use std::fs;
+        use std::os::unix::fs::symlink;
+        use std::process::Command;
+
+        let exe_path = std::env::current_exe().map_err(|e| e.to_string())?;
+        let symlink_path = std::path::Path::new("/usr/local/bin/depdok");
+        
+        if let Some(parent) = symlink_path.parent() {
+            if !parent.exists() {
+                let _ = fs::create_dir_all(parent);
+            }
+        }
+
+        if symlink_path.exists() {
+            let _ = fs::remove_file(symlink_path);
+        }
+        
+        if let Err(_) = symlink(&exe_path, symlink_path) {
+            #[cfg(target_os = "macos")]
+            {
+                let prompt_cmd = format!(
+                    "do shell script \"ln -sf '{}' '/usr/local/bin/depdok'\" with administrator privileges",
+                    exe_path.to_string_lossy()
+                );
+                let status = Command::new("osascript")
+                    .args(&["-e", &prompt_cmd])
+                    .status()
+                    .map_err(|e| format!("Failed to request admin privileges via osascript: {}", e))?;
+                    
+                if !status.success() {
+                    return Err("Failed to create symlink with admin privileges".to_string());
+                }
+            }
+            
+            #[cfg(target_os = "linux")]
+            {
+                let status = Command::new("pkexec")
+                    .args(&["ln", "-sf", &exe_path.to_string_lossy(), "/usr/local/bin/depdok"])
+                    .status()
+                    .map_err(|e| format!("Failed to request admin privileges via pkexec: {}", e))?;
+                    
+                if !status.success() {
+                    return Err("Failed to create symlink with admin privileges".to_string());
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
+#[tauri::command]
+async fn uninstall_cli() -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        use std::fs;
+        use std::process::Command;
+
+        let exe_path = std::env::current_exe().map_err(|e| e.to_string())?;
+        let exe_dir = exe_path.parent().ok_or_else(|| "Failed to get exe directory".to_string())?;
+        
+        // 1. Delete depdok.cmd shim
+        let shim_path = exe_dir.join("depdok.cmd");
+        if shim_path.exists() {
+            let _ = fs::remove_file(shim_path);
+        }
+        
+        // 2. Remove from PATH
+        let output = Command::new("reg")
+            .args(&["query", "HKCU\\Environment", "/v", "PATH"])
+            .output()
+            .map_err(|e| format!("Failed to read registry: {}", e))?;
+            
+        if output.status.success() {
+            let path_str = String::from_utf8_lossy(&output.stdout);
+            if let Some((reg_type, current_path)) = parse_reg_path_output(&path_str) {
+                let target_dir = exe_dir.to_string_lossy().to_string();
+                let paths: Vec<&str> = current_path.split(';').map(|s| s.trim()).collect();
+                if paths.contains(&target_dir.as_str()) {
+                    let remaining_paths: Vec<&str> = paths.into_iter().filter(|&p| p != target_dir).collect();
+                    let new_path = remaining_paths.join(";");
+                    
+                    let status = Command::new("reg")
+                        .args(&["add", "HKCU\\Environment", "/v", "PATH", "/t", &reg_type, "/d", &new_path, "/f"])
+                        .status()
+                        .map_err(|e| format!("Failed to update registry: {}", e))?;
+                        
+                    if !status.success() {
+                        return Err("Failed to update registry PATH variable".to_string());
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        use std::fs;
+        use std::process::Command;
+
+        let symlink_path = std::path::Path::new("/usr/local/bin/depdok");
+        if symlink_path.exists() {
+            if let Err(_) = fs::remove_file(symlink_path) {
+                #[cfg(target_os = "macos")]
+                {
+                    let prompt_cmd = "do shell script \"rm -f '/usr/local/bin/depdok'\" with administrator privileges";
+                    let status = Command::new("osascript")
+                        .args(&["-e", prompt_cmd])
+                        .status()
+                        .map_err(|e| e.to_string())?;
+                    if !status.success() {
+                        return Err("Failed to remove symlink with admin privileges".to_string());
+                    }
+                }
+                #[cfg(target_os = "linux")]
+                {
+                    let status = Command::new("pkexec")
+                        .args(&["rm", "-f", "/usr/local/bin/depdok"])
+                        .status()
+                        .map_err(|e| e.to_string())?;
+                    if !status.success() {
+                        return Err("Failed to remove symlink with admin privileges".to_string());
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
+#[derive(serde::Serialize, Clone, Debug)]
+pub struct CliInfo {
+    pub is_installed: bool,
+    pub cli_path: String,
+}
+
+#[tauri::command]
+async fn get_cli_info() -> Result<CliInfo, String> {
+    #[cfg(target_os = "windows")]
+    {
+        use std::process::Command;
+
+        let exe_path = std::env::current_exe().map_err(|e| e.to_string())?;
+        let exe_dir = exe_path.parent().ok_or_else(|| "Failed to get exe directory".to_string())?;
+        let cli_path = exe_dir.to_string_lossy().to_string();
+        
+        let shim_path = exe_dir.join("depdok.cmd");
+        if !shim_path.exists() {
+            return Ok(CliInfo { is_installed: false, cli_path });
+        }
+        
+        let output = Command::new("reg")
+            .args(&["query", "HKCU\\Environment", "/v", "PATH"])
+            .output()
+            .map_err(|e| e.to_string())?;
+            
+        if !output.status.success() {
+            return Ok(CliInfo { is_installed: false, cli_path });
+        }
+        
+        let path_str = String::from_utf8_lossy(&output.stdout);
+        if let Some((_, current_path)) = parse_reg_path_output(&path_str) {
+            let target_dir = exe_dir.to_string_lossy().to_string();
+            let paths: Vec<&str> = current_path.split(';').map(|s| s.trim()).collect();
+            let is_installed = paths.contains(&target_dir.as_str());
+            Ok(CliInfo { is_installed, cli_path })
+        } else {
+            Ok(CliInfo { is_installed: false, cli_path })
+        }
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        let symlink_path = std::path::Path::new("/usr/local/bin/depdok");
+        let cli_path = "/usr/local/bin".to_string();
+        if !symlink_path.exists() {
+            return Ok(CliInfo { is_installed: false, cli_path });
+        }
+        if let Ok(metadata) = std::fs::symlink_metadata(symlink_path) {
+            let is_installed = metadata.file_type().is_symlink();
+            Ok(CliInfo { is_installed, cli_path })
+        } else {
+            Ok(CliInfo { is_installed: false, cli_path })
+        }
+    }
+}
+
+#[tauri::command]
+async fn check_context_menu_status() -> Result<bool, String> {
+    #[cfg(target_os = "windows")]
+    {
+        use std::process::Command;
+        
+        let output = Command::new("reg")
+            .args(&["query", "HKCU\\Software\\Classes\\*\\shell\\Depdok"])
+            .output()
+            .map_err(|e| e.to_string())?;
+            
+        Ok(output.status.success())
+    }
+    
+    #[cfg(not(target_os = "windows"))]
+    {
+        Ok(false)
+    }
+}
+
+#[tauri::command]
+async fn register_context_menu() -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        use std::process::Command;
+
+        let exe_path = std::env::current_exe().map_err(|e| e.to_string())?;
+        let exe_path_str = exe_path.to_string_lossy().to_string();
+        let icon_str = format!("{},0", exe_path_str);
+        
+        // 1. File Context Menu
+        Command::new("reg")
+            .args(&["add", "HKCU\\Software\\Classes\\*\\shell\\Depdok", "/ve", "/d", "Open with Depdok", "/f"])
+            .status()
+            .map_err(|e| e.to_string())?;
+        Command::new("reg")
+            .args(&["add", "HKCU\\Software\\Classes\\*\\shell\\Depdok", "/v", "Icon", "/d", &icon_str, "/f"])
+            .status()
+            .map_err(|e| e.to_string())?;
+        let cmd_val = format!("\"{}\" \"%1\"", exe_path_str);
+        Command::new("reg")
+            .args(&["add", "HKCU\\Software\\Classes\\*\\shell\\Depdok\\command", "/ve", "/d", &cmd_val, "/f"])
+            .status()
+            .map_err(|e| e.to_string())?;
+
+        // 2. Directory Context Menu
+        Command::new("reg")
+            .args(&["add", "HKCU\\Software\\Classes\\Directory\\shell\\Depdok", "/ve", "/d", "Open Folder with Depdok", "/f"])
+            .status()
+            .map_err(|e| e.to_string())?;
+        Command::new("reg")
+            .args(&["add", "HKCU\\Software\\Classes\\Directory\\shell\\Depdok", "/v", "Icon", "/d", &icon_str, "/f"])
+            .status()
+            .map_err(|e| e.to_string())?;
+        let dir_cmd_val = format!("\"{}\" \"%V\"", exe_path_str);
+        Command::new("reg")
+            .args(&["add", "HKCU\\Software\\Classes\\Directory\\shell\\Depdok\\command", "/ve", "/d", &dir_cmd_val, "/f"])
+            .status()
+            .map_err(|e| e.to_string())?;
+
+        // 3. Directory Background Context Menu
+        Command::new("reg")
+            .args(&["add", "HKCU\\Software\\Classes\\Directory\\Background\\shell\\Depdok", "/ve", "/d", "Open Folder with Depdok", "/f"])
+            .status()
+            .map_err(|e| e.to_string())?;
+        Command::new("reg")
+            .args(&["add", "HKCU\\Software\\Classes\\Directory\\Background\\shell\\Depdok", "/v", "Icon", "/d", &icon_str, "/f"])
+            .status()
+            .map_err(|e| e.to_string())?;
+        Command::new("reg")
+            .args(&["add", "HKCU\\Software\\Classes\\Directory\\Background\\shell\\Depdok\\command", "/ve", "/d", &dir_cmd_val, "/f"])
+            .status()
+            .map_err(|e| e.to_string())?;
+
+        Ok(())
+    }
+    
+    #[cfg(not(target_os = "windows"))]
+    {
+        Ok(())
+    }
+}
+
+#[tauri::command]
+async fn unregister_context_menu() -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        use std::process::Command;
+        
+        Command::new("reg")
+            .args(&["delete", "HKCU\\Software\\Classes\\*\\shell\\Depdok", "/f"])
+            .status()
+            .map_err(|e| e.to_string())?;
+            
+        Command::new("reg")
+            .args(&["delete", "HKCU\\Software\\Classes\\Directory\\shell\\Depdok", "/f"])
+            .status()
+            .map_err(|e| e.to_string())?;
+            
+        Command::new("reg")
+            .args(&["delete", "HKCU\\Software\\Classes\\Directory\\Background\\shell\\Depdok", "/f"])
+            .status()
+            .map_err(|e| e.to_string())?;
+            
+        Ok(())
+    }
+    
+    #[cfg(not(target_os = "windows"))]
+    {
+        Ok(())
+    }
+}
 
 #[tauri::command]
 fn greet(name: &str) -> String {
@@ -364,6 +796,24 @@ pub fn run() {
     
     tauri::Builder::default()
         .plugin(tauri_plugin_clipboard_manager::init())
+        .plugin(tauri_plugin_single_instance::init(|app, argv, cwd| {
+            let base_dir = std::path::PathBuf::from(&cwd);
+            let mut paths = Vec::new();
+            for arg in argv.iter().skip(1) {
+                if arg.starts_with('-') {
+                    continue;
+                }
+                paths.push(resolve_and_normalize_path(&base_dir, arg));
+            }
+            if !paths.is_empty() {
+                let _ = app.emit("open-paths", &paths);
+            }
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.unminimize();
+                let _ = window.show();
+                let _ = window.set_focus();
+            }
+        }))
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_fs::init())
@@ -374,6 +824,16 @@ pub fn run() {
         .plugin(tauri_plugin_store::Builder::default().build())
         .setup(|app| {
             app.manage(knowledge_base::CurrentProjectGroup(Mutex::new(None)));
+
+            let current_dir = std::env::current_dir().unwrap_or_default();
+            let mut initial_paths = Vec::new();
+            for arg in std::env::args().skip(1) {
+                if arg.starts_with('-') {
+                    continue;
+                }
+                initial_paths.push(resolve_and_normalize_path(&current_dir, &arg));
+            }
+            app.manage(PendingOpenPaths(Mutex::new(initial_paths)));
 
             // Initialize file watcher state
             app.manage(commands::file_watcher::init());
@@ -516,6 +976,13 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             greet,
+            check_context_menu_status,
+            register_context_menu,
+            unregister_context_menu,
+            get_pending_open_paths,
+            install_cli,
+            uninstall_cli,
+            get_cli_info,
             get_opened_file_path,
             toggle_devtools,
             open_devtools,

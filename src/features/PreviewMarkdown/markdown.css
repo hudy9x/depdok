@@ -195,7 +195,7 @@
 }
 
 /* Lists */
-.prose ul {
+/* .prose ul {
   list-style-type: none;
   margin-top: 1.25em;
   margin-bottom: 1.25em;
@@ -205,55 +205,92 @@
 .prose ul li {
   display: flex;
   align-items: start;
-}
+} */
 
 .prose ul li p {
   margin-top: 0;
   margin-bottom: 0;
 }
 
-.prose ul li::before {
+/* .prose ul li::before {
   content: "—";
   display: inline-block;
   color: var(--foreground);
   margin-right: 0.75em;
-}
+} */
 
-.prose ol {
-  list-style: none;
-  counter-reset: my-item-counter;
+.prose ul {
   margin-top: 1.25em;
   margin-bottom: 1.25em;
+  padding-left: 0;
+  /* Reset padding để tự căn chỉnh bằng margin của li */
+  list-style-type: none;
+}
+
+/* Định dạng chung cho các item */
+.prose ul li {
+  position: relative;
   padding-left: 1.625em;
+  /* Tạo khoảng trống bên trái để chứa dấu gạch */
+  margin-bottom: 0.5em;
+}
+
+/* Sử dụng absolute để cố định dấu gạch ngang luôn thẳng hàng với dòng đầu tiên */
+.prose ul li::before {
+  content: "—";
+  color: var(--foreground);
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: inline-block;
+}
+
+/* Căn chỉnh khoảng cách cho danh sách lồng nhau */
+.prose ul ul {
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+  padding-left: 0;
+  /* Reset padding để thụt lề chuẩn */
+}
+
+
+.prose {
+  caret-color: #f26a0f;
+  margin-top: 2.5em;
+  border-top: 1px solid #eaeaea;
+  padding-top: 1.5em;
+}
+
+/* --- Định dạng cấu trúc danh sách có thứ tự (OL) --- */
+.prose ol {
+  counter-reset: my-item-counter;
+}
+
+/* Reset counter riêng cho từng cấp độ OL lồng nhau */
+.prose li>ol {
+  counter-reset: my-item-counter;
 }
 
 .prose ol li {
   counter-increment: my-item-counter;
-  display: flex;
-  align-items: start;
-}
-
-.prose {
-  caret-color: #f26a0f;
+  position: relative;
+  padding-left: 1.75rem;
+  /* Khoảng trống cho số thứ tự (ví dụ "1.") */
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
 }
 
 .prose ol li::before {
-  content: counter(my-item-counter);
+  content: counter(my-item-counter) ".";
   color: var(--secondary-foreground);
-  font-weight: 400;
-  margin-right: 0.5rem;
-  position: relative;
-  font-size: var(--text-xs);
-  top: 4px;
-  left: -4px;
-  width: 24px;
-  height: 24px;
-  background: var(--secondary);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
+  font-weight: 600;
+  font-size: var(--text-sm);
+  position: absolute;
+  left: 0;
+  top: 3px;
+  width: 1.25rem;
+  text-align: right;
+  display: inline-block;
 }
 
 .prose ol li p {

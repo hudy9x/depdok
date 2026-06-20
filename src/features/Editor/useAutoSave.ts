@@ -24,7 +24,7 @@ import { useDebouncedCallback } from "use-debounce";
 import { writeFileContent } from "@/lib/fileOperations";
 import { draftService } from "@/lib/indexeddb";
 
-import { editorStateAtom, markAsDirtyAtom, markAsSavedAtom } from "@/stores/EditorStore";
+import { editorStateAtom, markAsDirtyAtom, markAsSavedAtom, activeFileContentAtom } from "@/stores/EditorStore";
 import { isSavingAtom, lastSavedContentMap } from "@/stores/FileWatchStore";
 import { autoSaveDelayAtom, autoSaveEnabledAtom } from "@/stores/SettingsStore";
 import { activeTabAtom, isDummyPath, markTabAsDirtyAtom, markTabAsSavedAtom } from "@/stores/TabStore";
@@ -40,6 +40,7 @@ export function useAutoSave() {
   const markTabAsDirty = useSetAtom(markTabAsDirtyAtom);
   const markTabAsSaved = useSetAtom(markTabAsSavedAtom);
   const setIsSaving = useSetAtom(isSavingAtom);
+  const setActiveFileContent = useSetAtom(activeFileContentAtom);
 
   // Debounced IndexedDB draft save (always happens)
   const debouncedSaveDraft = useDebouncedCallback(async (newContent: string) => {
@@ -56,6 +57,14 @@ export function useAutoSave() {
   // Debounced auto-save to file (only if enabled)
   const debouncedAutoSave = useDebouncedCallback(async (newContent: string) => {
     if (!editorState.filePath || !autoSaveEnabled || isDummyPath(editorState.filePath)) return;
+
+    // If the backing file was deleted externally, skip the disk write but keep
+    // the draft in IndexedDB so the content stays recoverable and the tab
+    // remains visibly dirty.
+    if (activeTab?.isDeleted) {
+      console.log('[useAutoSave] Skipping disk write — tab is deleted (ghost):', editorState.filePath);
+      return;
+    }
 
     try {
       // Set flag (with file path) to prevent file watcher from reacting to our own save
@@ -85,6 +94,7 @@ export function useAutoSave() {
   }, autoSaveDelay);
 
   const handleContentChange = (value: string) => {
+    setActiveFileContent(value);
     debouncedSaveDraft(value); // Always save draft
     debouncedAutoSave(value);  // Auto-save if enabled
   };

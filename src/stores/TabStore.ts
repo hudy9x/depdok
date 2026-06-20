@@ -11,6 +11,7 @@ export interface Tab {
   isActive: boolean;
   isPreview: boolean;
   lineNumber?: number; // Optional line number to jump to when opening
+  isDeleted?: boolean; // True when the file/parent folder was deleted externally
 }
 
 // Helper function to check if path is a dummy path
@@ -208,7 +209,7 @@ export const markTabAsSavedAtom = atom(null, (_get, set, tabId: string) => {
   set(updateTabAtom, { tabId, updates: { isDirty: false } });
 });
 
-// Action: Update tab path (used after save-as)
+// Action: Update tab path (used after save-as or rename)
 export const updateTabPathAtom = atom(
   null,
   (_get, set, payload: { tabId: string; newPath: string }) => {
@@ -222,8 +223,91 @@ export const updateTabPathAtom = atom(
         filePath: newPath,
         fileName,
         fileExtension,
+        isDeleted: false, // clear ghost state whenever path is updated
       },
     });
+  }
+);
+
+// Helper: normalise path separators for cross-platform prefix matching
+const normalisePathSep = (p: string): string => p.replace(/\\/g, '/');
+
+// Helper: check if candidatePath is the deletedPath or a descendant of it
+const isPathOrDescendant = (candidatePath: string, deletedPath: string): boolean => {
+  const c = normalisePathSep(candidatePath);
+  const d = normalisePathSep(deletedPath);
+  return c === d || c.startsWith(d + '/');
+};
+
+/**
+ * Action: Mark all tabs whose filePath is the given path or a descendant as deleted.
+ * Used when a file or folder is removed externally.
+ */
+export const markTabsDeletedByPrefixAtom = atom(
+  null,
+  (_get, set, deletedPath: string) => {
+    set(tabsAtom, (tabs) =>
+      tabs.map((tab) =>
+        isPathOrDescendant(tab.filePath, deletedPath)
+          ? { ...tab, isDeleted: true, isDirty: true }
+          : tab
+      )
+    );
+  }
+);
+
+/**
+ * Action: Clear isDeleted on tabs that match a given path or are descendants.
+ * Used when a previously deleted file is restored (e.g. `git checkout`).
+ */
+export const restoreTabsByPrefixAtom = atom(
+  null,
+  (_get, set, restoredPath: string) => {
+    set(tabsAtom, (tabs) =>
+      tabs.map((tab) =>
+        tab.isDeleted && isPathOrDescendant(tab.filePath, restoredPath)
+          ? { ...tab, isDeleted: false }
+          : tab
+      )
+    );
+  }
+);
+
+/**
+ * Action: Update tab paths when a file or folder is renamed.
+ * For a renamed folder, all descendant tab paths are rewritten preserving relative paths.
+ */
+export const updateTabsPathByPrefixAtom = atom(
+  null,
+  (_get, set, payload: { fromPath: string; toPath: string }) => {
+    const { fromPath, toPath } = payload;
+    const from = normalisePathSep(fromPath);
+
+    set(tabsAtom, (tabs) =>
+      tabs.map((tab) => {
+        const tabPath = normalisePathSep(tab.filePath);
+        let newPath: string | null = null;
+
+        if (tabPath === from) {
+          newPath = toPath;
+        } else if (tabPath.startsWith(from + '/')) {
+          // Descendant: replace the prefix, preserve relative sub-path
+          newPath = toPath + tab.filePath.slice(fromPath.length);
+        }
+
+        if (newPath === null) return tab;
+
+        const fileName = newPath.split(/[/\\]/).pop() || tab.fileName;
+        const fileExtension = getFileExtension(fileName);
+        return {
+          ...tab,
+          filePath: newPath,
+          fileName,
+          fileExtension,
+          isDeleted: false,
+        };
+      })
+    );
   }
 );
 

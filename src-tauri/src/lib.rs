@@ -838,6 +838,9 @@ pub fn run() {
             // Initialize file watcher state
             app.manage(commands::file_watcher::init());
             
+            // Initialize workspace watcher state
+            app.manage(commands::file_watcher::WorkspaceWatcher::new());
+            
             // Initialize Git watcher state
             app.manage(commands::git::GitWatcher::new());
             
@@ -1012,6 +1015,8 @@ pub fn run() {
             commands::git::is_git_repository,
             commands::file_watcher::start_watching,
             commands::file_watcher::stop_watching,
+            commands::file_watcher::start_watching_workspace,
+            commands::file_watcher::stop_watching_workspace,
             commands::file_explorer::open_folder_dialog,
             commands::file_search::index_workspace_files,
             commands::file_search::fuzzy_search_files,

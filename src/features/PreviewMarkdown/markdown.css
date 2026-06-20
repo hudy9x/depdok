@@ -222,7 +222,7 @@
 .prose ul {
   margin-top: 1.25em;
   margin-bottom: 1.25em;
-  padding-left: 0;
+  padding-left: 0.625rem;
   /* Reset padding để tự căn chỉnh bằng margin của li */
   list-style-type: none;
 }
@@ -239,6 +239,7 @@
 .prose ul li::before {
   content: "—";
   color: var(--foreground);
+  opacity: 0.5;
   position: absolute;
   left: 0;
   top: 0;
@@ -261,6 +262,7 @@
 /* --- Định dạng cấu trúc danh sách có thứ tự (OL) --- */
 .prose ol {
   counter-reset: my-item-counter;
+  padding-left: 0.425rem;
 }
 
 /* Reset counter riêng cho từng cấp độ OL lồng nhau */
@@ -280,6 +282,7 @@
 .prose ol li::before {
   content: counter(my-item-counter) ".";
   color: var(--secondary-foreground);
+  opacity: 0.5;
   font-weight: 600;
   font-size: var(--text-sm);
   position: absolute;

@@ -17,7 +17,10 @@ import {
   markTabsDeletedByPrefixAtom,
   restoreTabsByPrefixAtom,
   updateTabsPathByPrefixAtom,
+  activeTabAtom,
 } from '@/stores/TabStore';
+import { activeFileContentAtom } from '@/stores/EditorStore';
+import { draftService } from '@/lib/indexeddb';
 
 /** Directories to ignore when deciding whether to react to an event. */
 const IGNORED_DIR_NAMES = new Set([
@@ -166,6 +169,22 @@ export function useWorkspaceWatcher(): void {
         case 'removed': {
           // Mark matching tabs as ghost/deleted.
           store.set(markTabsDeletedByPrefixAtom, evPath);
+
+          // Save active file content to draft if it's being deleted
+          const activeTab = store.get(activeTabAtom);
+          if (activeTab) {
+            const normTabPath = normalise(activeTab.filePath);
+            const normEvPath = normalise(evPath);
+            if (normTabPath === normEvPath || normTabPath.startsWith(normEvPath + '/')) {
+              const currentContent = store.get(activeFileContentAtom);
+              if (currentContent !== null) {
+                console.log('[WorkspaceWatcher] 💾 Auto-saving active file memory content to draft due to deletion:', activeTab.filePath);
+                draftService.saveDraft(activeTab.filePath, currentContent).catch(err => {
+                  console.error('[WorkspaceWatcher] ❌ Failed to auto-save draft for deleted active file:', err);
+                });
+              }
+            }
+          }
 
           // Remove deleted path and all its descendants from expandedFolders.
           const normDeleted = normalise(evPath);

@@ -91,17 +91,24 @@ export function TabItem({ tab }: TabItemProps) {
             isActive
               ? 'bg-layout-content text-foreground border-b border-b-transparent border-r border-r-border'
               : 'bg-layout-chrome text-muted-foreground hover:bg-muted/30 hover:text-foreground border-b border-border',
-            tab.isPreview && 'italic'
+            tab.isPreview && 'italic',
+            tab.isDeleted && 'opacity-70'
           )}
           onClick={handleClick}
           onDoubleClick={handleDoubleClick}
+          title={tab.isDeleted ? 'File was deleted externally — Save As to recover' : undefined}
         >
           {/* File Icon */}
           <span className="flex-shrink-0 opacity-70">
             <FileIcon filename={displayName} />
           </span>
 
-          <span className="text-xs truncate flex-1">{displayName}</span>
+          <span className={cn(
+            'text-xs truncate flex-1',
+            tab.isDeleted && 'line-through text-destructive'
+          )}>
+            {displayName}
+          </span>
 
           {/* Right side interactions: Dirty Indicator + Close Button */}
           <div className="relative w-4 h-4 flex items-center justify-center">

@@ -1,8 +1,10 @@
 import { useEffect, useState, ReactNode } from "react";
 import { toast } from "sonner";
+import { useSetAtom } from "jotai";
 // import { Loader2 } from "lucide-react";
 import { draftService } from "@/lib/indexeddb";
 import { readFileContent } from "@/lib/fileOperations";
+import { activeFileContentAtom } from "@/stores/EditorStore";
 
 interface LoadFileContentProps {
   filePath: string;
@@ -21,6 +23,7 @@ export function LoadFileContent({
 }: LoadFileContentProps) {
   const [content, setContent] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const setActiveFileContent = useSetAtom(activeFileContentAtom);
 
   // Load file on mount or when filePath changes
   useEffect(() => {
@@ -59,6 +62,7 @@ export function LoadFileContent({
         }
 
         setContent(contentToLoad);
+        setActiveFileContent(contentToLoad);
 
         // Update metadata
         if (onMetadataLoad) {
@@ -73,13 +77,14 @@ export function LoadFileContent({
         toast.error("Failed to load file");
         // Reset content on error to avoid showing stale data
         setContent("");
+        setActiveFileContent(null);
       } finally {
         setIsLoading(false);
       }
     };
 
     loadFile();
-  }, [filePath, onMetadataLoad]);
+  }, [filePath, onMetadataLoad, setActiveFileContent]);
 
   return (
     <>

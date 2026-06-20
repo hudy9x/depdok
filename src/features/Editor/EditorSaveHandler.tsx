@@ -4,7 +4,7 @@ import { save } from "@tauri-apps/plugin-dialog";
 import { platform } from "@tauri-apps/plugin-os";
 import { toast } from "sonner";
 
-import { editorStateAtom, markAsSavedAtom } from "@/stores/EditorStore";
+import { editorStateAtom, markAsSavedAtom, activeFileContentAtom } from "@/stores/EditorStore";
 import { isSavingAtom, lastSavedContentMap } from "@/stores/FileWatchStore";
 import { draftService } from "@/lib/indexeddb";
 import {
@@ -26,6 +26,7 @@ export function EditorSave() {
   const activeTab = useAtomValue(activeTabAtom);
   const autoSaveEnabled = useAtomValue(autoSaveEnabledAtom);
   const workspaceRoot = useAtomValue(workspaceRootAtom);
+  const activeFileContent = useAtomValue(activeFileContentAtom);
   const markAsSaved = useSetAtom(markAsSavedAtom);
   const updateTabPath = useSetAtom(updateTabPathAtom);
   const markTabAsSaved = useSetAtom(markTabAsSavedAtom);
@@ -77,11 +78,46 @@ export function EditorSave() {
         extensions: supportedFileTypes,
       });
 
-      // Open save dialog
+      // Determine the default save directory:
+      // 1. Original parent dir (if it still exists)
+      // 2. Walk up ancestors until one exists
+      // 3. Workspace root
+      // 4. Bare filename (last resort)
       const isWindows = platform() === "windows";
-      const defaultPath = isWindows && workspaceRoot
-        ? `${workspaceRoot}\\${filename}`
-        : filename;
+      let defaultDir: string | null = null;
+
+      if (!isDummyPath(currentPath)) {
+        // Try to find the nearest existing ancestor
+        let candidate = currentPath.substring(
+          0,
+          Math.max(currentPath.lastIndexOf('/'), currentPath.lastIndexOf('\\'))
+        );
+        while (candidate && candidate.length > 0) {
+          try {
+            // Use the Tauri fs plugin to check existence
+            const { exists } = await import('@tauri-apps/plugin-fs');
+            if (await exists(candidate)) {
+              defaultDir = candidate;
+              break;
+            }
+          } catch {
+            // ignore
+          }
+          const nextSlash = Math.max(candidate.lastIndexOf('/'), candidate.lastIndexOf('\\'));
+          if (nextSlash <= 0) break;
+          candidate = candidate.substring(0, nextSlash);
+        }
+      }
+
+      if (!defaultDir && workspaceRoot) {
+        defaultDir = workspaceRoot;
+      }
+
+      const defaultPath = isWindows && defaultDir
+        ? `${defaultDir}\\${filename}`
+        : defaultDir
+          ? `${defaultDir}/${filename}`
+          : filename;
 
       const selected = await save({
         defaultPath,
@@ -97,22 +133,21 @@ export function EditorSave() {
         : selected;
 
       // Get draft content
-      let draft = await draftService.getDraft(currentPath);
+      const draft = await draftService.getDraft(currentPath);
+      let contentToSave: string;
 
-      if (!draft && currentPath.endsWith(".logger")) {
-        draft = { 
-          filePath: currentPath,
-          timestamp: Date.now(),
-          content: JSON.stringify({
-            filterLevel: "all",
-            showMessageOnly: false,
-            filterText: "",
-            driver: "nodejs"
-          }, null, 2)
-        };
-      }
-
-      if (!draft) {
+      if (draft) {
+        contentToSave = draft.content;
+      } else if (activeFileContent !== null) {
+        contentToSave = activeFileContent;
+      } else if (currentPath.endsWith(".logger")) {
+        contentToSave = JSON.stringify({
+          filterLevel: "all",
+          showMessageOnly: false,
+          filterText: "",
+          driver: "nodejs"
+        }, null, 2);
+      } else {
         toast.error("No content to save");
         return;
       }
@@ -121,8 +156,8 @@ export function EditorSave() {
       setIsSaving(selectedPath);
 
       // Write to new location
-      await writeFileContent(selectedPath, draft.content);
-      lastSavedContentMap.set(selectedPath, draft.content);
+      await writeFileContent(selectedPath, contentToSave);
+      lastSavedContentMap.set(selectedPath, contentToSave);
 
       // Refresh file explorer for the parent folder
       const parentDir = selectedPath.substring(0, Math.max(selectedPath.lastIndexOf('/'), selectedPath.lastIndexOf('\\')));
@@ -156,6 +191,12 @@ export function EditorSave() {
   const handleSave = async () => {
     if (!editorState.filePath) return;
 
+    // If the backing file was deleted externally, redirect to Save As
+    if (activeTab?.isDeleted) {
+      await handleSaveAs(editorState.filePath);
+      return;
+    }
+
     // Check if this is a DUMMY_PATH file
     if (isDummyPath(editorState.filePath)) {
       await handleSaveAs(editorState.filePath);
@@ -164,30 +205,27 @@ export function EditorSave() {
 
     try {
       // Get content from IndexedDB draft
-      let draft = await draftService.getDraft(editorState.filePath);
+      const draft = await draftService.getDraft(editorState.filePath);
+      let contentToSave: string;
 
-      if (!draft && editorState.filePath.endsWith(".logger")) {
-        draft = { 
-          filePath: editorState.filePath,
-          timestamp: Date.now(),
-          content: JSON.stringify({
-            filterLevel: "all",
-            showMessageOnly: false,
-            filterText: "",
-            driver: "nodejs"
-          }, null, 2)
-        };
-      }
-
-      if (!draft) {
+      if (draft) {
+        contentToSave = draft.content;
+      } else if (activeFileContent !== null) {
+        contentToSave = activeFileContent;
+      } else if (editorState.filePath.endsWith(".logger")) {
+        contentToSave = JSON.stringify({
+          filterLevel: "all",
+          showMessageOnly: false,
+          filterText: "",
+          driver: "nodejs"
+        }, null, 2);
+      } else {
         toast.error("No content to save");
         return;
       }
 
-      const contentToSave = draft.content;
-
       console.log(
-        "[Editor] handleSave - saving from draft:",
+        "[Editor] handleSave - saving content:",
         contentToSave?.substring(0, 100)
       );
 

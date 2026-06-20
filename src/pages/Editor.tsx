@@ -34,6 +34,7 @@ import { FileSearchDialog } from "@/features/FileSearchDialog";
 import { ContentSearchDialog } from "@/features/ContentSearchDialog";
 import { BranchSelectorDialog } from "@/features/BranchSelector";
 import { useGlobalShortcuts } from "@/hooks/useGlobalShortcuts";
+import { useWorkspaceWatcher } from "@/hooks/useWorkspaceWatcher";
 import { EditorViewMode } from "@/features/EditorViewMode";
 import { isKnowledgeGraphFile } from "@/lib/knowledgeGraph";
 
@@ -56,6 +57,9 @@ export default function Editor() {
 
   // Initialize global shortcuts (e.g. Cmd+B to toggle explorer)
   useGlobalShortcuts();
+
+  // Watch the workspace for external file system changes
+  useWorkspaceWatcher();
 
   const { handleContentChange: handleSaveContent } = useAutoSave();
   const markTabAsSaved = useSetAtom(markTabAsSavedAtom);

@@ -23,6 +23,9 @@ export const editorStateAtom = atom<EditorState>({
   viewMode: initialSettings.viewMode,
 });
 
+// Holds the live content of the active file in memory (for saving when no dirty draft exists)
+export const activeFileContentAtom = atom<string | null>(null);
+
 // Derived atom for file path
 export const filePathAtom = atom(
   (get) => get(editorStateAtom).filePath,

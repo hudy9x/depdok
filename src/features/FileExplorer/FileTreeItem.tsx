@@ -1,4 +1,5 @@
-import { ChevronRight, ChevronDown, Folder, FolderOpen } from 'lucide-react';
+import { ChevronRight, ChevronDown } from 'lucide-react';
+import { PiFolderSimpleFill, PiFolderOpenFill } from 'react-icons/pi';
 import { useAtomValue } from 'jotai';
 import { FlatTreeNode } from './utils';
 import { cn } from '@/lib/utils';
@@ -80,9 +81,9 @@ export function FileTreeItem({
         <span className="flex-shrink-0 w-4 h-4 flex items-center justify-center">
           {node.isFolder ? (
             node.isOpen ? (
-              <FolderOpen fill='var(--accent)' className="w-4 h-4 text-primary" />
+              <PiFolderOpenFill className="w-4 h-4 text-primary" />
             ) : (
-              <Folder fill='var(--primary)' className="w-4 h-4 text-primary" />
+              <PiFolderSimpleFill className="w-4 h-4 text-primary" />
             )
           ) : (
             <FileIcon filename={node.name} className={`w-4 h-4 ${isActive || isSelected ? '' : ''}`} />

@@ -4,17 +4,17 @@ import { useNavigate } from 'react-router-dom';
 import { 
   ChevronDown,
   ChevronLeft, 
-  Plus, 
   Settings
 } from 'lucide-react';
 import { BsLayoutSidebar, BsLayoutSidebarInset } from 'react-icons/bs';
+import { VscLayoutPanel, VscLayoutPanelOff } from 'react-icons/vsc';
 
 import { Button } from '@/components/ui/button';
 
 import { SettingsDialog } from '@/features/SettingsDialog';
 import { workspaceRootAtom, isFileExplorerVisibleAtom } from '@/features/FileExplorer/store';
-import { createUntitledTabAtom } from '@/stores/TabStore';
 import { licensePopoverOpenAtom } from '@/stores/license-popover';
+import { isTerminalOpenAtom, setIsTerminalOpenAtom } from '@/stores/TerminalStore';
 
 import { TitlebarContainer } from './TitlebarContainer';
 import { WindowsButtons } from './WindowsButtons';
@@ -23,19 +23,15 @@ export function WindowsTitlebar() {
   const navigate = useNavigate();
   const workspaceRoot = useAtomValue(workspaceRootAtom);
   const [isFileExplorerVisible, setIsFileExplorerVisible] = useAtom(isFileExplorerVisibleAtom);
-  const createUntitledTab = useSetAtom(createUntitledTabAtom);
   const setLicenseOpen = useSetAtom(licensePopoverOpenAtom);
+  const isTerminalOpen = useAtomValue(isTerminalOpenAtom);
+  const setIsTerminalOpen = useSetAtom(setIsTerminalOpenAtom);
 
   const [showSettings, setShowSettings] = useState(false);
 
   const workspaceName = workspaceRoot 
     ? workspaceRoot.split(/[/\\]/).pop() || 'workspace' 
     : 'depdok';
-
-  const handleCreateUntitled = () => {
-    createUntitledTab('Untitled.md');
-    navigate('/editor');
-  };
 
   return (
     <TitlebarContainer>
@@ -92,7 +88,7 @@ export function WindowsTitlebar() {
         </div>
       </div>
 
-      {/* Right Section: Pro upgrade, add file, settings, and Windows system controls */}
+      {/* Right Section: Pro upgrade, terminal, settings, and Windows system controls */}
       <div data-tauri-drag-region="false" className="flex h-full items-center flex-shrink-0 gap-3.5">
         <div className="flex items-center gap-3.5">
           {/* Upgrade to Pro button */}
@@ -104,15 +100,23 @@ export function WindowsTitlebar() {
             Upgrade to Pro
           </button>
 
-          {/* Plus (+) Button to create Untitled Tab */}
+          {/* Terminal Toggle Button */}
           <Button
             variant="ghost"
             size="icon"
-            className="h-7 w-7 text-muted-foreground hover:text-foreground cursor-pointer"
-            onClick={handleCreateUntitled}
-            title="New File (Cmd+N)"
+            className={`h-7 w-7 cursor-pointer transition-colors ${
+              isTerminalOpen
+                ? 'text-primary hover:text-primary'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+            onClick={() => setIsTerminalOpen(!isTerminalOpen)}
+            title={`${isTerminalOpen ? 'Hide' : 'Show'} Terminal (Ctrl+\`)`}
           >
-            <Plus className="h-4 w-4" />
+            {isTerminalOpen ? (
+              <VscLayoutPanel className="h-4 w-4" />
+            ) : (
+              <VscLayoutPanelOff className="h-4 w-4" />
+            )}
           </Button>
 
           {/* Settings Button */}

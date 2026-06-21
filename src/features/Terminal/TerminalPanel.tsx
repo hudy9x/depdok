@@ -164,8 +164,8 @@ export function TerminalPanel({ shortcutHint = 'Ctrl+`' }: TerminalPanelProps) {
     <div
       className={`flex flex-col shrink-0 relative transition-all duration-150 bg-layout-chrome ${
         isRight
-          ? 'h-full border-l border-border'
-          : 'w-full border-t border-border'
+          ? `h-full border-l ${isOpen ? 'border-border' : 'border-transparent'}`
+          : `w-full border-t ${isOpen ? 'border-border' : 'border-transparent'}`
       }`}
       style={{
         height: isRight ? '100%' : (isOpen ? panelHeight : 0),

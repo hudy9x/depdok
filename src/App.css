@@ -273,3 +273,31 @@ body:after {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--muted-foreground);
 }
+
+/* ─── xterm.js overrides ───────────────────────────────────────────────────────
+   Inherit the dynamic layout theme background. We force transparent backgrounds
+   on all xterm DOM containers so that bg-layout-chrome shines through.        */
+
+.xterm {
+  height: 100%;
+}
+
+.xterm,
+.xterm .xterm-viewport,
+.xterm .xterm-screen,
+.xterm .xterm-scrollable-element,
+.xterm-viewport,
+.xterm-scrollable-element {
+  background-color: transparent !important;
+  background: transparent !important;
+  border-radius: 0;
+}
+
+.xterm-screen canvas {
+  border-radius: 0;
+}
+
+/* Remove xterm's default focus outline (we handle selection ourselves) */
+.xterm:focus-within .xterm-cursor-layer {
+  outline: none;
+}

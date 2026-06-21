@@ -1,5 +1,5 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use tauri::{Manager, WebviewUrl, WebviewWindowBuilder, Emitter};
 use tauri_plugin_store::StoreExt;
 
@@ -853,6 +853,9 @@ pub fn run() {
             // Initialize logger server state
             app.manage(commands::logger::LoggerServerState::new());
 
+            // Initialize terminal PTY state
+            app.manage(Arc::new(commands::terminal::TerminalState::new()));
+
             // Initialize knowledge base (SQLite + embedding model)
             match knowledge_base::init_knowledge_base(app.handle()) {
                 Ok((kb_state, embedder_state)) => {
@@ -1036,6 +1039,10 @@ pub fn run() {
             activate_license,
             commands::logger::start_logger_server,
             commands::logger::register_logger_channel,
+            commands::terminal::start_pty_session,
+            commands::terminal::write_to_pty,
+            commands::terminal::resize_pty,
+            commands::terminal::close_pty_session,
             knowledge_base::commands::insert_or_replace_document,
             knowledge_base::commands::index_markdown_document_sections,
             knowledge_base::commands::delete_document,
@@ -1057,6 +1064,14 @@ pub fn run() {
             knowledge_base::commands::download_embedding_model,
             knowledge_base::commands::delete_embedding_model,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app, event| {
+            if let tauri::RunEvent::Exit = event {
+                // Kill all open PTY sessions to prevent orphaned shell processes.
+                if let Some(terminal_state) = app.try_state::<Arc<commands::terminal::TerminalState>>() {
+                    terminal_state.kill_all();
+                }
+            }
+        });
 }

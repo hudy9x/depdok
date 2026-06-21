@@ -37,7 +37,12 @@ import { useGlobalShortcuts } from "@/hooks/useGlobalShortcuts";
 import { useWorkspaceWatcher } from "@/hooks/useWorkspaceWatcher";
 import { EditorViewMode } from "@/features/EditorViewMode";
 import { isKnowledgeGraphFile } from "@/lib/knowledgeGraph";
-
+import { TerminalPanel } from "@/features/Terminal/TerminalPanel";
+import {
+  setIsTerminalOpenAtom,
+  isTerminalOpenAtom,
+  terminalPositionAtom,
+} from "@/stores/TerminalStore";
 
 
 
@@ -54,9 +59,24 @@ export default function Editor() {
   const isFileExplorerVisible = useAtomValue(isFileExplorerVisibleAtom);
   const workspaceRoot = useAtomValue(workspaceRootAtom);
   const [showSettings, setShowSettings] = useState(false);
+  const setIsTerminalOpen = useSetAtom(setIsTerminalOpenAtom);
+  const isTerminalOpen = useAtomValue(isTerminalOpenAtom);
+  const terminalPosition = useAtomValue(terminalPositionAtom);
 
   // Initialize global shortcuts (e.g. Cmd+B to toggle explorer)
   useGlobalShortcuts();
+
+  // Toggle terminal panel with Ctrl+`
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === '`') {
+        e.preventDefault();
+        setIsTerminalOpen(!isTerminalOpen);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isTerminalOpen, setIsTerminalOpen]);
 
   // Watch the workspace for external file system changes
   useWorkspaceWatcher();
@@ -127,6 +147,8 @@ export default function Editor() {
     return null;
   }
 
+  const isRight = terminalPosition === 'right';
+
   return (
     <>
       <FileSearchDialog />
@@ -135,105 +157,111 @@ export default function Editor() {
       <EditorSave />
       {/* <EditorViewMode /> */}
 
-      {/* Main Body Workspace Container */}
-      <div className="w-full h-full flex bg-layout-chrome overflow-hidden">
-        {/* 2. Main Content pane with Resizable Sidebar & Editor */}
-        <PanelSectionGroup storageKey="depdok-editor-layouts">
-          <PanelSectionItem
-            id="sidebar"
-            visible={isFileExplorerVisible}
-            minWidth={180}
-            maxWidth={400}
-            defaultWidth={240}
-            className="bg-layout-chrome flex flex-col select-none"
-          >
-            <div className="flex-1 min-h-0 overflow-y-auto">
-              <FileExplorer />
-            </div>
-          </PanelSectionItem>
+      {/* Outer flex wrapper: layout direction changes depending on terminal position */}
+      <div className={`w-full h-full flex ${isRight ? 'flex-row' : 'flex-col'} overflow-hidden`}>
+        {/* Main Body Workspace Container */}
+        <div className="flex-1 min-h-0 min-w-0 flex bg-layout-chrome overflow-hidden">
+          {/* 2. Main Content pane with Resizable Sidebar & Editor */}
+          <PanelSectionGroup storageKey="depdok-editor-layouts">
+            <PanelSectionItem
+              id="sidebar"
+              visible={isFileExplorerVisible}
+              minWidth={180}
+              maxWidth={400}
+              defaultWidth={240}
+              className="bg-layout-chrome flex flex-col select-none"
+            >
+              <div className="flex-1 min-h-0 overflow-y-auto">
+                <FileExplorer />
+              </div>
+            </PanelSectionItem>
 
-          <PanelSectionHandle
-            targetId="sidebar"
-            visible={isFileExplorerVisible}
-            resizeDirection="right"
-            className="bg-border hover:bg-primary/50 transition-colors"
-          />
+            <PanelSectionHandle
+              targetId="sidebar"
+              visible={isFileExplorerVisible}
+              resizeDirection="right"
+              className="bg-border hover:bg-primary/50 transition-colors"
+            />
 
-          <PanelSectionItem flex={1} className="bg-layout-content">
-            <div className="h-full w-full flex flex-col bg-layout-content">
-              {currentFilePath ? (
-                <>
-                  {/* Row 1: Tab list header */}
-                  <div className="h-[35px] border-b border-transparent bg-layout-content shrink-0 flex items-end">
-                    <EditorTabs />
-                  </div>
+            <PanelSectionItem flex={1} className="bg-layout-content">
+              <div className="h-full w-full flex flex-col bg-layout-content">
+                {currentFilePath ? (
+                  <>
+                    {/* Row 1: Tab list header */}
+                    <div className="h-[35px] border-b border-transparent bg-layout-content shrink-0 flex items-end">
+                      <EditorTabs />
+                    </div>
 
-                  {/* Row 2: Breadcrumbs path and Preview/Markdown switch */}
-                  <div className="h-8 bg-layout-content shrink-0 px-3 flex items-center justify-between">
-                    {/* Breadcrumbs */}
-                    <EditorBreadcrumbs />
+                    {/* Row 2: Breadcrumbs path and Preview/Markdown switch */}
+                    <div className="h-8 bg-layout-content shrink-0 px-3 flex items-center justify-between">
+                      {/* Breadcrumbs */}
+                      <EditorBreadcrumbs />
 
-                    {/* Segmented view switch control */}
-                    <div className="">
-                      <EditorViewMode />
+                      {/* Segmented view switch control */}
+                      <div className="">
+                        <EditorViewMode />
+                      </div>
+                    </div>
+
+                    {/* Row 3: Active Document Content with background contrast */}
+                    <div className="flex-1 min-h-0 bg-layout-content relative">
+                      <LoadFileContent filePath={currentFilePath} onMetadataLoad={loadFileMetadata}>
+                        {(initialContent) => (
+                          <div className="w-full h-full bg-layout-content">
+                            {viewMode === 'side-by-side' && (
+                              <SideBySide
+                                initialContent={initialContent}
+                                enableFileWatcher={true}
+                                lineNumber={activeTab?.lineNumber}
+                              />
+                            )}
+
+                            {viewMode === 'editor-only' && (
+                              <MonacoEditor
+                                initialContent={initialContent}
+                                language={getMonacoLanguage(editorState.fileExtension)}
+                                enableFileWatcher={true}
+                                lineNumber={activeTab?.lineNumber}
+                              />
+                            )}
+
+                            {viewMode === 'preview-only' && (
+                              <PreviewFileWatcher
+                                content={initialContent}
+                                enableFileWatcher={true}
+                                onContentReload={handleExternalReload}
+                              >
+                                {(content) => (
+                                  <PreviewPanel
+                                    content={content}
+                                    fileExtension={editorState.fileExtension}
+                                    filePath={currentFilePath}
+                                    editable={true}
+                                    onContentChange={handleSaveContent}
+                                  />
+                                )}
+                              </PreviewFileWatcher>
+                            )}
+                          </div>
+                        )}
+                      </LoadFileContent>
+                    </div>
+                  </>
+                ) : (
+                  <div className="h-full w-full flex flex-col items-center justify-center bg-layout-chrome text-muted-foreground p-8">
+                    <div className="flex flex-col items-center gap-4 max-w-sm text-center">
+                      <img src="/app-icon.png" alt="App Icon" className="w-16 h-16 opacity-20 grayscale" />
+                      <p className="text-xs">Select a file from the explorer to start editing or create a new file.</p>
                     </div>
                   </div>
+                )}
+              </div>
+            </PanelSectionItem>
+          </PanelSectionGroup>
+        </div>
 
-                  {/* Row 3: Active Document Content with background contrast */}
-                  <div className="flex-1 min-h-0 bg-layout-content relative">
-                    <LoadFileContent filePath={currentFilePath} onMetadataLoad={loadFileMetadata}>
-                      {(initialContent) => (
-                        <div className="w-full h-full bg-layout-content">
-                          {viewMode === 'side-by-side' && (
-                            <SideBySide
-                              initialContent={initialContent}
-                              enableFileWatcher={true}
-                              lineNumber={activeTab?.lineNumber}
-                            />
-                          )}
-
-                          {viewMode === 'editor-only' && (
-                            <MonacoEditor
-                              initialContent={initialContent}
-                              language={getMonacoLanguage(editorState.fileExtension)}
-                              enableFileWatcher={true}
-                              lineNumber={activeTab?.lineNumber}
-                            />
-                          )}
-
-                          {viewMode === 'preview-only' && (
-                            <PreviewFileWatcher
-                              content={initialContent}
-                              enableFileWatcher={true}
-                              onContentReload={handleExternalReload}
-                            >
-                              {(content) => (
-                                <PreviewPanel
-                                  content={content}
-                                  fileExtension={editorState.fileExtension}
-                                  filePath={currentFilePath}
-                                  editable={true}
-                                  onContentChange={handleSaveContent}
-                                />
-                              )}
-                            </PreviewFileWatcher>
-                          )}
-                        </div>
-                      )}
-                    </LoadFileContent>
-                  </div>
-                </>
-              ) : (
-                <div className="h-full w-full flex flex-col items-center justify-center bg-layout-chrome text-muted-foreground p-8">
-                  <div className="flex flex-col items-center gap-4 max-w-sm text-center">
-                    <img src="/app-icon.png" alt="App Icon" className="w-16 h-16 opacity-20 grayscale" />
-                    <p className="text-xs">Select a file from the explorer to start editing or create a new file.</p>
-                  </div>
-                </div>
-              )}
-            </div>
-          </PanelSectionItem>
-        </PanelSectionGroup>
+        {/* Terminal panel — sits at bottom or right of the workspace */}
+        <TerminalPanel shortcutHint="Ctrl+`" />
       </div>
 
       <SettingsDialog open={showSettings} onOpenChange={setShowSettings} />

@@ -39,7 +39,7 @@ export function Footer() {
 
   return (
     <footer className="h-7 w-full flex items-center justify-between px-3 border-t border-border/80 bg-layout-chrome text-[11px] text-muted-foreground select-none shrink-0 z-50">
-      {/* Left Side: Git Status, Sync, Workspace */}
+      {/* Left Side: Git Status, Sync, Workspace, Terminal toggle */}
       <div className="flex items-center gap-2">
         <FooterGitSection />
       </div>

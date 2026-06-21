@@ -1,13 +1,16 @@
 import { useEffect, useState } from 'react';
-import { useAtomValue } from 'jotai';
-import { FileCode } from 'lucide-react';
+import { useAtomValue, useSetAtom } from 'jotai';
+import { FileCode, SquareTerminal } from 'lucide-react';
 
 import { activeTabAtom } from '@/stores/TabStore';
 import { FooterGitSection } from './FooterGitSection';
+import { isTerminalOpenAtom, setIsTerminalOpenAtom } from '@/stores/TerminalStore';
 
 export function Footer() {
   const activeTab = useAtomValue(activeTabAtom);
   const [cursorPos, setCursorPos] = useState<{ line: number; col: number } | null>(null);
+  const isTerminalOpen = useAtomValue(isTerminalOpenAtom);
+  const setIsTerminalOpen = useSetAtom(setIsTerminalOpenAtom);
 
   // 2. Listen to custom editor cursor events from MonacoEditor
   useEffect(() => {
@@ -39,9 +42,25 @@ export function Footer() {
 
   return (
     <footer className="h-7 w-full flex items-center justify-between px-3 border-t border-border/80 bg-layout-chrome text-[11px] text-muted-foreground select-none shrink-0 z-50">
-      {/* Left Side: Git Status, Sync, Workspace */}
+      {/* Left Side: Git Status, Sync, Workspace, Terminal toggle */}
       <div className="flex items-center gap-2">
         <FooterGitSection />
+
+        {/* Terminal toggle button */}
+        <button
+          id="footer-terminal-toggle"
+          onClick={() => setIsTerminalOpen(!isTerminalOpen)}
+          title={`${isTerminalOpen ? 'Hide' : 'Show'} terminal (Ctrl+\`)`}
+          className={[
+            'flex items-center gap-1 px-1.5 py-0.5 rounded transition-colors',
+            isTerminalOpen
+              ? 'text-primary bg-primary/10 hover:bg-primary/20'
+              : 'hover:text-foreground hover:bg-muted/50',
+          ].join(' ')}
+        >
+          <SquareTerminal size={12} />
+          <span>Terminal</span>
+        </button>
       </div>
 
       

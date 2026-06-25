@@ -1,19 +1,16 @@
 import { useEffect, useState } from "react";
-import { useAtomValue, useSetAtom } from "jotai";
 import { useDebouncedCallback } from "use-debounce";
 import { TodoDocument, todoRender, todoSerializer, TodoSection } from "./todoRenderer";
-import { editorStateAtom, markAsDirtyAtom } from "@/stores/EditorStore";
 import { draftService } from "@/lib/indexeddb";
 
 interface UseTodoDocumentProps {
   content: string;
   editable: boolean;
   onContentChange?: (content: string) => void;
+  filePath?: string;
 }
 
-export function useTodoDocument({ content, editable, onContentChange }: UseTodoDocumentProps) {
-  const editorState = useAtomValue(editorStateAtom);
-  const markAsDirty = useSetAtom(markAsDirtyAtom);
+export function useTodoDocument({ content, editable, onContentChange, filePath }: UseTodoDocumentProps) {
   const [document, setDocument] = useState<TodoDocument>({ sections: [] });
 
   useEffect(() => {
@@ -22,9 +19,8 @@ export function useTodoDocument({ content, editable, onContentChange }: UseTodoD
 
   // Debounced draft save (only when editable)
   const debouncedSaveDraft = useDebouncedCallback(async (newContent: string) => {
-    if (!editorState.filePath || !editable) return;
-    await draftService.saveDraft(editorState.filePath, newContent);
-    markAsDirty();
+    if (!filePath || !editable) return;
+    await draftService.saveDraft(filePath, newContent);
   }, 500);
 
   const updateContent = (newDocument: TodoDocument) => {
@@ -142,15 +138,10 @@ export function useTodoDocument({ content, editable, onContentChange }: UseTodoD
     updateContent(newDocument);
   };
 
-  /**
-   * Update the order of all sections (boards).
-   * Takes the new visual order of sections, updates their `order` metadata, and saves.
-   */
   const handleSetSectionsOrder = (newSections: TodoSection[]) => {
     if (!editable) return;
     const newDocument = { ...document };
 
-    // Update order metadata to match the new visual order
     newDocument.sections = newSections.map((section, idx) => ({
       ...section,
       metadata: { ...section.metadata, order: idx + 1 },
@@ -159,10 +150,6 @@ export function useTodoDocument({ content, editable, onContentChange }: UseTodoD
     updateContent(newDocument);
   };
 
-  /**
-   * Move a todo item within or across sections.
-   * targetItemIndex is the index BEFORE which the item will be inserted.
-   */
   const handleMoveItem = (
     sourceSectionIndex: number,
     sourceItemIndex: number,

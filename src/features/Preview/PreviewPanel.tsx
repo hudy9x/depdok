@@ -47,6 +47,7 @@ export function PreviewPanel({
         content={content}
         editable={editable}
         onContentChange={onContentChange}
+        filePath={filePath}
       />
     );
   }
@@ -71,6 +72,7 @@ export function PreviewPanel({
         content={content}
         editable={editable}
         onContentChange={onContentChange}
+        filePath={filePath}
       />
     );
   }

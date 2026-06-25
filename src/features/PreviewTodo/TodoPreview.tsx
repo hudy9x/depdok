@@ -7,14 +7,15 @@ interface TodoPreviewProps {
   content: string;
   onContentChange?: (content: string) => void;
   editable?: boolean;
+  filePath?: string;
 }
 
-export function TodoPreview({ content, onContentChange, editable = false }: TodoPreviewProps) {
+export function TodoPreview({ content, onContentChange, editable = false, filePath }: TodoPreviewProps) {
   const {
     document,
     handleModeChange,
     ...handlers
-  } = useTodoDocument({ content, editable, onContentChange });
+  } = useTodoDocument({ content, editable, onContentChange, filePath });
 
   const currentMode = document.config?.mode || "kanban";
 

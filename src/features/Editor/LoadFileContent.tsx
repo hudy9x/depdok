@@ -1,14 +1,14 @@
 import { useEffect, useState, ReactNode } from "react";
 import { toast } from "sonner";
-import { useSetAtom, useStore } from "jotai";
+import { useSetAtom } from "jotai";
 // import { Loader2 } from "lucide-react";
 import { draftService } from "@/lib/indexeddb";
 import { readFileContent } from "@/lib/fileOperations";
 import { activeFileContentAtom } from "@/stores/EditorStore";
-import { tabsAtom } from "@/stores/TabStore";
 
 interface LoadFileContentProps {
   filePath: string;
+  isDeleted?: boolean;
   onMetadataLoad?: (metadata: {
     path: string;
     extension: string;
@@ -19,13 +19,13 @@ interface LoadFileContentProps {
 
 export function LoadFileContent({
   filePath,
+  isDeleted,
   onMetadataLoad,
   children,
 }: LoadFileContentProps) {
   const [content, setContent] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const setActiveFileContent = useSetAtom(activeFileContentAtom);
-  const store = useStore();
 
   // Load file on mount or when filePath changes
   useEffect(() => {
@@ -73,10 +73,7 @@ export function LoadFileContent({
         // If reading failed and no draft exists, only throw (causing a toast)
         // if the file is NOT marked as deleted externally.
         if (readFailed && !draft) {
-          const tabs = store.get(tabsAtom);
-          const currentTab = tabs.find(t => t.filePath === filePath);
-          const isFileDeleted = currentTab?.isDeleted;
-          if (!isFileDeleted) {
+          if (!isDeleted) {
             throw new Error("File could not be read and no draft exists");
           }
         }
@@ -104,7 +101,7 @@ export function LoadFileContent({
     };
 
     loadFile();
-  }, [filePath, onMetadataLoad, setActiveFileContent, store]);
+  }, [filePath, onMetadataLoad, setActiveFileContent]);
 
   return (
     <>

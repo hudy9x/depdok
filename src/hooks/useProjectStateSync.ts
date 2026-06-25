@@ -1,12 +1,12 @@
 import { useEffect } from 'react';
 import { useAtom, useAtomValue } from 'jotai';
 import { load } from '@tauri-apps/plugin-store';
-import { tabsAtom, activeTabIdAtom, Tab } from '@/stores/TabStore';
+import { paneTreeAtom, activePaneIdAtom, PaneNode } from '@/stores/PaneStore';
 import { workspaceRootAtom, expandedFoldersAtom } from '@/features/FileExplorer/store';
 
 export interface ProjectState {
-  tabs: Tab[];
-  activeTabId: string | null;
+  paneTree: PaneNode;
+  activePaneId: string;
   expandedFolders: string[];
 }
 
@@ -22,8 +22,8 @@ const getStore = () => {
 
 export function useProjectStateSync() {
   const workspaceRoot = useAtomValue(workspaceRootAtom);
-  const [tabs, setTabs] = useAtom(tabsAtom);
-  const [activeTabId, setActiveTabId] = useAtom(activeTabIdAtom);
+  const [paneTree, setPaneTree] = useAtom(paneTreeAtom);
+  const [activePaneId, setActivePaneId] = useAtom(activePaneIdAtom);
   const [expandedFolders, setExpandedFolders] = useAtom(expandedFoldersAtom);
 
   // Load project state when workspaceRoot changes
@@ -38,13 +38,13 @@ export function useProjectStateSync() {
         const projectState = allProjects[projectKey];
 
         if (isMounted && projectState) {
-          // Note: Here we update the state directly but we have to be careful not to
-          // trigger an immediate save loop. We just populate sessionStorage.
-          setTabs(projectState.tabs || []);
-          setActiveTabId(projectState.activeTabId || null);
+          if (projectState.paneTree) {
+            setPaneTree(projectState.paneTree);
+          }
+          if (projectState.activePaneId) {
+            setActivePaneId(projectState.activePaneId);
+          }
           setExpandedFolders(new Set(projectState.expandedFolders || []));
-        } else if (isMounted && !workspaceRoot) {
-          // If no state for GLOBAL_WORKSPACE yet, do nothing (keep current session state)
         }
       } catch (error) {
         console.error('Failed to load project state:', error);
@@ -56,7 +56,7 @@ export function useProjectStateSync() {
     return () => {
       isMounted = false;
     };
-  }, [workspaceRoot, setTabs, setActiveTabId, setExpandedFolders]);
+  }, [workspaceRoot, setPaneTree, setActivePaneId, setExpandedFolders]);
 
   // Save project state when it changes
   useEffect(() => {
@@ -68,8 +68,8 @@ export function useProjectStateSync() {
         const allProjects = await store.get<ProjectsStateMap>('depdok-projects-state') || {};
         
         const newState: ProjectState = {
-          tabs,
-          activeTabId,
+          paneTree,
+          activePaneId,
           expandedFolders: Array.from(expandedFolders)
         };
 
@@ -81,8 +81,8 @@ export function useProjectStateSync() {
       }
     };
 
-    // Use a small timeout to debounce rapid changes (e.g. dragging tabs)
+    // Use a small timeout to debounce rapid changes
     const timeoutId = setTimeout(saveState, 500);
     return () => clearTimeout(timeoutId);
-  }, [workspaceRoot, tabs, activeTabId, expandedFolders]);
+  }, [workspaceRoot, paneTree, activePaneId, expandedFolders]);
 }

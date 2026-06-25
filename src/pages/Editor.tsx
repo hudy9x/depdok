@@ -1,42 +1,27 @@
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { useSetAtom, useAtomValue, useAtom } from "jotai";
+import { useAtom, useSetAtom, useAtomValue } from "jotai";
 import { useEffect, useRef, useState } from "react";
 
-import { MonacoEditor } from "@/features/Editor/MonacoEditor";
-import { PreviewPanel } from "@/features/Preview/PreviewPanel";
-import { PreviewFileWatcher } from "@/features/Preview/PreviewFileWatcher";
-import { SideBySide } from "@/features/SidebySide";
-import { EditorTabs } from "@/features/EditorTabs";
-import { LoadFileContent } from "@/features/Editor/LoadFileContent";
-import { EditorBreadcrumbs } from "@/features/Editor/EditorBreadcrumbs";
-import { EditorSave } from "@/features/Editor/EditorSaveHandler";
 import { FileExplorer } from "@/features/FileExplorer";
 import { isFileExplorerVisibleAtom, workspaceRootAtom } from "@/features/FileExplorer/store";
 import { SettingsDialog } from "@/features/SettingsDialog";
 import { PanelSectionGroup, PanelSectionItem, PanelSectionHandle } from "@/components/ui/panel-section";
 
-import {
-  editorStateAtom,
-  loadFileMetadataAtom,
-  viewModeAtom,
-} from "@/stores/EditorStore";
+import { EditorWorkspace } from "@/features/EditorWorkspace";
+
 import {
   activeTabAtom,
-  createTabAtom,
   tabsAtom,
   switchTabAtom,
-  markTabAsSavedAtom,
+  createTabAtom,
 } from "@/stores/TabStore";
-import { getMonacoLanguage } from "@/lib/utils/getMonacoLanguage";
 
-import { useAutoSave } from "@/features/Editor/useAutoSave";
 import { FileSearchDialog } from "@/features/FileSearchDialog";
+import { EditorSave } from "@/features/Editor/EditorSaveHandler";
 import { ContentSearchDialog } from "@/features/ContentSearchDialog";
 import { BranchSelectorDialog } from "@/features/BranchSelector";
 import { useGlobalShortcuts } from "@/hooks/useGlobalShortcuts";
 import { useWorkspaceWatcher } from "@/hooks/useWorkspaceWatcher";
-import { EditorViewMode } from "@/features/EditorViewMode";
-import { isKnowledgeGraphFile } from "@/lib/knowledgeGraph";
 import { TerminalPanel } from "@/features/Terminal/TerminalPanel";
 import {
   setIsTerminalOpenAtom,
@@ -49,9 +34,6 @@ import {
 export default function Editor() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const editorState = useAtomValue(editorStateAtom);
-  const [viewMode, setViewMode] = useAtom(viewModeAtom);
-  const loadFileMetadata = useSetAtom(loadFileMetadataAtom);
   const activeTab = useAtomValue(activeTabAtom);
   const createTab = useSetAtom(createTabAtom);
   const switchTab = useSetAtom(switchTabAtom);
@@ -80,15 +62,6 @@ export default function Editor() {
 
   // Watch the workspace for external file system changes
   useWorkspaceWatcher();
-
-  const { handleContentChange: handleSaveContent } = useAutoSave();
-  const markTabAsSaved = useSetAtom(markTabAsSavedAtom);
-
-  const handleExternalReload = (_newContent: string) => {
-    if (activeTab) {
-      markTabAsSaved(activeTab.id);
-    }
-  };
 
   const filePath = searchParams.get("path") || "";
   const isInitialMount = useRef(true);
@@ -124,26 +97,7 @@ export default function Editor() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filePath]);
 
-  // Sync active tab with editor state
-  useEffect(() => {
-    if (activeTab) {
-      loadFileMetadata({
-        path: activeTab.filePath,
-        extension: activeTab.fileExtension || "",
-        isDirty: activeTab.isDirty,
-      });
-    }
-  }, [activeTab, loadFileMetadata]);
-
-  const currentFilePath = activeTab?.filePath;
-
-  useEffect(() => {
-    if (currentFilePath && isKnowledgeGraphFile(currentFilePath) && viewMode !== 'preview-only') {
-      setViewMode('preview-only');
-    }
-  }, [currentFilePath, viewMode, setViewMode]);
-
-  if (!currentFilePath && !workspaceRoot) {
+  if (!workspaceRoot) {
     return null;
   }
 
@@ -183,79 +137,8 @@ export default function Editor() {
               className="bg-border hover:bg-primary/50 transition-colors"
             />
 
-            <PanelSectionItem flex={1} className="bg-layout-content">
-              <div className="h-full w-full flex flex-col bg-layout-content">
-                {currentFilePath ? (
-                  <>
-                    {/* Row 1: Tab list header */}
-                    <div className="h-[35px] border-b border-transparent bg-layout-content shrink-0 flex items-end">
-                      <EditorTabs />
-                    </div>
-
-                    {/* Row 2: Breadcrumbs path and Preview/Markdown switch */}
-                    <div className="h-8 bg-layout-content shrink-0 px-3 flex items-center justify-between">
-                      {/* Breadcrumbs */}
-                      <EditorBreadcrumbs />
-
-                      {/* Segmented view switch control */}
-                      <div className="">
-                        <EditorViewMode />
-                      </div>
-                    </div>
-
-                    {/* Row 3: Active Document Content with background contrast */}
-                    <div className="flex-1 min-h-0 bg-layout-content relative">
-                      <LoadFileContent filePath={currentFilePath} onMetadataLoad={loadFileMetadata}>
-                        {(initialContent) => (
-                          <div className="w-full h-full bg-layout-content">
-                            {viewMode === 'side-by-side' && (
-                              <SideBySide
-                                initialContent={initialContent}
-                                enableFileWatcher={true}
-                                lineNumber={activeTab?.lineNumber}
-                              />
-                            )}
-
-                            {viewMode === 'editor-only' && (
-                              <MonacoEditor
-                                initialContent={initialContent}
-                                language={getMonacoLanguage(editorState.fileExtension)}
-                                enableFileWatcher={true}
-                                lineNumber={activeTab?.lineNumber}
-                              />
-                            )}
-
-                            {viewMode === 'preview-only' && (
-                              <PreviewFileWatcher
-                                content={initialContent}
-                                enableFileWatcher={true}
-                                onContentReload={handleExternalReload}
-                              >
-                                {(content) => (
-                                  <PreviewPanel
-                                    content={content}
-                                    fileExtension={editorState.fileExtension}
-                                    filePath={currentFilePath}
-                                    editable={true}
-                                    onContentChange={handleSaveContent}
-                                  />
-                                )}
-                              </PreviewFileWatcher>
-                            )}
-                          </div>
-                        )}
-                      </LoadFileContent>
-                    </div>
-                  </>
-                ) : (
-                  <div className="h-full w-full flex flex-col items-center justify-center bg-layout-chrome text-muted-foreground p-8">
-                    <div className="flex flex-col items-center gap-4 max-w-sm text-center">
-                      <img src="/app-icon.png" alt="App Icon" className="w-16 h-16 opacity-20 grayscale" />
-                      <p className="text-xs">Select a file from the explorer to start editing or create a new file.</p>
-                    </div>
-                  </div>
-                )}
-              </div>
+            <PanelSectionItem flex={1} className="bg-layout-content min-w-0 min-h-0">
+              <EditorWorkspace />
             </PanelSectionItem>
           </PanelSectionGroup>
         </div>

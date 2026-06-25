@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { useAtom, useSetAtom } from 'jotai';
+import { useSetAtom, useAtomValue } from 'jotai';
 import { useNavigate } from 'react-router-dom';
 import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
-  activeTabIdAtom,
+  paneActiveTabIdAtomFamily,
   switchTabAtom,
   closeTabAtom,
   updateTabAtom,
@@ -19,11 +19,12 @@ import { TabContextMenu } from './TabContextMenu';
 
 interface TabItemProps {
   tab: Tab;
+  paneId: string;
 }
 
-export function TabItem({ tab }: TabItemProps) {
+export function TabItem({ tab, paneId }: TabItemProps) {
   const navigate = useNavigate();
-  const [activeTabId] = useAtom(activeTabIdAtom);
+  const activeTabId = useAtomValue(paneActiveTabIdAtomFamily(paneId));
   const switchTab = useSetAtom(switchTabAtom);
   const closeTab = useSetAtom(closeTabAtom);
   const updateTab = useSetAtom(updateTabAtom);
@@ -48,7 +49,7 @@ export function TabItem({ tab }: TabItemProps) {
 
   const handleDoubleClick = () => {
     if (tab.isPreview) {
-      updateTab({ tabId: tab.id, updates: { isPreview: false } });
+      updateTab({ tabId: tab.id, updates: { isPreview: false }, paneId });
     }
   };
 
@@ -59,7 +60,7 @@ export function TabItem({ tab }: TabItemProps) {
     if (tab.isDirty) {
       setShowCloseWarning(true);
     } else {
-      closeTab(tab.id);
+      closeTab({ tabId: tab.id, paneId });
     }
   };
 
@@ -67,11 +68,11 @@ export function TabItem({ tab }: TabItemProps) {
     setShowCloseWarning(false);
 
     if (action === 'discard') {
-      closeTab(tab.id);
+      closeTab({ tabId: tab.id, paneId });
     } else if (action === 'save') {
       // TODO: Trigger save flow, then close
       // For now, just close
-      closeTab(tab.id);
+      closeTab({ tabId: tab.id, paneId });
     }
     // 'cancel' does nothing
   };
@@ -82,7 +83,7 @@ export function TabItem({ tab }: TabItemProps) {
 
   return (
     <>
-      <TabContextMenu tab={tab}>
+      <TabContextMenu tab={tab} paneId={paneId}>
         <div
           ref={tabRef}
           className={cn(

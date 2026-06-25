@@ -12,7 +12,6 @@ import { useAutoSave } from "./useAutoSave";
 import { useFileWatcher } from "@/hooks/useFileWatcher";
 import { useLineJump } from "./useLineJump";
 import { configureMonacoLanguages } from "./configureMonacoLanguages";
-import { editorStateAtom } from "@/stores/EditorStore";
 import {
   registerFormatAction,
   registerDuplicateLineAction,
@@ -30,22 +29,32 @@ interface MonacoEditorProps {
   onContentChange?: (content: string) => void;
   enableFileWatcher?: boolean; // Enable file watcher to detect external changes
   lineNumber?: number; // Optional line number to jump to when opening
+  filePath: string;
+  tabId: string;
+  isDeleted?: boolean;
 }
 
-export function MonacoEditor({ initialContent, language, onContentChange, enableFileWatcher = false, lineNumber }: MonacoEditorProps) {
+export function MonacoEditor({
+  initialContent,
+  language,
+  onContentChange,
+  enableFileWatcher = false,
+  lineNumber,
+  filePath,
+  tabId,
+  isDeleted,
+}: MonacoEditorProps) {
   const [content, setContent] = useState(initialContent);
-  const editorState = useAtomValue(editorStateAtom);
   const [plantUMLJump, setPlantUMLJump] = useAtom(plantUMLJumpAtom);
 
-  // Theme logic
+  const fileExtension = filePath.split(".").pop()?.toLowerCase() || "";
+
   // Theme logic
   const themeName = useAtomValue(editorThemeAtom);
   const { theme: systemTheme } = useTheme();
 
   // Calculate theme synchronously for initial render
   let currentTheme = getMonacoThemeName(themeName, systemTheme);
-
-
 
   const { handleContentChange } = useAutoSave();
 
@@ -67,7 +76,7 @@ export function MonacoEditor({ initialContent, language, onContentChange, enable
   // Only enable file watcher if explicitly requested
   // Editor mode: auto-reload without confirmation
   useFileWatcher({
-    filePath: enableFileWatcher ? (editorState.filePath || "") : "",
+    filePath: enableFileWatcher ? filePath : "",
     onContentReload: handleContentReload,
     autoReload: true, // Always auto-reload in editor mode
   });
@@ -76,8 +85,11 @@ export function MonacoEditor({ initialContent, language, onContentChange, enable
     if (value === undefined) return;
 
     setContent(value);
-    onContentChange?.(value); // Notify parent
-    handleContentChange(value); // Save draft and update dirty state
+    if (onContentChange) {
+      onContentChange(value); // Notify parent (handles save in pane context)
+    } else {
+      handleContentChange(value, { filePath, tabId, isDeleted });
+    }
   };
 
   const handleBeforeMount: BeforeMount = (monaco) => {
@@ -114,7 +126,7 @@ export function MonacoEditor({ initialContent, language, onContentChange, enable
       registerFormatAction(editor, monaco, handleFormat);
     }
 
-    if (editorState.fileExtension === 'format') {
+    if (fileExtension === 'format') {
       // Cmd/Ctrl+Shift+F — format the block under the cursor
       registerFormatBlockAction(editor, monaco, (formatted: string) => {
         setContent(formatted);

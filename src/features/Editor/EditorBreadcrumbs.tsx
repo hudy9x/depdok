@@ -3,25 +3,24 @@ import { useAtomValue } from "jotai";
 import { Folder } from "lucide-react";
 
 import { FileIcon } from "@/components/FileIcon";
-
 import { workspaceRootAtom } from "@/features/FileExplorer/store";
-import { activeTabAtom } from "@/stores/TabStore";
 
-export function EditorBreadcrumbs(): React.JSX.Element | null {
-  const activeTab = useAtomValue(activeTabAtom);
+interface EditorBreadcrumbsProps {
+  filePath: string;
+}
+
+export function EditorBreadcrumbs({ filePath }: EditorBreadcrumbsProps): React.JSX.Element | null {
   const workspaceRoot = useAtomValue(workspaceRootAtom);
 
-  const currentFilePath = activeTab?.filePath;
-
-  if (!currentFilePath) {
+  if (!filePath) {
     return null;
   }
 
   // Format breadcrumbs path: relative to workspaceRoot split by arrows
   const getBreadcrumbs = (): string[] => {
-    let relPath = currentFilePath;
-    if (workspaceRoot && currentFilePath.startsWith(workspaceRoot)) {
-      relPath = currentFilePath.slice(workspaceRoot.length);
+    let relPath = filePath;
+    if (workspaceRoot && filePath.startsWith(workspaceRoot)) {
+      relPath = filePath.slice(workspaceRoot.length);
     }
     relPath = relPath.replace(/^[/\\]+/, "");
     return relPath.split(/[/\\]/).filter(Boolean);

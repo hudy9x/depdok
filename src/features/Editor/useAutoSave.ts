@@ -24,7 +24,7 @@ import { useDebouncedCallback } from "use-debounce";
 import { writeFileContent } from "@/lib/fileOperations";
 import { draftService } from "@/lib/indexeddb";
 
-import { editorStateAtom, markAsDirtyAtom, markAsSavedAtom, activeFileContentAtom } from "@/stores/EditorStore";
+import { editorStateAtom, activeFileContentAtom } from "@/stores/EditorStore";
 import { isSavingAtom, lastSavedContentMap } from "@/stores/FileWatchStore";
 import { autoSaveDelayAtom, autoSaveEnabledAtom } from "@/stores/SettingsStore";
 import { activeTabAtom, isDummyPath, markTabAsDirtyAtom, markTabAsSavedAtom } from "@/stores/TabStore";
@@ -35,68 +35,78 @@ export function useAutoSave() {
   const autoSaveEnabled = useAtomValue(autoSaveEnabledAtom);
   const autoSaveDelay = useAtomValue(autoSaveDelayAtom);
 
-  const markAsDirty = useSetAtom(markAsDirtyAtom);
-  const markAsSaved = useSetAtom(markAsSavedAtom);
   const markTabAsDirty = useSetAtom(markTabAsDirtyAtom);
   const markTabAsSaved = useSetAtom(markTabAsSavedAtom);
   const setIsSaving = useSetAtom(isSavingAtom);
   const setActiveFileContent = useSetAtom(activeFileContentAtom);
 
   // Debounced IndexedDB draft save (always happens)
-  const debouncedSaveDraft = useDebouncedCallback(async (newContent: string) => {
-    if (!editorState.filePath) return;
-    await draftService.saveDraft(editorState.filePath, newContent);
-    markAsDirty();
+  const debouncedSaveDraft = useDebouncedCallback(
+    async (payload: { content: string; filePath: string; tabId: string; paneId?: string }) => {
+      const { content, filePath, tabId, paneId } = payload;
+      if (!filePath) return;
+      await draftService.saveDraft(filePath, content);
 
-    // Mark active tab as dirty
-    if (activeTab) {
-      markTabAsDirty(activeTab.id);
-    }
-  }, 500);
+      // Mark active tab as dirty
+      markTabAsDirty(paneId ? { tabId, paneId } : tabId);
+    },
+    500
+  );
 
   // Debounced auto-save to file (only if enabled)
-  const debouncedAutoSave = useDebouncedCallback(async (newContent: string) => {
-    if (!editorState.filePath || !autoSaveEnabled || isDummyPath(editorState.filePath)) return;
+  const debouncedAutoSave = useDebouncedCallback(
+    async (payload: { content: string; filePath: string; tabId: string; isDeleted?: boolean; paneId?: string }) => {
+      const { content: newContent, filePath, tabId, isDeleted, paneId } = payload;
+      if (!filePath || !autoSaveEnabled || isDummyPath(filePath)) return;
 
-    // If the backing file was deleted externally, skip the disk write but keep
-    // the draft in IndexedDB so the content stays recoverable and the tab
-    // remains visibly dirty.
-    if (activeTab?.isDeleted) {
-      console.log('[useAutoSave] Skipping disk write — tab is deleted (ghost):', editorState.filePath);
-      return;
-    }
-
-    try {
-      // Set flag (with file path) to prevent file watcher from reacting to our own save
-      console.log("[useAutoSave] 💾 Auto-saving:", editorState.filePath, "| setting isSaving =", editorState.filePath);
-      setIsSaving(editorState.filePath);
-
-      await writeFileContent(editorState.filePath, newContent);
-      // Record exactly what we wrote so useFileWatcher can skip false-positive toasts
-      lastSavedContentMap.set(editorState.filePath, newContent);
-      await draftService.removeDraft(editorState.filePath);
-      markAsSaved();
-
-      // Mark active tab as saved
-      if (activeTab) {
-        markTabAsSaved(activeTab.id);
+      // If the backing file was deleted externally, skip the disk write but keep
+      // the draft in IndexedDB so the content stays recoverable.
+      if (isDeleted) {
+        console.log('[useAutoSave] Skipping disk write — tab is deleted (ghost):', filePath);
+        return;
       }
 
-      // Clear flag after a short delay to ensure file system events have settled
-      setTimeout(() => {
-        console.log("[useAutoSave] 🔓 Clearing isSaving for:", editorState.filePath);
-        setIsSaving(null);
-      }, 1000);
-    } catch (error) {
-      console.error("Auto-save failed:", error);
-      setIsSaving(null);
-    }
-  }, autoSaveDelay);
+      try {
+        // Set flag (with file path) to prevent file watcher from reacting to our own save
+        console.log("[useAutoSave] 💾 Auto-saving:", filePath, "| setting isSaving =", filePath);
+        setIsSaving(filePath);
 
-  const handleContentChange = (value: string) => {
+        await writeFileContent(filePath, newContent);
+        // Record exactly what we wrote so useFileWatcher can skip false-positive toasts
+        lastSavedContentMap.set(filePath, newContent);
+        await draftService.removeDraft(filePath);
+
+        // Mark active tab as saved
+        markTabAsSaved(paneId ? { tabId, paneId } : tabId);
+
+        // Clear flag after a short delay to ensure file system events have settled
+        setTimeout(() => {
+          console.log("[useAutoSave] 🔓 Clearing isSaving for:", filePath);
+          setIsSaving(null);
+        }, 1000);
+      } catch (error) {
+        console.error("Auto-save failed:", error);
+        setIsSaving(null);
+      }
+    },
+    autoSaveDelay
+  );
+
+  const handleContentChange = (
+    value: string,
+    options?: { filePath: string; tabId: string; isDeleted?: boolean; paneId?: string }
+  ) => {
+    const filePath = options?.filePath || editorState.filePath;
+    const tabId = options?.tabId || activeTab?.id;
+    const isDeleted = options?.isDeleted || activeTab?.isDeleted;
+    const paneId = options?.paneId;
+
     setActiveFileContent(value);
-    debouncedSaveDraft(value); // Always save draft
-    debouncedAutoSave(value);  // Auto-save if enabled
+
+    if (filePath && tabId) {
+      debouncedSaveDraft({ content: value, filePath, tabId, paneId }); // Always save draft
+      debouncedAutoSave({ content: value, filePath, tabId, isDeleted, paneId });  // Auto-save if enabled
+    }
   };
 
   return {

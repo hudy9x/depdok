@@ -11,7 +11,7 @@ import {
 import { activeTabAtom } from '@/stores/TabStore';
 
 interface FileTreeProps {
-  onFileOpen: (filePath: string, options?: { isPreview?: boolean }) => void;
+  onFileOpen: (filePath: string, options?: { isPreview?: boolean; isAltClick?: boolean }) => void;
 }
 
 export function FileTree({ onFileOpen }: FileTreeProps) {
@@ -55,7 +55,7 @@ export function FileTree({ onFileOpen }: FileTreeProps) {
     // Find node to check if it's a file
     const node = flatTree.find(n => n.path === path);
     if (node && !node.isFolder) {
-      onFileOpen(path, { isPreview: true });
+      onFileOpen(path, { isPreview: true, isAltClick: event?.altKey });
     }
   };
 

@@ -1,11 +1,10 @@
 import { useCallback, useState, useEffect } from "react";
-import { useAtomValue } from "jotai";
-import { editorStateAtom } from "@/stores/EditorStore";
 import { useFileWatcher } from "@/hooks/useFileWatcher";
 
 interface PreviewFileWatcherProps {
   content: string;
   enableFileWatcher?: boolean;
+  filePath: string;
   onContentReload: (newContent: string) => void;
   children: (content: string) => React.ReactNode;
 }
@@ -17,11 +16,11 @@ interface PreviewFileWatcherProps {
 export function PreviewFileWatcher({
   content: initialContent,
   enableFileWatcher = false,
+  filePath,
   onContentReload,
   children,
 }: PreviewFileWatcherProps) {
   const [content, setContent] = useState(initialContent);
-  const editorState = useAtomValue(editorStateAtom);
 
   // Sync content when initialContent changes
   useEffect(() => {
@@ -40,7 +39,7 @@ export function PreviewFileWatcher({
   // Only enable file watcher if explicitly requested
   // Preview mode: show confirmation dialog before reloading
   useFileWatcher({
-    filePath: enableFileWatcher ? editorState.filePath || "" : "",
+    filePath: enableFileWatcher ? filePath : "",
     onContentReload: handleContentReload,
     autoReload: false, // Show confirmation in preview mode
   });

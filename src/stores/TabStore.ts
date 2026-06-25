@@ -1,6 +1,14 @@
 import { atom } from 'jotai';
-import { atomWithStorage } from 'jotai/utils';
-import { sessionStorageDriver } from '@/lib/storage';
+import { atomWithStorage, atomFamily } from 'jotai/utils';
+import {
+  activePaneIdAtom,
+  paneTreeAtom,
+  updatePaneTabsAtom,
+  updatePaneActiveTabIdAtom,
+  findPaneNode,
+  closePaneAtom,
+  type PaneNode,
+} from './PaneStore';
 
 export interface Tab {
   id: string;
@@ -36,14 +44,55 @@ export const nextUntitledCounterAtom = atomWithStorage<number>(
   1
 );
 
-// Tabs array (persisted in sessionStorage)
-export const tabsAtom = atomWithStorage<Tab[]>('depdok-tabs', [], sessionStorageDriver);
+export const paneTabsAtomFamily = atomFamily((paneId: string) =>
+  atom<Tab[], [Tab[] | ((prev: Tab[]) => Tab[])], void>(
+    (get) => {
+      const node = findPaneNode(get(paneTreeAtom), paneId);
+      return node?.type === 'leaf' ? node.pane.tabs : [];
+    },
+    (get, set, newTabs) => {
+      const currentTabs = get(paneTabsAtomFamily(paneId));
+      const resolvedTabs = typeof newTabs === 'function' ? newTabs(currentTabs) : newTabs;
+      set(updatePaneTabsAtom, { paneId, tabs: resolvedTabs });
+    }
+  )
+);
 
-// Active tab ID (persisted in sessionStorage)
-export const activeTabIdAtom = atomWithStorage<string | null>(
-  'depdok-active-tab-id',
-  null,
-  sessionStorageDriver
+export const paneActiveTabIdAtomFamily = atomFamily((paneId: string) =>
+  atom<string | null, [string | null | ((prev: string | null) => string | null)], void>(
+    (get) => {
+      const node = findPaneNode(get(paneTreeAtom), paneId);
+      return node?.type === 'leaf' ? node.pane.activeTabId : null;
+    },
+    (get, set, newActiveTabId) => {
+      const currentActiveId = get(paneActiveTabIdAtomFamily(paneId));
+      const resolvedActiveId = typeof newActiveTabId === 'function' ? newActiveTabId(currentActiveId) : newActiveTabId;
+      set(updatePaneActiveTabIdAtom, { paneId, activeTabId: resolvedActiveId });
+    }
+  )
+);
+
+// Legacy globals (pointing to the active/focused pane)
+export const tabsAtom = atom<Tab[], [Tab[] | ((prev: Tab[]) => Tab[])], void>(
+  (get) => {
+    const activePaneId = get(activePaneIdAtom);
+    return get(paneTabsAtomFamily(activePaneId));
+  },
+  (get, set, update) => {
+    const activePaneId = get(activePaneIdAtom);
+    set(paneTabsAtomFamily(activePaneId), update);
+  }
+);
+
+export const activeTabIdAtom = atom<string | null, [string | null | ((prev: string | null) => string | null)], void>(
+  (get) => {
+    const activePaneId = get(activePaneIdAtom);
+    return get(paneActiveTabIdAtomFamily(activePaneId));
+  },
+  (get, set, update) => {
+    const activePaneId = get(activePaneIdAtom);
+    set(paneActiveTabIdAtomFamily(activePaneId), update);
+  }
 );
 
 // Derived atom to get active tab
@@ -164,56 +213,81 @@ export const switchTabAtom = atom(null, (get, set, tabId: string) => {
 });
 
 // Action: Close a tab
-export const closeTabAtom = atom(null, (get, set, tabId: string) => {
-  const tabs = get(tabsAtom);
-  const activeId = get(activeTabIdAtom);
-  const tabIndex = tabs.findIndex((t) => t.id === tabId);
+export const closeTabAtom = atom(
+  null,
+  (get, set, arg: string | { tabId: string; paneId: string }) => {
+    const tabId = typeof arg === 'string' ? arg : arg.tabId;
+    const activePaneId = get(activePaneIdAtom);
+    const paneId = typeof arg === 'string' ? activePaneId : arg.paneId;
 
-  if (tabIndex === -1) return;
+    const paneTabsAtom = paneTabsAtomFamily(paneId);
+    const paneActiveTabIdAtom = paneActiveTabIdAtomFamily(paneId);
 
-  const newTabs = tabs.filter((t) => t.id !== tabId);
-  set(tabsAtom, newTabs);
+    const tabs = get(paneTabsAtom);
+    const activeId = get(paneActiveTabIdAtom);
+    const tabIndex = tabs.findIndex((t) => t.id === tabId);
 
-  // If closing active tab, switch to another tab
-  if (activeId === tabId && newTabs.length > 0) {
-    // Switch to the tab before the closed one, or the first tab
-    const newActiveIndex = tabIndex > 0 ? tabIndex - 1 : 0;
-    set(activeTabIdAtom, newTabs[newActiveIndex]?.id || null);
-  } else if (newTabs.length === 0) {
-    set(activeTabIdAtom, null);
+    if (tabIndex === -1) return;
+
+    const newTabs = tabs.filter((t) => t.id !== tabId);
+    set(paneTabsAtom, newTabs);
+
+    // If closing active tab, switch to another tab
+    if (activeId === tabId && newTabs.length > 0) {
+      // Switch to the tab before the closed one, or the first tab
+      const newActiveIndex = tabIndex > 0 ? tabIndex - 1 : 0;
+      set(paneActiveTabIdAtom, newTabs[newActiveIndex]?.id || null);
+    } else if (newTabs.length === 0) {
+      set(paneActiveTabIdAtom, null);
+      // Close the pane since there are no tabs left
+      set(closePaneAtom, paneId);
+    }
   }
-});
+);
 
 // Action: Update tab metadata
 export const updateTabAtom = atom(
   null,
-  (get, set, payload: { tabId: string; updates: Partial<Tab> }) => {
-    const tabs = get(tabsAtom);
+  (get, set, payload: { tabId: string; updates: Partial<Tab>; paneId?: string }) => {
+    const activePaneId = get(activePaneIdAtom);
+    const paneId = payload.paneId || activePaneId;
+    const paneTabsAtom = paneTabsAtomFamily(paneId);
+    const tabs = get(paneTabsAtom);
     const { tabId, updates } = payload;
 
     const newTabs = tabs.map((tab) =>
       tab.id === tabId ? { ...tab, ...updates } : tab
     );
 
-    set(tabsAtom, newTabs);
+    set(paneTabsAtom, newTabs);
   }
 );
 
 // Action: Mark tab as dirty
-export const markTabAsDirtyAtom = atom(null, (_get, set, tabId: string) => {
-  set(updateTabAtom, { tabId, updates: { isDirty: true, isPreview: false } });
-});
+export const markTabAsDirtyAtom = atom(
+  null,
+  (_get, set, arg: string | { tabId: string; paneId: string }) => {
+    const tabId = typeof arg === 'string' ? arg : arg.tabId;
+    const paneId = typeof arg === 'string' ? undefined : arg.paneId;
+    set(updateTabAtom, { tabId, updates: { isDirty: true, isPreview: false }, paneId });
+  }
+);
 
 // Action: Mark tab as saved
-export const markTabAsSavedAtom = atom(null, (_get, set, tabId: string) => {
-  set(updateTabAtom, { tabId, updates: { isDirty: false } });
-});
+export const markTabAsSavedAtom = atom(
+  null,
+  (_get, set, arg: string | { tabId: string; paneId: string }) => {
+    const tabId = typeof arg === 'string' ? arg : arg.tabId;
+    const paneId = typeof arg === 'string' ? undefined : arg.paneId;
+    set(updateTabAtom, { tabId, updates: { isDirty: false }, paneId });
+  }
+);
 
 // Action: Update tab path (used after save-as or rename)
 export const updateTabPathAtom = atom(
   null,
-  (_get, set, payload: { tabId: string; newPath: string }) => {
-    const { tabId, newPath } = payload;
+  (_get, set, payload: { tabId: string; newPath: string; paneId?: string }) => {
+    const { tabId, newPath, paneId } = payload;
     const fileName = newPath.split(/[/\\]/).pop() || 'Untitled';
     const fileExtension = getFileExtension(fileName);
 
@@ -225,6 +299,7 @@ export const updateTabPathAtom = atom(
         fileExtension,
         isDeleted: false, // clear ghost state whenever path is updated
       },
+      paneId,
     });
   }
 );
@@ -239,20 +314,45 @@ const isPathOrDescendant = (candidatePath: string, deletedPath: string): boolean
   return c === d || c.startsWith(d + '/');
 };
 
+// Helper to update all panes' tabs recursively
+const updateAllPanesTabs = (node: PaneNode, updater: (tabs: Tab[]) => Tab[]): PaneNode => {
+  if (node.type === 'leaf') {
+    const newTabs = updater(node.pane.tabs);
+    let activeTabId = node.pane.activeTabId;
+    if (activeTabId && !newTabs.some((t) => t.id === activeTabId)) {
+      activeTabId = newTabs.length > 0 ? newTabs[newTabs.length - 1].id : null;
+    }
+    return {
+      type: 'leaf',
+      pane: {
+        ...node.pane,
+        tabs: newTabs,
+        activeTabId,
+      },
+    };
+  }
+  return {
+    ...node,
+    children: node.children.map((child) => updateAllPanesTabs(child, updater)),
+  };
+};
+
 /**
  * Action: Mark all tabs whose filePath is the given path or a descendant as deleted.
  * Used when a file or folder is removed externally.
  */
 export const markTabsDeletedByPrefixAtom = atom(
   null,
-  (_get, set, deletedPath: string) => {
-    set(tabsAtom, (tabs) =>
+  (get, set, deletedPath: string) => {
+    const tree = get(paneTreeAtom);
+    const updated = updateAllPanesTabs(tree, (tabs) =>
       tabs.map((tab) =>
         isPathOrDescendant(tab.filePath, deletedPath)
           ? { ...tab, isDeleted: true, isDirty: true }
           : tab
       )
     );
+    set(paneTreeAtom, updated);
   }
 );
 
@@ -262,14 +362,16 @@ export const markTabsDeletedByPrefixAtom = atom(
  */
 export const restoreTabsByPrefixAtom = atom(
   null,
-  (_get, set, restoredPath: string) => {
-    set(tabsAtom, (tabs) =>
+  (get, set, restoredPath: string) => {
+    const tree = get(paneTreeAtom);
+    const updated = updateAllPanesTabs(tree, (tabs) =>
       tabs.map((tab) =>
         tab.isDeleted && isPathOrDescendant(tab.filePath, restoredPath)
           ? { ...tab, isDeleted: false }
           : tab
       )
     );
+    set(paneTreeAtom, updated);
   }
 );
 
@@ -279,11 +381,12 @@ export const restoreTabsByPrefixAtom = atom(
  */
 export const updateTabsPathByPrefixAtom = atom(
   null,
-  (_get, set, payload: { fromPath: string; toPath: string }) => {
+  (get, set, payload: { fromPath: string; toPath: string }) => {
     const { fromPath, toPath } = payload;
     const from = normalisePathSep(fromPath);
 
-    set(tabsAtom, (tabs) =>
+    const tree = get(paneTreeAtom);
+    const updated = updateAllPanesTabs(tree, (tabs) =>
       tabs.map((tab) => {
         const tabPath = normalisePathSep(tab.filePath);
         let newPath: string | null = null;
@@ -308,22 +411,39 @@ export const updateTabsPathByPrefixAtom = atom(
         };
       })
     );
+    set(paneTreeAtom, updated);
   }
 );
 
 // Action: Close all tabs except the specified one
-export const closeOtherTabsAtom = atom(null, (get, set, tabId: string) => {
-  const tabs = get(tabsAtom);
-  const tabToKeep = tabs.find((t) => t.id === tabId);
+export const closeOtherTabsAtom = atom(
+  null,
+  (get, set, arg: string | { tabId: string; paneId: string }) => {
+    const tabId = typeof arg === 'string' ? arg : arg.tabId;
+    const activePaneId = get(activePaneIdAtom);
+    const paneId = typeof arg === 'string' ? activePaneId : arg.paneId;
 
-  if (!tabToKeep) return;
+    const paneTabsAtom = paneTabsAtomFamily(paneId);
+    const paneActiveTabIdAtom = paneActiveTabIdAtomFamily(paneId);
 
-  set(tabsAtom, [tabToKeep]);
-  set(activeTabIdAtom, tabId);
-});
+    const tabs = get(paneTabsAtom);
+    const tabToKeep = tabs.find((t) => t.id === tabId);
+
+    if (!tabToKeep) return;
+
+    set(paneTabsAtom, [tabToKeep]);
+    set(paneActiveTabIdAtom, tabId);
+  }
+);
 
 // Action: Close all tabs
-export const closeAllTabsAtom = atom(null, (_get, set) => {
-  set(tabsAtom, []);
-  set(activeTabIdAtom, null);
-});
+export const closeAllTabsAtom = atom(
+  null,
+  (get, set, paneId?: string | { paneId: string }) => {
+    const activePaneId = get(activePaneIdAtom);
+    const resolvedPaneId = !paneId ? activePaneId : (typeof paneId === 'string' ? paneId : paneId.paneId);
+    set(paneTabsAtomFamily(resolvedPaneId), []);
+    set(paneActiveTabIdAtomFamily(resolvedPaneId), null);
+    set(closePaneAtom, resolvedPaneId);
+  }
+);

@@ -1,13 +1,9 @@
-import { useAtom, useSetAtom, useAtomValue } from "jotai";
+import { useSetAtom } from "jotai";
 import { Columns2, Code, Eye } from "lucide-react";
 import { useEffect, useMemo } from "react";
-import { viewModeAtom, editorStateAtom } from "@/stores/EditorStore";
+import { updatePaneViewModeAtom, type ViewMode } from "@/stores/PaneStore";
 import { viewModeSettingAtom } from "@/stores/SettingsStore";
 import { isKnowledgeGraphFile } from "@/lib/knowledgeGraph";
-
-// ─── New version: inline group button with muted background for active ──────
-
-type ViewMode = "side-by-side" | "editor-only" | "preview-only";
 
 const VIEW_MODES: { mode: ViewMode; icon: React.ReactNode; title: string }[] = [
   { mode: "editor-only", icon: <Code className="w-3.5 h-3.5" />, title: "Editor Only" },
@@ -25,16 +21,21 @@ const EXTENSION_SUPPORTED_MODES: Record<string, ViewMode[]> = {
   svg: ["preview-only"],
   ico: ["preview-only"],
   bmp: ["preview-only"],
-  excalidraw: ["preview-only"], // Excalidraw usually only needs preview
+  excalidraw: ["preview-only"],
 };
 
-export function EditorViewMode() {
-  const [viewMode, setViewMode] = useAtom(viewModeAtom);
-  const setViewModeSetting = useSetAtom(viewModeSettingAtom);
-  const editorState = useAtomValue(editorStateAtom);
+interface EditorViewModeProps {
+  paneId: string;
+  filePath: string;
+  viewMode: ViewMode;
+}
 
-  const ext = editorState.fileExtension?.toLowerCase() || "";
-  const isGraphFile = isKnowledgeGraphFile(editorState.filePath);
+export function EditorViewMode({ paneId, filePath, viewMode }: EditorViewModeProps) {
+  const setPaneViewMode = useSetAtom(updatePaneViewModeAtom);
+  const setViewModeSetting = useSetAtom(viewModeSettingAtom);
+
+  const ext = filePath.split(".").pop()?.toLowerCase() || "";
+  const isGraphFile = isKnowledgeGraphFile(filePath);
 
   const supportedModes = useMemo(() => {
     if (isGraphFile) {
@@ -46,12 +47,12 @@ export function EditorViewMode() {
 
   useEffect(() => {
     if (!supportedModes.includes(viewMode) && supportedModes.length > 0) {
-      setViewMode(supportedModes[0]);
+      setPaneViewMode({ paneId, viewMode: supportedModes[0] });
     }
-  }, [viewMode, supportedModes, setViewMode]);
+  }, [viewMode, supportedModes, paneId, setPaneViewMode]);
 
   const handleViewModeChange = (mode: ViewMode) => {
-    setViewMode(mode);
+    setPaneViewMode({ paneId, viewMode: mode });
     setViewModeSetting(mode);
   };
 

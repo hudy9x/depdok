@@ -1,6 +1,5 @@
 import { useEffect, useRef, useCallback, useState } from "react";
 import { useEditor, EditorContent, ReactNodeViewRenderer } from "@tiptap/react";
-import { useAtomValue, useSetAtom } from "jotai";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import StarterKit from "@tiptap/starter-kit";
 
@@ -24,7 +23,6 @@ import { useLocalLinkHandler } from "./useLocalLinkHandler";
 
 import { createTauriImage } from "./TauriImage";
 import { CodeBlockNodeView } from "./CodeBlockNodeView";
-import { editorStateAtom, markAsDirtyAtom } from "@/stores/EditorStore";
 import { draftService } from "@/lib/indexeddb";
 import { MarkdownOutlineWrapper, type TocAnchor } from "./MarkdownOutline";
 import { TableOfContents } from "@tiptap/extension-table-of-contents";
@@ -60,16 +58,16 @@ interface MarkdownPreviewProps {
   content: string;
   editable?: boolean;
   onContentChange?: (content: string) => void;
+  filePath?: string;
 }
 
 export function MarkdownPreview({
   content,
   editable = false,
-  onContentChange
+  onContentChange,
+  filePath = "",
 }: MarkdownPreviewProps) {
-  const editorState = useAtomValue(editorStateAtom);
-  const markAsDirty = useSetAtom(markAsDirtyAtom);
-  const TauriImage = createTauriImage(editorState.filePath);
+  const TauriImage = createTauriImage(filePath);
   const isUpdatingRef = useRef(false);
   const [isOutlineOpen, setIsOutlineOpen] = useLocalStorage('markdown-outline-open', false);
   const [editorSize, setEditorSize] = useLocalStorage<MarkdownEditorSize>('markdown-editor-size', 'wide');
@@ -83,15 +81,14 @@ export function MarkdownPreview({
     () => localStorage.getItem('settings-markdown-asset-folder') || '',
     []
   );
-  const fileHandler = useFileHandler(editorState.filePath, getAssetsFolder);
+  const fileHandler = useFileHandler(filePath, getAssetsFolder);
 
   console.log('MarkdownPreview', content)
 
   // Debounced draft save (only when editable)
   const debouncedSaveDraft = useDebouncedCallback(async (newContent: string) => {
-    if (!editorState.filePath || !editable) return;
-    await draftService.saveDraft(editorState.filePath, newContent);
-    markAsDirty();
+    if (!filePath || !editable) return;
+    await draftService.saveDraft(filePath, newContent);
   }, 500);
 
   const editor = useEditor({
@@ -216,8 +213,7 @@ export function MarkdownPreview({
     }
   }, [editable, content, editor]);
 
-  // Add native drop event listeners for debugging
-  const handleLinkClick = useLocalLinkHandler(editorState.filePath, containerRef);
+  const handleLinkClick = useLocalLinkHandler(filePath, containerRef);
 
   useEffect(() => {
     const container = containerRef.current;

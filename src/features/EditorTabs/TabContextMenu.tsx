@@ -9,6 +9,8 @@ import {
   FileSearch,
   FileText,
   ClipboardCopy,
+  Columns2,
+  Rows,
 } from 'lucide-react';
 import {
   ContextMenu,
@@ -24,18 +26,21 @@ import {
   isDummyPath,
   type Tab,
 } from '@/stores/TabStore';
+import { splitPaneAtom } from '@/stores/PaneStore';
 import { revealFileAtom, isFileExplorerVisibleAtom } from '@/features/FileExplorer/store';
 import { RenameTabDialog } from './RenameTabDialog';
 
 interface TabContextMenuProps {
   tab: Tab;
+  paneId: string;
   children: React.ReactNode;
 }
 
-export function TabContextMenu({ tab, children }: TabContextMenuProps) {
+export function TabContextMenu({ tab, paneId, children }: TabContextMenuProps) {
   const closeTab = useSetAtom(closeTabAtom);
   const closeOtherTabs = useSetAtom(closeOtherTabsAtom);
   const closeAllTabs = useSetAtom(closeAllTabsAtom);
+  const splitPane = useSetAtom(splitPaneAtom);
   const revealFile = useSetAtom(revealFileAtom);
   const setFileExplorerVisible = useSetAtom(isFileExplorerVisibleAtom);
   const [showRenameDialog, setShowRenameDialog] = useState(false);
@@ -45,11 +50,11 @@ export function TabContextMenu({ tab, children }: TabContextMenuProps) {
   };
 
   const handleCloseOthers = () => {
-    closeOtherTabs(tab.id);
+    closeOtherTabs({ tabId: tab.id, paneId });
   };
 
   const handleCloseAll = () => {
-    closeAllTabs();
+    closeAllTabs({ paneId });
   };
 
   const handleCopyFilename = async () => {
@@ -59,7 +64,6 @@ export function TabContextMenu({ tab, children }: TabContextMenuProps) {
   };
 
   const handleCopyFilePath = async () => {
-    // Don't allow copying for UNTITLED:// paths
     if (isDummyPath(tab.filePath)) {
       toast.info('Save the file first to copy its path');
       return;
@@ -70,21 +74,17 @@ export function TabContextMenu({ tab, children }: TabContextMenuProps) {
   };
 
   const handleRevealInExplorer = () => {
-    // Don't allow revealing for UNTITLED:// paths
     if (isDummyPath(tab.filePath)) {
       toast.info('Save the file first to reveal it in explorer');
       return;
     }
 
-    // Open FileExplorer if it's closed
     setFileExplorerVisible(true);
-
-    // Reveal the file
     revealFile(tab.filePath);
   };
 
   const handleClose = () => {
-    closeTab(tab.id);
+    closeTab({ tabId: tab.id, paneId });
   };
 
   return (
@@ -97,6 +97,15 @@ export function TabContextMenu({ tab, children }: TabContextMenuProps) {
           <ContextMenuItem onClick={handleRename}>
             <Pencil className="mr-2 h-4 w-4" />
             Rename
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+          <ContextMenuItem onClick={() => splitPane({ paneId, direction: 'horizontal' })}>
+            <Columns2 className="mr-2 h-4 w-4" />
+            Split Right
+          </ContextMenuItem>
+          <ContextMenuItem onClick={() => splitPane({ paneId, direction: 'vertical' })}>
+            <Rows className="mr-2 h-4 w-4" />
+            Split Down
           </ContextMenuItem>
           <ContextMenuSeparator />
           <ContextMenuItem onClick={handleCloseOthers}>

@@ -1,51 +1,61 @@
-
 import { useState, useCallback } from "react";
-import { useAtomValue } from "jotai";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 
 import { MonacoEditor } from "@/features/Editor/MonacoEditor";
 import { PreviewPanel } from "@/features/Preview/PreviewPanel";
-import { editorStateAtom } from "@/stores/EditorStore";
 import { getMonacoLanguage } from "@/lib/utils/getMonacoLanguage";
-
-import { useAutoSave } from "@/features/Editor/useAutoSave";
 
 interface SideBySideProps {
   initialContent: string;
   enableFileWatcher?: boolean; // Enable file watcher in the editor panel
   lineNumber?: number; // Line number to jump to in the editor
+  filePath: string;
+  tabId: string;
+  isDeleted?: boolean;
+  onContentChange?: (content: string) => void;
 }
 
-export function SideBySide({ initialContent, enableFileWatcher = false, lineNumber }: SideBySideProps) {
+export function SideBySide({
+  initialContent,
+  enableFileWatcher = false,
+  lineNumber,
+  filePath,
+  tabId,
+  isDeleted,
+  onContentChange,
+}: SideBySideProps) {
   const [content, setContent] = useState(initialContent);
-  const editorState = useAtomValue(editorStateAtom);
-  const { handleContentChange: handleAutoSave } = useAutoSave();
 
   const handleEditorChange = useCallback((newContent: string) => {
     setContent(newContent);
-    handleAutoSave(newContent);
-  }, [handleAutoSave]);
+    onContentChange?.(newContent);
+  }, [onContentChange]);
 
-  const language = getMonacoLanguage(editorState.fileExtension);
+  const fileExtension = filePath.split(".").pop()?.toLowerCase() || "";
+  const language = getMonacoLanguage(fileExtension);
 
   return (
-    <PanelGroup direction="horizontal" className="flex-1">
-      <Panel defaultSize={40} minSize={20}>
+    <PanelGroup direction="horizontal" className="flex-1 w-full h-full">
+      <Panel defaultSize={45} minSize={20} className="relative min-w-0 min-h-0 flex">
         <MonacoEditor
-          initialContent={content} // Use state content to sync back changes from Preview
+          initialContent={content}
           language={language}
           onContentChange={handleEditorChange}
           enableFileWatcher={enableFileWatcher}
           lineNumber={lineNumber}
+          filePath={filePath}
+          tabId={tabId}
+          isDeleted={isDeleted}
         />
       </Panel>
 
-      <PanelResizeHandle className="w-1 bg-border hover:bg-primary/50 transition-colors" />
+      <PanelResizeHandle className="w-[4px] cursor-col-resize bg-border/40 hover:bg-primary/50 transition-colors h-full" />
 
-      <Panel defaultSize={60} minSize={20}>
+      <Panel defaultSize={55} minSize={20} className="relative min-w-0 min-h-0 flex bg-layout-content overflow-y-auto">
         <PreviewPanel
           content={content}
-          fileExtension={editorState.fileExtension}
+          fileExtension={fileExtension}
+          filePath={filePath}
           readOnly={true}
         />
       </Panel>

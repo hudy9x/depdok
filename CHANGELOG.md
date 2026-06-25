@@ -2,11 +2,11 @@
 
 ✨ Features
 
-- Terminal intergration (#46) ([3ee4c40](../../commit/3ee4c40))
+- Split panel editor (#47) ([d0e19a4](../../commit/d0e19a4))
 
 🔨 Other Changes
 
-- Upgrade version 0.40.3 ([35a8a56](../../commit/35a8a56))
+- Upgrade version 0.41.0 ([00db8f8](../../commit/00db8f8))
 
 
-📋 Full Changelog: [35a8a56...3ee4c40](../../compare/35a8a56...3ee4c40)
+📋 Full Changelog: [00db8f8...d0e19a4](../../compare/00db8f8...d0e19a4)

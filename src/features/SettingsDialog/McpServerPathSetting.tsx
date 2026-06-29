@@ -14,7 +14,6 @@ export function McpServerPathSetting(): JSX.Element {
   const [paths, setPaths] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'claude' | 'claudecode' | 'copilot' | 'gemini' | 'codex' | 'opencode'>('claude');
-  const writeAccess = true;
 
   useEffect(() => {
     let cancelled = false;
@@ -50,10 +49,8 @@ export function McpServerPathSetting(): JSX.Element {
 
   const getAgentConfig = (
     tab: 'claude' | 'claudecode' | 'copilot' | 'gemini' | 'codex' | 'opencode',
-    pathVal: string,
-    isWrite: boolean
+    pathVal: string
   ) => {
-    const args = isWrite ? ["--write-enabled"] : ["--read-only"];
     switch (tab) {
       case 'claude':
         return {
@@ -65,7 +62,7 @@ export function McpServerPathSetting(): JSX.Element {
               mcpServers: {
                 depdok: {
                   command: pathVal,
-                  args: args
+                  args: []
                 }
               }
             },
@@ -82,7 +79,7 @@ export function McpServerPathSetting(): JSX.Element {
                 depdok: {
                   type: "stdio",
                   command: pathVal,
-                  args: args
+                  args: []
                 }
               }
             },
@@ -98,7 +95,7 @@ export function McpServerPathSetting(): JSX.Element {
               servers: {
                 depdok: {
                   command: pathVal,
-                  args: args
+                  args: []
                 }
               }
             },
@@ -114,7 +111,7 @@ export function McpServerPathSetting(): JSX.Element {
               mcpServers: {
                 depdok: {
                   command: pathVal,
-                  args: args
+                  args: []
                 }
               }
             },
@@ -130,7 +127,7 @@ export function McpServerPathSetting(): JSX.Element {
               name: "depdok",
               transport: "stdio",
               command: pathVal,
-              args: args,
+              args: [],
               env: {
                 DEPDOK_MCP_MODE: "stdio"
               }
@@ -147,7 +144,7 @@ export function McpServerPathSetting(): JSX.Element {
               mcp: {
                 depdok: {
                   type: "local",
-                  command: [pathVal, ...args],
+                  command: [pathVal],
                   enabled: true
                 }
               }
@@ -159,7 +156,7 @@ export function McpServerPathSetting(): JSX.Element {
     }
   };
 
-  const currentConfig = getAgentConfig(activeTab, serverPath, writeAccess);
+  const currentConfig = getAgentConfig(activeTab, serverPath);
 
   const copyToClipboard = async (value: string, message: string) => {
     try {

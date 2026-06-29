@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 use serde::Deserialize;
 
 #[derive(Debug, Clone, Default, Deserialize)]
+#[allow(dead_code)]
 pub struct FileConfig {
     #[serde(default)]
     pub database_path: Option<PathBuf>,
@@ -26,9 +27,6 @@ pub struct FileConfig {
 pub struct McpServerConfig {
     pub database_path: PathBuf,
     pub cache_dir: PathBuf,
-    pub write_enabled: bool,
-    pub default_group_id: String,
-    pub protocol_version: String,
     pub server_name: String,
     pub server_version: String,
 }
@@ -56,24 +54,6 @@ impl McpServerConfig {
             .or(file_config.cache_dir)
             .unwrap_or_else(default_cache_dir);
 
-        let write_enabled = cli
-            .write_enabled
-            .or_else(|| parse_bool_env("DEPDOK_MCP_WRITE_ENABLED"))
-            .or(file_config.write_enabled)
-            .unwrap_or(false);
-
-        let default_group_id = cli
-            .default_group_id
-            .or_else(|| env::var("DEPDOK_MCP_DEFAULT_GROUP_ID").ok())
-            .or(file_config.default_group_id)
-            .unwrap_or_else(|| "default".to_string());
-
-        let protocol_version = cli
-            .protocol_version
-            .or_else(|| env::var("DEPDOK_MCP_PROTOCOL_VERSION").ok())
-            .or(file_config.protocol_version)
-            .unwrap_or_else(|| "2024-11-05".to_string());
-
         let server_name = file_config
             .server_name
             .or_else(|| env::var("DEPDOK_MCP_SERVER_NAME").ok())
@@ -87,9 +67,6 @@ impl McpServerConfig {
         Ok(Self {
             database_path,
             cache_dir,
-            write_enabled,
-            default_group_id,
-            protocol_version,
             server_name,
             server_version,
         })
@@ -135,15 +112,6 @@ fn read_file_config(path: &Path) -> Result<FileConfig, String> {
         .map_err(|e| format!("Failed to parse MCP config file {}: {e}", path.display()))
 }
 
-fn parse_bool_env(name: &str) -> Option<bool> {
-    let value = env::var(name).ok()?;
-    match value.trim().to_ascii_lowercase().as_str() {
-        "1" | "true" | "yes" | "on" => Some(true),
-        "0" | "false" | "no" | "off" => Some(false),
-        _ => None,
-    }
-}
-
 fn default_database_path() -> PathBuf {
     default_data_dir().join("knowledge_base.db")
 }
@@ -155,29 +123,29 @@ fn default_cache_dir() -> PathBuf {
 fn default_data_dir() -> PathBuf {
     #[cfg(target_os = "macos")]
     {
-        return env::var_os("HOME")
+        env::var_os("HOME")
             .map(PathBuf::from)
             .unwrap_or_else(|| PathBuf::from("."))
-            .join("Library/Application Support/Depdok");
+            .join("Library/Application Support/com.depdok.app")
     }
 
     #[cfg(target_os = "windows")]
     {
-        return env::var_os("APPDATA")
+        env::var_os("APPDATA")
             .map(PathBuf::from)
             .unwrap_or_else(|| PathBuf::from("."))
-            .join("Depdok");
+            .join("com.depdok.app")
     }
 
     #[cfg(all(not(target_os = "macos"), not(target_os = "windows")))]
     {
         if let Some(dir) = env::var_os("XDG_DATA_HOME") {
-            return PathBuf::from(dir).join("Depdok");
+            return PathBuf::from(dir).join("com.depdok.app");
         }
 
-        return env::var_os("HOME")
+        env::var_os("HOME")
             .map(PathBuf::from)
             .unwrap_or_else(|| PathBuf::from("."))
-            .join(".local/share/Depdok");
+            .join(".local/share/com.depdok.app")
     }
 }

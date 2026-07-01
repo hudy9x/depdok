@@ -84,6 +84,38 @@ pub async fn connect_to(
 }
 
 #[tauri::command]
+pub async fn delete_connection(
+    kb_state: State<'_, KbState>,
+    source_id: String,
+    target_id: String,
+) -> Result<(), String> {
+    let conn = kb_state.0.db_lock();
+    let conn = conn.lock().await;
+
+    let source_like = format!("{}#section:%", source_id);
+    let target_like = format!("{}#section:%", target_id);
+
+    conn.execute(
+        "DELETE FROM edges 
+         WHERE (source_id = ?1 OR source_id LIKE ?2) 
+           AND (target_id = ?3 OR target_id LIKE ?4)",
+        params![source_id, source_like, target_id, target_like],
+    )
+    .map_err(|e| format!("Failed to delete edge: {e}"))?;
+
+    // Also in reverse
+    conn.execute(
+        "DELETE FROM edges 
+         WHERE (source_id = ?1 OR source_id LIKE ?2) 
+           AND (target_id = ?3 OR target_id LIKE ?4)",
+        params![target_id, target_like, source_id, source_like],
+    )
+    .map_err(|e| format!("Failed to delete reverse edge: {e}"))?;
+
+    Ok(())
+}
+
+#[tauri::command]
 pub async fn search_similar(
     kb_state: State<'_, KbState>,
     _embedder_state: State<'_, EmbedderState>,

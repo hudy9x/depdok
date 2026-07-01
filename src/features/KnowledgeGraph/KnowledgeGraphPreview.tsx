@@ -3,12 +3,28 @@ import Graph from 'graphology';
 import ForceSupervisor from 'graphology-layout-force/worker';
 import Sigma from 'sigma';
 import { EdgeArrowProgram } from 'sigma/rendering';
-import { Minus, Plus, RefreshCw, RotateCcw } from 'lucide-react';
+import { Minus, Plus, RefreshCw, RotateCcw, ExternalLink, Trash2, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
+import { useSetAtom } from 'jotai';
 
 import { Button } from "@/components/ui/button";
-import { connectDocuments, getProjectGraph, type KnowledgeGraphData } from "@/api-client/knowledge-base";
+import {
+  connectDocuments,
+  deleteDocument,
+  deleteConnection,
+  getProjectGraph,
+  type KnowledgeGraphData
+} from "@/api-client/knowledge-base";
 import { getKnowledgeGraphGroupId } from "@/lib/knowledgeGraph";
+import { createTabAtom } from '@/stores/TabStore';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 interface KnowledgeGraphPreviewProps {
   filePath: string;
@@ -239,6 +255,25 @@ export function KnowledgeGraphPreview({ filePath }: KnowledgeGraphPreviewProps) 
   const [activeFolder, setActiveFolder] = useState<string | null>(null);
   const [hoverInfo, setHoverInfo] = useState<HoverInfo | null>(null);
 
+  interface ContextMenuState {
+    x: number;
+    y: number;
+    type: 'node' | 'edge';
+    targetId: string;
+    sourceId?: string;
+    targetNodeId?: string;
+  }
+
+  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{
+    type: 'node' | 'edge';
+    id: string;
+    sourceId?: string;
+    targetId?: string;
+  } | null>(null);
+
+  const createTab = useSetAtom(createTabAtom);
+
   const containerRef = useRef<HTMLDivElement | null>(null);
   const sigmaRef = useRef<Sigma | null>(null);
   const graphRef = useRef<Graph | null>(null);
@@ -328,6 +363,80 @@ export function KnowledgeGraphPreview({ filePath }: KnowledgeGraphPreviewProps) 
     loadGraph();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [groupId]);
+
+  const handleOpenNodeFile = (nodeId: string) => {
+    setContextMenu(null);
+    if (!nodeId.startsWith('file:')) return;
+    const realPath = nodeId.replace(/^file:/, '');
+    const fileName = toFileLabel(nodeId);
+    createTab({
+      filePath: realPath,
+      fileName,
+      switchTo: true,
+    });
+  };
+
+  const handleConfirmDeleteNode = (nodeId: string) => {
+    setContextMenu(null);
+    setDeleteConfirm({
+      type: 'node',
+      id: nodeId,
+    });
+  };
+
+  const handleConfirmDeleteEdge = (edgeId: string) => {
+    setContextMenu(null);
+    const graph = graphRef.current;
+    if (!graph || !graph.hasEdge(edgeId)) return;
+    const source = graph.source(edgeId);
+    const target = graph.target(edgeId);
+
+    setDeleteConfirm({
+      type: 'edge',
+      id: edgeId,
+      sourceId: source,
+      targetId: target,
+    });
+  };
+
+  const executeDelete = async () => {
+    if (!deleteConfirm) return;
+    const { type, id, sourceId, targetId } = deleteConfirm;
+    setDeleteConfirm(null);
+
+    const toastId = toast.loading(
+      type === 'node' ? 'Deleting document from knowledge base...' : 'Removing connection...'
+    );
+
+    try {
+      if (type === 'node') {
+        await deleteDocument(id);
+        toast.success('Document deleted from knowledge base successfully', { id: toastId });
+      } else {
+        await deleteConnection(sourceId!, targetId!);
+        toast.success('Connection removed successfully', { id: toastId });
+      }
+
+      // Reload graph data
+      await loadGraph();
+    } catch (err) {
+      console.error(err);
+      toast.error(
+        type === 'node' ? 'Failed to delete document' : 'Failed to remove connection',
+        { id: toastId }
+      );
+    }
+  };
+
+  useEffect(() => {
+    const handleClose = () => setContextMenu(null);
+    window.addEventListener('click', handleClose);
+    window.addEventListener('contextmenu', handleClose);
+    return () => {
+      window.removeEventListener('click', handleClose);
+      window.removeEventListener('contextmenu', handleClose);
+    };
+  }, []);
 
   // Sync activeFolder ref and refresh colors when filter changes
   useEffect(() => {
@@ -433,6 +542,7 @@ export function KnowledgeGraphPreview({ filePath }: KnowledgeGraphPreviewProps) 
 
     // ── Click: highlight neighbors or connect ──────────────────────────────
     const onClickNode = async ({ node }: { node: string }) => {
+      setContextMenu(null);
       if (isConnectingRef.current || dragMovedRef.current) {
         dragMovedRef.current = false;
         return;
@@ -490,6 +600,47 @@ export function KnowledgeGraphPreview({ filePath }: KnowledgeGraphPreviewProps) 
     renderer.on('clickStage', () => {
       selectedNodeRef.current = null;
       refreshColors();
+      setContextMenu(null);
+    });
+
+    // Right click node
+    renderer.on('rightClickNode', ({ node, event }) => {
+      event.preventSigmaDefault();
+      event.original.preventDefault();
+      event.original.stopPropagation();
+
+      setContextMenu({
+        x: event.x,
+        y: event.y,
+        type: 'node',
+        targetId: node,
+      });
+    });
+
+    // Right click edge
+    renderer.on('rightClickEdge', ({ edge, event }) => {
+      event.preventSigmaDefault();
+      event.original.preventDefault();
+      event.original.stopPropagation();
+
+      const source = graph.source(edge);
+      const target = graph.target(edge);
+
+      setContextMenu({
+        x: event.x,
+        y: event.y,
+        type: 'edge',
+        targetId: edge,
+        sourceId: source,
+        targetNodeId: target,
+      });
+    });
+
+    // Right click stage
+    renderer.on('rightClickStage', ({ event }) => {
+      event.preventSigmaDefault();
+      event.original.preventDefault();
+      setContextMenu(null);
     });
 
     return () => {
@@ -502,6 +653,7 @@ export function KnowledgeGraphPreview({ filePath }: KnowledgeGraphPreviewProps) 
       graphRef.current = null;
       selectedNodeRef.current = null;
       setHoverInfo(null);
+      setContextMenu(null);
     };
   }, [fileGraphData, refreshColors]);
 
@@ -615,6 +767,88 @@ export function KnowledgeGraphPreview({ filePath }: KnowledgeGraphPreviewProps) 
           <div className="mt-1 text-muted-foreground">{hoverInfo.degree} connection{hoverInfo.degree !== 1 ? 's' : ''}</div>
         </div>
       )}
+
+      {/* Context Menu */}
+      {contextMenu && (
+        <div
+          className="absolute z-30 min-w-[160px] rounded-lg border border-border bg-background/90 backdrop-blur-md p-1 shadow-lg animate-in fade-in zoom-in-95 duration-100"
+          style={{ left: contextMenu.x, top: contextMenu.y }}
+          onClick={(e) => e.stopPropagation()}
+          onContextMenu={(e) => e.preventDefault()}
+        >
+          {contextMenu.type === 'node' ? (
+            <>
+              {contextMenu.targetId.startsWith('file:') && (
+                <button
+                  type="button"
+                  onClick={() => handleOpenNodeFile(contextMenu.targetId)}
+                  className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-foreground hover:bg-accent hover:text-accent-foreground transition-colors text-left cursor-pointer"
+                >
+                  <ExternalLink className="h-3.5 w-3.5" />
+                  Open File
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => handleConfirmDeleteNode(contextMenu.targetId)}
+                className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-destructive hover:bg-destructive/10 transition-colors text-left cursor-pointer"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                Delete from Graph
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={() => handleConfirmDeleteEdge(contextMenu.targetId)}
+              className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-destructive hover:bg-destructive/10 transition-colors text-left cursor-pointer"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Remove Connection
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={!!deleteConfirm} onOpenChange={(open) => !open && setDeleteConfirm(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="h-5 w-5" />
+              Confirm Deletion
+            </DialogTitle>
+            <DialogDescription className="pt-2 text-sm leading-relaxed">
+              {deleteConfirm?.type === 'node' ? (
+                <>
+                  Are you sure you want to delete this document from the knowledge base?
+                  <br />
+                  <span className="font-semibold break-all text-foreground mt-2 block">
+                    {deleteConfirm.id.replace(/^file:/, '')}
+                  </span>
+                  <br />
+                  This will remove all associated section embeddings and connections from the database.
+                  The physical markdown file on disk will <span className="font-semibold text-foreground">not</span> be deleted.
+                </>
+              ) : (
+                <>
+                  Are you sure you want to remove the connection between these documents?
+                  <br />
+                  This will delete the link from the knowledge graph database.
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-4 gap-2 sm:gap-0">
+            <Button type="button" variant="outline" onClick={() => setDeleteConfirm(null)}>
+              Cancel
+            </Button>
+            <Button type="button" variant="destructive" onClick={executeDelete}>
+              Confirm Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <div ref={containerRef} className="w-full h-full" />
     </div>

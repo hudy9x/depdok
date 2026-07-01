@@ -325,22 +325,24 @@ impl KbManager {
         Ok(indexed_count)
     }
 
-    /// Delete a document and its associated chunks and embeddings.
+    /// Delete a document (and any of its section documents) and its associated chunks and embeddings.
     pub async fn delete_document(&self, id: String) -> Result<(), String> {
         let mut conn = self.db.lock().await;
         let tx = conn
             .transaction()
             .map_err(|e| format!("Failed to start delete transaction: {e}"))?;
 
+        let section_id_like = format!("{}#section:%", id);
+
         // sqlite-vec's vec0 doesn't support FK cascading, so we delete embeddings manually
         tx.execute(
-            "DELETE FROM documents_embeddings WHERE document_id = ?1",
-            params![id],
+            "DELETE FROM documents_embeddings WHERE document_id = ?1 OR document_id LIKE ?2",
+            params![id, section_id_like],
         )
         .map_err(|e| format!("Failed to delete embeddings: {e}"))?;
 
         // Rest of tables will cascade properly from documents table (edges, chunks, tags, group links)
-        tx.execute("DELETE FROM documents WHERE id = ?1", params![id])
+        tx.execute("DELETE FROM documents WHERE id = ?1 OR id LIKE ?2", params![id, section_id_like])
             .map_err(|e| format!("Failed to delete document: {e}"))?;
 
         tx.commit()

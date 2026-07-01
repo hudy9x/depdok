@@ -1046,6 +1046,7 @@ pub fn run() {
             knowledge_base::commands::insert_or_replace_document,
             knowledge_base::commands::index_markdown_document_sections,
             knowledge_base::commands::delete_document,
+            knowledge_base::commands::delete_connection,
             knowledge_base::commands::connect_to,
             knowledge_base::commands::search_similar,
             knowledge_base::commands::search_hybrid,

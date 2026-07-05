@@ -9,13 +9,13 @@ import {
   closePaneAtom,
   type PaneNode,
 } from './PaneStore';
+import { markFileAsDirtyAtom } from './DirtyStore';
 
 export interface Tab {
   id: string;
   filePath: string; // Real path or UNTITLED://filename.ext
   fileName: string;
   fileExtension: string | null;
-  isDirty: boolean;
   isActive: boolean;
   isPreview: boolean;
   lineNumber?: number; // Optional line number to jump to when opening
@@ -167,7 +167,6 @@ export const createTabAtom = atom(
       filePath,
       fileName,
       fileExtension: getFileExtension(fileName),
-      isDirty: false,
       isActive: switchTo,
       isPreview,
       lineNumber: payload.lineNumber,
@@ -263,26 +262,6 @@ export const updateTabAtom = atom(
   }
 );
 
-// Action: Mark tab as dirty
-export const markTabAsDirtyAtom = atom(
-  null,
-  (_get, set, arg: string | { tabId: string; paneId: string }) => {
-    const tabId = typeof arg === 'string' ? arg : arg.tabId;
-    const paneId = typeof arg === 'string' ? undefined : arg.paneId;
-    set(updateTabAtom, { tabId, updates: { isDirty: true, isPreview: false }, paneId });
-  }
-);
-
-// Action: Mark tab as saved
-export const markTabAsSavedAtom = atom(
-  null,
-  (_get, set, arg: string | { tabId: string; paneId: string }) => {
-    const tabId = typeof arg === 'string' ? arg : arg.tabId;
-    const paneId = typeof arg === 'string' ? undefined : arg.paneId;
-    set(updateTabAtom, { tabId, updates: { isDirty: false }, paneId });
-  }
-);
-
 // Action: Update tab path (used after save-as or rename)
 export const updateTabPathAtom = atom(
   null,
@@ -348,7 +327,10 @@ export const markTabsDeletedByPrefixAtom = atom(
     const updated = updateAllPanesTabs(tree, (tabs) =>
       tabs.map((tab) =>
         isPathOrDescendant(tab.filePath, deletedPath)
-          ? { ...tab, isDeleted: true, isDirty: true }
+          ? (() => {
+              set(markFileAsDirtyAtom, tab.filePath);
+              return { ...tab, isDeleted: true };
+            })()
           : tab
       )
     );

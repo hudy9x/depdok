@@ -6,11 +6,8 @@ import {
   updatePaneViewModeAtom,
   type ViewMode,
 } from './PaneStore';
-import {
-  activeTabAtom,
-  markTabAsDirtyAtom,
-  markTabAsSavedAtom,
-} from './TabStore';
+import { activeTabAtom } from './TabStore';
+import { dirtyFilesAtom, markFileAsDirtyAtom, markFileAsSavedAtom } from './DirtyStore';
 
 export interface EditorState {
   filePath: string | null;
@@ -30,7 +27,7 @@ export const editorStateAtom = atom<EditorState>((get) => {
   return {
     filePath: activeTab ? activeTab.filePath : null,
     fileExtension: activeTab ? activeTab.fileExtension : null,
-    isDirty: activeTab ? activeTab.isDirty : false,
+    isDirty: activeTab ? get(dirtyFilesAtom).has(activeTab.filePath) : false,
     lastSaved: null,
     viewMode,
   };
@@ -38,6 +35,32 @@ export const editorStateAtom = atom<EditorState>((get) => {
 
 // Store live content for each file by path to avoid stale content on focus switch
 export const liveFilesContentAtom = atom<Record<string, string>>({});
+
+// Track which pane most recently wrote to liveFilesContentAtom for a given file.
+// LoadFileContent uses this to skip atom updates that originated from its own pane,
+// preventing the keystroke feedback loop in multi-pane same-file editing.
+export const liveFilesWriterPaneAtom = atom<Record<string, string>>({});
+
+export const setLiveFileWriterAtom = atom(
+  null,
+  (get, set, payload: { filePath: string; paneId: string }) => {
+    const current = get(liveFilesWriterPaneAtom);
+    if (current[payload.filePath] === payload.paneId) return;
+    set(liveFilesWriterPaneAtom, { ...current, [payload.filePath]: payload.paneId });
+  }
+);
+
+// Called when the view mode changes so the newly-mounted view component can
+// pick up the latest live content even if it was written by the same pane.
+export const clearLiveFileWriterAtom = atom(
+  null,
+  (get, set, filePath: string) => {
+    const current = get(liveFilesWriterPaneAtom);
+    if (!(filePath in current)) return;
+    const { [filePath]: _removed, ...rest } = current;
+    set(liveFilesWriterPaneAtom, rest);
+  }
+);
 
 // Derived activeFileContentAtom pointing to the focused tab's live content
 export const activeFileContentAtom = atom(
@@ -88,7 +111,7 @@ export const viewModeAtom = atom(
 export const markAsDirtyAtom = atom(null, (get, set) => {
   const activeTab = get(activeTabAtom);
   if (activeTab) {
-    set(markTabAsDirtyAtom, activeTab.id);
+    set(markFileAsDirtyAtom, activeTab.filePath);
   }
 });
 
@@ -96,7 +119,7 @@ export const markAsDirtyAtom = atom(null, (get, set) => {
 export const markAsSavedAtom = atom(null, (get, set) => {
   const activeTab = get(activeTabAtom);
   if (activeTab) {
-    set(markTabAsSavedAtom, activeTab.id);
+    set(markFileAsSavedAtom, activeTab.filePath);
   }
 });
 

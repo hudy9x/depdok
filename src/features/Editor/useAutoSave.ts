@@ -24,10 +24,11 @@ import { useDebouncedCallback } from "use-debounce";
 import { writeFileContent } from "@/lib/fileOperations";
 import { draftService } from "@/lib/indexeddb";
 
-import { editorStateAtom, activeFileContentAtom } from "@/stores/EditorStore";
+import { editorStateAtom, activeFileContentAtom, setLiveFileWriterAtom } from "@/stores/EditorStore";
 import { isSavingAtom, lastSavedContentMap } from "@/stores/FileWatchStore";
 import { autoSaveDelayAtom, autoSaveEnabledAtom } from "@/stores/SettingsStore";
-import { activeTabAtom, isDummyPath, markTabAsDirtyAtom, markTabAsSavedAtom } from "@/stores/TabStore";
+import { activeTabAtom, isDummyPath } from "@/stores/TabStore";
+import { markFileAsDirtyAtom, markFileAsSavedAtom } from "@/stores/DirtyStore";
 
 export function useAutoSave() {
   const editorState = useAtomValue(editorStateAtom);
@@ -35,20 +36,20 @@ export function useAutoSave() {
   const autoSaveEnabled = useAtomValue(autoSaveEnabledAtom);
   const autoSaveDelay = useAtomValue(autoSaveDelayAtom);
 
-  const markTabAsDirty = useSetAtom(markTabAsDirtyAtom);
-  const markTabAsSaved = useSetAtom(markTabAsSavedAtom);
+  const markFileAsDirty = useSetAtom(markFileAsDirtyAtom);
+  const markFileAsSaved = useSetAtom(markFileAsSavedAtom);
   const setIsSaving = useSetAtom(isSavingAtom);
   const setActiveFileContent = useSetAtom(activeFileContentAtom);
+  const setLiveFileWriter = useSetAtom(setLiveFileWriterAtom);
 
   // Debounced IndexedDB draft save (always happens)
   const debouncedSaveDraft = useDebouncedCallback(
     async (payload: { content: string; filePath: string; tabId: string; paneId?: string }) => {
-      const { content, filePath, tabId, paneId } = payload;
+      const { content, filePath } = payload;
       if (!filePath) return;
       await draftService.saveDraft(filePath, content);
 
-      // Mark active tab as dirty
-      markTabAsDirty(paneId ? { tabId, paneId } : tabId);
+      markFileAsDirty(filePath);
     },
     500
   );
@@ -56,7 +57,7 @@ export function useAutoSave() {
   // Debounced auto-save to file (only if enabled)
   const debouncedAutoSave = useDebouncedCallback(
     async (payload: { content: string; filePath: string; tabId: string; isDeleted?: boolean; paneId?: string }) => {
-      const { content: newContent, filePath, tabId, isDeleted, paneId } = payload;
+      const { content: newContent, filePath, isDeleted } = payload;
       if (!filePath || !autoSaveEnabled || isDummyPath(filePath)) return;
 
       // If the backing file was deleted externally, skip the disk write but keep
@@ -76,8 +77,7 @@ export function useAutoSave() {
         lastSavedContentMap.set(filePath, newContent);
         await draftService.removeDraft(filePath);
 
-        // Mark active tab as saved
-        markTabAsSaved(paneId ? { tabId, paneId } : tabId);
+        markFileAsSaved(filePath);
 
         // Clear flag after a short delay to ensure file system events have settled
         setTimeout(() => {
@@ -101,6 +101,11 @@ export function useAutoSave() {
     const isDeleted = options?.isDeleted || activeTab?.isDeleted;
     const paneId = options?.paneId;
 
+    // Tag the atom write with the originating pane so sibling LoadFileContent
+    // instances can distinguish cross-pane updates from their own reflections.
+    if (filePath && paneId) {
+      setLiveFileWriter({ filePath, paneId });
+    }
     setActiveFileContent(value);
 
     if (filePath && tabId) {

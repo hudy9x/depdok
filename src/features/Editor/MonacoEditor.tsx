@@ -64,6 +64,8 @@ export function MonacoEditor({
   const formatPopoverCleanupRef = useRef<(() => void) | null>(null);
   // Sync content when initialContent changes
   useEffect(() => {
+    const currentEditorValue = editorRef.current?.getValue();
+    if (currentEditorValue === initialContent) return;
     setContent(initialContent);
   }, [initialContent]);
 

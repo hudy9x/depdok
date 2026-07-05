@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 
 import { MonacoEditor } from "@/features/Editor/MonacoEditor";
@@ -25,6 +25,10 @@ export function SideBySide({
   onContentChange,
 }: SideBySideProps) {
   const [content, setContent] = useState(initialContent);
+
+  useEffect(() => {
+    setContent(initialContent);
+  }, [initialContent]);
 
   const handleEditorChange = useCallback((newContent: string) => {
     setContent(newContent);

@@ -77,10 +77,10 @@ export function ExplorerHeader() {
   return (
     <>
       <div className="flex items-center justify-between px-2 py-1 shrink-0 group/explorer-header">
-        <span className="text-xs font-semibold text-muted-foreground truncate" title={workspaceRoot}>
+        <span className="text-xs h-6 leading-6 font-semibold text-muted-foreground truncate" title={workspaceRoot}>
           {workspaceRoot.split(/[/\\]/).pop() || 'WORKSPACE'}
         </span>
-        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+        <div className="items-center gap-0.5 hidden group-hover:flex transition-opacity duration-200">
           <Button variant="ghost" size="icon" className="h-6 w-6 text-gray-500" onClick={() => setIsSearchDialogOpen(true)} title="Search Knowledge Base">
             <VscSearch className="h-3.5 w-3.5" />
           </Button>

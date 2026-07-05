@@ -346,8 +346,16 @@
 
 .prose table th,
 .prose tbody td {
-  border: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  border-left: 1px solid var(--border);
 }
+
+/* .dark .prose table th,
+.dark .prose tbody td {
+  border-bottom: var(--border);
+  border-left: 1px solid var(--border);
+
+} */
 
 /* Remove outer borders from cells to avoid double-borders with the table wrapper */
 .prose table tr:first-child th {
@@ -373,8 +381,16 @@
   padding: 0.75em 1em;
   text-align: left;
   color: var(--foreground);
-  background-color: transparent;
 }
+
+.prose table th {
+  background-color: var(--background);
+}
+
+.dark .prose table th {
+  background-color: var(--accent) !important;
+}
+
 
 .prose table tr {
   width: 100%;
@@ -503,10 +519,6 @@
   border-top-color: var(--border);
 }
 
-.dark .prose table th,
-.dark .prose tbody td {
-  border-color: var(--border);
-}
 
 .dark .prose ul[data-type="taskList"] input[type="checkbox"]:checked {
   background-color: var(--primary);

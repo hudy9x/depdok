@@ -33,7 +33,7 @@ export function FileExplorer() {
 
   return (
     <div
-      className="flex flex-col h-full outline-none"
+      className="flex flex-col h-full outline-none group"
       tabIndex={0}
       onKeyDown={handleKeyDown}
     >

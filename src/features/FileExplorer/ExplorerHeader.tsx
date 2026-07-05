@@ -1,6 +1,13 @@
 import { useState } from 'react';
 import { useAtomValue, useSetAtom } from 'jotai';
-import { FilePlus, FolderPlus, GitGraph, RefreshCw, Search, SquareEqual } from 'lucide-react';
+import {
+  VscSearch,
+  VscSync,
+  VscGraph,
+  VscNewFile,
+  VscNewFolder,
+  VscCollapseAll
+} from 'react-icons/vsc';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { createTabAtom } from '@/stores/TabStore';
@@ -73,24 +80,24 @@ export function ExplorerHeader() {
         <span className="text-xs font-semibold text-muted-foreground truncate" title={workspaceRoot}>
           {workspaceRoot.split(/[/\\]/).pop() || 'WORKSPACE'}
         </span>
-        <div className="flex items-center gap-0.5 opacity-100 group-hover/explorer-header:opacity-100 transition-opacity">
+        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
           <Button variant="ghost" size="icon" className="h-6 w-6 text-gray-500" onClick={() => setIsSearchDialogOpen(true)} title="Search Knowledge Base">
-            <Search className="h-3.5 w-3.5" />
+            <VscSearch className="h-3.5 w-3.5" />
           </Button>
           <Button variant="ghost" size="icon" className="h-6 w-6 text-gray-500" onClick={() => setIsScanDialogOpen(true)} title="Scan Markdown Files">
-            <RefreshCw className="h-3.5 w-3.5" />
+            <VscSync className="h-3.5 w-3.5" />
           </Button>
           <Button variant="ghost" size="icon" className="h-6 w-6 text-gray-500" onClick={handleOpenKnowledgeGraph} title="Knowledge Graph">
-            <GitGraph className="h-3.5 w-3.5" />
+            <VscGraph className="h-3.5 w-3.5" />
           </Button>
           <Button variant="ghost" size="icon" className="h-6 w-6 text-gray-500" onClick={handleCreateFile} title="New File">
-            <FilePlus className="h-3.5 w-3.5" />
+            <VscNewFile className="h-3.5 w-3.5" />
           </Button>
           <Button variant="ghost" size="icon" className="h-6 w-6 text-gray-500" onClick={handleCreateFolder} title="New Folder">
-            <FolderPlus className="h-3.5 w-4" />
+            <VscNewFolder className="h-3.5 w-4" />
           </Button>
           <Button variant="ghost" size="icon" className="h-6 w-6 text-gray-500" onClick={handleCollapseAll} title="Collapse All">
-            <SquareEqual className="h-3.5 w-3.5" />
+            <VscCollapseAll className="h-3.5 w-3.5" />
           </Button>
         </div>
       </div>

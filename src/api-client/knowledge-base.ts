@@ -77,6 +77,14 @@ export async function connectDocuments(
   return await invoke<string>('connect_to', { sourceId, targetId, edgeType });
 }
 
+export async function deleteDocument(id: string): Promise<void> {
+  await invoke('delete_document', { id });
+}
+
+export async function deleteConnection(sourceId: string, targetId: string): Promise<void> {
+  await invoke('delete_connection', { sourceId, targetId });
+}
+
 export async function searchSimilar(query: string, limit = 20): Promise<KnowledgeSearchResult[]> {
   return await invoke<KnowledgeSearchResult[]>('search_similar', { query, limit });
 }

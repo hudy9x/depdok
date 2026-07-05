@@ -12,6 +12,7 @@ import {
   extractFilenameFromDummyPath,
   type Tab,
 } from '@/stores/TabStore';
+import { isFileDirtyAtom } from '@/stores/DirtyStore';
 import { CloseTabWarning } from './CloseTabWarning';
 import { FileIcon } from '@/components/FileIcon';
 import { TabContextMenu } from './TabContextMenu';
@@ -25,6 +26,7 @@ interface TabItemProps {
 export function TabItem({ tab, paneId }: TabItemProps) {
   const navigate = useNavigate();
   const activeTabId = useAtomValue(paneActiveTabIdAtomFamily(paneId));
+  const isDirty = useAtomValue(isFileDirtyAtom(tab.filePath));
   const switchTab = useSetAtom(switchTabAtom);
   const closeTab = useSetAtom(closeTabAtom);
   const updateTab = useSetAtom(updateTabAtom);
@@ -57,7 +59,7 @@ export function TabItem({ tab, paneId }: TabItemProps) {
     e.stopPropagation();
 
     // Show warning if tab has unsaved changes
-    if (tab.isDirty) {
+    if (isDirty) {
       setShowCloseWarning(true);
     } else {
       closeTab({ tabId: tab.id, paneId });
@@ -114,7 +116,7 @@ export function TabItem({ tab, paneId }: TabItemProps) {
           {/* Right side interactions: Dirty Indicator + Close Button */}
           <div className="relative w-4 h-4 flex items-center justify-center">
             {/* Dirty Indicator (visible when dirty, hidden on hover to show close button) */}
-            {tab.isDirty && (
+            {isDirty && (
               <div
                 className="w-2 h-2 rounded-full bg-blue-500/80 absolute transition-opacity group-hover:opacity-0"
                 title="Unsaved changes"

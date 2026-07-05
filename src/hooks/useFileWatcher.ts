@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { startWatching, stopWatching, onFileChanged } from "@/lib/fileWatcher";
 import { draftService } from "@/lib/indexeddb";
 import { useAtomValue } from "jotai";
-import { activeTabAtom } from "@/stores/TabStore";
+import { isFileDirtyAtom } from "@/stores/DirtyStore";
 import { isSavingAtom, lastSavedContentMap } from "@/stores/FileWatchStore";
 
 interface UseFileWatcherOptions {
@@ -28,7 +28,7 @@ export function useFileWatcher({
   onContentReload,
   autoReload = true
 }: UseFileWatcherOptions) {
-  const activeTab = useAtomValue(activeTabAtom);
+  const isFileDirty = useAtomValue(isFileDirtyAtom(filePath));
   const isSaving = useAtomValue(isSavingAtom);
 
   // Track the last file path we showed a toast for, to prevent duplicates
@@ -94,12 +94,7 @@ export function useFileWatcher({
           console.log("[FileWatcher] Path mismatch. Event:", changedFilePath, "Watched:", filePath);
           return;
         }
-        if (!activeTab) {
-          console.log("[FileWatcher] No active tab");
-          return;
-        }
-
-        console.log("[FileWatcher] Processing change. AutoReload:", autoReload, "IsDirty:", activeTab.isDirty);
+        console.log("[FileWatcher] Processing change. AutoReload:", autoReload, "IsDirty:", isFileDirty);
 
         const handleShowToast = async () => {
           // Debounce: if we already have a pending reload notification for this file, don't show another
@@ -151,7 +146,7 @@ export function useFileWatcher({
 
         if (autoReload) {
           // Standard behavior (Editor / SideBySide)
-          if (activeTab.isDirty) {
+          if (isFileDirty) {
             // If dirty, we MUST warn to prevent data loss
             setTimeout(() => {
               handleShowToast();
@@ -174,5 +169,5 @@ export function useFileWatcher({
         unlisten();
       }
     };
-  }, [filePath, activeTab, reloadFileContent, isSaving, autoReload]);
+  }, [filePath, isFileDirty, reloadFileContent, isSaving, autoReload]);
 }

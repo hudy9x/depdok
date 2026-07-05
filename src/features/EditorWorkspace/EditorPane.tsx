@@ -12,7 +12,7 @@ import { PreviewPanel } from '@/features/Preview/PreviewPanel';
 import { PreviewFileWatcher } from '@/features/Preview/PreviewFileWatcher';
 import { getMonacoLanguage } from '@/lib/utils/getMonacoLanguage';
 import { useAutoSave } from '@/features/Editor/useAutoSave';
-import { markTabAsSavedAtom } from '@/stores/TabStore';
+import { markAsSavedAtom, clearLiveFileWriterAtom } from '@/stores/EditorStore';
 
 interface EditorPaneProps {
   pane: Pane;
@@ -27,12 +27,20 @@ export function EditorPane({ pane }: EditorPaneProps): React.JSX.Element {
   const currentFilePath = activeTab?.filePath;
 
   const { handleContentChange } = useAutoSave();
-  const markTabAsSaved = useSetAtom(markTabAsSavedAtom);
+  const markAsSaved = useSetAtom(markAsSavedAtom);
+  const clearLiveFileWriter = useSetAtom(clearLiveFileWriterAtom);
+
+  // When the view mode changes, clear the writer-pane tag so the newly-mounted
+  // view component (e.g. preview after editing in editor mode) can pick up the
+  // latest live content even though it was written by this same pane.
+  React.useEffect(() => {
+    if (currentFilePath) {
+      clearLiveFileWriter(currentFilePath);
+    }
+  }, [pane.viewMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleExternalReload = () => {
-    if (activeTab) {
-      markTabAsSaved({ tabId: activeTab.id, paneId: pane.id });
-    }
+    markAsSaved();
   };
 
   const handlePaneClick = () => {
@@ -75,6 +83,7 @@ export function EditorPane({ pane }: EditorPaneProps): React.JSX.Element {
             <LoadFileContent
               filePath={currentFilePath}
               isDeleted={activeTab.isDeleted}
+              paneId={pane.id}
             >
               {(initialContent) => {
                 const language = getMonacoLanguage(activeTab.fileExtension);

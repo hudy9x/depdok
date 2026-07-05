@@ -10,7 +10,6 @@ import { draftService } from "@/lib/indexeddb";
 import {
   activeTabAtom,
   updateTabPathAtom,
-  markTabAsSavedAtom,
   isDummyPath,
   extractFilenameFromDummyPath,
 } from "@/stores/TabStore";
@@ -29,7 +28,6 @@ export function EditorSave() {
   const activeFileContent = useAtomValue(activeFileContentAtom);
   const markAsSaved = useSetAtom(markAsSavedAtom);
   const updateTabPath = useSetAtom(updateTabPathAtom);
-  const markTabAsSaved = useSetAtom(markTabAsSavedAtom);
   const setIsSaving = useSetAtom(isSavingAtom);
   const refreshDirectory = useSetAtom(refreshDirectoryAtom);
 
@@ -168,7 +166,6 @@ export function EditorSave() {
       // Update tab with real path
       if (activeTab) {
         updateTabPath({ tabId: activeTab.id, newPath: selectedPath });
-        markTabAsSaved(activeTab.id);
       }
 
       // Clean up old draft
@@ -238,9 +235,6 @@ export function EditorSave() {
 
       // Mark both editor and tab as saved
       markAsSaved();
-      if (activeTab) {
-        markTabAsSaved(activeTab.id);
-      }
 
       // Clear flag after delay
       setTimeout(() => setIsSaving(null), 1000);

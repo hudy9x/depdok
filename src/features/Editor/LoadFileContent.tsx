@@ -1,18 +1,20 @@
 import { useEffect, useState, ReactNode } from "react";
 import { toast } from "sonner";
-import { useSetAtom } from "jotai";
+import { useAtomValue, useSetAtom } from "jotai";
 // import { Loader2 } from "lucide-react";
 import { draftService } from "@/lib/indexeddb";
 import { readFileContent } from "@/lib/fileOperations";
-import { activeFileContentAtom } from "@/stores/EditorStore";
+import { activeFileContentAtom, liveFilesContentAtom, liveFilesWriterPaneAtom } from "@/stores/EditorStore";
+import { markFileAsDirtyAtom } from "@/stores/DirtyStore";
 
 interface LoadFileContentProps {
   filePath: string;
   isDeleted?: boolean;
+  /** The pane this component lives in. Used to filter out self-originated atom updates. */
+  paneId?: string;
   onMetadataLoad?: (metadata: {
     path: string;
     extension: string;
-    isDirty: boolean;
   }) => void;
   children: (content: string) => ReactNode;
 }
@@ -20,12 +22,30 @@ interface LoadFileContentProps {
 export function LoadFileContent({
   filePath,
   isDeleted,
+  paneId,
   onMetadataLoad,
   children,
 }: LoadFileContentProps) {
   const [content, setContent] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const setActiveFileContent = useSetAtom(activeFileContentAtom);
+  const liveFilesContent = useAtomValue(liveFilesContentAtom);
+  const liveFilesWriterPane = useAtomValue(liveFilesWriterPaneAtom);
+  const markFileAsDirty = useSetAtom(markFileAsDirtyAtom);
+
+  useEffect(() => {
+    if (isLoading) return;
+
+    const liveValue = liveFilesContent[filePath];
+    // Skip if this atom update was written by our own pane — that is just the
+    // user's keystrokes reflecting back and would cause a stale-intermediate reset.
+    const writerPane = liveFilesWriterPane[filePath];
+    if (paneId && writerPane === paneId) return;
+
+    if (liveValue !== undefined && liveValue !== content) {
+      setContent(liveValue);
+    }
+  }, [liveFilesContent, liveFilesWriterPane, filePath, isLoading, paneId]);
 
   // Load file on mount or when filePath changes
   useEffect(() => {
@@ -63,10 +83,12 @@ export function LoadFileContent({
         // If draft exists and differs from file, use draft content
         // For untitled files, ALWAYS use draft content (or empty string if no draft)
         let contentToLoad = loadedFileContent;
+        let shouldMarkDirty = filePath.startsWith("UNTITLED://");
 
         if (!isImage && draft) {
           if (isUntitled || draft.content !== loadedFileContent) {
             contentToLoad = draft.content;
+            shouldMarkDirty = true;
           }
         }
 
@@ -80,13 +102,15 @@ export function LoadFileContent({
 
         setContent(contentToLoad);
         setActiveFileContent(contentToLoad);
+        if (shouldMarkDirty) {
+          markFileAsDirty(filePath);
+        }
 
         // Update metadata
         if (onMetadataLoad) {
           onMetadataLoad({
             path: filePath,
             extension,
-            isDirty: !!draft,
           });
         }
       } catch (error) {
@@ -101,7 +125,7 @@ export function LoadFileContent({
     };
 
     loadFile();
-  }, [filePath, onMetadataLoad, setActiveFileContent]);
+  }, [filePath, onMetadataLoad, setActiveFileContent, markFileAsDirty]);
 
   return (
     <>

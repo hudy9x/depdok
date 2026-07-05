@@ -1,10 +1,10 @@
 import { useEffect, useState, ReactNode } from "react";
 import { toast } from "sonner";
-import { useAtomValue, useSetAtom } from "jotai";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
 // import { Loader2 } from "lucide-react";
 import { draftService } from "@/lib/indexeddb";
 import { readFileContent } from "@/lib/fileOperations";
-import { activeFileContentAtom, liveFilesContentAtom, liveFilesWriterPaneAtom } from "@/stores/EditorStore";
+import { liveFilesContentAtom, liveFilesWriterPaneAtom } from "@/stores/EditorStore";
 import { markFileAsDirtyAtom } from "@/stores/DirtyStore";
 
 interface LoadFileContentProps {
@@ -28,8 +28,7 @@ export function LoadFileContent({
 }: LoadFileContentProps) {
   const [content, setContent] = useState("");
   const [isLoading, setIsLoading] = useState(true);
-  const setActiveFileContent = useSetAtom(activeFileContentAtom);
-  const liveFilesContent = useAtomValue(liveFilesContentAtom);
+  const [liveFilesContent, setLiveFilesContent] = useAtom(liveFilesContentAtom);
   const liveFilesWriterPane = useAtomValue(liveFilesWriterPaneAtom);
   const markFileAsDirty = useSetAtom(markFileAsDirtyAtom);
 
@@ -47,13 +46,21 @@ export function LoadFileContent({
     }
   }, [liveFilesContent, liveFilesWriterPane, filePath, isLoading, paneId]);
 
-  // Load file on mount or when filePath changes
+  // Load file on mount or when filePath changes.
+  // A `cancelled` flag ensures that if `filePath` changes while an async load
+  // is in-flight, the stale load bails out before touching any state.
+  // Without this guard two concurrent loadFile calls can race: the stale one
+  // can overwrite correct content with wrong/empty content, or call
+  // setActiveFileContent(null) which (because it resolves via activeTabAtom)
+  // deletes the *new* file's live-content entry — causing the empty-content bug.
   useEffect(() => {
     if (!filePath) {
       toast.error("No file path provided");
       setIsLoading(false);
       return;
     }
+
+    let cancelled = false;
 
     const loadFile = async () => {
       setIsLoading(true);
@@ -80,6 +87,10 @@ export function LoadFileContent({
         // 2. Check for draft in IndexedDB
         const draft = await draftService.getDraft(filePath);
 
+        // Bail out if filePath changed while we were awaiting — prevents a stale
+        // load from overwriting state that the current load already set correctly.
+        if (cancelled) return;
+
         // If draft exists and differs from file, use draft content
         // For untitled files, ALWAYS use draft content (or empty string if no draft)
         let contentToLoad = loadedFileContent;
@@ -101,7 +112,7 @@ export function LoadFileContent({
         }
 
         setContent(contentToLoad);
-        setActiveFileContent(contentToLoad);
+        setLiveFilesContent((prev) => ({ ...prev, [filePath]: contentToLoad }));
         if (shouldMarkDirty) {
           markFileAsDirty(filePath);
         }
@@ -114,18 +125,25 @@ export function LoadFileContent({
           });
         }
       } catch (error) {
+        if (cancelled) return;
         console.error("Error loading file:", error);
         toast.error("Failed to load file");
         // Reset content on error to avoid showing stale data
         setContent("");
-        setActiveFileContent(null);
+        setLiveFilesContent((prev) => { const { [filePath]: _, ...rest } = prev; return rest; });
       } finally {
-        setIsLoading(false);
+        if (!cancelled) {
+          setIsLoading(false);
+        }
       }
     };
 
     loadFile();
-  }, [filePath, onMetadataLoad, setActiveFileContent, markFileAsDirty]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [filePath, onMetadataLoad, setLiveFilesContent, markFileAsDirty]);
 
   return (
     <>

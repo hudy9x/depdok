@@ -391,6 +391,28 @@ liveFilesContentAtom (Record<filePath, string>)
 
 ---
 
+## Post-Implementation Update — Option 1 (Pane-Origin Guard)
+
+After Step 6, `LoadFileContent` subscribes to `liveFilesContentAtom` and receives updates for every keystroke. This solves mode-switch staleness, but it also introduces a self-reflection path in multi-pane editing where the same pane can receive its own in-flight updates back through React state.
+
+When this reflected value is slightly behind Monaco's internal value, the editor can be reset to an older snapshot, causing dropped whitespace/newline keystrokes and cursor instability.
+
+To prevent that, apply **Option 1**:
+
+- Track the pane that most recently wrote each `filePath` to `liveFilesContentAtom`.
+- In `LoadFileContent`, ignore live-content updates when the writer pane equals the current pane.
+- Keep cross-pane updates enabled, so sibling panes still sync in real time.
+- Clear the writer marker on view-mode switch, so newly mounted components in the same pane can still hydrate from the latest shared content.
+
+### Why this is needed
+
+- It breaks the self-feedback loop without disabling shared content sync.
+- It preserves the original goal of Step 6 (shared, path-keyed live content across panes and modes).
+- It avoids relying on equality-only guards in Monaco, which cannot distinguish stale intermediate snapshots from valid remote updates.
+- It addresses the race condition at the state propagation boundary (where it originates), rather than only at the rendering endpoint.
+
+---
+
 ## Testing Checklist
 
 - [ ] Open the same file in two panes → edit in one → second pane tab shows dirty dot

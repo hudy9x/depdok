@@ -7,7 +7,7 @@ import {
   Settings
 } from 'lucide-react';
 import { BsLayoutSidebar, BsLayoutSidebarInset } from 'react-icons/bs';
-import { VscLayoutPanel, VscLayoutPanelOff } from 'react-icons/vsc';
+import { PiTerminalWindowLight, PiTerminalFill } from 'react-icons/pi';
 
 import { Button } from '@/components/ui/button';
 
@@ -113,9 +113,9 @@ export function WindowsTitlebar() {
             title={`${isTerminalOpen ? 'Hide' : 'Show'} Terminal (Ctrl+\`)`}
           >
             {isTerminalOpen ? (
-              <VscLayoutPanel className="h-4 w-4" />
+            <PiTerminalFill className="!h-4.5 !w-4.5" />
             ) : (
-              <VscLayoutPanelOff className="h-4 w-4" />
+            <PiTerminalWindowLight className="!h-4.5 !w-4.5" />
             )}
           </Button>
 

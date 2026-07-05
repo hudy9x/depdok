@@ -6,8 +6,7 @@ import {
   Settings
 } from 'lucide-react';
 import { BsLayoutSidebar, BsLayoutSidebarInset } from 'react-icons/bs';
-import { VscLayoutPanel, VscLayoutPanelOff } from 'react-icons/vsc';
-import { PiTerminalWindowLight, PiTerminalFill, PiTerminalWindowFill } from 'react-icons/pi';
+import { PiTerminalWindowLight, PiTerminalFill } from 'react-icons/pi';
 
 import { Button } from '@/components/ui/button';
 

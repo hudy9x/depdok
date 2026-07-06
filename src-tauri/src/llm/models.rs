@@ -10,39 +10,67 @@ pub struct GgufModelInfo {
     pub size_bytes: u64,
 }
 
-/// Resolve the models directory: resource_dir()/models in production,
-/// or src-tauri/models/ in dev mode.
+/// Resolve the models directory.
+/// - In dev mode: ascends from the executable path to find the repository's models folder.
+/// - In production / fallback: uses the app's cache directory (matching the knowledge_base convention).
 pub fn get_models_dir(app: &AppHandle) -> Result<PathBuf, String> {
-    // In dev mode, use the src-tauri/models directory relative to the current exe
     #[cfg(debug_assertions)]
     {
-        if let Ok(current_dir) = std::env::current_dir() {
-            // Try workspace root / src-tauri/models
-            let dev_path = current_dir.join("src-tauri").join("models");
-            if dev_path.exists() {
-                return Ok(dev_path);
-            }
-            // Try if current_dir is already src-tauri
-            let dev_path2 = current_dir.join("models");
-            if dev_path2.exists() {
-                return Ok(dev_path2);
+        if let Ok(exe_path) = std::env::current_exe() {
+            println!("[llm][models] current_exe: {:?}", exe_path);
+            let mut path = exe_path;
+            // Ascend up to 5 levels to locate the repository models folder
+            for i in 0..5 {
+                if let Some(parent) = path.parent() {
+                    path = parent.to_path_buf();
+                    
+                    let dev_path1 = path.join("src-tauri").join("models");
+                    println!("[llm][models] Level {}: Checking dev_path1 exists: {:?} -> {}", i, dev_path1, dev_path1.exists());
+                    if dev_path1.exists() {
+                        println!("[llm][models] Resolved models dir to: {:?}", dev_path1);
+                        return Ok(dev_path1);
+                    }
+                    
+                    let dev_path2 = path.join("models");
+                    println!("[llm][models] Level {}: Checking dev_path2 exists: {:?} -> {}", i, dev_path2, dev_path2.exists());
+                    if dev_path2.exists() {
+                        println!("[llm][models] Resolved models dir to: {:?}", dev_path2);
+                        return Ok(dev_path2);
+                    }
+                } else {
+                    break;
+                }
             }
         }
     }
 
-    // Production: use resource directory
+    // Production / Fallback: use app cache directory's "models" subfolder
+    if let Ok(cache_dir) = app.path().app_cache_dir() {
+        let models_dir = cache_dir.join("models");
+        println!("[llm][models] Falling back to app cache models dir: {:?}", models_dir);
+        if !models_dir.exists() {
+            let _ = fs::create_dir_all(&models_dir);
+        }
+        return Ok(models_dir);
+    }
+
+    // Ultimate fallback: resource directory
     let resource_dir = app
         .path()
         .resource_dir()
         .map_err(|e| format!("Failed to get resource dir: {}", e))?;
-    Ok(resource_dir.join("models"))
+    let fallback_dir = resource_dir.join("models");
+    println!("[llm][models] Falling back to app resources models dir: {:?}", fallback_dir);
+    Ok(fallback_dir)
 }
 
 /// Scan the models directory for .gguf files.
 pub fn scan_models(app: &AppHandle) -> Result<Vec<GgufModelInfo>, String> {
     let models_dir = get_models_dir(app)?;
+    println!("[llm][models] Scanning models directory: {:?}", models_dir);
 
     if !models_dir.exists() {
+        println!("[llm][models] Directory does not exist, creating: {:?}", models_dir);
         fs::create_dir_all(&models_dir)
             .map_err(|e| format!("Failed to create models directory: {}", e))?;
         return Ok(vec![]);
@@ -61,6 +89,7 @@ pub fn scan_models(app: &AppHandle) -> Result<Vec<GgufModelInfo>, String> {
 
         if filename.ends_with(".gguf") {
             let size_bytes = entry.metadata().map(|m| m.len()).unwrap_or(0);
+            println!("[llm][models] Found model: {} ({} bytes)", filename, size_bytes);
             models.push(GgufModelInfo {
                 filename: filename.clone(),
                 path: path.to_string_lossy().to_string(),
@@ -70,6 +99,7 @@ pub fn scan_models(app: &AppHandle) -> Result<Vec<GgufModelInfo>, String> {
     }
 
     models.sort_by(|a, b| a.filename.cmp(&b.filename));
+    println!("[llm][models] Scan completed. Found {} models total.", models.len());
     Ok(models)
 }
 

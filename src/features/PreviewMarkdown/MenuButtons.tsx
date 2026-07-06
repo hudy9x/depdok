@@ -20,8 +20,11 @@ import {
   Table as TableIcon,
   Trash,
   Unlink,
+  LoaderCircle,
 } from "lucide-react";
 import { RiDoubleQuotesL } from "react-icons/ri";
+import { PiMagicWand } from "react-icons/pi";
+import { useGrammarCorrect } from "@/features/LLMChat/hooks/useGrammarCorrect";
 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
@@ -32,14 +35,17 @@ interface MenuButtonProps {
   isActive: boolean;
   title: string;
   icon: React.ReactNode;
+  disabled?: boolean;
 }
 
-function MenuButton({ onClick, isActive, title, icon }: MenuButtonProps) {
+function MenuButton({ onClick, isActive, title, icon, disabled }: MenuButtonProps) {
   return (
     <button
       onClick={onClick}
-      className={`p-2 rounded hover:bg-accent transition-colors ${isActive ? 'bg-accent text-accent-foreground' : ''
-        }`}
+      disabled={disabled}
+      className={`p-2 rounded hover:bg-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+        isActive ? 'bg-accent text-accent-foreground' : ''
+      }`}
       title={title}
       type="button"
     >
@@ -127,6 +133,8 @@ function LinkButton({ editor }: { editor: Editor }) {
 }
 
 export function FormatButtons({ editor }: FormatButtonsProps) {
+  const { correct, isCorrecting } = useGrammarCorrect(editor);
+
   return (
     <>
       <MenuButton
@@ -204,6 +212,20 @@ export function FormatButtons({ editor }: FormatButtonsProps) {
         icon={<Superscript className="w-4 h-4" />}
       />
       <LinkButton editor={editor} />
+      <div className="w-[1px] h-4 bg-border mx-1" />
+      <MenuButton
+        onClick={correct}
+        isActive={false}
+        disabled={isCorrecting}
+        title="Fix grammar with AI"
+        icon={
+          isCorrecting ? (
+            <LoaderCircle className="w-4 h-4 animate-spin" />
+          ) : (
+            <PiMagicWand className="w-4 h-4" />
+          )
+        }
+      />
     </>
   );
 }

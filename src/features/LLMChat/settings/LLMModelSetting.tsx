@@ -249,6 +249,21 @@ export function LLMModelSetting() {
   const getModelPath = (filename: string) =>
     downloadedFiles.find((f) => f.filename === filename)?.path ?? "";
 
+  const allModels = [...CURATED_MODELS];
+  for (const file of downloadedFiles) {
+    if (!CURATED_MODELS.some((m) => m.filename === file.filename)) {
+      allModels.push({
+        name: file.filename.replace(/\.gguf$/i, ""),
+        filename: file.filename,
+        quant: "Custom",
+        sizGb: Math.round((file.size_bytes / (1024 * 1024 * 1024)) * 10) / 10,
+        description: "Custom GGUF model found in models directory",
+        hfRepo: "",
+        downloadUrl: "",
+      });
+    }
+  }
+
   return (
     <div className="flex flex-col h-full overflow-hidden space-y-0">
       <div className="flex-1 overflow-y-auto scrollbar-hide min-h-0 space-y-6 p-8">
@@ -472,7 +487,7 @@ export function LLMModelSetting() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {CURATED_MODELS.map((model) => {
+                  {allModels.map((model) => {
                     const downloaded = isDownloaded(model.filename);
                     const isSelected =
                       activeTab === "local" &&
@@ -503,19 +518,21 @@ export function LLMModelSetting() {
                         <td className="py-2.5 px-3">
                           <div className="flex items-center gap-1.5">
                             <span className="font-semibold text-foreground">{model.name}</span>
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                openUrl(
-                                  `https://huggingface.co/${model.hfRepo}`,
-                                ).catch(console.error);
-                              }}
-                              className="text-muted-foreground/50 hover:text-primary cursor-pointer"
-                              title="View on HuggingFace"
-                            >
-                              <ExternalLink className="w-3 h-3" />
-                            </button>
+                            {model.hfRepo && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openUrl(
+                                    `https://huggingface.co/${model.hfRepo}`,
+                                  ).catch(console.error);
+                                }}
+                                className="text-muted-foreground/50 hover:text-primary cursor-pointer"
+                                title="View on HuggingFace"
+                              >
+                                <ExternalLink className="w-3 h-3" />
+                              </button>
+                            )}
                           </div>
                           <p className="text-[10px] text-muted-foreground mt-0.5">
                             {model.description}

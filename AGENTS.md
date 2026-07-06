@@ -35,6 +35,9 @@ src-tauri/              # Tauri backend (Rust)
 └── tauri.conf.json     # Tauri configuration
 ```
 
+## Rules
+- Do not run `git add` command
+
 ## Built-in Tauri Commands
 
 ### File System Commands (files.rs)

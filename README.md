@@ -108,9 +108,10 @@ Scope is intentionally limited to validate the core idea:
 
 ## 🤖 AI Agent / MCP Integration
 
-Depdok includes a built-in **MCP (Model Context Protocol) server** so AI agents (Claude Desktop, Cursor, Continue, etc.) can read and write to the knowledge base directly.
+Depdok includes a built-in **MCP (Model Context Protocol) server** so AI agents (Claude Desktop, Cursor, Continue, etc.) can read and write to the knowledge base directly. It also features a native offline-first AI chat assistant using local GGUF models.
 
 → **[Connect an AI agent to Depdok via MCP](docs/mcp-agent-guide.md)**
+→ **[LLM & Native AI Chat Integration Guide](docs/llm-integration.md)**
 
 ---
 

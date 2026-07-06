@@ -1,8 +1,9 @@
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use std::fs;
-use std::path::Path;
-use std::process::Command;
+
+pub mod fs;
+pub mod shell;
+pub mod yahoo;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ToolDefinition {
@@ -103,9 +104,7 @@ pub fn execute_tool(
             let path = args["path"]
                 .as_str()
                 .ok_or("Missing 'path' argument")?;
-            let content = fs::read_to_string(path)
-                .map_err(|e| format!("Failed to read file: {}", e))?;
-            Ok(json!({ "content": content }).to_string())
+            fs::read_file(path)
         }
 
         "write_file" => {
@@ -115,136 +114,30 @@ pub fn execute_tool(
             let content = args["content"]
                 .as_str()
                 .ok_or("Missing 'content' argument")?;
-            if let Some(parent) = Path::new(path).parent() {
-                fs::create_dir_all(parent)
-                    .map_err(|e| format!("Failed to create directories: {}", e))?;
-            }
-            fs::write(path, content)
-                .map_err(|e| format!("Failed to write file: {}", e))?;
-            Ok(json!({ "success": true }).to_string())
+            fs::write_file(path, content)
         }
 
         "list_directory" => {
             let path = args["path"]
                 .as_str()
                 .ok_or("Missing 'path' argument")?;
-            let entries: Vec<Value> = fs::read_dir(path)
-                .map_err(|e| format!("Failed to list directory: {}", e))?
-                .filter_map(|e| e.ok())
-                .map(|e| {
-                    let name = e.file_name().to_string_lossy().to_string();
-                    let is_dir = e.file_type().map(|t| t.is_dir()).unwrap_or(false);
-                    json!({ "name": name, "is_dir": is_dir })
-                })
-                .collect();
-            Ok(json!({ "entries": entries }).to_string())
+            fs::list_directory(path)
         }
 
         "run_shell" => {
             let command = args["command"]
                 .as_str()
                 .ok_or("Missing 'command' argument")?;
-
-            // Sandbox: only allow execution within workspace root
-            let workspace = Path::new(workspace_root)
-                .canonicalize()
-                .map_err(|e| format!("Invalid workspace root: {}", e))?;
-
-            #[cfg(target_os = "windows")]
-            let output = Command::new("cmd")
-                .args(&["/C", command])
-                .current_dir(&workspace)
-                .output()
-                .map_err(|e| format!("Failed to run command: {}", e))?;
-
-            #[cfg(not(target_os = "windows"))]
-            let output = Command::new("sh")
-                .args(&["-c", command])
-                .current_dir(&workspace)
-                .output()
-                .map_err(|e| format!("Failed to run command: {}", e))?;
-
-            let stdout = String::from_utf8_lossy(&output.stdout).to_string();
-            let stderr = String::from_utf8_lossy(&output.stderr).to_string();
-            let exit_code = output.status.code().unwrap_or(-1);
-
-            Ok(json!({
-                "stdout": stdout,
-                "stderr": stderr,
-                "exit_code": exit_code,
-            })
-            .to_string())
+            shell::run_shell(command, workspace_root)
         }
 
         "web_search" => {
             let query = args["query"]
                 .as_str()
                 .ok_or("Missing 'query' argument")?;
-            let result = search_duckduckgo(query)?;
-            Ok(result)
+            yahoo::search_yahoo(query)
         }
 
         _ => Err(format!("Unknown tool: {}", name)),
     }
-}
-
-/// Scrape DuckDuckGo HTML endpoint for search results.
-fn search_duckduckgo(query: &str) -> Result<String, String> {
-    use scraper::{Html, Selector};
-
-    let url = format!(
-        "https://html.duckduckgo.com/html/?q={}",
-        urlencoding::encode(query)
-    );
-
-    let client = reqwest::blocking::Client::builder()
-        .user_agent("Mozilla/5.0 (compatible; Depdok/1.0)")
-        .timeout(std::time::Duration::from_secs(10))
-        .build()
-        .map_err(|e| e.to_string())?;
-
-    let html = client
-        .get(&url)
-        .send()
-        .map_err(|e| format!("Web search request failed: {}", e))?
-        .text()
-        .map_err(|e| format!("Failed to read response: {}", e))?;
-
-    let document = Html::parse_document(&html);
-    let result_sel = Selector::parse(".result").unwrap();
-    let title_sel = Selector::parse(".result__title").unwrap();
-    let snippet_sel = Selector::parse(".result__snippet").unwrap();
-    let url_sel = Selector::parse(".result__url").unwrap();
-
-    let mut results = Vec::new();
-    for (i, result) in document.select(&result_sel).enumerate() {
-        if i >= 5 {
-            break;
-        }
-        let title = result
-            .select(&title_sel)
-            .next()
-            .map(|e| e.text().collect::<String>().trim().to_string())
-            .unwrap_or_default();
-        let snippet = result
-            .select(&snippet_sel)
-            .next()
-            .map(|e| e.text().collect::<String>().trim().to_string())
-            .unwrap_or_default();
-        let url = result
-            .select(&url_sel)
-            .next()
-            .map(|e| e.text().collect::<String>().trim().to_string())
-            .unwrap_or_default();
-
-        if !title.is_empty() || !snippet.is_empty() {
-            results.push(json!({
-                "title": title,
-                "snippet": snippet,
-                "url": url,
-            }));
-        }
-    }
-
-    Ok(json!({ "results": results }).to_string())
 }

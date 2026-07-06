@@ -7,12 +7,14 @@ import {
   onLlmError,
   onLlmToolCallPending,
   executeLlmTool,
+  sendChatMessage,
 } from "../api/llm";
 import type { ChatMessage, ToolCallPendingEvent } from "../api/llm";
 import {
   chatMessagesAtom,
   isGeneratingAtom,
   activeToolCallAtom,
+  currentSessionIdAtom,
 } from "../store/LLMChatStore";
 import { workspaceRootAtom } from "@/features/FileExplorer/store";
 
@@ -28,12 +30,18 @@ export function useLlmStream() {
   const setIsGenerating = useSetAtom(isGeneratingAtom);
   const setActiveToolCall = useSetAtom(activeToolCallAtom);
   const workspaceRoot = useAtomValue(workspaceRootAtom);
+  const sessionId = useAtomValue(currentSessionIdAtom);
 
-  // Keep workspace root in a ref so closures always see the latest value
+  // Keep workspace root and session ID in refs so closures always see the latest values
   const workspaceRootRef = useRef(workspaceRoot);
   useEffect(() => {
     workspaceRootRef.current = workspaceRoot;
   }, [workspaceRoot]);
+
+  const sessionIdRef = useRef(sessionId);
+  useEffect(() => {
+    sessionIdRef.current = sessionId;
+  }, [sessionId]);
 
   useEffect(() => {
     let unlistenToken: (() => void) | null = null;
@@ -59,6 +67,7 @@ export function useLlmStream() {
       unlistenTool = await onLlmToolCallPending(
         async (event: ToolCallPendingEvent) => {
           setActiveToolCall(event);
+          setIsGenerating(true); // Ensure generating state is active during tool execution
 
           // Execute the tool on the Rust side
           const wsRoot = workspaceRootRef.current ?? "";
@@ -75,8 +84,23 @@ export function useLlmStream() {
             content: output,
             name: event.name,
           };
-          setMessages((prev) => [...prev, toolMsg]);
+          
+          let nextMessages: ChatMessage[] = [];
+          setMessages((prev) => {
+            nextMessages = [...prev, toolMsg];
+            return nextMessages;
+          });
+          
           setActiveToolCall(null);
+
+          // Recursively call sendChatMessage to submit the tool execution output back to the LLM
+          try {
+            const currentSession = sessionIdRef.current;
+            await sendChatMessage(nextMessages, wsRoot, currentSession);
+          } catch (err) {
+            setIsGenerating(false);
+            console.error("Failed to continue response after tool call:", err);
+          }
         },
       );
 

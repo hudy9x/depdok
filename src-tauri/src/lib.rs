@@ -482,6 +482,7 @@ mod license_manager;
 mod keychain;
 mod knowledge_base;
 pub mod mcp_server;
+mod llm;
 #[cfg(target_os = "macos")]
 mod dock;
 
@@ -856,6 +857,9 @@ pub fn run() {
             // Initialize terminal PTY state
             app.manage(Arc::new(commands::terminal::TerminalState::new()));
 
+            // Initialize LLM state
+            app.manage(llm::LlmState::new());
+
             // Initialize knowledge base (SQLite + embedding model)
             match knowledge_base::init_knowledge_base(app.handle()) {
                 Ok((kb_state, embedder_state)) => {
@@ -1064,6 +1068,23 @@ pub fn run() {
             knowledge_base::commands::get_cache_dir,
             knowledge_base::commands::download_embedding_model,
             knowledge_base::commands::delete_embedding_model,
+            llm::commands::get_llm_config,
+            llm::commands::save_llm_config,
+            llm::commands::load_llm_provider,
+            llm::commands::unload_llm_provider,
+            llm::commands::get_llm_provider_status,
+            llm::commands::send_chat_message,
+            llm::commands::execute_llm_tool,
+            llm::commands::cancel_generation,
+            llm::commands::list_chat_sessions,
+            llm::commands::load_chat_session,
+            llm::commands::delete_chat_session,
+            llm::commands::scan_local_llm_models,
+            llm::commands::download_llm_model,
+            llm::commands::delete_llm_model,
+            llm::commands::reveal_llm_models_dir,
+            llm::commands::get_llm_models_dir,
+            llm::commands::grammar_correct_text,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

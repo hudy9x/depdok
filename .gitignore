@@ -26,3 +26,7 @@ key.pub
 *.njsproj
 *.sln
 *.sw?
+
+examples
+src-tauri/models/*
+!src-tauri/models/.gitkeep

@@ -31,3 +31,37 @@ pub async fn grammar_correct_text(
     );
     Ok(result)
 }
+
+#[tauri::command]
+pub async fn edit_text_with_ai(
+    app: AppHandle,
+    text: String,
+    instruction: String,
+    state: State<'_, LlmState>,
+) -> Result<String, String> {
+    println!(
+        "[llm][command] edit_text_with_ai requested: instruction='{}' input=({} chars)",
+        instruction,
+        text.len()
+    );
+
+    let prompt = format!(
+        "{instruction}\n\
+         Return ONLY the resulting text with no explanation, \
+         no quotes, and no extra commentary:\n\n{text}"
+    );
+
+    let config = load_config_internal(&app, &state);
+    let provider = get_provider(&config, &state).await?;
+
+    let start_time = std::time::Instant::now();
+    let result = provider.generate(&prompt, &config).await?;
+    let duration = start_time.elapsed();
+
+    println!(
+        "[llm][edit] AI edit completed in {:?}. Output length: {} chars",
+        duration,
+        result.len()
+    );
+    Ok(result)
+}

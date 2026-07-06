@@ -14,21 +14,30 @@ import {
   Link,
   List,
   ListOrdered,
+  LoaderCircle,
   Strikethrough,
   Subscript,
   Superscript,
   Table as TableIcon,
   Trash,
   Unlink,
-  LoaderCircle,
 } from "lucide-react";
 import { RiDoubleQuotesL } from "react-icons/ri";
 import { PiMagicWand } from "react-icons/pi";
-import { useGrammarCorrect } from "@/features/LLMChat/hooks/useGrammarCorrect";
 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+
+import { AdjustTone } from "./ai/AdjustTone";
+import { FixSpellingGrammar } from "./ai/FixSpellingGrammar";
+import { ExtendText } from "./ai/ExtendText";
+import { ReduceText } from "./ai/ReduceText";
+import { SimplifyText } from "./ai/SimplifyText";
+import { EmojifyText } from "./ai/EmojifyText";
+import { CompleteSentence } from "./ai/CompleteSentence";
+import { SummarizeText } from "./ai/SummarizeText";
+import { TranslateText } from "./ai/TranslateText";
 
 interface MenuButtonProps {
   onClick: () => void;
@@ -43,9 +52,8 @@ function MenuButton({ onClick, isActive, title, icon, disabled }: MenuButtonProp
     <button
       onClick={onClick}
       disabled={disabled}
-      className={`p-2 rounded hover:bg-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-        isActive ? 'bg-accent text-accent-foreground' : ''
-      }`}
+      className={`p-2 rounded hover:bg-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${isActive ? 'bg-accent text-accent-foreground' : ''
+        }`}
       title={title}
       type="button"
     >
@@ -56,6 +64,7 @@ function MenuButton({ onClick, isActive, title, icon, disabled }: MenuButtonProp
 
 interface FormatButtonsProps {
   editor: Editor;
+  onDropdownOpenChange?: (open: boolean) => void;
 }
 
 /** Link popover: set or unset a hyperlink on the selection */
@@ -132,9 +141,113 @@ function LinkButton({ editor }: { editor: Editor }) {
   );
 }
 
-export function FormatButtons({ editor }: FormatButtonsProps) {
-  const { correct, isCorrecting } = useGrammarCorrect(editor);
+/** Unified AI actions popover — click the wand to open */
+function AiActionsButton({
+  editor,
+  onDropdownOpenChange,
+}: {
+  editor: Editor;
+  onDropdownOpenChange?: (open: boolean) => void;
+}) {
+  const [isAiRunning, setIsAiRunning] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [view, setView] = useState<"main" | "tone" | "translate">("main");
 
+  const handleStart = () => {
+    setIsAiRunning(true);
+    setOpen(false);
+    setView("main");
+    onDropdownOpenChange?.(false);
+  };
+  const handleEnd = () => setIsAiRunning(false);
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    setOpen(nextOpen);
+    if (!nextOpen) {
+      setView("main");
+    }
+    onDropdownOpenChange?.(nextOpen);
+  };
+
+  return (
+    <Popover open={open} onOpenChange={handleOpenChange}>
+      <PopoverTrigger asChild>
+        <button
+          disabled={isAiRunning}
+          // Prevent mousedown from blurring the editor — keeps the bubble menu visible
+          onMouseDown={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+          }}
+          className="p-2 rounded hover:bg-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          title="AI writing actions"
+          type="button"
+        >
+          {isAiRunning ? (
+            <LoaderCircle className="w-4 h-4 animate-spin" />
+          ) : (
+            <PiMagicWand className="w-4 h-4" />
+          )}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="start"
+        className="w-52 p-1.5 flex flex-col gap-0.5"
+        // Prevent Radix from stealing focus back to the trigger on close
+        onCloseAutoFocus={(e: Event) => e.preventDefault()}
+      >
+        {view === "main" && (
+          <>
+            <AdjustTone
+              editor={editor}
+              mode="trigger"
+              onSelectToneMenu={() => setView("tone")}
+              onStart={handleStart}
+              onEnd={handleEnd}
+            />
+            <FixSpellingGrammar editor={editor} onStart={handleStart} onEnd={handleEnd} />
+            <ExtendText editor={editor} onStart={handleStart} onEnd={handleEnd} />
+            <ReduceText editor={editor} onStart={handleStart} onEnd={handleEnd} />
+            <SimplifyText editor={editor} onStart={handleStart} onEnd={handleEnd} />
+            <EmojifyText editor={editor} onStart={handleStart} onEnd={handleEnd} />
+            <div className="h-px bg-border my-1" />
+            <CompleteSentence editor={editor} onStart={handleStart} onEnd={handleEnd} />
+            <SummarizeText editor={editor} onStart={handleStart} onEnd={handleEnd} />
+            <TranslateText
+              editor={editor}
+              mode="trigger"
+              onSelectTranslateMenu={() => setView("translate")}
+              onStart={handleStart}
+              onEnd={handleEnd}
+            />
+          </>
+        )}
+
+        {view === "tone" && (
+          <AdjustTone
+            editor={editor}
+            mode="menu"
+            onBack={() => setView("main")}
+            onStart={handleStart}
+            onEnd={handleEnd}
+          />
+        )}
+
+        {view === "translate" && (
+          <TranslateText
+            editor={editor}
+            mode="menu"
+            onBack={() => setView("main")}
+            onStart={handleStart}
+            onEnd={handleEnd}
+          />
+        )}
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+export function FormatButtons({ editor, onDropdownOpenChange }: FormatButtonsProps) {
   return (
     <>
       <MenuButton
@@ -213,22 +326,12 @@ export function FormatButtons({ editor }: FormatButtonsProps) {
       />
       <LinkButton editor={editor} />
       <div className="w-[1px] h-4 bg-border mx-1" />
-      <MenuButton
-        onClick={correct}
-        isActive={false}
-        disabled={isCorrecting}
-        title="Fix grammar with AI"
-        icon={
-          isCorrecting ? (
-            <LoaderCircle className="w-4 h-4 animate-spin" />
-          ) : (
-            <PiMagicWand className="w-4 h-4" />
-          )
-        }
-      />
+      <AiActionsButton editor={editor} onDropdownOpenChange={onDropdownOpenChange} />
     </>
   );
 }
+
+
 
 export function BlockButtons({ editor }: FormatButtonsProps) {
   const [imagePopoverOpen, setImagePopoverOpen] = useState(false);

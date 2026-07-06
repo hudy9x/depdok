@@ -166,3 +166,6 @@ export const onLlmModelDownloadProgress = (
 
 export const grammarCorrectText = (text: string): Promise<string> =>
   invoke("grammar_correct_text", { text });
+
+export const editTextWithAi = (text: string, instruction: string): Promise<string> =>
+  invoke("edit_text_with_ai", { text, instruction });

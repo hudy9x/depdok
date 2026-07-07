@@ -35,6 +35,9 @@ src-tauri/              # Tauri backend (Rust)
 └── tauri.conf.json     # Tauri configuration
 ```
 
+## Rules
+- Do not run `git add` command
+
 ## Built-in Tauri Commands
 
 ### File System Commands (files.rs)
@@ -96,10 +99,11 @@ When adding new shadcn/ui components, use: `pnpm dlx shadcn@latest add [componen
 - Use React Router's data loading patterns where applicable
 
 ## Knowledge Base, Embedding Models, & MCP
-This repository includes a semantic knowledge base, support for local & remote embedding models, and a Model Context Protocol (MCP) server:
+This repository includes a semantic knowledge base, support for local & remote embedding models, a Model Context Protocol (MCP) server, and native GGUF/API chat integration:
 - **Knowledge Base & Semantic Search**: Uses `sqlite-vec` in the Rust backend for vector embeddings and KNN search, with Markdown split at the section/heading level. Documentation on schema, query flows, and reindexing is at [docs/knowledge-base/knowledge-base.md](file:///Users/hudy/ws/depdok/docs/knowledge-base/knowledge-base.md).
 - **Dynamic Embedding Models**: Supports offline local models (e.g., E5 multilingual, BGE Chinese/English, nomic-embed) and online remote models (OpenAI). Switching models triggers a vector database wipe and re-indexing. Details are in [docs/knowledge-base/knowledge-base.md](file:///Users/hudy/ws/depdok/docs/knowledge-base/knowledge-base.md#dynamic-embedding-models).
 - **Depdok MCP Server**: Exposes tools for other AI agents to interact with the workspace and the knowledge base. Run configurations, setup, and tools documentation is at [docs/knowledge-base/mcp-agent-guide.md](file:///Users/hudy/ws/depdok/docs/knowledge-base/mcp-agent-guide.md).
+- **LLM & Native AI Chat Integration**: Implements local GGUF models (`llama.cpp`), remote API clients, global state coordination, recursive agentic tool calls, and UI chat panel. Complete architecture and guide is at [docs/llm-integration.md](file:///Users/hudy/ws/depdok/docs/llm-integration.md).
 
 ## Tooling rules
 - Cursor / Copilot rules: no `.cursor` or `.cursorrules` and no `.github/copilot-instructions.md` were found in repo — none to enforce.

@@ -22,6 +22,7 @@ import { PlantUmlServerSetting } from "./PlantUmlServerSetting";
 import { CliCommandSetting } from "./CliCommandSetting";
 import { ContextMenuSetting } from "./ContextMenuSetting";
 import { ThemeSetting } from "./ThemeSetting";
+import { LLMModelSetting } from "@/features/LLMChat";
 
 interface SettingsDialogProps {
   open: boolean;
@@ -29,7 +30,7 @@ interface SettingsDialogProps {
   defaultTab?: SettingsTab;
 }
 
-type SettingsTab = "general" | "integrations" | "system" | "mcp" | "embeddings";
+type SettingsTab = "general" | "integrations" | "system" | "mcp" | "embeddings" | "ai-models";
 
 export function SettingsDialog({ open, onOpenChange, defaultTab }: SettingsDialogProps) {
   const [autoSaveEnabled, setAutoSaveEnabled] = useAtom(autoSaveEnabledAtom);
@@ -79,6 +80,12 @@ export function SettingsDialog({ open, onOpenChange, defaultTab }: SettingsDialo
       name: "MCP Server",
       icon: Bot,
       desc: "Model Context Protocol connections",
+    },
+    {
+      id: "ai-models",
+      name: "AI Models",
+      icon: Bot,
+      desc: "Configure LLM providers and manage local GGUF models",
     },
   ] as const;
 
@@ -145,7 +152,7 @@ export function SettingsDialog({ open, onOpenChange, defaultTab }: SettingsDialo
           <div
             className={cn(
               "flex-1",
-              activeTab === "embeddings"
+              activeTab === "embeddings" || activeTab === "ai-models"
                 ? "overflow-hidden flex flex-col"
                 : "overflow-y-auto space-y-6"
             )}
@@ -208,6 +215,10 @@ export function SettingsDialog({ open, onOpenChange, defaultTab }: SettingsDialo
               <div className="space-y-6 p-8">
                 <McpServerPathSetting />
               </div>
+            )}
+
+            {activeTab === "ai-models" && (
+              <LLMModelSetting />
             )}
           </div>
         </div>

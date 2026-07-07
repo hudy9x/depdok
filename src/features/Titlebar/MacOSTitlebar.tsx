@@ -17,6 +17,7 @@ import { isTerminalOpenAtom, setIsTerminalOpenAtom } from '@/stores/TerminalStor
 
 import { MacOSButtons } from './MacOSButtons';
 import { TitlebarContainer } from './TitlebarContainer';
+import { LLMChatButton } from '@/features/LLMChat';
 
 export function MacOSTitlebar() {
   const navigate = useNavigate();
@@ -118,6 +119,9 @@ export function MacOSTitlebar() {
             <PiTerminalWindowLight className="!h-4.5 !w-4.5" />
           )}
         </Button>
+
+        {/* AI Chat Button */}
+        <LLMChatButton />
 
         {/* Settings Button */}
         <Button

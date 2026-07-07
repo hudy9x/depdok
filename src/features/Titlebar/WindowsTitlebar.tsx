@@ -18,6 +18,7 @@ import { isTerminalOpenAtom, setIsTerminalOpenAtom } from '@/stores/TerminalStor
 
 import { TitlebarContainer } from './TitlebarContainer';
 import { WindowsButtons } from './WindowsButtons';
+import { LLMChatButton } from '@/features/LLMChat';
 
 export function WindowsTitlebar() {
   const navigate = useNavigate();
@@ -113,11 +114,14 @@ export function WindowsTitlebar() {
             title={`${isTerminalOpen ? 'Hide' : 'Show'} Terminal (Ctrl+\`)`}
           >
             {isTerminalOpen ? (
-            <PiTerminalFill className="!h-4.5 !w-4.5" />
-            ) : (
-            <PiTerminalWindowLight className="!h-4.5 !w-4.5" />
-            )}
+          <PiTerminalFill className="!h-4.5 !w-4.5" />
+          ) : (
+          <PiTerminalWindowLight className="!h-4.5 !w-4.5" />
+          )}
           </Button>
+
+          {/* AI Chat Button */}
+          <LLMChatButton />
 
           {/* Settings Button */}
           <Button

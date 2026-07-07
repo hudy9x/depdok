@@ -65,6 +65,16 @@ jobs:
         with:
           workspaces: './src-tauri -> target'
 
+      # === BỔ SUNG: Cài LLVM (libclang) và Ninja cho Windows để build llama-cpp-sys ===
+      - name: Install LLVM and Ninja (Windows)
+        if: matrix.platform == 'windows-latest'
+        shell: pwsh
+        run: |
+          choco install llvm ninja -y
+          echo "LIBCLANG_PATH=C:\Program Files\LLVM\bin" >> $env:GITHUB_ENV
+          echo "CMAKE_GENERATOR=Ninja" >> $env:GITHUB_ENV
+      # === Hết phần bổ sung ===
+
       - name: Install frontend dependencies
         run: pnpm install
 

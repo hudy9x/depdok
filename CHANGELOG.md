@@ -2,19 +2,17 @@
 
 ✨ Features
 
-- Add backend commands to export markdown documents to HTML and PDF formats ([16c6d0c](../../commit/16c6d0c))
-- Integrate LLM (#50) ([5c27c0c](../../commit/5c27c0c))
+- Add support for Mermaid diagram rendering and syntax highlighting in exported exports ([b0c5121](../../commit/b0c5121))
+- Implement file change ignoring during exports and add centralized file type validation support ([ae6d177](../../commit/ae6d177))
 
-🐛 Bug Fixes
+♻️ Refactoring
 
-- Improve file loading logic to prevent stale content issues ([0f6933a](../../commit/0f6933a))
-- Sync file content changes (#49) ([b9241d2](../../commit/b9241d2))
-- Depdok mcp stdio (#48) ([1695037](../../commit/1695037))
+- Refactor model directory resolution and enhance folder opening functionality ([8ccf719](../../commit/8ccf719))
 
 🔨 Other Changes
 
-- Doc: add post-implementation update for pane-origin guard in shared file sync ([3d6d455](../../commit/3d6d455))
-- Upgrade version 0.42.0 ([ca89a2e](../../commit/ca89a2e))
+- Buld: add llvm and ninja for building llama-cpp-sys ([19be9be](../../commit/19be9be))
+- Upgrade version 0.43.0 ([bf8a991](../../commit/bf8a991))
 
 
-📋 Full Changelog: [ca89a2e...16c6d0c](../../compare/ca89a2e...16c6d0c)
+📋 Full Changelog: [bf8a991...19be9be](../../compare/bf8a991...19be9be)

@@ -117,6 +117,22 @@ th { background-color: #f6f8fa; font-weight: 600; }
 hr { border: none; border-bottom: 2px solid #d8dee4; margin: 24px 0; height: 0; padding: 0; }
 a { color: #0969da; text-decoration: none; }
 a:hover { text-decoration: underline; }
+.mermaid {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 24px 0;
+    width: 100%;
+    overflow: visible;
+    page-break-inside: avoid;
+    background-color: transparent;
+}
+.mermaid svg {
+    max-width: 100% !important;
+    max-height: 180mm !important;
+    height: auto !important;
+    width: auto !important;
+}
 "#;
 
 fn markdown_to_html(md: &str) -> String {
@@ -133,11 +149,82 @@ fn markdown_to_html(md: &str) -> String {
 <head>
 <meta charset="UTF-8">
 <style>{}</style>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/github.min.css">
+<script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/highlight.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
 </head>
 <body>
 <div class="document-wrapper">
 {}
 </div>
+<script>
+  async function initRendering() {{
+    // 1. Highlight all non-mermaid code blocks
+    if (typeof hljs !== 'undefined') {{
+      try {{
+        const codeBlocks = document.querySelectorAll('pre code:not(.language-mermaid)');
+        codeBlocks.forEach((block) => {{
+          hljs.highlightElement(block);
+        }});
+      }} catch (e) {{
+        console.error('Failed to run Highlight.js:', e);
+      }}
+    }}
+
+    // 2. Render Mermaid diagrams
+    const mermaidBlocks = document.querySelectorAll('pre code.language-mermaid');
+    if (mermaidBlocks.length === 0) {{
+      finish();
+      return;
+    }}
+
+    if (typeof mermaid === 'undefined') {{
+      console.warn('Mermaid library not loaded (possibly offline). Leaving raw code blocks.');
+      finish();
+      return;
+    }}
+
+    try {{
+      mermaid.initialize({{
+        startOnLoad: false,
+        theme: 'default',
+        securityLevel: 'loose',
+      }});
+
+      for (let i = 0; i < mermaidBlocks.length; i++) {{
+        const codeBlock = mermaidBlocks[i];
+        const preBlock = codeBlock.parentElement;
+        if (!preBlock) continue;
+
+        const code = codeBlock.textContent;
+        const container = document.createElement('div');
+        container.className = 'mermaid';
+        container.textContent = code;
+        
+        preBlock.parentNode.replaceChild(container, preBlock);
+      }}
+
+      await mermaid.run();
+    }} catch (e) {{
+      console.error('Failed to render Mermaid diagrams:', e);
+    }} finally {{
+      finish();
+    }}
+  }}
+
+  function finish() {{
+    const indicator = document.createElement('div');
+    indicator.id = 'rendering-complete';
+    indicator.style.display = 'none';
+    document.body.appendChild(indicator);
+  }}
+
+  if (document.readyState === 'complete' || document.readyState === 'interactive') {{
+    initRendering();
+  }} else {{
+    document.addEventListener('DOMContentLoaded', initRendering);
+  }}
+</script>
 </body>
 </html>"#,
         CSS, body
@@ -320,6 +407,10 @@ pub async fn export_markdown_to_pdf(
         println!("[Export Backend] waiting for body element...");
         tab.wait_for_element("body")
             .map_err(|e| format!("Body element not loaded: {}", e))?;
+
+        println!("[Export Backend] waiting for Mermaid rendering to complete...");
+        tab.wait_for_element("#rendering-complete")
+            .map_err(|e| format!("Mermaid rendering timed out or failed: {}", e))?;
 
         let footer = r#"<div style="width:100%;font-size:9px;color:#888;text-align:center;font-family:Arial,sans-serif;">
             <span class="pageNumber"></span> / <span class="totalPages"></span>

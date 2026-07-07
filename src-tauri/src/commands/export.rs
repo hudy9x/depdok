@@ -1,8 +1,11 @@
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use headless_chrome::{Browser, LaunchOptions, types::PrintToPdfOptions};
 use pulldown_cmark::{html, Options, Parser as MdParser};
 use tauri_plugin_dialog::DialogExt;
+use tauri::Manager;
+use crate::commands::file_watcher::FileWatcher;
 
 fn get_unique_path(base_path: &Path, ext: &str) -> PathBuf {
     let path = base_path.with_extension(ext);
@@ -181,6 +184,19 @@ pub async fn export_markdown_to_html(
     let html_content = markdown_to_html(&markdown);
     println!("[Export Backend] generated HTML content, length={}", html_content.len());
 
+    let dest_path_str = dest_path.to_string_lossy().to_string();
+    if let Some(file_watcher) = app.try_state::<FileWatcher>() {
+        file_watcher.ignore_path(dest_path_str.clone());
+        let ignored_paths_clone = Arc::clone(&file_watcher.ignored_paths);
+        let dest_path_str_clone = dest_path_str.clone();
+        tokio::spawn(async move {
+            tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+            if let Ok(mut ignored) = ignored_paths_clone.lock() {
+                ignored.remove(&dest_path_str_clone);
+            }
+        });
+    }
+
     fs::write(&dest_path, html_content)
         .map_err(|e| {
             let err_msg = format!("Failed to write HTML file: {}", e);
@@ -238,6 +254,25 @@ pub async fn export_markdown_to_pdf(
     let temp_dir = dest_path.parent().unwrap_or_else(|| Path::new("."));
     let temp_html_path = temp_dir.join(".export_temp.tmp.html");
     println!("[Export Backend] writing temporary HTML file to {:?}", temp_html_path);
+
+    let dest_path_str = dest_path.to_string_lossy().to_string();
+    let temp_html_path_str = temp_html_path.to_string_lossy().to_string();
+    if let Some(file_watcher) = app.try_state::<FileWatcher>() {
+        file_watcher.ignore_path(dest_path_str.clone());
+        file_watcher.ignore_path(temp_html_path_str.clone());
+        
+        let ignored_paths_clone = Arc::clone(&file_watcher.ignored_paths);
+        let dest_path_str_clone = dest_path_str.clone();
+        let temp_html_path_str_clone = temp_html_path_str.clone();
+        
+        tokio::spawn(async move {
+            tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+            if let Ok(mut ignored) = ignored_paths_clone.lock() {
+                ignored.remove(&dest_path_str_clone);
+                ignored.remove(&temp_html_path_str_clone);
+            }
+        });
+    }
 
     fs::write(&temp_html_path, html_content)
         .map_err(|e| {

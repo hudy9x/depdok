@@ -8,6 +8,7 @@ import { FormatPreview } from "../PreviewFormat/FormatPreview";
 import { LoggerEditor } from "../LoggerEditor";
 import { KnowledgeGraphPreview } from "../KnowledgeGraph/KnowledgeGraphPreview";
 import { isKnowledgeGraphFile } from "@/lib/knowledgeGraph";
+import { isImageFile } from "@/lib/fileSupport";
 
 interface PreviewPanelProps {
   content: string;
@@ -52,8 +53,7 @@ export function PreviewPanel({
     );
   }
 
-  const imageExtensions = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'ico', 'bmp'];
-  if (imageExtensions.includes(fileExtension.toLowerCase()) && filePath) {
+  if (filePath && isImageFile(filePath)) {
     return <PreviewImage filePath={filePath} />;
   }
 

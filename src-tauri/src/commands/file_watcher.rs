@@ -12,14 +12,32 @@ use tauri::{AppHandle, Emitter, Manager};
 // Existing single-file watcher (kept intact — used by useFileWatcher hook)
 // ---------------------------------------------------------------------------
 
+use std::collections::HashSet;
+
 pub struct FileWatcher {
     pub current_path: Arc<Mutex<Option<String>>>,
+    pub ignored_paths: Arc<Mutex<HashSet<String>>>,
 }
 
 impl FileWatcher {
     pub fn new() -> Self {
         Self {
             current_path: Arc::new(Mutex::new(None)),
+            ignored_paths: Arc::new(Mutex::new(HashSet::new())),
+        }
+    }
+
+    pub fn ignore_path(&self, path: String) {
+        if let Ok(mut ignored) = self.ignored_paths.lock() {
+            ignored.insert(path);
+        }
+    }
+
+    pub fn is_ignored(&self, path: &str) -> bool {
+        if let Ok(ignored) = self.ignored_paths.lock() {
+            ignored.contains(path)
+        } else {
+            false
         }
     }
 }
@@ -71,6 +89,13 @@ pub fn start_watching(path: String, app: AppHandle) -> Result<(), String> {
 
                                         if let Some(watched) = current_watched {
                                             if event_path.to_string_lossy() == watched {
+                                                let watcher_state = app_clone.state::<FileWatcher>();
+                                                if watcher_state.is_ignored(&watched) {
+                                                    #[cfg(debug_assertions)]
+                                                    println!("[FileWatcher] Ignoring file change event for: {}", watched);
+                                                    continue;
+                                                }
+
                                                 #[cfg(debug_assertions)]
                                                 println!("File changed: {}", watched);
                                                 let _ = app_clone.emit("file-changed", watched.clone());

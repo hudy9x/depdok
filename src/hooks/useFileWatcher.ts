@@ -6,6 +6,7 @@ import { draftService } from "@/lib/indexeddb";
 import { useAtomValue } from "jotai";
 import { isFileDirtyAtom } from "@/stores/DirtyStore";
 import { isSavingAtom, lastSavedContentMap } from "@/stores/FileWatchStore";
+import { isBinaryFile } from "@/lib/fileSupport";
 
 interface UseFileWatcherOptions {
   filePath: string;
@@ -31,11 +32,14 @@ export function useFileWatcher({
   const isFileDirty = useAtomValue(isFileDirtyAtom(filePath));
   const isSaving = useAtomValue(isSavingAtom);
 
+  const isBinary = isBinaryFile(filePath);
+
   // Track the last file path we showed a toast for, to prevent duplicates
   const pendingReloadRef = useRef<string | null>(null);
 
   // Reload file content from disk
   const reloadFileContent = useCallback(async () => {
+    if (isBinary) return; // Don't reload binary files
     try {
       const isUntitled = filePath.startsWith("UNTITLED://");
       if (isUntitled) return; // Don't reload untitled files
@@ -56,13 +60,32 @@ export function useFileWatcher({
       console.error("Error reloading file:", error);
       toast.error("Failed to reload file");
     }
-  }, [filePath, onContentReload]);
+  }, [filePath, onContentReload, isBinary]);
+
+  // Keep a ref to all callback dependencies to prevent resetting the event listener on every auto-save/dirty state change
+  const callbackRef = useRef({
+    filePath,
+    isSaving,
+    autoReload,
+    isFileDirty,
+    reloadFileContent
+  });
+
+  useEffect(() => {
+    callbackRef.current = {
+      filePath,
+      isSaving,
+      autoReload,
+      isFileDirty,
+      reloadFileContent
+    };
+  });
 
   // Start watching the file when component mounts or filePath changes
   useEffect(() => {
     const isUntitled = filePath.startsWith("UNTITLED://");
 
-    if (!isUntitled && filePath) {
+    if (!isUntitled && filePath && !isBinary) {
       startWatching(filePath).catch((error) => {
         console.error("Failed to start watching file:", error);
       });
@@ -70,31 +93,46 @@ export function useFileWatcher({
 
     return () => {
       // Stop watching when component unmounts or filePath changes
-      stopWatching();
+      if (!isUntitled && filePath && !isBinary) {
+        stopWatching();
+      }
     };
-  }, [filePath]);
+  }, [filePath, isBinary]);
 
   // Setup file change listener
   useEffect(() => {
-    let unlisten: (() => void) | undefined;
+    if (!filePath || isBinary) return;
+
+    let active = true;
+    let unlistenFn: (() => void) | undefined;
 
     const setupListener = async () => {
-      unlisten = await onFileChanged((changedFilePath) => {
-        console.log("[FileWatcher] 📬 Event received:", changedFilePath, "| watched:", filePath, "| isSaving:", isSaving);
+      const unlisten = await onFileChanged((changedFilePath) => {
+        if (!active) return;
+
+        const {
+          filePath: currentPath,
+          isSaving: currentSaving,
+          autoReload: currentAutoReload,
+          isFileDirty: currentFileDirty,
+          reloadFileContent: currentReloadFileContent
+        } = callbackRef.current;
+
+        console.log("[FileWatcher] 📬 Event received:", changedFilePath, "| watched:", currentPath, "| isSaving:", currentSaving);
 
         // READ visual flow at useAutoSave.ts to understand how isSaving works
         // Ignore if we're currently saving THIS exact file from the app
-        if (isSaving === changedFilePath) {
+        if (currentSaving === changedFilePath) {
           console.log("[FileWatcher] ✅ Ignoring — isSaving matches changed path:", changedFilePath);
           return;
         }
 
         // Verify this event is for the currently active file
-        if (changedFilePath !== filePath) {
-          console.log("[FileWatcher] Path mismatch. Event:", changedFilePath, "Watched:", filePath);
+        if (changedFilePath !== currentPath) {
+          console.log("[FileWatcher] Path mismatch. Event:", changedFilePath, "Watched:", currentPath);
           return;
         }
-        console.log("[FileWatcher] Processing change. AutoReload:", autoReload, "IsDirty:", isFileDirty);
+        console.log("[FileWatcher] Processing change. AutoReload:", currentAutoReload, "IsDirty:", currentFileDirty);
 
         const handleShowToast = async () => {
           // Debounce: if we already have a pending reload notification for this file, don't show another
@@ -128,7 +166,7 @@ export function useFileWatcher({
             description: `The file ${changedFilePath} has been modified outside the editor.`,
             action: {
               label: "Reload",
-              onClick: reloadFileContent,
+              onClick: currentReloadFileContent,
             },
             cancel: {
               label: "Keep Current",
@@ -144,22 +182,29 @@ export function useFileWatcher({
           });
         };
 
-        if (autoReload) {
+        if (currentAutoReload) {
           // Standard behavior (Editor / SideBySide) - auto-reload directly
-          reloadFileContent();
+          currentReloadFileContent();
         } else {
           // Preview mode: user requested ALWAYS confirm
           handleShowToast();
         }
       });
+
+      if (!active) {
+        unlisten();
+      } else {
+        unlistenFn = unlisten;
+      }
     };
 
     setupListener();
 
     return () => {
-      if (unlisten) {
-        unlisten();
+      active = false;
+      if (unlistenFn) {
+        unlistenFn();
       }
     };
-  }, [filePath, isFileDirty, reloadFileContent, isSaving, autoReload]);
+  }, [filePath, isBinary]);
 }

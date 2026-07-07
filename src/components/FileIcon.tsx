@@ -1,5 +1,6 @@
 import { FileText, Image as ImageIcon, SwatchBook, Radio, Braces } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { isImageFile } from '@/lib/fileSupport';
 
 interface CustomIconProps {
   className?: string;
@@ -55,7 +56,7 @@ export function FileIcon({ filename, className, variant = 'colorful' }: FileIcon
   const isColorful = variant === 'colorful';
 
   const getIcon = () => {
-    const isImage = /\.(png|jpe?g|gif|svg|webp|ico)$/i.test(filename);
+    const isImage = isImageFile(filename);
     if (isImage) return <ImageIcon className={cn("w-4 h-4 text-muted-foreground", className)} />;
 
     if (filename.endsWith('.todo')) return <TodoIcon className={cn("w-4 h-4", className)} primary={isColorful ? "#3b82f6" : undefined} secondary={isColorful ? "#93c5fd" : undefined} />;

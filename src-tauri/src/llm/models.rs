@@ -11,57 +11,22 @@ pub struct GgufModelInfo {
 }
 
 /// Resolve the models directory.
-/// - In dev mode: ascends from the executable path to find the repository's models folder.
-/// - In production / fallback: uses the app's cache directory (matching the knowledge_base convention).
+/// Uses the app data directory (same base location as the knowledge base DB)
+/// and stores models under an `llm-models` subfolder.
 pub fn get_models_dir(app: &AppHandle) -> Result<PathBuf, String> {
-    #[cfg(debug_assertions)]
-    {
-        if let Ok(exe_path) = std::env::current_exe() {
-            println!("[llm][models] current_exe: {:?}", exe_path);
-            let mut path = exe_path;
-            // Ascend up to 5 levels to locate the repository models folder
-            for i in 0..5 {
-                if let Some(parent) = path.parent() {
-                    path = parent.to_path_buf();
-                    
-                    let dev_path1 = path.join("src-tauri").join("models");
-                    println!("[llm][models] Level {}: Checking dev_path1 exists: {:?} -> {}", i, dev_path1, dev_path1.exists());
-                    if dev_path1.exists() {
-                        println!("[llm][models] Resolved models dir to: {:?}", dev_path1);
-                        return Ok(dev_path1);
-                    }
-                    
-                    let dev_path2 = path.join("models");
-                    println!("[llm][models] Level {}: Checking dev_path2 exists: {:?} -> {}", i, dev_path2, dev_path2.exists());
-                    if dev_path2.exists() {
-                        println!("[llm][models] Resolved models dir to: {:?}", dev_path2);
-                        return Ok(dev_path2);
-                    }
-                } else {
-                    break;
-                }
-            }
-        }
-    }
-
-    // Production / Fallback: use app cache directory's "models" subfolder
-    if let Ok(cache_dir) = app.path().app_cache_dir() {
-        let models_dir = cache_dir.join("models");
-        println!("[llm][models] Falling back to app cache models dir: {:?}", models_dir);
-        if !models_dir.exists() {
-            let _ = fs::create_dir_all(&models_dir);
-        }
-        return Ok(models_dir);
-    }
-
-    // Ultimate fallback: resource directory
-    let resource_dir = app
+    let app_data_dir = app
         .path()
-        .resource_dir()
-        .map_err(|e| format!("Failed to get resource dir: {}", e))?;
-    let fallback_dir = resource_dir.join("models");
-    println!("[llm][models] Falling back to app resources models dir: {:?}", fallback_dir);
-    Ok(fallback_dir)
+        .app_data_dir()
+        .map_err(|e| format!("Failed to resolve app data dir: {}", e))?;
+    let models_dir = app_data_dir.join("llm-models");
+
+    if !models_dir.exists() {
+        fs::create_dir_all(&models_dir)
+            .map_err(|e| format!("Failed to create models directory: {}", e))?;
+    }
+
+    println!("[llm][models] Resolved models dir to: {:?}", models_dir);
+    Ok(models_dir)
 }
 
 /// Scan the models directory for .gguf files.

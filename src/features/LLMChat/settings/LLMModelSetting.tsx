@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { useSetAtom } from "jotai";
+import { useAtomValue, useSetAtom } from "jotai";
 import {
   Check,
   Download,
@@ -23,6 +23,7 @@ import {
   downloadLlmModel,
   deleteLlmModel,
   revealLlmModelsDir,
+  getLlmModelsDir,
   onLlmModelDownloadProgress,
 } from "../api/llm";
 import type { GgufModelInfo, LlmConfig, ProviderType } from "../api/llm";
@@ -132,6 +133,7 @@ export function LLMModelSetting() {
   const { config, saveAndLoad } = useLlmConfig();
   const setLocalModels = useSetAtom(localGgufModelsAtom);
   const setDownloadProgress = useSetAtom(modelDownloadProgressAtom);
+  const downloadProgress = useAtomValue(modelDownloadProgressAtom);
 
   const [activeTab, setActiveTab] = useState<ProviderTab>(
     (config?.provider_type as ProviderTab) ?? "local",
@@ -243,6 +245,16 @@ export function LLMModelSetting() {
     }
   }, [activeTab, selectedLocalModel, apiEndpoint, apiKey, modelName, config, saveAndLoad]);
 
+  const handleOpenModelsFolder = useCallback(async () => {
+    try {
+      const modelsDir = await getLlmModelsDir();
+      await revealLlmModelsDir();
+      toast.success(`Opened models folder: ${modelsDir}`);
+    } catch (err) {
+      toast.error(`Failed to open models folder: ${String(err)}`);
+    }
+  }, []);
+
   const isDownloaded = (filename: string) =>
     downloadedFiles.some((f) => f.filename === filename);
 
@@ -316,7 +328,9 @@ export function LLMModelSetting() {
                   variant="outline"
                   size="sm"
                   className="h-7 text-xs gap-1.5"
-                  onClick={revealLlmModelsDir}
+                  onClick={() => {
+                    handleOpenModelsFolder().catch(console.error);
+                  }}
                 >
                   <FolderOpen className="h-3 w-3" /> Open Models Folder
                 </Button>
@@ -491,6 +505,7 @@ export function LLMModelSetting() {
                     const downloaded = isDownloaded(model.filename);
                     const isSelected =
                       activeTab === "local" &&
+                      downloaded &&
                       selectedLocalModel === getModelPath(model.filename);
                     const isDownloading = downloadingFile === model.filename;
 
@@ -544,19 +559,21 @@ export function LLMModelSetting() {
                         <td className="py-2.5 px-3 text-center text-muted-foreground">
                           {model.sizGb} GB
                         </td>
-                        <td className="py-2.5 px-3 text-center">
+                        <td className="py-2.5 px-3 text-center group/status relative">
                           {isDownloading ? (
                             <LoaderCircle className="h-4 w-4 animate-spin text-primary mx-auto" />
                           ) : downloaded ? (
-                            <div className="flex items-center justify-center gap-1">
-                              <CheckCircle2 className="h-4 w-4 text-green-500" />
+                            <div className="flex items-center justify-center min-h-[28px]">
+                              <div className="group-hover/status:hidden text-green-500" title="Downloaded">
+                                <CheckCircle2 className="h-4 w-4" />
+                              </div>
                               <button
                                 type="button"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   handleDelete(model.filename).catch(console.error);
                                 }}
-                                className="p-0.5 hover:text-red-500 text-muted-foreground/40 cursor-pointer transition-colors"
+                                className="hidden group-hover/status:inline-flex p-1 rounded hover:bg-red-500/10 text-red-500 transition-colors cursor-pointer items-center justify-center"
                                 title="Delete model"
                               >
                                 <Trash2 className="h-3.5 w-3.5" />
@@ -586,6 +603,30 @@ export function LLMModelSetting() {
           </div>
         </div>
       </div>
+
+      {downloadProgress !== null && (
+        <div className="shrink-0 border-t border-border px-8 py-4 bg-background/95 backdrop-blur-sm">
+          <div className="flex items-center justify-between text-[11px] font-medium">
+            <span className="text-foreground flex items-center gap-1.5">
+              <LoaderCircle className="w-3.5 h-3.5 animate-spin text-primary" />
+              {downloadingFile
+                ? `Downloading ${downloadingFile}...`
+                : "Downloading model weights..."}
+            </span>
+            <span className="text-muted-foreground font-semibold">
+              {`${Math.floor(downloadProgress)}%`}
+            </span>
+          </div>
+          <div className="w-full bg-secondary h-2 rounded-full overflow-hidden mt-2">
+            <div
+              className="h-full bg-primary transition-all duration-300"
+              style={{
+                width: `${Math.min(Math.max(downloadProgress, 0), 100)}%`,
+              }}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

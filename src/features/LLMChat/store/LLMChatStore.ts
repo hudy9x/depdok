@@ -5,6 +5,13 @@ import type { ChatMessage, ChatSessionMeta, GgufModelInfo, LlmConfig, LlmProvide
 
 export const isChatOpenAtom = atom(false);
 
+export interface TaggedFile {
+  name: string;
+  path: string;
+}
+
+export const taggedFilesAtom = atom<TaggedFile[]>([]);
+
 // ─── Session State ────────────────────────────────────────────────────────────
 
 /** Current active session ID — generated fresh on first open */

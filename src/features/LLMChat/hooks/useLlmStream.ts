@@ -1,5 +1,7 @@
 import { useEffect, useRef } from "react";
 import { useSetAtom, useAtomValue } from "jotai";
+import { writeFileContent } from "@/lib/fileOperations";
+import { toast } from "sonner";
 
 import {
   onLlmToken,
@@ -31,9 +33,18 @@ export function useLlmStream() {
   const setActiveToolCall = useSetAtom(activeToolCallAtom);
   const workspaceRoot = useAtomValue(workspaceRootAtom);
   const sessionId = useAtomValue(currentSessionIdAtom);
+  const isGenerating = useAtomValue(isGeneratingAtom);
 
-  // Keep workspace root and session ID in refs so closures always see the latest values
+  // Keep a mutable ref of the streamed tokens to avoid React batching/staleness during stream completion
+  const assistantTextRef = useRef("");
   const workspaceRootRef = useRef(workspaceRoot);
+
+  useEffect(() => {
+    if (isGenerating) {
+      assistantTextRef.current = "";
+    }
+  }, [isGenerating]);
+
   useEffect(() => {
     workspaceRootRef.current = workspaceRoot;
   }, [workspaceRoot]);
@@ -51,6 +62,7 @@ export function useLlmStream() {
 
     const setup = async () => {
       unlistenToken = await onLlmToken((token: string) => {
+        assistantTextRef.current += token;
         setMessages((prev) => {
           const last = prev[prev.length - 1];
           if (last?.role === "assistant") {
@@ -107,6 +119,30 @@ export function useLlmStream() {
       unlistenDone = await onLlmDone(() => {
         setIsGenerating(false);
         setActiveToolCall(null);
+
+        // Check if the accumulated assistant stream text contains a [FILE:...] block
+        const finalContent = assistantTextRef.current;
+        assistantTextRef.current = ""; // Reset ref
+
+        if (finalContent) {
+          const fileBlockRegex = /\[FILE:\s*(.*?)\]\s*[\r\n]*\s*```[a-zA-Z]*\r?\n([\s\S]*?)```/g;
+          let match;
+          while ((match = fileBlockRegex.exec(finalContent)) !== null) {
+            let filePath = match[1].trim();
+            filePath = filePath.replace(/^[`'"]|[`'"]$/g, ""); // Strip wrapping quotes or backticks if outputted
+            const fileContent = match[2];
+
+            writeFileContent(filePath, fileContent)
+              .then(() => {
+                const filename = filePath.split(/[/\\]/).pop() || filePath;
+                toast.success(`AI successfully updated ${filename}`);
+              })
+              .catch((err) => {
+                console.error("Failed to write AI updated file:", err);
+                toast.error(`AI failed to write to file: ${String(err)}`);
+              });
+          }
+        }
       });
 
       unlistenError = await onLlmError((msg: string) => {

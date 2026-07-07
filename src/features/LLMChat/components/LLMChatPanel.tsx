@@ -5,6 +5,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { workspaceRootAtom } from "@/features/FileExplorer/store";
+import { readFileContent } from "@/lib/fileOperations";
 
 import { sendChatMessage, cancelGeneration } from "../api/llm";
 import type { ChatMessage } from "../api/llm";
@@ -16,6 +17,7 @@ import {
   currentSessionIdAtom,
   llmProviderStatusAtom,
   generateSessionId,
+  taggedFilesAtom,
 } from "../store/LLMChatStore";
 import { useLlmStream } from "../hooks/useLlmStream";
 import { LLMChatMessage } from "./LLMChatMessage";
@@ -29,6 +31,7 @@ export function LLMChatPanel() {
   const [sessionId, setSessionId] = useAtom(currentSessionIdAtom);
   const providerStatus = useAtomValue(llmProviderStatusAtom);
   const workspaceRoot = useAtomValue(workspaceRootAtom);
+  const [taggedFiles, setTaggedFiles] = useAtom(taggedFilesAtom);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -47,10 +50,47 @@ export function LLMChatPanel() {
         return;
       }
 
-      const userMsg: ChatMessage = { role: "user", content: text };
+      // Read all tagged files
+      const currentTags = [...taggedFiles];
+      const attachedFilesMeta = currentTags.map((f) => ({ name: f.name, path: f.path }));
+      
+      let contextStr = "";
+      if (currentTags.length > 0) {
+        for (const file of currentTags) {
+          try {
+            const content = await readFileContent(file.path);
+            contextStr += `\n\n---\n**Attached File Context:**\nFile: \`${file.name}\`\nPath: \`${file.path}\`\n\`\`\`\n${content}\n\`\`\``;
+          } catch (err) {
+            console.error(`Failed to read file ${file.path}:`, err);
+            toast.error(`Could not read file: ${file.name}`);
+          }
+        }
+      }
+
+      let reinforcedText = text;
+      if (contextStr) {
+        const systemInstruction = `\n\nIMPORTANT: The user has attached the above file(s). If the user asks you to edit, write, modify, or update a file, you MUST apply the changes by doing BOTH of the following:
+1. If your model supports tool calling, use the \`write_file\` tool with the correct \`path\` and the full, complete updated \`content\`.
+2. ALWAYS output the full updated file content in your text response using the following format:
+[FILE:path/to/file]
+\`\`\`language
+full file content goes here
+\`\`\`
+Replace 'path/to/file' with the absolute path of the file you are editing. Ensure there is no space between 'FILE:' and the path, and that you output the entire file content, not just diffs. Keep existing code structure unless modified.`;
+        reinforcedText = text + contextStr + systemInstruction;
+      }
+
+      // Save UI user message (clean text but with attachedFiles metadata)
+      const userMsg: ChatMessage = {
+        role: "user",
+        content: reinforcedText,
+        attachedFiles: attachedFilesMeta,
+      };
+      
       const newMessages = [...messages, userMsg];
       setMessages(newMessages);
       setIsGenerating(true);
+      setTaggedFiles([]); // Clear tag pills in UI
 
       try {
         await sendChatMessage(newMessages, workspaceRoot, sessionId);
@@ -59,7 +99,7 @@ export function LLMChatPanel() {
         toast.error(`Failed to send message: ${String(err)}`);
       }
     },
-    [messages, setMessages, setIsGenerating, workspaceRoot, sessionId],
+    [messages, setMessages, setIsGenerating, workspaceRoot, sessionId, taggedFiles, setTaggedFiles],
   );
 
   const handleStop = useCallback(async () => {
@@ -75,7 +115,8 @@ export function LLMChatPanel() {
     setMessages([]);
     setSessionId(generateSessionId());
     setIsGenerating(false);
-  }, [setMessages, setSessionId, setIsGenerating]);
+    setTaggedFiles([]);
+  }, [setMessages, setSessionId, setIsGenerating, setTaggedFiles]);
 
   const handleClearMessages = useCallback(() => {
     setMessages([]);
@@ -89,7 +130,7 @@ export function LLMChatPanel() {
 
   return (
     <div
-      className="fixed bottom-4 right-4 z-50 flex flex-col w-[420px] h-[580px] rounded-2xl border border-border/60 bg-background/95 backdrop-blur-xl shadow-2xl overflow-hidden"
+      className="fixed bottom-4 right-4 z-50 flex flex-col w-[520px] h-[720px] max-h-[calc(100vh-32px)] rounded-2xl border border-border/60 bg-background/95 backdrop-blur-xl shadow-2xl overflow-hidden"
       style={{ boxShadow: "0 24px 64px rgba(0,0,0,0.4)" }}
     >
       {/* Header */}

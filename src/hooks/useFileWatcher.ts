@@ -145,16 +145,8 @@ export function useFileWatcher({
         };
 
         if (autoReload) {
-          // Standard behavior (Editor / SideBySide)
-          if (isFileDirty) {
-            // If dirty, we MUST warn to prevent data loss
-            setTimeout(() => {
-              handleShowToast();
-            }, 500);
-          } else {
-            // If clean, we can auto-reload
-            reloadFileContent();
-          }
+          // Standard behavior (Editor / SideBySide) - auto-reload directly
+          reloadFileContent();
         } else {
           // Preview mode: user requested ALWAYS confirm
           handleShowToast();

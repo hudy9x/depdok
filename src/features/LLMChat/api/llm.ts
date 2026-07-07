@@ -28,6 +28,7 @@ export interface ChatMessage {
   content: string;
   name?: string;
   tool_call_id?: string;
+  attachedFiles?: Array<{ name: string; path: string }>;
 }
 
 export interface GgufModelInfo {
@@ -90,12 +91,19 @@ export const sendChatMessage = (
   messages: ChatMessage[],
   workspaceRoot: string,
   sessionId: string,
-): Promise<void> =>
-  invoke("send_chat_message", {
-    messages,
+): Promise<void> => {
+  const cleanedMessages = messages.map(({ role, content, name, tool_call_id }) => ({
+    role,
+    content,
+    name: name || undefined,
+    tool_call_id: tool_call_id || undefined,
+  }));
+  return invoke("send_chat_message", {
+    messages: cleanedMessages,
     workspaceRoot,
     sessionId,
   });
+};
 
 export const executeLlmTool = (
   name: string,

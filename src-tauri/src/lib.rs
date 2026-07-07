@@ -1007,6 +1007,8 @@ pub fn run() {
             commands::files::rename_node,
             commands::files::copy_node,
             commands::files::reveal_file,
+            commands::export::export_markdown_to_html,
+            commands::export::export_markdown_to_pdf,
             commands::git::get_current_branch,
             commands::git::get_all_branches,
             commands::git::get_git_refs,

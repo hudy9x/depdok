@@ -59,3 +59,31 @@ export async function readFileContent(path: string): Promise<string> {
 export async function writeFileContent(path: string, content: string): Promise<void> {
   await invoke('write_file_content', { path, content });
 }
+
+/**
+ * Export markdown content to an HTML file
+ * @param markdown - The markdown content
+ * @param filePath - The original markdown file path (if any)
+ * @returns The path of the exported HTML file
+ */
+export async function exportMarkdownToHtml(markdown: string, filePath?: string): Promise<string> {
+  return await invoke<string>('export_markdown_to_html', { markdown, filePath: filePath || null });
+}
+
+/**
+ * Export markdown content to a PDF file
+ * @param markdown - The markdown content
+ * @param filePath - The original markdown file path (if any)
+ * @returns The path of the exported PDF file
+ */
+export async function exportMarkdownToPdf(markdown: string, filePath?: string): Promise<string> {
+  return await invoke<string>('export_markdown_to_pdf', { markdown, filePath: filePath || null });
+}
+
+/**
+ * Reveal a file in Finder/Explorer
+ * @param path - Path to reveal
+ */
+export async function revealFile(path: string): Promise<void> {
+  await invoke('reveal_file', { path });
+}

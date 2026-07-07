@@ -6,3 +6,4 @@ pub mod file_search;
 pub mod content_search;
 pub mod logger;
 pub mod terminal;
+pub mod export;

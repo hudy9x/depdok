@@ -293,6 +293,7 @@ export function MarkdownPreview({
           editable={editable}
           size={editorSize}
           onSizeChange={setEditorSize}
+          filePath={filePath}
         />
       </div>
 

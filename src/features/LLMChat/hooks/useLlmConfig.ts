@@ -33,7 +33,7 @@ export function useLlmConfig() {
         setConfig(newConfig);
 
         // Only load provider for local — remote providers need no pre-loading
-        if (newConfig.provider_type === "local") {
+        if (newConfig.provider_type === "local" && newConfig.local_model_path) {
           await loadLlmProvider();
           toast.success("Model loaded successfully");
         } else {

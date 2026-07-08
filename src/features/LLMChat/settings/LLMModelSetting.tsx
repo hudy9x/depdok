@@ -1,22 +1,26 @@
 import { useCallback, useEffect, useState } from "react";
 import { useAtomValue, useSetAtom } from "jotai";
+import { appDataDir, join } from "@tauri-apps/api/path";
+import { platform } from "@tauri-apps/plugin-os";
 import {
   Check,
   Download,
   CheckCircle2,
   Trash2,
   ExternalLink,
-  FolderOpen,
   LoaderCircle,
-  Eye,
-  EyeOff,
 } from "lucide-react";
 import { toast } from "sonner";
 import { openUrl } from "@tauri-apps/plugin-opener";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { openFolderDialog } from "@/features/FileExplorer/api";
+import { ClaudeProviderSettings } from "./ClaudeProviderSettings";
+import { LmStudioProviderSettings } from "./LmStudioProviderSettings";
+import { LocalProviderSettings } from "./LocalProviderSettings";
+import { OllamaProviderSettings } from "./OllamaProviderSettings";
+import { OpenAiProviderSettings } from "./OpenAiProviderSettings";
 
 import {
   scanLocalLlmModels,
@@ -134,6 +138,7 @@ export function LLMModelSetting() {
   const setLocalModels = useSetAtom(localGgufModelsAtom);
   const setDownloadProgress = useSetAtom(modelDownloadProgressAtom);
   const downloadProgress = useAtomValue(modelDownloadProgressAtom);
+  const isWindows = platform() === "windows";
 
   const [activeTab, setActiveTab] = useState<ProviderTab>(
     (config?.provider_type as ProviderTab) ?? "local",
@@ -148,7 +153,8 @@ export function LLMModelSetting() {
   const [apiEndpoint, setApiEndpoint] = useState(config?.api_endpoint ?? "");
   const [apiKey, setApiKey] = useState(config?.api_key ?? "");
   const [modelName, setModelName] = useState(config?.model_name ?? "");
-  const [showKey, setShowKey] = useState(false);
+  const [customModelsDir, setCustomModelsDir] = useState(config?.custom_models_dir ?? "");
+  const [defaultModelsDir, setDefaultModelsDir] = useState<string>("");
   const [isSaving, setIsSaving] = useState(false);
 
   // Sync form fields when config loads
@@ -159,7 +165,32 @@ export function LLMModelSetting() {
     setApiEndpoint(config.api_endpoint ?? "");
     setApiKey(config.api_key ?? "");
     setModelName(config.model_name ?? "");
+    setCustomModelsDir(config.custom_models_dir ?? "");
   }, [config]);
+
+  useEffect(() => {
+    if (!isWindows) {
+      return;
+    }
+
+    let active = true;
+    const loadDefaultModelsDir = async () => {
+      try {
+        const baseDir = await appDataDir();
+        const modelsDir = await join(baseDir, "llm-models");
+        if (active) {
+          setDefaultModelsDir(modelsDir);
+        }
+      } catch (error) {
+        console.error("Failed to resolve default models directory:", error);
+      }
+    };
+
+    loadDefaultModelsDir().catch(console.error);
+    return () => {
+      active = false;
+    };
+  }, [isWindows]);
 
   // Scan local models on mount
   useEffect(() => {
@@ -226,9 +257,18 @@ export function LLMModelSetting() {
   const handleSave = useCallback(async () => {
     setIsSaving(true);
     try {
+      const trimmedCustomModelsDir = customModelsDir.trim();
+      const nextCustomModelsDir = activeTab === "local" && isWindows && trimmedCustomModelsDir
+        ? trimmedCustomModelsDir
+        : null;
+      const currentCustomModelsDir = config?.custom_models_dir ?? null;
+      const customDirChanged = nextCustomModelsDir !== currentCustomModelsDir;
       const newConfig: LlmConfig = {
         provider_type: activeTab as ProviderType,
-        local_model_path: activeTab === "local" ? selectedLocalModel || null : null,
+        local_model_path: activeTab === "local"
+          ? (customDirChanged ? null : selectedLocalModel || null)
+          : null,
+        custom_models_dir: nextCustomModelsDir,
         api_endpoint: activeTab !== "local" ? apiEndpoint || null : null,
         api_key: ["open_a_i", "claude"].includes(activeTab) ? apiKey || null : null,
         model_name: modelName || null,
@@ -238,12 +278,42 @@ export function LLMModelSetting() {
         system_prompt: config?.system_prompt ?? null,
       };
       await saveAndLoad(newConfig);
+      if (customDirChanged) {
+        setSelectedLocalModel("");
+      }
+      await refreshModels();
     } catch {
       // Error handled in hook
     } finally {
       setIsSaving(false);
     }
-  }, [activeTab, selectedLocalModel, apiEndpoint, apiKey, modelName, config, saveAndLoad]);
+  }, [
+    activeTab,
+    apiEndpoint,
+    apiKey,
+    config,
+    customModelsDir,
+    isWindows,
+    modelName,
+    refreshModels,
+    saveAndLoad,
+    selectedLocalModel,
+  ]);
+
+  const handleChooseModelsDir = useCallback(async () => {
+    const folderPath = await openFolderDialog();
+    if (!folderPath) {
+      return;
+    }
+
+    setCustomModelsDir(folderPath);
+    setSelectedLocalModel("");
+  }, []);
+
+  const handleResetModelsDir = useCallback(() => {
+    setCustomModelsDir("");
+    setSelectedLocalModel("");
+  }, []);
 
   const handleOpenModelsFolder = useCallback(async () => {
     try {
@@ -258,8 +328,74 @@ export function LLMModelSetting() {
   const isDownloaded = (filename: string) =>
     downloadedFiles.some((f) => f.filename === filename);
 
+  const customDirChanged = (config?.custom_models_dir ?? "") !== customModelsDir;
+  const localSaveLabel = activeTab === "local"
+    ? (selectedLocalModel && !customDirChanged ? "Save & Load Model" : "Save Configuration")
+    : "Save Configuration";
+
   const getModelPath = (filename: string) =>
     downloadedFiles.find((f) => f.filename === filename)?.path ?? "";
+
+  const renderProviderSettings = () => {
+    switch (activeTab) {
+      case "local":
+        return (
+          <LocalProviderSettings
+            selectedLocalModel={selectedLocalModel}
+            isWindows={isWindows}
+            customModelsDir={customModelsDir}
+            defaultModelsDir={defaultModelsDir}
+            onOpenModelsFolder={() => {
+              handleOpenModelsFolder().catch(console.error);
+            }}
+            onChooseModelsDir={() => {
+              handleChooseModelsDir().catch(console.error);
+            }}
+            onResetModelsDir={handleResetModelsDir}
+          />
+        );
+      case "ollama":
+        return (
+          <OllamaProviderSettings
+            apiEndpoint={apiEndpoint}
+            modelName={modelName}
+            onApiEndpointChange={setApiEndpoint}
+            onModelNameChange={setModelName}
+          />
+        );
+      case "lm_studio":
+        return (
+          <LmStudioProviderSettings
+            apiEndpoint={apiEndpoint}
+            modelName={modelName}
+            onApiEndpointChange={setApiEndpoint}
+            onModelNameChange={setModelName}
+          />
+        );
+      case "open_a_i":
+        return (
+          <OpenAiProviderSettings
+            apiKey={apiKey}
+            modelName={modelName}
+            apiEndpoint={apiEndpoint}
+            onApiKeyChange={setApiKey}
+            onModelNameChange={setModelName}
+            onApiEndpointChange={setApiEndpoint}
+          />
+        );
+      case "claude":
+        return (
+          <ClaudeProviderSettings
+            apiKey={apiKey}
+            modelName={modelName}
+            onApiKeyChange={setApiKey}
+            onModelNameChange={setModelName}
+          />
+        );
+      default:
+        return null;
+    }
+  };
 
   const allModels = [...CURATED_MODELS];
   for (const file of downloadedFiles) {
@@ -309,169 +445,18 @@ export function LLMModelSetting() {
 
           {/* Provider-specific fields */}
           <div className="space-y-3 rounded-xl border border-border/60 p-4 bg-muted/10">
-            {activeTab === "local" && (
-              <div className="space-y-2">
-                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Selected Model
-                </Label>
-                {selectedLocalModel ? (
-                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/40 border border-border/40 text-xs font-mono text-foreground">
-                    <CheckCircle2 className="h-3.5 w-3.5 text-green-500 shrink-0" />
-                    <span className="truncate">{selectedLocalModel.split(/[/\\]/).pop()}</span>
-                  </div>
-                ) : (
-                  <p className="text-xs text-muted-foreground">
-                    No model selected. Download or pick a GGUF file below.
-                  </p>
-                )}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-7 text-xs gap-1.5"
-                  onClick={() => {
-                    handleOpenModelsFolder().catch(console.error);
-                  }}
-                >
-                  <FolderOpen className="h-3 w-3" /> Open Models Folder
-                </Button>
-              </div>
-            )}
-
-            {activeTab === "ollama" && (
-              <div className="space-y-3">
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Ollama Endpoint</Label>
-                  <Input
-                    placeholder="http://localhost:11434"
-                    value={apiEndpoint}
-                    onChange={(e) => setApiEndpoint(e.target.value)}
-                    className="text-xs h-8"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Model Name</Label>
-                  <Input
-                    placeholder="llama3, mistral, phi3..."
-                    value={modelName}
-                    onChange={(e) => setModelName(e.target.value)}
-                    className="text-xs h-8"
-                  />
-                </div>
-              </div>
-            )}
-
-            {activeTab === "lm_studio" && (
-              <div className="space-y-3">
-                <div className="space-y-1.5">
-                  <Label className="text-xs">LM Studio Endpoint</Label>
-                  <Input
-                    placeholder="http://localhost:1234"
-                    value={apiEndpoint}
-                    onChange={(e) => setApiEndpoint(e.target.value)}
-                    className="text-xs h-8"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Model Name (optional)</Label>
-                  <Input
-                    placeholder="Leave blank to use the active model"
-                    value={modelName}
-                    onChange={(e) => setModelName(e.target.value)}
-                    className="text-xs h-8"
-                  />
-                </div>
-              </div>
-            )}
-
-            {activeTab === "open_a_i" && (
-              <div className="space-y-3">
-                <div className="space-y-1.5">
-                  <Label className="text-xs">API Key</Label>
-                  <div className="relative">
-                    <Input
-                      type={showKey ? "text" : "password"}
-                      placeholder="sk-..."
-                      value={apiKey}
-                      onChange={(e) => setApiKey(e.target.value)}
-                      className="text-xs h-8 pr-9"
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6 cursor-pointer"
-                      onClick={() => setShowKey(!showKey)}
-                    >
-                      {showKey ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
-                    </Button>
-                  </div>
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Model</Label>
-                  <Input
-                    placeholder="gpt-4o"
-                    value={modelName}
-                    onChange={(e) => setModelName(e.target.value)}
-                    className="text-xs h-8"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Custom Endpoint (optional)</Label>
-                  <Input
-                    placeholder="https://api.openai.com"
-                    value={apiEndpoint}
-                    onChange={(e) => setApiEndpoint(e.target.value)}
-                    className="text-xs h-8"
-                  />
-                </div>
-              </div>
-            )}
-
-            {activeTab === "claude" && (
-              <div className="space-y-3">
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Anthropic API Key</Label>
-                  <div className="relative">
-                    <Input
-                      type={showKey ? "text" : "password"}
-                      placeholder="sk-ant-..."
-                      value={apiKey}
-                      onChange={(e) => setApiKey(e.target.value)}
-                      className="text-xs h-8 pr-9"
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6 cursor-pointer"
-                      onClick={() => setShowKey(!showKey)}
-                    >
-                      {showKey ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
-                    </Button>
-                  </div>
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Model</Label>
-                  <Input
-                    placeholder="claude-3-5-sonnet-20241022"
-                    value={modelName}
-                    onChange={(e) => setModelName(e.target.value)}
-                    className="text-xs h-8"
-                  />
-                </div>
-              </div>
-            )}
+            {renderProviderSettings()}
           </div>
 
           <Button
             onClick={handleSave}
-            disabled={isSaving || (activeTab === "local" && !selectedLocalModel)}
+            disabled={isSaving}
             className="h-8 text-xs cursor-pointer"
           >
             {isSaving ? (
               <><LoaderCircle className="h-3 w-3 animate-spin mr-1.5" /> Saving…</>
             ) : (
-              activeTab === "local" ? "Save & Load Model" : "Save Configuration"
+              localSaveLabel
             )}
           </Button>
         </div>

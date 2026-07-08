@@ -24,6 +24,8 @@ impl Default for ProviderType {
 pub struct LlmConfig {
     pub provider_type: ProviderType,
     pub local_model_path: Option<String>,
+    #[serde(default)]
+    pub custom_models_dir: Option<String>,
     pub api_endpoint: Option<String>,
     pub api_key: Option<String>,
     pub model_name: Option<String>,
@@ -38,6 +40,7 @@ impl Default for LlmConfig {
         Self {
             provider_type: ProviderType::Local,
             local_model_path: None,
+            custom_models_dir: None,
             api_endpoint: None,
             api_key: None,
             model_name: None,

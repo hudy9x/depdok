@@ -8,18 +8,19 @@ import {
   CheckCircle2,
   Trash2,
   ExternalLink,
-  FolderOpen,
   LoaderCircle,
-  Eye,
-  EyeOff,
 } from "lucide-react";
 import { toast } from "sonner";
 import { openUrl } from "@tauri-apps/plugin-opener";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { openFolderDialog } from "@/features/FileExplorer/api";
+import { ClaudeProviderSettings } from "./ClaudeProviderSettings";
+import { LmStudioProviderSettings } from "./LmStudioProviderSettings";
+import { LocalProviderSettings } from "./LocalProviderSettings";
+import { OllamaProviderSettings } from "./OllamaProviderSettings";
+import { OpenAiProviderSettings } from "./OpenAiProviderSettings";
 
 import {
   scanLocalLlmModels,
@@ -154,7 +155,6 @@ export function LLMModelSetting() {
   const [modelName, setModelName] = useState(config?.model_name ?? "");
   const [customModelsDir, setCustomModelsDir] = useState(config?.custom_models_dir ?? "");
   const [defaultModelsDir, setDefaultModelsDir] = useState<string>("");
-  const [showKey, setShowKey] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
   // Sync form fields when config loads
@@ -328,7 +328,6 @@ export function LLMModelSetting() {
   const isDownloaded = (filename: string) =>
     downloadedFiles.some((f) => f.filename === filename);
 
-  const isCustomModelsDirConfigured = customModelsDir.trim().length > 0;
   const customDirChanged = (config?.custom_models_dir ?? "") !== customModelsDir;
   const localSaveLabel = activeTab === "local"
     ? (selectedLocalModel && !customDirChanged ? "Save & Load Model" : "Save Configuration")
@@ -336,6 +335,67 @@ export function LLMModelSetting() {
 
   const getModelPath = (filename: string) =>
     downloadedFiles.find((f) => f.filename === filename)?.path ?? "";
+
+  const renderProviderSettings = () => {
+    switch (activeTab) {
+      case "local":
+        return (
+          <LocalProviderSettings
+            selectedLocalModel={selectedLocalModel}
+            isWindows={isWindows}
+            customModelsDir={customModelsDir}
+            defaultModelsDir={defaultModelsDir}
+            onOpenModelsFolder={() => {
+              handleOpenModelsFolder().catch(console.error);
+            }}
+            onChooseModelsDir={() => {
+              handleChooseModelsDir().catch(console.error);
+            }}
+            onResetModelsDir={handleResetModelsDir}
+          />
+        );
+      case "ollama":
+        return (
+          <OllamaProviderSettings
+            apiEndpoint={apiEndpoint}
+            modelName={modelName}
+            onApiEndpointChange={setApiEndpoint}
+            onModelNameChange={setModelName}
+          />
+        );
+      case "lm_studio":
+        return (
+          <LmStudioProviderSettings
+            apiEndpoint={apiEndpoint}
+            modelName={modelName}
+            onApiEndpointChange={setApiEndpoint}
+            onModelNameChange={setModelName}
+          />
+        );
+      case "open_a_i":
+        return (
+          <OpenAiProviderSettings
+            apiKey={apiKey}
+            modelName={modelName}
+            apiEndpoint={apiEndpoint}
+            onApiKeyChange={setApiKey}
+            onModelNameChange={setModelName}
+            onApiEndpointChange={setApiEndpoint}
+          />
+        );
+      case "claude":
+        return (
+          <ClaudeProviderSettings
+            apiKey={apiKey}
+            modelName={modelName}
+            onApiKeyChange={setApiKey}
+            onModelNameChange={setModelName}
+          />
+        );
+      default:
+        return null;
+    }
+  };
 
   const allModels = [...CURATED_MODELS];
   for (const file of downloadedFiles) {
@@ -385,220 +445,7 @@ export function LLMModelSetting() {
 
           {/* Provider-specific fields */}
           <div className="space-y-3 rounded-xl border border-border/60 p-4 bg-muted/10">
-            {activeTab === "local" && (
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Selected Model
-                  </Label>
-                  {selectedLocalModel ? (
-                    <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/40 border border-border/40 text-xs font-mono text-foreground">
-                      <CheckCircle2 className="h-3.5 w-3.5 text-green-500 shrink-0" />
-                      <span className="truncate">{selectedLocalModel.split(/[/\\]/).pop()}</span>
-                    </div>
-                  ) : (
-                    <p className="text-xs text-muted-foreground">
-                      No model selected. Download or pick a GGUF file below.
-                    </p>
-                  )}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-7 text-xs gap-1.5"
-                    onClick={() => {
-                      handleOpenModelsFolder().catch(console.error);
-                    }}
-                  >
-                    <FolderOpen className="h-3 w-3" /> Open Models Folder
-                  </Button>
-                </div>
-
-                {isWindows && (
-                  <div className="space-y-3 rounded-lg border border-border/50 bg-background/60 p-3">
-                    <div className="space-y-1">
-                      <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                        Models Storage Location
-                      </Label>
-                      <p className="text-xs text-muted-foreground">
-                        Store GGUF downloads in the default app data folder or choose another location with more disk space.
-                      </p>
-                    </div>
-
-                    <div className="rounded-md border border-border/50 bg-muted/30 px-3 py-2 text-xs">
-                      <div className="font-medium text-foreground">
-                        {isCustomModelsDirConfigured ? customModelsDir : "Default (App Data Folder)"}
-                      </div>
-                      <div className="mt-1 text-muted-foreground">
-                        {isCustomModelsDirConfigured
-                          ? "Custom folder selected"
-                          : (defaultModelsDir || "Loading default location...")}
-                      </div>
-                    </div>
-
-                    <div className="flex gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="h-7 text-xs"
-                        onClick={() => {
-                          handleChooseModelsDir().catch(console.error);
-                        }}
-                      >
-                        Choose...
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 text-xs"
-                        onClick={handleResetModelsDir}
-                        disabled={!isCustomModelsDirConfigured}
-                      >
-                        Reset
-                      </Button>
-                    </div>
-
-                    {isCustomModelsDirConfigured && (
-                      <div className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-950 dark:text-amber-100">
-                        <div className="font-semibold">Notice:</div>
-                        <div className="mt-1">
-                          The models folder has been customized. Existing models must be manually copied to the new folder, or downloaded again.
-                        </div>
-                        <div className="mt-1 font-mono text-[11px] break-all text-amber-900/80 dark:text-amber-50/80">
-                          Default location: {defaultModelsDir || "Loading default location..."}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {activeTab === "ollama" && (
-              <div className="space-y-3">
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Ollama Endpoint</Label>
-                  <Input
-                    placeholder="http://localhost:11434"
-                    value={apiEndpoint}
-                    onChange={(e) => setApiEndpoint(e.target.value)}
-                    className="text-xs h-8"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Model Name</Label>
-                  <Input
-                    placeholder="llama3, mistral, phi3..."
-                    value={modelName}
-                    onChange={(e) => setModelName(e.target.value)}
-                    className="text-xs h-8"
-                  />
-                </div>
-              </div>
-            )}
-
-            {activeTab === "lm_studio" && (
-              <div className="space-y-3">
-                <div className="space-y-1.5">
-                  <Label className="text-xs">LM Studio Endpoint</Label>
-                  <Input
-                    placeholder="http://localhost:1234"
-                    value={apiEndpoint}
-                    onChange={(e) => setApiEndpoint(e.target.value)}
-                    className="text-xs h-8"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Model Name (optional)</Label>
-                  <Input
-                    placeholder="Leave blank to use the active model"
-                    value={modelName}
-                    onChange={(e) => setModelName(e.target.value)}
-                    className="text-xs h-8"
-                  />
-                </div>
-              </div>
-            )}
-
-            {activeTab === "open_a_i" && (
-              <div className="space-y-3">
-                <div className="space-y-1.5">
-                  <Label className="text-xs">API Key</Label>
-                  <div className="relative">
-                    <Input
-                      type={showKey ? "text" : "password"}
-                      placeholder="sk-..."
-                      value={apiKey}
-                      onChange={(e) => setApiKey(e.target.value)}
-                      className="text-xs h-8 pr-9"
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6 cursor-pointer"
-                      onClick={() => setShowKey(!showKey)}
-                    >
-                      {showKey ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
-                    </Button>
-                  </div>
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Model</Label>
-                  <Input
-                    placeholder="gpt-4o"
-                    value={modelName}
-                    onChange={(e) => setModelName(e.target.value)}
-                    className="text-xs h-8"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Custom Endpoint (optional)</Label>
-                  <Input
-                    placeholder="https://api.openai.com"
-                    value={apiEndpoint}
-                    onChange={(e) => setApiEndpoint(e.target.value)}
-                    className="text-xs h-8"
-                  />
-                </div>
-              </div>
-            )}
-
-            {activeTab === "claude" && (
-              <div className="space-y-3">
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Anthropic API Key</Label>
-                  <div className="relative">
-                    <Input
-                      type={showKey ? "text" : "password"}
-                      placeholder="sk-ant-..."
-                      value={apiKey}
-                      onChange={(e) => setApiKey(e.target.value)}
-                      className="text-xs h-8 pr-9"
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6 cursor-pointer"
-                      onClick={() => setShowKey(!showKey)}
-                    >
-                      {showKey ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
-                    </Button>
-                  </div>
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Model</Label>
-                  <Input
-                    placeholder="claude-3-5-sonnet-20241022"
-                    value={modelName}
-                    onChange={(e) => setModelName(e.target.value)}
-                    className="text-xs h-8"
-                  />
-                </div>
-              </div>
-            )}
+            {renderProviderSettings()}
           </div>
 
           <Button

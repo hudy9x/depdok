@@ -23,6 +23,7 @@ import { CliCommandSetting } from "./CliCommandSetting";
 import { ContextMenuSetting } from "./ContextMenuSetting";
 import { ThemeSetting } from "./ThemeSetting";
 import { LLMModelSetting } from "@/features/LLMChat";
+import { VscMcp } from "react-icons/vsc";
 
 interface SettingsDialogProps {
   open: boolean;
@@ -78,7 +79,7 @@ export function SettingsDialog({ open, onOpenChange, defaultTab }: SettingsDialo
     {
       id: "mcp",
       name: "MCP Server",
-      icon: Bot,
+      icon: VscMcp,
       desc: "Model Context Protocol connections",
     },
     {

@@ -2,6 +2,9 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 use tauri::{AppHandle, Emitter, Manager};
+use tauri_plugin_store::StoreExt;
+
+use super::provider::{LlmConfig, LlmState};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GgufModelInfo {
@@ -14,19 +17,58 @@ pub struct GgufModelInfo {
 /// Uses the app data directory (same base location as the knowledge base DB)
 /// and stores models under an `llm-models` subfolder.
 pub fn get_models_dir(app: &AppHandle) -> Result<PathBuf, String> {
+    if let Some(custom_dir) = resolve_custom_models_dir(app)? {
+        ensure_models_dir(&custom_dir)?;
+        println!("[llm][models] Resolved models dir to custom path: {:?}", custom_dir);
+        return Ok(custom_dir);
+    }
+
     let app_data_dir = app
         .path()
         .app_data_dir()
         .map_err(|e| format!("Failed to resolve app data dir: {}", e))?;
     let models_dir = app_data_dir.join("llm-models");
 
-    if !models_dir.exists() {
-        fs::create_dir_all(&models_dir)
-            .map_err(|e| format!("Failed to create models directory: {}", e))?;
-    }
+    ensure_models_dir(&models_dir)?;
 
     println!("[llm][models] Resolved models dir to: {:?}", models_dir);
     Ok(models_dir)
+}
+
+fn resolve_custom_models_dir(app: &AppHandle) -> Result<Option<PathBuf>, String> {
+    if let Some(state) = app.try_state::<LlmState>() {
+        let config = state.config.lock().unwrap().clone();
+        if let Some(custom_dir) = config.custom_models_dir {
+            let trimmed = custom_dir.trim();
+            if !trimmed.is_empty() {
+                return Ok(Some(PathBuf::from(trimmed)));
+            }
+        }
+    }
+
+    if let Ok(store) = app.store("store.json") {
+        if let Some(val) = store.get("llm_config") {
+            if let Ok(config) = serde_json::from_value::<LlmConfig>(val) {
+                if let Some(custom_dir) = config.custom_models_dir {
+                    let trimmed = custom_dir.trim();
+                    if !trimmed.is_empty() {
+                        return Ok(Some(PathBuf::from(trimmed)));
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(None)
+}
+
+fn ensure_models_dir(models_dir: &PathBuf) -> Result<(), String> {
+    if !models_dir.exists() {
+        fs::create_dir_all(models_dir)
+            .map_err(|e| format!("Failed to create models directory: {}", e))?;
+    }
+
+    Ok(())
 }
 
 /// Scan the models directory for .gguf files.

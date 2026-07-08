@@ -83,6 +83,7 @@ pub fn save_llm_config(
         let _ = store.set("llm_config", json);
         let _ = store.save();
     }
+    *state.engine.lock().unwrap() = None;
     *state.config.lock().unwrap() = config;
     Ok(())
 }

@@ -8,6 +8,7 @@ export type ProviderType = "local" | "ollama" | "lm_studio" | "open_a_i" | "clau
 export interface LlmConfig {
   provider_type: ProviderType;
   local_model_path: string | null;
+  custom_models_dir: string | null;
   api_endpoint: string | null;
   api_key: string | null;
   model_name: string | null;

@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useAtomValue, useSetAtom } from "jotai";
+import { appDataDir, join } from "@tauri-apps/api/path";
+import { platform } from "@tauri-apps/plugin-os";
 import {
   Check,
   Download,
@@ -17,6 +19,7 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { openFolderDialog } from "@/features/FileExplorer/api";
 
 import {
   scanLocalLlmModels,
@@ -134,6 +137,7 @@ export function LLMModelSetting() {
   const setLocalModels = useSetAtom(localGgufModelsAtom);
   const setDownloadProgress = useSetAtom(modelDownloadProgressAtom);
   const downloadProgress = useAtomValue(modelDownloadProgressAtom);
+  const isWindows = platform() === "windows";
 
   const [activeTab, setActiveTab] = useState<ProviderTab>(
     (config?.provider_type as ProviderTab) ?? "local",
@@ -148,6 +152,8 @@ export function LLMModelSetting() {
   const [apiEndpoint, setApiEndpoint] = useState(config?.api_endpoint ?? "");
   const [apiKey, setApiKey] = useState(config?.api_key ?? "");
   const [modelName, setModelName] = useState(config?.model_name ?? "");
+  const [customModelsDir, setCustomModelsDir] = useState(config?.custom_models_dir ?? "");
+  const [defaultModelsDir, setDefaultModelsDir] = useState<string>("");
   const [showKey, setShowKey] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -159,7 +165,32 @@ export function LLMModelSetting() {
     setApiEndpoint(config.api_endpoint ?? "");
     setApiKey(config.api_key ?? "");
     setModelName(config.model_name ?? "");
+    setCustomModelsDir(config.custom_models_dir ?? "");
   }, [config]);
+
+  useEffect(() => {
+    if (!isWindows) {
+      return;
+    }
+
+    let active = true;
+    const loadDefaultModelsDir = async () => {
+      try {
+        const baseDir = await appDataDir();
+        const modelsDir = await join(baseDir, "llm-models");
+        if (active) {
+          setDefaultModelsDir(modelsDir);
+        }
+      } catch (error) {
+        console.error("Failed to resolve default models directory:", error);
+      }
+    };
+
+    loadDefaultModelsDir().catch(console.error);
+    return () => {
+      active = false;
+    };
+  }, [isWindows]);
 
   // Scan local models on mount
   useEffect(() => {
@@ -226,9 +257,18 @@ export function LLMModelSetting() {
   const handleSave = useCallback(async () => {
     setIsSaving(true);
     try {
+      const trimmedCustomModelsDir = customModelsDir.trim();
+      const nextCustomModelsDir = activeTab === "local" && isWindows && trimmedCustomModelsDir
+        ? trimmedCustomModelsDir
+        : null;
+      const currentCustomModelsDir = config?.custom_models_dir ?? null;
+      const customDirChanged = nextCustomModelsDir !== currentCustomModelsDir;
       const newConfig: LlmConfig = {
         provider_type: activeTab as ProviderType,
-        local_model_path: activeTab === "local" ? selectedLocalModel || null : null,
+        local_model_path: activeTab === "local"
+          ? (customDirChanged ? null : selectedLocalModel || null)
+          : null,
+        custom_models_dir: nextCustomModelsDir,
         api_endpoint: activeTab !== "local" ? apiEndpoint || null : null,
         api_key: ["open_a_i", "claude"].includes(activeTab) ? apiKey || null : null,
         model_name: modelName || null,
@@ -238,12 +278,42 @@ export function LLMModelSetting() {
         system_prompt: config?.system_prompt ?? null,
       };
       await saveAndLoad(newConfig);
+      if (customDirChanged) {
+        setSelectedLocalModel("");
+      }
+      await refreshModels();
     } catch {
       // Error handled in hook
     } finally {
       setIsSaving(false);
     }
-  }, [activeTab, selectedLocalModel, apiEndpoint, apiKey, modelName, config, saveAndLoad]);
+  }, [
+    activeTab,
+    apiEndpoint,
+    apiKey,
+    config,
+    customModelsDir,
+    isWindows,
+    modelName,
+    refreshModels,
+    saveAndLoad,
+    selectedLocalModel,
+  ]);
+
+  const handleChooseModelsDir = useCallback(async () => {
+    const folderPath = await openFolderDialog();
+    if (!folderPath) {
+      return;
+    }
+
+    setCustomModelsDir(folderPath);
+    setSelectedLocalModel("");
+  }, []);
+
+  const handleResetModelsDir = useCallback(() => {
+    setCustomModelsDir("");
+    setSelectedLocalModel("");
+  }, []);
 
   const handleOpenModelsFolder = useCallback(async () => {
     try {
@@ -257,6 +327,12 @@ export function LLMModelSetting() {
 
   const isDownloaded = (filename: string) =>
     downloadedFiles.some((f) => f.filename === filename);
+
+  const isCustomModelsDirConfigured = customModelsDir.trim().length > 0;
+  const customDirChanged = (config?.custom_models_dir ?? "") !== customModelsDir;
+  const localSaveLabel = activeTab === "local"
+    ? (selectedLocalModel && !customDirChanged ? "Save & Load Model" : "Save Configuration")
+    : "Save Configuration";
 
   const getModelPath = (filename: string) =>
     downloadedFiles.find((f) => f.filename === filename)?.path ?? "";
@@ -310,30 +386,92 @@ export function LLMModelSetting() {
           {/* Provider-specific fields */}
           <div className="space-y-3 rounded-xl border border-border/60 p-4 bg-muted/10">
             {activeTab === "local" && (
-              <div className="space-y-2">
-                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Selected Model
-                </Label>
-                {selectedLocalModel ? (
-                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/40 border border-border/40 text-xs font-mono text-foreground">
-                    <CheckCircle2 className="h-3.5 w-3.5 text-green-500 shrink-0" />
-                    <span className="truncate">{selectedLocalModel.split(/[/\\]/).pop()}</span>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Selected Model
+                  </Label>
+                  {selectedLocalModel ? (
+                    <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/40 border border-border/40 text-xs font-mono text-foreground">
+                      <CheckCircle2 className="h-3.5 w-3.5 text-green-500 shrink-0" />
+                      <span className="truncate">{selectedLocalModel.split(/[/\\]/).pop()}</span>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">
+                      No model selected. Download or pick a GGUF file below.
+                    </p>
+                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs gap-1.5"
+                    onClick={() => {
+                      handleOpenModelsFolder().catch(console.error);
+                    }}
+                  >
+                    <FolderOpen className="h-3 w-3" /> Open Models Folder
+                  </Button>
+                </div>
+
+                {isWindows && (
+                  <div className="space-y-3 rounded-lg border border-border/50 bg-background/60 p-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                        Models Storage Location
+                      </Label>
+                      <p className="text-xs text-muted-foreground">
+                        Store GGUF downloads in the default app data folder or choose another location with more disk space.
+                      </p>
+                    </div>
+
+                    <div className="rounded-md border border-border/50 bg-muted/30 px-3 py-2 text-xs">
+                      <div className="font-medium text-foreground">
+                        {isCustomModelsDirConfigured ? customModelsDir : "Default (App Data Folder)"}
+                      </div>
+                      <div className="mt-1 text-muted-foreground">
+                        {isCustomModelsDirConfigured
+                          ? "Custom folder selected"
+                          : (defaultModelsDir || "Loading default location...")}
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs"
+                        onClick={() => {
+                          handleChooseModelsDir().catch(console.error);
+                        }}
+                      >
+                        Choose...
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 text-xs"
+                        onClick={handleResetModelsDir}
+                        disabled={!isCustomModelsDirConfigured}
+                      >
+                        Reset
+                      </Button>
+                    </div>
+
+                    {isCustomModelsDirConfigured && (
+                      <div className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-950 dark:text-amber-100">
+                        <div className="font-semibold">Notice:</div>
+                        <div className="mt-1">
+                          The models folder has been customized. Existing models must be manually copied to the new folder, or downloaded again.
+                        </div>
+                        <div className="mt-1 font-mono text-[11px] break-all text-amber-900/80 dark:text-amber-50/80">
+                          Default location: {defaultModelsDir || "Loading default location..."}
+                        </div>
+                      </div>
+                    )}
                   </div>
-                ) : (
-                  <p className="text-xs text-muted-foreground">
-                    No model selected. Download or pick a GGUF file below.
-                  </p>
                 )}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-7 text-xs gap-1.5"
-                  onClick={() => {
-                    handleOpenModelsFolder().catch(console.error);
-                  }}
-                >
-                  <FolderOpen className="h-3 w-3" /> Open Models Folder
-                </Button>
               </div>
             )}
 
@@ -465,13 +603,13 @@ export function LLMModelSetting() {
 
           <Button
             onClick={handleSave}
-            disabled={isSaving || (activeTab === "local" && !selectedLocalModel)}
+            disabled={isSaving}
             className="h-8 text-xs cursor-pointer"
           >
             {isSaving ? (
               <><LoaderCircle className="h-3 w-3 animate-spin mr-1.5" /> Saving…</>
             ) : (
-              activeTab === "local" ? "Save & Load Model" : "Save Configuration"
+              localSaveLabel
             )}
           </Button>
         </div>

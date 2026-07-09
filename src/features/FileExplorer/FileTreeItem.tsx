@@ -58,9 +58,9 @@ export function FileTreeItem({
         style={{ paddingLeft: `${node.depth * 16 + 8}px` }}
         onClick={handleClick}
         onDoubleClick={handleDoubleClick}
-        onContextMenu={(_e) => {
+        onContextMenu={(e) => {
           if (!isSelected) {
-            onSelect(node.path);
+            onSelect(node.path, e);
           }
         }}
       >

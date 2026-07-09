@@ -23,60 +23,82 @@ export function FooterGitSection() {
 
   useEffect(() => {
     let unlisten: (() => void) | null = null;
+    let isSubscribed = true;
 
-    const fetchGitInfo = async () => {
+    const fetchGitInfo = async (isGit: boolean) => {
+      if (!isGit) {
+        if (isSubscribed) {
+          setBranch('');
+          setSyncStatus(EMPTY_SYNC_STATUS);
+          setWorkingTreeStatus(EMPTY_WORKING_TREE_STATUS);
+          setHasUpstream(false);
+        }
+        return;
+      }
+
       if (workspaceRoot) {
         try {
-          const isGit = await isGitRepository(workspaceRoot);
-          if (!isGit) {
-            setBranch('');
-            setSyncStatus(EMPTY_SYNC_STATUS);
-            setWorkingTreeStatus(EMPTY_WORKING_TREE_STATUS);
-            setHasUpstream(false);
-            return;
-          }
-
-          const [currentBranch, status, gitStatus, upstreamConfigured] = await Promise.all([
+          const [currentBranch, gitStatus, upstreamConfigured] = await Promise.all([
             getCurrentBranch(workspaceRoot),
-            getGitSyncStatus(workspaceRoot),
             getGitStatus(workspaceRoot),
             hasGitUpstream(workspaceRoot),
           ]);
 
-          setBranch(currentBranch || 'main');
+          if (!isSubscribed) return;
+
+          const status = upstreamConfigured
+            ? await getGitSyncStatus(workspaceRoot)
+            : EMPTY_SYNC_STATUS;
+
+          if (!isSubscribed) return;
+
+          const isDirty = Object.keys(gitStatus).length > 0;
+          const displayBranch = currentBranch ? (isDirty ? `${currentBranch}*` : currentBranch) : 'main';
+
+          setBranch(displayBranch);
           setSyncStatus(status || EMPTY_SYNC_STATUS);
           setWorkingTreeStatus(summarizeGitStatus(gitStatus));
           setHasUpstream(upstreamConfigured);
         } catch (error) {
           console.error('Failed to fetch Git info:', error);
         }
-      } else {
-        setBranch('');
-        setSyncStatus(EMPTY_SYNC_STATUS);
-        setWorkingTreeStatus(EMPTY_WORKING_TREE_STATUS);
-        setHasUpstream(false);
       }
     };
 
-    const setupGitWatcher = async () => {
-      if (workspaceRoot) {
+    const initGit = async () => {
+      if (!workspaceRoot) {
+        if (isSubscribed) {
+          setBranch('');
+          setSyncStatus(EMPTY_SYNC_STATUS);
+          setWorkingTreeStatus(EMPTY_WORKING_TREE_STATUS);
+          setHasUpstream(false);
+        }
+        return;
+      }
+
+      try {
         const isGit = await isGitRepository(workspaceRoot);
-        if (!isGit) return;
+        if (!isSubscribed) return;
 
-        await startWatchingGit(workspaceRoot);
-        unlisten = await onGitChanged(() => {
-          fetchGitInfo();
-        });
+        if (isGit) {
+          await startWatchingGit(workspaceRoot);
+          if (!isSubscribed) return;
+
+          unlisten = await onGitChanged(() => {
+            fetchGitInfo(true);
+          });
+        }
+
+        await fetchGitInfo(isGit);
+      } catch (error) {
+        console.error('Failed to initialize Git status:', error);
       }
     };
 
-    fetchGitInfo();
-    setupGitWatcher();
-
-    const interval = setInterval(fetchGitInfo, 500);
+    initGit();
 
     return () => {
-      clearInterval(interval);
+      isSubscribed = false;
       if (unlisten) unlisten();
       stopWatchingGit();
     };
@@ -101,15 +123,23 @@ export function FooterGitSection() {
       if (result.success) {
         toast.success('Git pull sync complete', { id: toastId });
 
-        const [current, status, gitStatus] = await Promise.all([
+        const [current, gitStatus, upstreamConfigured] = await Promise.all([
           getCurrentBranch(workspaceRoot),
-          getGitSyncStatus(workspaceRoot),
           getGitStatus(workspaceRoot),
+          hasGitUpstream(workspaceRoot),
         ]);
 
-        setBranch(current || 'main');
+        const status = upstreamConfigured
+          ? await getGitSyncStatus(workspaceRoot)
+          : EMPTY_SYNC_STATUS;
+
+        const isDirty = Object.keys(gitStatus).length > 0;
+        const displayBranch = current ? (isDirty ? `${current}*` : current) : 'main';
+
+        setBranch(displayBranch);
         setSyncStatus(status || EMPTY_SYNC_STATUS);
         setWorkingTreeStatus(summarizeGitStatus(gitStatus));
+        setHasUpstream(upstreamConfigured);
       } else {
         toast.error(`Sync failed: ${result.output}`, { id: toastId });
       }

@@ -28,7 +28,6 @@ import { MarkdownOutlineWrapper, type TocAnchor } from "./MarkdownOutline";
 import { TableOfContents } from "@tiptap/extension-table-of-contents";
 
 import { MarkdownOutlineMinimap } from "./MarkdownOutlineMinimap";
-import { useActiveHeading } from "@/hooks/useActiveHeading";
 import Heading from "@tiptap/extension-heading";
 import { HeadingNodeView } from "./HeadingNodeView";
 import { Table } from "@tiptap/extension-table";
@@ -72,7 +71,6 @@ export function MarkdownPreview({
   const [isOutlineOpen, setIsOutlineOpen] = useLocalStorage('markdown-outline-open', false);
   const [editorSize, setEditorSize] = useLocalStorage<MarkdownEditorSize>('markdown-editor-size', 'wide');
   const [tocAnchors, setTocAnchors] = useState<TocAnchor[]>([]);
-  const activeHeadingId = useActiveHeading(tocAnchors, null);
   // containerRef moved here so it can be referenced in TableOfContents scrollParent
   const containerRef = useRef<HTMLDivElement>(null);
   // handleLinkClick initialised after containerRef below
@@ -130,9 +128,6 @@ export function MarkdownPreview({
       TableOfContents.configure({
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         onUpdate: (anchors: any[]) => setTocAnchors(anchors as TocAnchor[]),
-        scrollParent: () =>
-          (containerRef.current?.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement) ??
-          window,
       }),
       Markdown,
       TauriImage,
@@ -198,7 +193,7 @@ export function MarkdownPreview({
     if (editor && !editable) {
       // Only update content when not in editable mode to prevent jumping
       isUpdatingRef.current = true;
-      console.log('MarkdownPreview', content)
+      console.log('MarkdownPreview useEffect', content)
       editor.commands.setContent(content, { contentType: 'markdown' });
       isUpdatingRef.current = false;
     }
@@ -261,7 +256,6 @@ export function MarkdownPreview({
           <div className="absolute top-2 right-2 z-10">
             <MarkdownOutlineMinimap
               anchors={tocAnchors}
-              activeHeadingId={activeHeadingId ?? undefined}
               onClick={() => setIsOutlineOpen(true)}
             />
           </div>

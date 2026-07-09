@@ -43,7 +43,7 @@ export function useActiveHeading(
         }
       }
 
-      setActiveHeadingId(activeId);
+      setActiveHeadingId((prev) => (prev === activeId ? prev : activeId));
     };
 
     const target: EventTarget = scrollContainer ?? window;

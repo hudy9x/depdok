@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { type TocAnchor } from './MarkdownOutline';
+import { useActiveHeading } from '@/hooks/useActiveHeading';
 import {
   Tooltip,
   TooltipContent,
@@ -20,17 +21,26 @@ const LEVEL_WIDTHS: Record<number, string> = {
 
 interface MarkdownOutlineMinimapProps {
   anchors: TocAnchor[];
-  activeHeadingId?: string;
   onClick?: () => void;
   className?: string;
 }
 
 export const MarkdownOutlineMinimap: React.FC<MarkdownOutlineMinimapProps> = ({
   anchors,
-  activeHeadingId,
   onClick,
   className,
 }) => {
+  const [scrollRoot, setScrollRoot] = useState<HTMLElement | null>(null);
+
+  useEffect(() => {
+    const viewport = document.querySelector(
+      '.markdown-editor-scroll [data-radix-scroll-area-viewport]'
+    ) as HTMLElement | null;
+    setScrollRoot(viewport);
+  }, [anchors.length]);
+
+  const activeHeadingId = useActiveHeading(anchors, scrollRoot);
+
   if (anchors.length === 0) return null;
 
   return (

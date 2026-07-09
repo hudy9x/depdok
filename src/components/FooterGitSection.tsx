@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 
 import { branchSelectorOpenAtom } from '@/features/BranchSelector/store';
 import { workspaceRootAtom } from '@/features/FileExplorer/store';
+import { gitStatusAtom } from '@/stores/GitStore';
 
 const EMPTY_SYNC_STATUS = { ahead: 0, behind: 0 };
 const EMPTY_WORKING_TREE_STATUS = { changed: 0, new: 0, deleted: 0 };
@@ -16,6 +17,7 @@ const EMPTY_WORKING_TREE_STATUS = { changed: 0, new: 0, deleted: 0 };
 export function FooterGitSection() {
   const workspaceRoot = useAtomValue(workspaceRootAtom);
   const setBranchSelectorOpen = useSetAtom(branchSelectorOpenAtom);
+  const setGitStatus = useSetAtom(gitStatusAtom);
 
   const [branch, setBranch] = useState<string>('');
   const [syncStatus, setSyncStatus] = useState<{ ahead: number; behind: number }>(EMPTY_SYNC_STATUS);
@@ -35,6 +37,7 @@ export function FooterGitSection() {
           setSyncStatus(EMPTY_SYNC_STATUS);
           setWorkingTreeStatus(EMPTY_WORKING_TREE_STATUS);
           setHasUpstream(false);
+          setGitStatus({});
         }
         return;
       }
@@ -62,6 +65,7 @@ export function FooterGitSection() {
           setSyncStatus(status || EMPTY_SYNC_STATUS);
           setWorkingTreeStatus(summarizeGitStatus(gitStatus));
           setHasUpstream(upstreamConfigured);
+          setGitStatus(gitStatus);
         } catch (error) {
           console.error('Failed to fetch Git info:', error);
         }
@@ -75,6 +79,7 @@ export function FooterGitSection() {
           setSyncStatus(EMPTY_SYNC_STATUS);
           setWorkingTreeStatus(EMPTY_WORKING_TREE_STATUS);
           setHasUpstream(false);
+          setGitStatus({});
         }
         return;
       }
@@ -148,6 +153,7 @@ export function FooterGitSection() {
         setSyncStatus(status || EMPTY_SYNC_STATUS);
         setWorkingTreeStatus(summarizeGitStatus(gitStatus));
         setHasUpstream(upstreamConfigured);
+        setGitStatus(gitStatus);
       } else {
         toast.error(`Sync failed: ${result.output}`, { id: toastId });
       }

@@ -41,21 +41,25 @@ export async function getGitStatus(workingDir: string): Promise<Record<string, s
     }
 }
 
+export function normalizePath(p: string): string {
+    return p.replace(/\\/g, '/');
+}
+
 export function getGitStatusColor(status: string | undefined): string {
     if (!status) return "";
 
     switch (status) {
         case "modified":
-            return "text-orange-500";
+            return "text-amber-500 dark:text-amber-400";
         case "added":
         case "untracked":
-            return "text-green-500";
+            return "text-emerald-600 dark:text-emerald-400";
         case "deleted":
-            return "text-red-500";
+            return "text-rose-600 dark:text-rose-400";
         case "renamed":
-            return "text-blue-500";
+            return "text-blue-500 dark:text-blue-400";
         case "copied":
-            return "text-purple-500";
+            return "text-purple-500 dark:text-purple-400";
         default:
             return "";
     }
@@ -69,23 +73,44 @@ export function getFolderGitStatus(
     folderPath: string,
     gitStatus: Record<string, string>
 ): string | undefined {
-    // Check if the folder itself has a status (e.g., newly added folder)
-    if (gitStatus[folderPath]) {
-        return gitStatus[folderPath];
+    const normalizedFolder = normalizePath(folderPath);
+
+    // Check if the folder itself has a status (with or without trailing slash)
+    const directEntry = Object.entries(gitStatus).find(([path]) => {
+        const normPath = normalizePath(path);
+        return normPath === normalizedFolder || normPath === `${normalizedFolder}/` || `${normPath}/` === normalizedFolder;
+    });
+
+    if (directEntry) {
+        return directEntry[1];
     }
 
     // Check if any children have status
-    const folderPathWithSlash = (folderPath.endsWith('/') || folderPath.endsWith('\\')) 
-        ? folderPath 
-        : `${folderPath}/`;
+    const folderPathWithSlash = normalizedFolder.endsWith('/') 
+        ? normalizedFolder 
+        : `${normalizedFolder}/`;
+
+    let hasModified = false;
+    let hasAddedOrUntracked = false;
+    let hasDeleted = false;
+
     for (const [path, status] of Object.entries(gitStatus)) {
-        if (path.startsWith(folderPathWithSlash)) {
-            // If any child is added/untracked, mark folder as such
+        const normalizedChildPath = normalizePath(path);
+        if (normalizedChildPath.startsWith(folderPathWithSlash)) {
+            // Prioritize untracked/added over modified, and modified over deleted
             if (status === "added" || status === "untracked") {
-                return "untracked";
+                hasAddedOrUntracked = true;
+            } else if (status === "modified" || status === "renamed" || status === "copied") {
+                hasModified = true;
+            } else if (status === "deleted") {
+                hasDeleted = true;
             }
         }
     }
+
+    if (hasAddedOrUntracked) return "untracked";
+    if (hasModified) return "modified";
+    if (hasDeleted) return "deleted";
 
     return undefined;
 }
@@ -105,20 +130,31 @@ export function getEffectiveGitStatus(
         return getFolderGitStatus(itemPath, gitStatus);
     }
 
+    const normalizedItemPath = normalizePath(itemPath);
+
     // For files, first check direct status
-    if (gitStatus[itemPath]) {
-        return gitStatus[itemPath];
+    const directEntry = Object.entries(gitStatus).find(
+        ([path]) => normalizePath(path) === normalizedItemPath
+    );
+    if (directEntry) {
+        return directEntry[1];
     }
 
     // If no direct status, check if any parent folder is untracked/added
     // This handles children of newly added folders
-    let currentPath = itemPath;
-    while (/[\/\\]/.test(currentPath)) {
-        const lastSlash = Math.max(currentPath.lastIndexOf('/'), currentPath.lastIndexOf('\\'));
+    let currentPath = normalizedItemPath;
+    while (currentPath.includes('/')) {
+        const lastSlash = currentPath.lastIndexOf('/');
         const parentPath = currentPath.substring(0, lastSlash);
 
-        if (gitStatus[parentPath] === "untracked" || gitStatus[parentPath] === "added") {
-            return gitStatus[parentPath];
+        // Check if parentPath has directly untracked status (e.g. parentPath or parentPath/)
+        const parentEntry = Object.entries(gitStatus).find(([path]) => {
+            const normPath = normalizePath(path);
+            return normPath === parentPath || normPath === `${parentPath}/`;
+        });
+
+        if (parentEntry && (parentEntry[1] === "untracked" || parentEntry[1] === "added")) {
+            return parentEntry[1];
         }
 
         currentPath = parentPath;

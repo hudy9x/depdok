@@ -55,24 +55,9 @@ pub fn get_current_branch(working_dir: String) -> Result<String, String> {
         return Err(String::from_utf8_lossy(&output.stderr).to_string());
     }
 
-    let mut branch = String::from_utf8_lossy(&output.stdout)
+    let branch = String::from_utf8_lossy(&output.stdout)
         .trim()
         .to_string();
-    
-    if !branch.is_empty() {
-        let mut status_cmd = Command::new("git");
-        status_cmd.current_dir(&working_dir)
-            .args(["status", "--porcelain"]);
-        
-        #[cfg(target_os = "windows")]
-        status_cmd.creation_flags(CREATE_NO_WINDOW);
-
-        if let Ok(status_output) = status_cmd.output() {
-            if status_output.status.success() && !status_output.stdout.is_empty() {
-                branch.push('*');
-            }
-        }
-    }
     
     Ok(branch)
 }
@@ -278,12 +263,14 @@ pub fn get_git_sync_status(working_dir: String) -> Result<(usize, usize), String
 
 pub struct GitWatcher {
     pub current_workspace: Arc<Mutex<Option<String>>>,
+    pub shutdown_tx: Arc<Mutex<Option<std::sync::mpsc::Sender<()>>>>,
 }
 
 impl GitWatcher {
     pub fn new() -> Self {
         Self {
             current_workspace: Arc::new(Mutex::new(None)),
+            shutdown_tx: Arc::new(Mutex::new(None)),
         }
     }
 }
@@ -295,10 +282,19 @@ pub fn start_watching_git(workspace_root: String, app: AppHandle) -> Result<(), 
         return Err(format!("Not a git repository: {}", workspace_root));
     }
 
+    // Stop any existing watching thread first
+    let _ = stop_watching_git(app.clone());
+
     let state = app.state::<GitWatcher>();
     
-    // Update the current watched workspace
+    // Create the shutdown channel
+    let (shutdown_tx, shutdown_rx) = std::sync::mpsc::channel::<()>();
+    
+    // Store shutdown_tx and the workspace path
     {
+        let mut tx_guard = state.shutdown_tx.lock().map_err(|e| e.to_string())?;
+        *tx_guard = Some(shutdown_tx);
+        
         let mut current = state.current_workspace.lock().map_err(|e| e.to_string())?;
         *current = Some(workspace_root.clone());
     }
@@ -309,14 +305,12 @@ pub fn start_watching_git(workspace_root: String, app: AppHandle) -> Result<(), 
     let watch_path = git_path.clone();
     let workspace_root_clone = workspace_root.clone();
     let app_handle = app.clone();
-    let current_workspace_ref = state.current_workspace.clone();
 
     std::thread::spawn(move || {
         let result = (|| -> Result<(), String> {
             let app_clone = app_handle.clone();
             let workspace_clone = workspace_root_clone.clone();
             let workspace_for_closure = workspace_clone.clone();
-            let current_workspace_clone = current_workspace_ref.clone();
 
             let mut debouncer = new_debouncer(
                 Duration::from_millis(500),
@@ -342,19 +336,11 @@ pub fn start_watching_git(workspace_root: String, app: AppHandle) -> Result<(), 
                 .watch(watch_path.as_path(), RecursiveMode::Recursive)
                 .map_err(|e| e.to_string())?;
 
-            // Keep the debouncer alive
-            loop {
-                std::thread::sleep(Duration::from_secs(1));
-                
-                let current = current_workspace_clone.lock().ok()
-                    .and_then(|guard| guard.clone());
-                
-                if current.as_ref() != Some(&workspace_clone) {
-                    #[cfg(debug_assertions)]
-                    println!("Stopping Git watcher for: {}", workspace_clone);
-                    break;
-                }
-            }
+            // Wait for shutdown signal or channel disconnection
+            let _ = shutdown_rx.recv();
+
+            #[cfg(debug_assertions)]
+            println!("Stopping Git watcher for: {}", workspace_clone);
 
             Ok(())
         })();
@@ -370,6 +356,14 @@ pub fn start_watching_git(workspace_root: String, app: AppHandle) -> Result<(), 
 #[command]
 pub fn stop_watching_git(app: AppHandle) -> Result<(), String> {
     let state = app.state::<GitWatcher>();
+    
+    // Trigger shutdown if there is a running thread
+    if let Ok(mut tx_guard) = state.shutdown_tx.lock() {
+        if let Some(tx) = tx_guard.take() {
+            let _ = tx.send(());
+        }
+    }
+    
     let mut current = state.current_workspace.lock().map_err(|e| e.to_string())?;
     if let Some(_path) = current.take() {
         #[cfg(debug_assertions)]

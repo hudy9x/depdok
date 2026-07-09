@@ -2,17 +2,15 @@
 
 ✨ Features
 
-- Add support for Mermaid diagram rendering and syntax highlighting in exported exports ([b0c5121](../../commit/b0c5121))
-- Implement file change ignoring during exports and add centralized file type validation support ([ae6d177](../../commit/ae6d177))
+- Custom ai model dir (#51) ([6ca7c23](../../commit/6ca7c23))
 
 ♻️ Refactoring
 
-- Refactor model directory resolution and enhance folder opening functionality ([8ccf719](../../commit/8ccf719))
+- Migrate active heading tracking into MarkdownOutlineMinimap and optimize state updates ([b5cf87f](../../commit/b5cf87f))
 
 🔨 Other Changes
 
-- Buld: add llvm and ninja for building llama-cpp-sys ([19be9be](../../commit/19be9be))
-- Upgrade version 0.43.0 ([bf8a991](../../commit/bf8a991))
+- Upgrade versoin 0.44.2 ([45ec306](../../commit/45ec306))
 
 
-📋 Full Changelog: [bf8a991...19be9be](../../compare/bf8a991...19be9be)
+📋 Full Changelog: [45ec306...b5cf87f](../../compare/45ec306...b5cf87f)

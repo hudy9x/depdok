@@ -195,6 +195,32 @@ fn normalize_path_str(path: &Path) -> String {
     }
 }
 
+fn is_ignored_path(path: &Path) -> bool {
+    for component in path.components() {
+        if let std::path::Component::Normal(os_str) = component {
+            if let Some(s) = os_str.to_str() {
+                // Ignore hidden directories/files starting with "." (except "." or "..")
+                if s.starts_with('.') && s.len() > 1 {
+                    return true;
+                }
+                match s {
+                    "node_modules"
+                    | "target"
+                    | "dist"
+                    | "build"
+                    | "__pycache__"
+                    | "out"
+                    | "coverage" => {
+                        return true;
+                    }
+                    _ => {}
+                }
+            }
+        }
+    }
+    false
+}
+
 /// Holds an active debounced workspace watcher.
 /// Wrapped in Mutex<Option<...>> so we can drop (stop) and replace it safely.
 pub struct WorkspaceWatcher {
@@ -249,11 +275,13 @@ pub fn start_watching_workspace(workspace_root: String, app: AppHandle) -> Resul
                         match &event.kind {
                             EventKind::Create(_) => {
                                 for p in &event.paths {
-                                    batch.push(WorkspaceChangeEvent {
-                                        kind: ChangeKind::Created,
-                                        path: normalize_path_str(p),
-                                        from_path: None,
-                                    });
+                                    if !is_ignored_path(p) {
+                                        batch.push(WorkspaceChangeEvent {
+                                            kind: ChangeKind::Created,
+                                            path: normalize_path_str(p),
+                                            from_path: None,
+                                        });
+                                    }
                                 }
                             }
                             EventKind::Modify(notify_debouncer_full::notify::event::ModifyKind::Name(
@@ -262,14 +290,31 @@ pub fn start_watching_workspace(workspace_root: String, app: AppHandle) -> Resul
                                 // notify-debouncer-full coalesces rename pairs into a single event
                                 // with paths[0] = from, paths[1] = to
                                 if event.paths.len() >= 2 {
-                                    batch.push(WorkspaceChangeEvent {
-                                        kind: ChangeKind::Renamed,
-                                        path: normalize_path_str(&event.paths[1]),
-                                        from_path: Some(normalize_path_str(&event.paths[0])),
-                                    });
+                                    let from = &event.paths[0];
+                                    let to = &event.paths[1];
+                                    if !is_ignored_path(from) || !is_ignored_path(to) {
+                                        batch.push(WorkspaceChangeEvent {
+                                            kind: ChangeKind::Renamed,
+                                            path: normalize_path_str(to),
+                                            from_path: Some(normalize_path_str(from)),
+                                        });
+                                    }
                                 } else {
                                     // Partial rename info — treat as remove + create
                                     for p in &event.paths {
+                                        if !is_ignored_path(p) {
+                                            batch.push(WorkspaceChangeEvent {
+                                                kind: ChangeKind::Modified,
+                                                path: normalize_path_str(p),
+                                                from_path: None,
+                                            });
+                                        }
+                                    }
+                                }
+                            }
+                            EventKind::Modify(_) => {
+                                for p in &event.paths {
+                                    if !is_ignored_path(p) {
                                         batch.push(WorkspaceChangeEvent {
                                             kind: ChangeKind::Modified,
                                             path: normalize_path_str(p),
@@ -278,22 +323,15 @@ pub fn start_watching_workspace(workspace_root: String, app: AppHandle) -> Resul
                                     }
                                 }
                             }
-                            EventKind::Modify(_) => {
-                                for p in &event.paths {
-                                    batch.push(WorkspaceChangeEvent {
-                                        kind: ChangeKind::Modified,
-                                        path: normalize_path_str(p),
-                                        from_path: None,
-                                    });
-                                }
-                            }
                             EventKind::Remove(_) => {
                                 for p in &event.paths {
-                                    batch.push(WorkspaceChangeEvent {
-                                        kind: ChangeKind::Removed,
-                                        path: normalize_path_str(p),
-                                        from_path: None,
-                                    });
+                                    if !is_ignored_path(p) {
+                                        batch.push(WorkspaceChangeEvent {
+                                            kind: ChangeKind::Removed,
+                                            path: normalize_path_str(p),
+                                            from_path: None,
+                                        });
+                                    }
                                 }
                             }
                             _ => {}

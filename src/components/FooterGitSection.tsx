@@ -3,10 +3,12 @@ import { useAtomValue, useSetAtom } from 'jotai';
 import { GitBranch, Pencil, Plus, RefreshCw, X } from 'lucide-react';
 import { toast } from 'sonner';
 
-import { branchSelectorOpenAtom } from '@/features/BranchSelector/store';
-import { workspaceRootAtom } from '@/features/FileExplorer/store';
+import { onWorkspaceChanged } from '@/lib/fileWatcher';
 import { getCurrentBranch, getGitStatus, gitPull, getGitSyncStatus, hasGitUpstream, isGitRepository, onGitChanged, startWatchingGit, stopWatchingGit, summarizeGitStatus } from '@/lib/gitUtils';
 import { cn } from '@/lib/utils';
+
+import { branchSelectorOpenAtom } from '@/features/BranchSelector/store';
+import { workspaceRootAtom } from '@/features/FileExplorer/store';
 
 const EMPTY_SYNC_STATUS = { ahead: 0, behind: 0 };
 const EMPTY_WORKING_TREE_STATUS = { changed: 0, new: 0, deleted: 0 };
@@ -22,7 +24,8 @@ export function FooterGitSection() {
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
 
   useEffect(() => {
-    let unlisten: (() => void) | null = null;
+    let unlistenGit: (() => void) | null = null;
+    let unlistenWorkspace: (() => void) | null = null;
     let isSubscribed = true;
 
     const fetchGitInfo = async (isGit: boolean) => {
@@ -84,7 +87,11 @@ export function FooterGitSection() {
           await startWatchingGit(workspaceRoot);
           if (!isSubscribed) return;
 
-          unlisten = await onGitChanged(() => {
+          unlistenGit = await onGitChanged(() => {
+            fetchGitInfo(true);
+          });
+
+          unlistenWorkspace = await onWorkspaceChanged(() => {
             fetchGitInfo(true);
           });
         }
@@ -99,7 +106,8 @@ export function FooterGitSection() {
 
     return () => {
       isSubscribed = false;
-      if (unlisten) unlisten();
+      if (unlistenGit) unlistenGit();
+      if (unlistenWorkspace) unlistenWorkspace();
       stopWatchingGit();
     };
   }, [workspaceRoot]);

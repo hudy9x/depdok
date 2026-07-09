@@ -51,6 +51,12 @@ export function FileTree({ onFileOpen }: FileTreeProps) {
     const rangeSelect = event?.shiftKey;
     selectItem({ path, multiSelect, rangeSelect });
 
+    // Do not open file if this is a right click / context menu trigger
+    const isRightClick = event && (event.type === 'contextmenu' || event.button === 2);
+    if (isRightClick) {
+      return;
+    }
+
     // Single click on file opens in preview
     // Find node to check if it's a file
     const node = flatTree.find(n => n.path === path);

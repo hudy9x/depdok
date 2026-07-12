@@ -117,6 +117,15 @@ const CURATED_MODELS: CuratedModel[] = [
     downloadUrl:
       "https://huggingface.co/bartowski/DeepSeek-Coder-V2-Lite-Instruct-GGUF/resolve/main/DeepSeek-Coder-V2-Lite-Instruct-Q4_K_M.gguf",
   },
+  {
+    name: "Qwen3.5-4B-UD-Q8_K_XL",
+    filename: "Qwen3.5-4B-UD-Q8_K_XL.gguf",
+    quant: "Q8_K_XL",
+    sizGb: 5.95,
+    description: "Qwen3.5-4B is a new model from Alibaba. It is a 4B parameter model trained on 183B tokens. It is a causal language model with a context window of 128k tokens.",
+    hfRepo: "unsloth/Qwen3.5-4B-GGUF",
+    downloadUrl: "https://huggingface.co/unsloth/Qwen3.5-4B-GGUF/resolve/main/Qwen3.5-4B-UD-Q8_K_XL.gguf"
+  }
 ];
 
 // ─── Provider tab definitions ─────────────────────────────────────────────────
@@ -432,11 +441,10 @@ export function LLMModelSetting() {
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex-1 text-xs font-medium rounded-md py-1.5 transition-all cursor-pointer ${
-                  activeTab === tab.id
-                    ? "bg-background text-foreground shadow-sm font-semibold"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
+                className={`flex-1 text-xs font-medium rounded-md py-1.5 transition-all cursor-pointer ${activeTab === tab.id
+                  ? "bg-background text-foreground shadow-sm font-semibold"
+                  : "text-muted-foreground hover:text-foreground"
+                  }`}
               >
                 {tab.label}
               </button>
@@ -506,11 +514,10 @@ export function LLMModelSetting() {
                       >
                         <td className="py-2.5 px-3 text-center">
                           <div
-                            className={`w-4 h-4 rounded-full border flex items-center justify-center transition-all ${
-                              isSelected
-                                ? "border-primary bg-primary text-primary-foreground"
-                                : "border-muted-foreground/30"
-                            }`}
+                            className={`w-4 h-4 rounded-full border flex items-center justify-center transition-all ${isSelected
+                              ? "border-primary bg-primary text-primary-foreground"
+                              : "border-muted-foreground/30"
+                              }`}
                           >
                             {isSelected && <Check className="w-2.5 h-2.5 stroke-[3]" />}
                           </div>

@@ -2,14 +2,11 @@
 
 ✨ Features
 
-- Implement git status visualization in File Explorer tree and add git utility helper functions ([4c54fb0](../../commit/4c54fb0))
-- Implement virtualized file tree explorer with selection and interaction support ([9ce5721](../../commit/9ce5721))
-- Implement recursive workspace file system watcher with path filtering and event reporting ([ebde7d9](../../commit/ebde7d9))
+- Enhance project state synchronization with file explorer visibility support ([c8047e2](../../commit/c8047e2))
 
 🔨 Other Changes
 
-- Try to fix the git section performance issue ([72986e9](../../commit/72986e9))
-- Upgrade version 0.45.1 ([2640690](../../commit/2640690))
+- Upgrade version 0.46.0 ([a7b771b](../../commit/a7b771b))
 
 
-📋 Full Changelog: [2640690...4c54fb0](../../compare/2640690...4c54fb0)
+📋 Full Changelog: [a7b771b...c8047e2](../../compare/a7b771b...c8047e2)

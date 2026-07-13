@@ -125,6 +125,15 @@ const CURATED_MODELS: CuratedModel[] = [
     description: "Qwen3.5-4B is a new model from Alibaba. It is a 4B parameter model trained on 183B tokens. It is a causal language model with a context window of 128k tokens.",
     hfRepo: "unsloth/Qwen3.5-4B-GGUF",
     downloadUrl: "https://huggingface.co/unsloth/Qwen3.5-4B-GGUF/resolve/main/Qwen3.5-4B-UD-Q8_K_XL.gguf"
+  },
+  {
+    name: "gemma-4-12b-it-Q5_K_M",
+    filename: "gemma-4-12b-it-Q5_K_M.gguf",
+    quant: "Q5_K_M",
+    sizGb: 8.41,
+    description: "Gemma 4 is a new model from Google. It is a 12B parameter model trained on 270B tokens. It is a causal language model with a context window of 128k tokens.",
+    hfRepo: "unsloth/gemma-4-12b-it-GGUF",
+    downloadUrl: "https://huggingface.co/unsloth/gemma-4-12b-it-GGUF/resolve/main/gemma-4-12b-it-Q5_K_M.gguf?download=true"
   }
 ];
 

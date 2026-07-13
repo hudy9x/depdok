@@ -1,7 +1,7 @@
 # Báo cáo Đánh giá Sản phẩm (Feature Roast): depdok
 **Vai trò:** Giám đốc Marketing DevTools (10+ năm kinh nghiệm trong mảng B2B SaaS & Developer Tools)  
 **Ngôn ngữ:** Tiếng Việt  
-**Tài liệu liên quan:** [Đề xuất Cải tiến & GTM](file:///Users/hudy/ws/depdok/docs/marketing/product_improvements.md)
+**Tài liệu liên quan:** [Đề xuất Cải tiến & GTM](file:///Users/hudy/ws/depdok/docs/marketing/3-product_improvements.md)
 
 ---
 
@@ -48,4 +48,4 @@
 
 ---
 
-*Để xem các giải pháp cải tiến chi tiết và kế hoạch Go-To-Market cho những điểm yếu trên, hãy đọc tiếp tại: [Tài liệu Đề xuất Cải tiến & GTM](file:///Users/hudy/ws/depdok/docs/marketing/product_improvements.md)*
+*Để xem các giải pháp cải tiến chi tiết và kế hoạch Go-To-Market cho những điểm yếu trên, hãy đọc tiếp tại: [Tài liệu Đề xuất Cải tiến & GTM](file:///Users/hudy/ws/depdok/docs/marketing/3-product_improvements.md)*

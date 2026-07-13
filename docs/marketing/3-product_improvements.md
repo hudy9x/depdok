@@ -1,7 +1,7 @@
 # Đề xuất Cải tiến & Chiến lược GTM: depdok
 **Vai trò:** Giám đốc Marketing DevTools (10+ năm kinh nghiệm trong mảng B2B SaaS & Developer Tools)  
 **Ngôn ngữ:** Tiếng Việt  
-**Tài liệu liên quan:** [Báo cáo Đánh giá Sản phẩm (Feature Roast)](file:///Users/hudy/ws/depdok/docs/marketing/feature_roast.md)
+**Tài liệu liên quan:** [Báo cáo Đánh giá Sản phẩm (Feature Roast)](file:///Users/hudy/ws/depdok/docs/marketing/2-feature_roast.md)
 
 ---
 
@@ -52,4 +52,4 @@ Khi xây dựng ứng dụng cục bộ (local-first) và bảo mật tuyệt đ
 
 ---
 
-*Để đối chiếu lại các điểm yếu của hệ thống hiện tại, hãy xem: [Báo cáo Đánh giá Sản phẩm (Feature Roast)](file:///Users/hudy/ws/depdok/docs/marketing/feature_roast.md)*
+*Để đối chiếu lại các điểm yếu của hệ thống hiện tại, hãy xem: [Báo cáo Đánh giá Sản phẩm (Feature Roast)](file:///Users/hudy/ws/depdok/docs/marketing/2-feature_roast.md)*

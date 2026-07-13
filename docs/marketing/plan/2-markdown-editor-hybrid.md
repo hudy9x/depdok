@@ -1,40 +1,63 @@
-# Kế hoạch Nâng cấp 2: Unified Hybrid WYSIWYG Editor
+# Kế hoạch Nâng cấp 2: Unified Hybrid WYSIWYG Editor & HTML Table Integration
 **Mã tài liệu:** `docs/plan/2-markdown-editor-hybrid.md`  
-**Mục tiêu:** Loại bỏ sự phân mảnh giữa hai chế độ soạn thảo (Code & Preview) bằng cách tích hợp chúng vào một trình soạn thảo lai Hybrid WYSIWYG duy nhất (tương tự như Typora hay Obsidian Live Preview), nâng cấp parser để triệt tiêu việc mất định dạng Markdown.  
-**Tài liệu tham chiếu:** [Báo cáo Đánh giá Sản phẩm (Feature Roast)](file:///Users/hudy/ws/depdok/docs/marketing/feature_roast.md)
+**Mục tiêu:** Loại bỏ hoàn toàn chế độ hiển thị song song (Side-by-Side), thiết lập trình soạn thảo lai WYSIWYG Hybrid một màn hình duy nhất, và nâng cấp cơ chế lưu trữ bảng (Table) dưới dạng thẻ HTML trong file Markdown để hỗ trợ các tính năng nâng cao (merge cell, cell highlight, background coloring).  
+**Tài liệu tham chiếu:** [Báo cáo Đánh giá Sản phẩm (Feature Roast)](file:///Users/hudy/ws/depdok/docs/marketing/2-feature_roast.md)
 
 ---
 
 ## 1. Vấn đề Hiện tại
-*   Người dùng phải chia đôi màn hình (Split-pane) giữa Monaco Editor (Raw text) và TipTap (Preview) hoặc chuyển tab qua lại. Việc này chiếm dụng không gian làm việc và tốn tài nguyên render song song.
-*   Khi đồng bộ cuộn (scroll-sync) giữa hai trình soạn thảo độc lập, do sự chênh lệch chiều cao của các phần tử ảnh/sơ đồ nên thường xảy ra hiện tượng lệch dòng và trễ hình (jittering).
-*   Chuyển đổi qua lại giữa TipTap (HTML/JSON) và Monaco (Raw Markdown) gây mất Frontmatter, mất các thẻ comment ẩn `<!-- comment -->`, các thuộc tính bảng nâng cao hoặc các tag HTML nhúng.
+*   **Chia đôi màn hình (Side-by-Side) cồng kềnh:** Chế độ hiển thị song song giữa Monaco (Raw) và TipTap (Preview) chiếm diện tích lớn, gây lag do phải đồng bộ cuộn (scroll-sync) và render hai trình soạn thảo phức tạp cùng lúc.
+*   **Hạn chế của Bảng Markdown tiêu chuẩn:** Cú pháp bảng mặc định của Markdown (`| cột | cột |`) cực kỳ nghèo nàn. Nó không hỗ trợ việc gộp ô (Merge cells - rowspan/colspan), chỉnh sửa chiều rộng cụ thể của từng cột, hoặc tô màu nền (background highlight) cho ô/hàng để làm nổi bật thông tin.
 
 ---
 
 ## 2. Giải pháp Kỹ thuật & UI/UX
 
-### A. Thiết lập Trình soạn thảo Lai (Hybrid Editor) dựa trên TipTap
-*   **Editor chính làm gốc:** Sử dụng **TipTap** làm không gian viết chính, loại bỏ việc chia đôi màn hình mặc định.
-*   **Markdown Syntax Auto-Render:** Sử dụng hoặc tùy biến plugin `@tiptap/extension-markdown` để tự động render các cú pháp Markdown sang WYSIWYG khi dòng đó mất focus (blur) và hiển thị lại mã nguồn thô khi người dùng click con trỏ chuột vào dòng đó để sửa:
-    *   *Ví dụ:* Khi không sửa, hiển thị tiêu đề lớn **Tiêu đề 1**. Khi đặt con trỏ chuột vào tiêu đề đó, nó tự động đổi thành `# Tiêu đề 1` dạng text thô.
-*   **Monaco làm Editor dự phòng (Raw Code Mode):** Vẫn giữ Monaco làm một chế độ xem "Raw Code" độc lập. Chế độ này chỉ được bật thủ công qua thanh công cụ khi người dùng cần can thiệp sâu vào cấu trúc file, không render song song cùng lúc.
+### A. Loại bỏ Hoàn toàn Chế độ Side-by-Side (Single-Pane Editor)
+*   **Không chia đôi màn hình:** Giao diện soạn thảo sẽ luôn hoạt động trên một vùng hiển thị (Viewport) duy nhất.
+*   **Cơ chế Chuyển đổi Trực quan (View Mode Toggle):**
+    *   Chế độ mặc định là **WYSIWYG Hybrid** (dựa trên TipTap): Người dùng viết và xem định dạng trực quan trực tiếp. Các cú pháp như in đậm, in nghiêng, tiêu đề, danh sách sẽ tự động render tại chỗ.
+    *   Chế độ **Raw Code** (dựa trên Monaco): Khi cần chỉnh sửa mã nguồn sâu hoặc cấu trúc thô, người dùng bấm nút chuyển đổi trên thanh công cụ để tải Monaco Editor độc lập chiếm toàn màn hình. Không có sự đồng bộ cuộn hay render chạy song song.
 
-### B. Nâng cấp Parser Markdown ↔ HTML/JSON
-*   **Bảo toàn Frontmatter:** Viết thêm bộ lọc regex hoặc bộ tiền xử lý (pre-processor) để trích xuất phần Frontmatter ở đầu file Markdown (nằm giữa `---` và `---`) trước khi chuyển đổi nội dung cho TipTap render. Phần Frontmatter này sẽ được lưu trữ riêng biệt và tự động ghép nối lại nguyên vẹn khi lưu file.
-*   **Cách ly Comment ẩn và HTML Blocks:** Sử dụng các Node tuỳ biến (Custom Nodes) trong TipTap để bọc các khối mã HTML hoặc comment tag ẩn, giữ nguyên vẹn chuỗi gốc của chúng mà không cố gắng chuyển đổi hay format lại.
+### B. Lưu trữ Bảng (Table) Dưới Dạng Thẻ HTML
+Thay vì cố gắng dịch các bảng phức tạp của TipTap về định dạng ống (`|`) của Markdown tiêu chuẩn khi lưu file, `depdok` sẽ serialize bảng trực tiếp thành thẻ HTML lồng nhau.
+*   **Định dạng lưu trữ:** Bảng sẽ được lưu dưới dạng block HTML gốc ngay trong file `.md`:
+    ```html
+    <table>
+      <thead>
+        <tr>
+          <th style="background-color: #f3f4f6; text-align: left;">Tiêu đề 1</th>
+          <th colspan="2" style="background-color: #f3f4f6; text-align: center;">Tiêu đề 2 (Gộp ô)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Nội dung 1</td>
+          <td style="background-color: #fee2e2;">Cảnh báo (Đỏ)</td>
+          <td>Nội dung 3</td>
+        </tr>
+      </tbody>
+    </table>
+    ```
+*   **Khả năng tương thích:** Chuẩn Markdown gốc của CommonMark/GFM cho phép render trực tiếp mã HTML `<table>` lồng nhau. Việc lưu dưới dạng HTML giúp sơ đồ bảng vẫn hiển thị hoàn hảo trên GitHub, VS Code, Obsidian hoặc bất kỳ trình đọc Markdown chuẩn nào khác.
+*   **Hỗ trợ Tính năng Bảng Nâng cao:**
+    *   **Gộp ô (Merge Cells):** Sử dụng các thuộc tính `colspan` và `rowspan` chuẩn HTML.
+    *   **Tô màu nền (Background Highlight):** Người dùng chọn từ một bộ bảng màu cố định được chuẩn hóa (ví dụ: Đỏ/Cảnh báo, Xanh/Thành công, Vàng/Lưu ý, Xám/Nhạt). Mã màu Hex tương ứng của bộ màu này là cố định và được ghi trực tiếp nội dòng `style="background-color: #HEX_CODE;"` để đảm bảo tính thẩm mỹ đồng nhất.
+    *   **Căn chỉnh (Alignment):** Sử dụng thuộc tính `text-align` hoặc inline style để định cấu hình.
+
+### C. Nâng cấp Parser Markdown ↔ HTML/JSON
+*   **Bảo toàn Frontmatter:** Trích xuất phần cấu hình YAML (`--- ... ---`) ở đầu file trước khi đưa vào TipTap, và ghép lại nguyên vẹn khi lưu.
+*   **Không chạm vào thẻ HTML Bảng:** Cải tiến parser markdown-it (hoặc bộ chuyển đổi đầu vào của TipTap) để phát hiện khối `<table>` và nạp nguyên vẹn cấu trúc DOM của nó vào TipTap Table Extension, tránh chuyển đổi ngược về dạng ống (`|`).
 
 ---
 
 ## 3. Danh sách Công việc (Checklist Triển khai)
 
-- [ ] **Nâng cấp TipTap Node & Extensions:**
-  - Tích hợp và cấu hình chế độ Hybrid Render trên TipTap.
-  - Xây dựng Custom Node cho Frontmatter để tránh hiển thị nó như văn bản thường trong WYSIWYG.
-  - Xây dựng Custom Node cho các thẻ comment ẩn.
-- [ ] **Đồng bộ hóa Save Handler:**
-  - Cải tiến hàm parse trong `src/features/Editor/EditorSaveHandler.tsx` để bảo toàn cấu trúc raw text nguyên bản 100%.
-- [ ] **Thiết kế lại Layout Workspace:**
-  - Bỏ thiết kế chia đôi màn hình mặc định. Thay thế bằng nút gạt chuyển đổi đơn giản: `[ Soạn Thảo (WYSIWYG) | Xem Mã Nguồn (Monaco) ]`.
+- [ ] **Tái cấu trúc UI Editor (Loại bỏ Side-by-Side):**
+  - Xóa bỏ logic phân chia màn hình (Split Panels) trong `src/features/SidebySide/` hoặc `EditorWorkspace.tsx`.
+  - Thiết kế nút chuyển đổi View Mode đơn giản trên thanh tiêu đề: `[ Viết tài liệu (WYSIWYG) | Xem Code (Monaco) ]`.
+- [ ] **Nâng cấp Table Serializer:**
+  - Cấu hình TipTap Table Extension để khi lưu file (gọi hàm xuất Markdown) sẽ giữ nguyên thẻ HTML `<table>` thay vì convert sang cú pháp ống (`|`).
+  - Viết bộ lọc parser đảm bảo việc đọc ngược lại file `.md` chứa thẻ `<table>` HTML được render đúng cấu trúc ô gộp và màu sắc trong TipTap.
 - [ ] **Kiểm thử hồi quy:**
-  - Mở các tài liệu Markdown lớn có cấu trúc phức tạp (nhiều bảng, frontmatter, code blocks) để kiểm tra xem khi lưu lại có bị thay đổi ký tự nào ngoài mong muốn không.
+  - Thử nghiệm các thao tác gộp ô dọc (rowspan), gộp ô ngang (colspan), và tô màu ô nền đỏ/xanh, lưu lại file, mở lại để xác nhận định dạng được bảo toàn 100%.

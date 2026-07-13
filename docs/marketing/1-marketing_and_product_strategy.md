@@ -8,14 +8,14 @@ Chào mừng bạn đến với tài liệu phân tích chiến lược sản ph
 
 ## 📂 Danh mục Tài liệu
 
-### 1. [Báo cáo Đánh giá Sản phẩm (Feature Roast)](file:///Users/hudy/ws/depdok/docs/marketing/feature_roast.md)
+### 1. [Báo cáo Đánh giá Sản phẩm (Feature Roast)](file:///Users/hudy/ws/depdok/docs/marketing/2-feature_roast.md)
 Tập trung vào phân tích vị thế cạnh tranh trên thị trường đối với các đối thủ lớn (Obsidian, VS Code, Eraser.io, Typora) và thực hiện "roast" thẳng thắn các hạn chế kỹ thuật hiện tại của:
 *   Trình soạn thảo Markdown (Monaco & TipTap)
 *   Tính năng sơ đồ offline (PlantUML & Mermaid)
 *   Sự cồng kềnh giao diện (LoggerEditor)
 *   Trải nghiệm vẽ tự do (Excalidraw)
 
-### 2. [Đề xuất Cải tiến & Chiến lược GTM](file:///Users/hudy/ws/depdok/docs/marketing/product_improvements.md)
+### 2. [Đề xuất Cải tiến & Chiến lược GTM](file:///Users/hudy/ws/depdok/docs/marketing/3-product_improvements.md)
 Tập trung vào các giải pháp nâng cấp sản phẩm thực tế nhằm gia tăng giá trị thương mại:
 *   Đồng nhất soạn thảo WYSIWYG Hybrid và bảo toàn định dạng Markdown.
 *   Bảo mật hoá tuyệt đối PlantUML offline và debounced render cho Mermaid sơ đồ lớn.

@@ -1,7 +1,7 @@
-# Kế hoạch Nâng cấp 5: Cộng tác Offline-First & Quy trình Git
-**Mã tài liệu:** `docs/plan/5-offline-collaboration.md`  
+# Kế hoạch Nâng cấp 3: Cộng tác Offline-First & Quy trình Git
+**Mã tài liệu:** `docs/plan/3-offline-collaboration.md`  
 **Mục tiêu:** Tối ưu hóa việc làm việc nhóm dựa trên nền tảng offline và quy trình Git, loại bỏ các trở ngại khi giải quyết xung đột tài liệu và chia sẻ kết quả thiết kế.  
-**Tài liệu tham chiếu:** [Đề xuất Cải tiến & GTM](file:///Users/hudy/ws/depdok/docs/marketing/product_improvements.md)
+**Tài liệu tham chiếu:** [Đề xuất Cải tiến & GTM](file:///Users/hudy/ws/depdok/docs/marketing/3-product_improvements.md)
 
 ---
 

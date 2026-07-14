@@ -19,8 +19,6 @@ const fileTypes = [
   { extension: 'todo', label: 'Todo' },
   { extension: 'pu', label: 'PlantUML' },
   { extension: 'excalidraw', label: 'Excalidraw' },
-  { extension: 'format', label: 'Format' },
-  { extension: 'logger', label: 'Logger' },
 ];
 
 export function CreateTabButton() {
@@ -35,7 +33,7 @@ export function CreateTabButton() {
         filters: [
           {
             name: "Documentation Files",
-            extensions: ["md", "mmd", "txt", "pu", "puml", "todo", "excalidraw", "format", "logger"],
+            extensions: ["md", "mmd", "txt", "pu", "puml", "todo", "excalidraw"],
           },
         ],
       });

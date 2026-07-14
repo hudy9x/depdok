@@ -17,7 +17,7 @@ import { refreshDirectoryAtom, workspaceRootAtom } from "@/features/FileExplorer
 import { autoSaveEnabledAtom } from "@/stores/SettingsStore";
 import { writeFileContent } from "@/lib/fileOperations";
 
-const supportedFileTypes = ["md", "mmd", "txt", "pu", "format", "puml", "plantuml", "todo", "excalidraw", "logger"];
+const supportedFileTypes = ["md", "mmd", "txt", "pu", "puml", "plantuml", "todo", "excalidraw"];
 
 
 export function EditorSave() {
@@ -138,13 +138,6 @@ export function EditorSave() {
         contentToSave = draft.content;
       } else if (activeFileContent !== null) {
         contentToSave = activeFileContent;
-      } else if (currentPath.endsWith(".logger")) {
-        contentToSave = JSON.stringify({
-          filterLevel: "all",
-          showMessageOnly: false,
-          filterText: "",
-          driver: "nodejs"
-        }, null, 2);
       } else {
         toast.error("No content to save");
         return;
@@ -209,13 +202,6 @@ export function EditorSave() {
         contentToSave = draft.content;
       } else if (activeFileContent !== null) {
         contentToSave = activeFileContent;
-      } else if (editorState.filePath.endsWith(".logger")) {
-        contentToSave = JSON.stringify({
-          filterLevel: "all",
-          showMessageOnly: false,
-          filterText: "",
-          driver: "nodejs"
-        }, null, 2);
       } else {
         toast.error("No content to save");
         return;

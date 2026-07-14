@@ -7,7 +7,7 @@ import { useTheme } from "next-themes";
 import { MonacoThemeLoader, getMonacoThemeName } from "./MonacoThemeLoader";
 
 import { editorThemeAtom } from "@/stores/SettingsStore";
-import { setupMermaidTheme, setupPlantUMLTheme, setupFormatTheme } from '@/lib/monaco-theme';
+import { setupMermaidTheme, setupPlantUMLTheme } from '@/lib/monaco-theme';
 import { useAutoSave } from "./useAutoSave";
 import { useFileWatcher } from "@/hooks/useFileWatcher";
 import { useLineJump } from "./useLineJump";
@@ -16,9 +16,7 @@ import {
   registerFormatAction,
   registerDuplicateLineAction,
   registerToggleTodoAction,
-  registerFormatBlockAction,
 } from '@/lib/monaco-actions';
-import { registerFormatLinePopover } from '@/lib/monaco-actions/register-format-line-popover';
 import { registerTodoSnippets, registerDateSnippets } from '@/lib/monaco-snippets';
 import { plantUMLJumpAtom } from "@/features/PreviewPlantUML/store";
 
@@ -47,7 +45,6 @@ export function MonacoEditor({
   const [content, setContent] = useState(initialContent);
   const [plantUMLJump, setPlantUMLJump] = useAtom(plantUMLJumpAtom);
 
-  const fileExtension = filePath.split(".").pop()?.toLowerCase() || "";
 
   // Theme logic
   const themeName = useAtomValue(editorThemeAtom);
@@ -61,7 +58,7 @@ export function MonacoEditor({
   const editorRef = useRef<any>(null);
   const monacoRef = useRef<any>(null);
   const menuListenersCleanupRef = useRef<(() => void) | null>(null);
-  const formatPopoverCleanupRef = useRef<(() => void) | null>(null);
+
   // Sync content when initialContent changes
   useEffect(() => {
     const currentEditorValue = editorRef.current?.getValue();
@@ -103,7 +100,6 @@ export function MonacoEditor({
     setTimeout(() => {
       setupMermaidTheme(monaco);
       setupPlantUMLTheme(monaco);
-      setupFormatTheme(monaco);
 
       // Register snippets
       if (language === 'markdown') {
@@ -128,15 +124,7 @@ export function MonacoEditor({
       registerFormatAction(editor, monaco, handleFormat);
     }
 
-    if (fileExtension === 'format') {
-      // Cmd/Ctrl+Shift+F — format the block under the cursor
-      registerFormatBlockAction(editor, monaco, (formatted: string) => {
-        setContent(formatted);
-        handleChange(formatted);
-      });
-      // Empty-line popover with block-type buttons
-      formatPopoverCleanupRef.current = registerFormatLinePopover(editor, monaco);
-    }
+
 
     // 2. Duplicate line on Shift+Alt+D
     registerDuplicateLineAction(editor, monaco);
@@ -224,7 +212,7 @@ export function MonacoEditor({
   useEffect(() => {
     return () => {
       menuListenersCleanupRef.current?.();
-      formatPopoverCleanupRef.current?.();
+
     };
   }, []);
 

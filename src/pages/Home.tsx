@@ -19,7 +19,7 @@ import { openWorkspaceAtom, recentFoldersAtom } from "@/features/FileExplorer/st
 import { openFolderDialog } from "@/features/FileExplorer/api";
 import { HomeTitlebar } from "@/features/Titlebar";
 
-const supportedFileTypes = ["md", "mmd", "txt", "pu", "format", "puml", "plantuml", "todo", "excalidraw", "logger"];
+const supportedFileTypes = ["md", "mmd", "txt", "pu", "puml", "plantuml", "todo", "excalidraw"];
 
 export default function Home() {
   const [isVisible, setIsVisible] = useState(false);

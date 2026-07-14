@@ -53,10 +53,6 @@ export function getMonacoLanguage(fileExtension: string | null | undefined): str
     return "json";
   }
 
-  // .format files — custom multi-format scratch pad
-  if (ext === "format") {
-    return "format";
-  }
 
   console.log("fileExtension", fileExtension);
 

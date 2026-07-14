@@ -60,7 +60,6 @@ export function SideBySide({
           content={content}
           fileExtension={fileExtension}
           filePath={filePath}
-          readOnly={true}
         />
       </Panel>
     </PanelGroup>

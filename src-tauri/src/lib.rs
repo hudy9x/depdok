@@ -851,8 +851,7 @@ pub fn run() {
             // Initialize content search state
             app.manage(commands::content_search::init());
             
-            // Initialize logger server state
-            app.manage(commands::logger::LoggerServerState::new());
+
 
             // Initialize terminal PTY state
             app.manage(Arc::new(commands::terminal::TerminalState::new()));
@@ -1043,8 +1042,6 @@ pub fn run() {
             get_mcp_server_paths,
             check_mcp_config_status,
             activate_license,
-            commands::logger::start_logger_server,
-            commands::logger::register_logger_channel,
             commands::terminal::start_pty_session,
             commands::terminal::write_to_pty,
             commands::terminal::resize_pty,

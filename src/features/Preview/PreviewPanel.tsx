@@ -4,8 +4,6 @@ import { MermaidPreview } from "./MermaidPreview";
 import { PlantUMLBrowserPreview } from "../PreviewPlantUML/PlantUMLBrowserPreview";
 import { TodoPreview } from "../PreviewTodo/TodoPreview";
 import { ExcalidrawPreview } from "../PreviewExcalidraw";
-import { FormatPreview } from "../PreviewFormat/FormatPreview";
-import { LoggerEditor } from "../LoggerEditor";
 import { KnowledgeGraphPreview } from "../KnowledgeGraph/KnowledgeGraphPreview";
 import { isKnowledgeGraphFile } from "@/lib/knowledgeGraph";
 import { isImageFile } from "@/lib/fileSupport";
@@ -15,7 +13,6 @@ interface PreviewPanelProps {
   fileExtension: string | null;
   filePath?: string;
   editable?: boolean;
-  readOnly?: boolean;
   onContentChange?: (content: string) => void;
 }
 
@@ -26,7 +23,6 @@ export function PreviewPanel({
   fileExtension,
   filePath,
   editable = false,
-  readOnly = false,
   onContentChange
 }: PreviewPanelProps) {
 
@@ -81,13 +77,6 @@ export function PreviewPanel({
     return <ExcalidrawPreview content={content} filePath={filePath} onContentChange={onContentChange} />;
   }
 
-  if (fileExtension === "format") {
-    return <FormatPreview content={content} editable={editable} readOnly={readOnly} onContentChange={onContentChange} />;
-  }
-
-  if (fileExtension === "logger") {
-    return <LoggerEditor filePath={filePath || ""} />;
-  }
 
   return (
     <div className="w-full h-full flex items-center justify-center text-muted-foreground">

@@ -22,6 +22,15 @@ interface ExcalidrawModule {
     files: Record<string, unknown>,
     type: "local" | "database"
   ) => string;
+  exportToSvg: (opts: {
+    elements: readonly ExcalidrawElement[];
+    appState?: Partial<ExcalidrawAppState>;
+    files?: Record<string, unknown> | null;
+    exportPadding?: number;
+    renderEmbeddables?: boolean;
+    skipInliningFonts?: boolean;
+    reuseImages?: boolean;
+  }) => Promise<SVGSVGElement>;
 }
 
 interface ExcalidrawComponentProps {
@@ -80,15 +89,33 @@ const EMPTY_SCENE: ExcalidrawScene = {
   files: {},
 };
 
+const getEmbeddedJson = (content: string): string => {
+  if (!content.trim()) return "";
+  if (content.trimStart().startsWith("<")) {
+    try {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(content, "image/svg+xml");
+      const svg = doc.querySelector("svg");
+      const embedded = svg?.getAttribute("data-excalidraw-json");
+      if (embedded) return embedded;
+    } catch (e) {
+      console.error("[ExcalidrawPreview] Failed to extract embedded JSON:", e);
+    }
+    return "";
+  }
+  return content;
+};
+
 const parseScene = (content: string): ExcalidrawScene => {
-  if (!content.trim()) return EMPTY_SCENE;
+  const jsonContent = getEmbeddedJson(content);
+  if (!jsonContent.trim()) return EMPTY_SCENE;
   try {
-    const parsed = JSON.parse(content);
+    const parsed = JSON.parse(jsonContent);
     if (parsed && (parsed.type === "excalidraw" || Array.isArray(parsed.elements))) {
       return parsed as ExcalidrawScene;
     }
   } catch {
-    // fall through to empty scene on parse error
+    // fall through
   }
   return EMPTY_SCENE;
 };
@@ -104,10 +131,15 @@ export function ExcalidrawPreview({ content, filePath, onContentChange }: Excali
   const isMountedRef = useRef(false);
   // Debounce timer ref
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Track last serialized content to skip onChange calls with no real changes
-  const lastSerializedRef = useRef<string>(content);
+  // Track last serialized JSON content to skip onChange calls with no real changes
+  const lastSerializedRef = useRef<string>(getEmbeddedJson(content));
   // Wrapper div ref for Cmd+S capture-phase intercept
   const wrapperRef = useRef<HTMLDivElement>(null);
+
+  // Sync lastSerializedRef when content changes from the outside
+  useEffect(() => {
+    lastSerializedRef.current = getEmbeddedJson(content);
+  }, [content]);
 
   useEffect(() => {
     loadExcalidraw()
@@ -171,30 +203,54 @@ export function ExcalidrawPreview({ content, filePath, onContentChange }: Excali
       if (!onContentChange || !ExcalidrawModule) return;
 
       if (saveTimer.current) clearTimeout(saveTimer.current);
-      saveTimer.current = setTimeout(() => {
+      saveTimer.current = setTimeout(async () => {
         if (!ExcalidrawModule) return;
-        const serialized = ExcalidrawModule.serializeAsJSON(elements, appState, files, "local");
+        const jsonPayload = ExcalidrawModule.serializeAsJSON(elements, appState, files, "local");
 
         // Skip if the content hasn't actually changed — Excalidraw fires onChange
         // for internal appState changes (toolbar, cursor) that don't affect the scene.
-        if (serialized === lastSerializedRef.current) {
+        if (jsonPayload === lastSerializedRef.current) {
           console.log("[ExcalidrawPreview] ⏭️ onChange — content unchanged, skipping save");
           return;
         }
-        lastSerializedRef.current = serialized;
+        lastSerializedRef.current = jsonPayload;
 
-        console.log("[ExcalidrawPreview] 💾 onChange debounce fired — setting isSaving =", filePath ?? null, "then calling onContentChange");
-        // Signal file watcher to ignore the next file-change event we cause
-        setIsSaving(filePath ?? null);
-        onContentChange(serialized);
-        // Clear the flag after enough time for the file watcher event to arrive
-        setTimeout(() => {
-          console.log("[ExcalidrawPreview] 🔓 Clearing isSaving");
-          setIsSaving(null);
-        }, 1500);
+        try {
+          let serialized: string;
+          try {
+            // Export the scene as an SVG element, skipping font inlining to avoid load failures
+            const svgElement = await ExcalidrawModule.exportToSvg({
+              elements,
+              appState,
+              files,
+              skipInliningFonts: true
+            });
+            
+            // Embed the JSON scene into the SVG element's data attribute
+            svgElement.setAttribute("data-excalidraw-json", jsonPayload);
+            
+            // Serialize SVG to XML string
+            serialized = new XMLSerializer().serializeToString(svgElement);
+          } catch (svgErr) {
+            console.warn("[ExcalidrawPreview] Failed to export scene to SVG, falling back to raw JSON:", svgErr);
+            serialized = jsonPayload;
+          }
+
+          console.log("[ExcalidrawPreview] 💾 onChange debounce fired — setting isSaving =", filePath ?? null, "then calling onContentChange");
+          // Signal file watcher to ignore the next file-change event we cause
+          setIsSaving(filePath ?? null);
+          onContentChange(serialized);
+          // Clear the flag after enough time for the file watcher event to arrive
+          setTimeout(() => {
+            console.log("[ExcalidrawPreview] 🔓 Clearing isSaving");
+            setIsSaving(null);
+          }, 1500);
+        } catch (err) {
+          console.error("[ExcalidrawPreview] Unexpected error in handleChange:", err);
+        }
       }, 600);
     },
-    [onContentChange, ExcalidrawModule, setIsSaving]
+    [onContentChange, ExcalidrawModule, setIsSaving, filePath]
   );
 
   if (loadError) {

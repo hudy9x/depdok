@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useAtomValue, useSetAtom } from "jotai";
 import { save } from "@tauri-apps/plugin-dialog";
 import { platform } from "@tauri-apps/plugin-os";
@@ -231,6 +231,11 @@ export function EditorSave() {
     }
   };
 
+  const handleSaveRef = useRef(handleSave);
+  useEffect(() => {
+    handleSaveRef.current = handleSave;
+  });
+
   // Keyboard shortcut for save (Ctrl+S or Cmd+S)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -243,7 +248,7 @@ export function EditorSave() {
         }
 
         console.log("[EditorSaveHandler] ⌨️ window Cmd+S caught — filePath:", editorState.filePath);
-        handleSave();
+        handleSaveRef.current();
       }
     };
 
@@ -252,7 +257,7 @@ export function EditorSave() {
     // window(capture) → div(capture) → ... → bubble, so window capture fires first.
     window.addEventListener("keydown", handleKeyDown, true);
     return () => window.removeEventListener("keydown", handleKeyDown, true);
-  }, [editorState.filePath, activeTab, autoSaveEnabled]);
+  }, [editorState.filePath, autoSaveEnabled]);
 
   return null;
 }

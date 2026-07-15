@@ -20,7 +20,7 @@ interface NewTabDialogProps {
   onClose: () => void;
 }
 
-const SUPPORTED_EXTENSIONS = ['md', 'mmd', 'todo', 'plantuml'];
+const SUPPORTED_EXTENSIONS = ['md', 'mmd', 'todo', 'plantuml', 'npuml', 'nplantuml'];
 
 export function NewTabDialog({ open, onClose }: NewTabDialogProps) {
   const [filename, setFilename] = useState('');
@@ -35,7 +35,7 @@ export function NewTabDialog({ open, onClose }: NewTabDialogProps) {
 
     const parts = name.split('.');
     if (parts.length < 2) {
-      setError('Filename must include an extension (.md, .mmd, .todo, .plantuml)');
+      setError('Filename must include an extension (.md, .mmd, .todo, .plantuml, .npuml, .nplantuml)');
       return false;
     }
 
@@ -84,7 +84,7 @@ export function NewTabDialog({ open, onClose }: NewTabDialogProps) {
         <DialogHeader>
           <DialogTitle>Create New File</DialogTitle>
           <DialogDescription>
-            Enter a filename with one of these extensions: .md, .mmd, .todo, .plantuml
+            Enter a filename with one of these extensions: .md, .mmd, .todo, .plantuml, .npuml, .nplantuml
           </DialogDescription>
         </DialogHeader>
 

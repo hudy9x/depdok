@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { NodeViewContent, NodeViewWrapper, type NodeViewProps } from "@tiptap/react";
 import { Check, Copy, Eye, Code2, Maximize2, Minimize2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { PlantUMLBrowserPreview } from "../PreviewPlantUML/PlantUMLBrowserPreview";
+import { PlantUMLNativePreview } from "../PreviewPlantUML/PlantUMLNativePreview";
 
 export function PlantUMLNodeView({ node, editor, getPos }: NodeViewProps) {
   const editable = editor.isEditable;
@@ -180,7 +180,7 @@ export function PlantUMLNodeView({ node, editor, getPos }: NodeViewProps) {
             }`}
           >
             {codeText.trim() ? (
-              <PlantUMLBrowserPreview 
+              <PlantUMLNativePreview 
                 content={codeText} 
                 onContentChange={editable ? handleContentChange : undefined} 
               />

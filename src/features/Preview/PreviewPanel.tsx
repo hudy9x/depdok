@@ -2,6 +2,7 @@ import { MarkdownPreview } from "../PreviewMarkdown/MarkdownPreview";
 import { MermaidPreview } from "./MermaidPreview";
 // import { PlantUMLPreview } from "../PreviewPlantUML";
 import { PlantUMLBrowserPreview } from "../PreviewPlantUML/PlantUMLBrowserPreview";
+import { PlantUMLNativePreview } from "../PreviewPlantUML/PlantUMLNativePreview";
 import { TodoPreview } from "../PreviewTodo/TodoPreview";
 import { ExcalidrawPreview } from "../PreviewExcalidraw";
 import { KnowledgeGraphPreview } from "../KnowledgeGraph/KnowledgeGraphPreview";
@@ -60,6 +61,10 @@ export function PreviewPanel({
   if (["puml", "pu"].includes(fileExtension)) {
     return <PlantUMLBrowserPreview content={content} onContentChange={onContentChange} />;
     // return <PlantUMLPreview content={content} onContentChange={onContentChange} />;
+  }
+
+  if (["npuml", "nplantuml"].includes(fileExtension)) {
+    return <PlantUMLNativePreview content={content} onContentChange={onContentChange} />;
   }
 
   if (fileExtension === "todo") {

@@ -14,7 +14,7 @@ export function getMonacoLanguage(fileExtension: string | null | undefined): str
   }
 
   // PlantUML files
-  if (["puml", "pu"].includes(ext)) {
+  if (["puml", "pu", "plantuml", "npuml", "nplantuml"].includes(ext)) {
     return "plantuml";
   }
 

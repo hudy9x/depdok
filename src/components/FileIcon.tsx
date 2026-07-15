@@ -63,7 +63,7 @@ export function FileIcon({ filename, className, variant = 'colorful' }: FileIcon
     if (filename.endsWith('.excalidraw')) return <SwatchBook className={cn("w-4 h-4", className)} style={isColorful ? { color: '#f97316' } : undefined} />;
     if (filename.endsWith('.md')) return <MarkdownIcon className={cn("w-4 h-4 text-foreground", className)} />;
     if (filename.endsWith('.mmd')) return <MmdIcon className={cn("w-4 h-4", className)} primary={isColorful ? "#a855f7" : undefined} secondary={isColorful ? "#d8b4fe" : undefined} />;
-    if (filename.endsWith('.plantuml') || filename.endsWith('.puml') || filename.endsWith('.pu')) return <PlantumlIcon className={cn("w-4 h-4", className)} primary={isColorful ? "#22c55e" : undefined} secondary={isColorful ? "#86efac" : undefined} />;
+    if (filename.endsWith('.plantuml') || filename.endsWith('.puml') || filename.endsWith('.pu') || filename.endsWith('.npuml') || filename.endsWith('.nplantuml')) return <PlantumlIcon className={cn("w-4 h-4", className)} primary={isColorful ? "#22c55e" : undefined} secondary={isColorful ? "#86efac" : undefined} />;
     return <FileText className={cn("w-4 h-4 text-muted-foreground", className)} />;
   };
 

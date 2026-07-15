@@ -8,7 +8,7 @@ export const IMAGE_EXTENSIONS_SET = new Set(IMAGE_EXTENSIONS);
 
 /** List of custom preview/rendering file extensions */
 export const CUSTOM_PREVIEW_EXTENSIONS = [
-  'md', 'txt', 'todo', 'mmd', 'mermaid', 'puml', 'pu', 'plantuml', 'excalidraw'
+  'md', 'txt', 'todo', 'mmd', 'mermaid', 'puml', 'pu', 'plantuml', 'excalidraw', 'npuml', 'nplantuml'
 ];
 
 /** List of text/code file extensions supported by Monaco Editor */

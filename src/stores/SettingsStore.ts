@@ -58,3 +58,21 @@ export const plantUmlServerUrlAtom = atom(
   }
 );
 
+export const plantUmlThemeLightAtom = atom(
+  (get) => get(settingsAtom).plantUmlThemeLight || 'default',
+  (get, set, value: string) => {
+    const settings = { ...get(settingsAtom), plantUmlThemeLight: value };
+    set(settingsAtom, settings);
+    settingsService.updateSettings(settings);
+  }
+);
+
+export const plantUmlThemeDarkAtom = atom(
+  (get) => get(settingsAtom).plantUmlThemeDark || 'default',
+  (get, set, value: string) => {
+    const settings = { ...get(settingsAtom), plantUmlThemeDark: value };
+    set(settingsAtom, settings);
+    settingsService.updateSettings(settings);
+  }
+);
+

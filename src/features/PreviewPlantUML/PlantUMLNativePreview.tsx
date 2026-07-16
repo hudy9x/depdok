@@ -1,17 +1,35 @@
 import { useEffect, useState } from "react";
 import { useDebounce } from "use-debounce";
 import { useTheme } from "next-themes";
+import { useAtom } from "jotai";
 import { ZoomPanContainer } from "@/components/ZoomPanContainer";
 import { Loader2 } from "lucide-react";
 import { queuePlantUMLRender } from "./plantuml-queue";
+import { plantUmlThemeLightAtom, plantUmlThemeDarkAtom } from "@/stores/SettingsStore";
+import { PLANTUML_THEMES } from "./themes";
 
 interface PlantUMLNativePreviewProps {
   content: string;
   onContentChange?: (content: string) => void;
 }
 
+function injectTheme(content: string, themeCode: string): string {
+  if (!themeCode.trim()) return content;
+  
+  const startUmlRegex = /@startuml([^\n]*)/i;
+  if (startUmlRegex.test(content)) {
+    return content.replace(startUmlRegex, (match) => `${match}\n${themeCode}`);
+  }
+  return `${themeCode}\n${content}`;
+}
+
 export function PlantUMLNativePreview({ content }: PlantUMLNativePreviewProps) {
   const { resolvedTheme } = useTheme();
+  const [plantUmlThemeLight] = useAtom(plantUmlThemeLightAtom);
+  const [plantUmlThemeDark] = useAtom(plantUmlThemeDarkAtom);
+  
+  const activeThemeKey = resolvedTheme === "dark" ? plantUmlThemeDark : plantUmlThemeLight;
+  
   const [svgContent, setSvgContent] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -29,7 +47,9 @@ export function PlantUMLNativePreview({ content }: PlantUMLNativePreviewProps) {
       setLoading(true);
       setError(null);
       try {
-        const svg = await queuePlantUMLRender(debouncedContent, resolvedTheme === "dark");
+        const themeConfig = PLANTUML_THEMES[activeThemeKey] || PLANTUML_THEMES.default;
+        const themedContent = injectTheme(debouncedContent, themeConfig.content);
+        const svg = await queuePlantUMLRender(themedContent, resolvedTheme === "dark");
         if (isMounted) {
           setSvgContent(svg);
         }
@@ -50,7 +70,7 @@ export function PlantUMLNativePreview({ content }: PlantUMLNativePreviewProps) {
     return () => {
       isMounted = false;
     };
-  }, [debouncedContent, resolvedTheme]);
+  }, [debouncedContent, resolvedTheme, activeThemeKey]);
 
   return (
     <div className="w-full h-full relative overflow-hidden bg-layout-content">

@@ -59,12 +59,12 @@ export function PreviewPanel({
   }
 
   if (["puml", "pu"].includes(fileExtension)) {
-    return <PlantUMLBrowserPreview content={content} onContentChange={onContentChange} />;
-    // return <PlantUMLPreview content={content} onContentChange={onContentChange} />;
+    // return <PlantUMLBrowserPreview content={content} onContentChange={onContentChange} />;
+    return <PlantUMLNativePreview content={content} onContentChange={onContentChange} />;
   }
 
   if (["npuml", "nplantuml"].includes(fileExtension)) {
-    return <PlantUMLNativePreview content={content} onContentChange={onContentChange} />;
+    return <PlantUMLBrowserPreview content={content} onContentChange={onContentChange} />;
   }
 
   if (fileExtension === "todo") {

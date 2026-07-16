@@ -19,6 +19,7 @@ import { EmbeddingModelSetting } from "./EmbeddingModelSetting";
 import { McpServerPathSetting } from "./McpServerPathSetting";
 import { MonacoThemeSetting } from "./MonacoThemeSetting";
 import { PlantUmlServerSetting } from "./PlantUmlServerSetting";
+import { PlantUmlThemeSetting } from "./PlantUmlThemeSetting";
 import { CliCommandSetting } from "./CliCommandSetting";
 import { ContextMenuSetting } from "./ContextMenuSetting";
 import { ThemeSetting } from "./ThemeSetting";
@@ -188,6 +189,9 @@ export function SettingsDialog({ open, onOpenChange, defaultTab }: SettingsDialo
 
             {activeTab === "integrations" && (
               <div className="space-y-6  p-8">
+                <div className="border-b pb-6 border-border/40">
+                  <PlantUmlThemeSetting />
+                </div>
                 <div className="border-b pb-6 border-border/40">
                   <PlantUmlServerSetting />
                 </div>

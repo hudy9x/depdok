@@ -37,6 +37,10 @@ class SettingsService {
         parsed.plantUmlThemeDark = parsed.plantUmlThemeDark || parsed.plantUmlTheme;
         delete parsed.plantUmlTheme;
       }
+      // Migrate legacy 'side-by-side' viewMode — no longer supported for Markdown
+      if (parsed.viewMode === 'side-by-side') {
+        parsed.viewMode = 'editor-only';
+      }
       return { ...DEFAULT_SETTINGS, ...parsed };
     } catch {
       return DEFAULT_SETTINGS;

@@ -12,6 +12,7 @@ const VIEW_MODES: { mode: ViewMode; icon: React.ReactNode; title: string }[] = [
 ];
 
 const EXTENSION_SUPPORTED_MODES: Record<string, ViewMode[]> = {
+  md: ["editor-only", "preview-only"],
   png: ["preview-only"],
   jpg: ["preview-only"],
   jpeg: ["preview-only"],

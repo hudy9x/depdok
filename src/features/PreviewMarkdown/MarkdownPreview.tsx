@@ -32,9 +32,9 @@ import Heading from "@tiptap/extension-heading";
 import { HeadingNodeView } from "./HeadingNodeView";
 import { Table } from "@tiptap/extension-table";
 import { TableRow } from "@tiptap/extension-table-row";
-import { TableHeader } from "@tiptap/extension-table-header";
-import { TableCell } from "@tiptap/extension-table-cell";
+import { CustomTableCell, CustomTableHeader } from "./CustomTableExtensions";
 import { TableNodeView } from "./TableNodeView";
+import { CellSelection, cellAround } from "@tiptap/pm/tables";
 import Highlight from "@tiptap/extension-highlight";
 import Link from "@tiptap/extension-link";
 import Subscript from "@tiptap/extension-subscript";
@@ -113,10 +113,60 @@ export function MarkdownPreview({
         addNodeView() {
           return ReactNodeViewRenderer(TableNodeView);
         },
+        // Render the table as pure HTML to preserve colspans, rowspans, and cell colors
+        renderMarkdown(node) {
+          const serializeInline = (inlineNode: any): string => {
+            if (inlineNode.type === 'text') {
+              let text = inlineNode.text || '';
+              text = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+              if (inlineNode.marks) {
+                inlineNode.marks.forEach((mark: any) => {
+                  if (mark.type === 'bold') text = `<strong>${text}</strong>`;
+                  if (mark.type === 'italic') text = `<em>${text}</em>`;
+                  if (mark.type === 'strike') text = `<del>${text}</del>`;
+                  if (mark.type === 'code') text = `<code>${text}</code>`;
+                  if (mark.type === 'link') text = `<a href="${mark.attrs?.href}">${text}</a>`;
+                });
+              }
+              return text;
+            }
+            return '';
+          };
+
+          const serializeBlock = (blockNode: any): string => {
+            if (blockNode.type === 'paragraph') {
+              const inlineContent = (blockNode.content || []).map(serializeInline).join('');
+              return `<p>${inlineContent}</p>`;
+            }
+            return '';
+          };
+
+          const rows = (node.content || []).map((row: any) => {
+            const cells = (row.content || []).map((cell: any) => {
+              const tag = cell.type === 'tableHeader' ? 'th' : 'td';
+              const attrs: string[] = [];
+              if (cell.attrs?.colspan && cell.attrs.colspan > 1) {
+                attrs.push(`colspan="${cell.attrs.colspan}"`);
+              }
+              if (cell.attrs?.rowspan && cell.attrs.rowspan > 1) {
+                attrs.push(`rowspan="${cell.attrs.rowspan}"`);
+              }
+              if (cell.attrs?.backgroundColor) {
+                attrs.push(`class="${cell.attrs.backgroundColor}"`);
+              }
+              const attrString = attrs.length > 0 ? ' ' + attrs.join(' ') : '';
+              const cellContent = (cell.content || []).map(serializeBlock).join('');
+              return `<${tag}${attrString}>${cellContent}</${tag}>`;
+            }).join('');
+            return `  <tr>\n    ${cells}\n  </tr>`;
+          }).join('\n');
+
+          return `<table>\n${rows}\n</table>`;
+        }
       }),
       TableRow,
-      TableHeader,
-      TableCell,
+      CustomTableHeader,
+      CustomTableCell,
       Highlight.configure({ multicolor: false }),
       Link.configure({ openOnClick: false, autolink: true }),
       Subscript,
@@ -248,6 +298,71 @@ export function MarkdownPreview({
       container.removeEventListener('drop', handleDrop);
     };
   }, []);
+
+  // Drag across table cells → create a CellSelection for merge operations.
+  // CellSelection only activates once the user drags into a DIFFERENT cell,
+  // so normal within-cell text selection is never interrupted.
+  useEffect(() => {
+    if (!editor || !editable) return;
+
+    const view = editor.view;
+    let anchorCellPos: number | null = null;
+
+    const onMouseDown = (event: MouseEvent) => {
+      if (event.button !== 0) return;
+      anchorCellPos = null;
+
+      const pos = view.posAtCoords({ left: event.clientX, top: event.clientY });
+      if (!pos) return;
+
+      try {
+        const $pos = view.state.doc.resolve(pos.pos);
+        const $cell = cellAround($pos);
+        if ($cell) {
+          anchorCellPos = $cell.pos;
+          console.log('[CellDrag] mousedown: IN cell, anchorCellPos=', anchorCellPos);
+        } else {
+          console.log('[CellDrag] mousedown: NOT in cell, pos=', pos.pos);
+        }
+      } catch {
+        // ignore
+      }
+    };
+
+    const onMouseMove = (event: MouseEvent) => {
+      if (anchorCellPos === null) return;
+      if (!(event.buttons & 1)) { anchorCellPos = null; return; }
+
+      const pos = view.posAtCoords({ left: event.clientX, top: event.clientY });
+      if (!pos) return;
+
+      try {
+        const $pos = view.state.doc.resolve(pos.pos);
+        const $headCell = cellAround($pos);
+        if (!$headCell) return;
+        if ($headCell.pos === anchorCellPos) return;
+
+        const sel = CellSelection.create(view.state.doc, anchorCellPos, $headCell.pos);
+        view.dispatch(view.state.tr.setSelection(sel));
+        event.preventDefault();
+      } catch {
+        // ignore
+      }
+    };
+
+    const onMouseUp = () => { anchorCellPos = null; };
+
+    const dom = view.dom;
+    dom.addEventListener('mousedown', onMouseDown);
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+
+    return () => {
+      dom.removeEventListener('mousedown', onMouseDown);
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+  }, [editor, editable]);
 
   return (
     <div className="w-full h-full overflow-hidden bg-layout-content flex" ref={containerRef}>

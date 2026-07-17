@@ -683,3 +683,73 @@
   outline: 2px solid var(--primary);
   opacity: 1 !important;
 }
+
+/* ── Prosemirror Table Selection Styling ────────────────────────── */
+.prose table .selectedCell {
+  position: relative;
+  /* background-color: var(--selection-bg) !important; */
+}
+
+.prose table .selectedCell::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border: 1px solid var(--primary);
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* ── Custom Table Cell Background Classes ────────────────────────── */
+.bg-table-gray {
+  background-color: #f3f4f6 !important;
+  color: #1f2937 !important;
+}
+
+.bg-table-red {
+  background-color: #fee2e2 !important;
+  color: #991b1b !important;
+}
+
+.bg-table-green {
+  background-color: #dcfce7 !important;
+  color: #166534 !important;
+}
+
+.bg-table-yellow {
+  background-color: #fef9c3 !important;
+  color: #854d0e !important;
+}
+
+.bg-table-blue {
+  background-color: #dbeafe !important;
+  color: #1e40af !important;
+}
+
+/* Dark Mode Overrides for Table Cells */
+.dark .bg-table-gray {
+  background-color: #374151 !important;
+  color: #f3f4f6 !important;
+}
+
+.dark .bg-table-red {
+  background-color: #7f1d1d !important;
+  color: #fecaca !important;
+}
+
+.dark .bg-table-green {
+  background-color: #064e3b !important;
+  color: #d1fae5 !important;
+}
+
+.dark .bg-table-yellow {
+  background-color: #713f12 !important;
+  color: #fef08a !important;
+}
+
+.dark .bg-table-blue {
+  background-color: #1e3a8a !important;
+  color: #dbeafe !important;
+}

@@ -114,6 +114,11 @@ table {
 }
 th, td { border: 1px solid #d0d7de; padding: 6px 13px; text-align: left; }
 th { background-color: #f6f8fa; font-weight: 600; }
+td.bg-table-gray, th.bg-table-gray { background-color: #f3f4f6 !important; color: #1f2937 !important; }
+td.bg-table-red, th.bg-table-red { background-color: #fee2e2 !important; color: #991b1b !important; }
+td.bg-table-green, th.bg-table-green { background-color: #dcfce7 !important; color: #166534 !important; }
+td.bg-table-yellow, th.bg-table-yellow { background-color: #fef9c3 !important; color: #854d0e !important; }
+td.bg-table-blue, th.bg-table-blue { background-color: #dbeafe !important; color: #1e40af !important; }
 hr { border: none; border-bottom: 2px solid #d8dee4; margin: 24px 0; height: 0; padding: 0; }
 a { color: #0969da; text-decoration: none; }
 a:hover { text-decoration: underline; }

@@ -8,6 +8,8 @@ on:
     paths:
       - 'src-tauri/**'
       - 'src/**'
+env:
+  NODE_OPTIONS: '--max-old-space-size=6144'
 
 jobs:
   publish-tauri:

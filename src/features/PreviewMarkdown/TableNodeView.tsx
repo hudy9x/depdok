@@ -1,13 +1,11 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { NodeViewWrapper, NodeViewContent, Editor } from "@tiptap/react";
 import { Node as ProseMirrorNode } from "@tiptap/pm/model";
-import { GripHorizontal, GripVertical, Plus, Trash2, ArrowUpFromLine, ArrowDownFromLine, MoveLeft, MoveRight, ArrowLeftFromLine, ArrowRightFromLine } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+
+import { TableColumnHandles } from "./table/TableColumnHandles";
+import { TableColumnResizeHandles } from "./table/TableColumnResizeHandles";
+import { TableRowHandles } from "./table/TableRowHandles";
+import { TableQuickActionHandles } from "./table/TableQuickActionHandles";
 
 interface TableNodeViewProps {
   editor: Editor;
@@ -49,7 +47,7 @@ export function TableNodeView({ editor, node, getPos }: TableNodeViewProps) {
   }
 
   // Helper to set cursor inside a specific cell to make TipTap commands work
-  const focusCell = (rowIndex: number, colIndex: number) => {
+  const focusCell = useCallback((rowIndex: number, colIndex: number) => {
     const startPos = getPos();
     if (startPos === undefined) return;
     let currentPos = startPos + 1; // Pos of first row
@@ -69,7 +67,7 @@ export function TableNodeView({ editor, node, getPos }: TableNodeViewProps) {
 
     // Set selection inside the cell
     editor.commands.setTextSelection(currentPos + 1);
-  };
+  }, [editor, getPos, node]);
 
   // ── Column resize ─────────────────────────────────────────────────────────
 
@@ -86,8 +84,8 @@ export function TableNodeView({ editor, node, getPos }: TableNodeViewProps) {
   }, []);
 
   /**
-   * startColumnResize — mirrors startResize() from the reference HTML.
-   * Captures the starting X position and the current <th> offsetWidth,
+   * startColumnResize — Mirrors startResize() from reference table implementation.
+   * Captures starting X position and current <th> offsetWidth,
    * then attaches document-level move/up listeners for smooth drag tracking.
    */
   const startColumnResize = useCallback((e: React.MouseEvent, colIndex: number) => {
@@ -160,26 +158,28 @@ export function TableNodeView({ editor, node, getPos }: TableNodeViewProps) {
     document.addEventListener('mouseup', handleMouseUp);
   }, [editor, getThElement, focusCell]);
 
-  const handleAddBottom = () => {
+  const handleAddBottom = useCallback(() => {
     // Focus last row, any column
     focusCell(rows - 1, 0);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (editor.chain().focus() as any).addRowAfter().run();
-  };
+  }, [editor, focusCell, rows]);
 
-  const handleAddRight = () => {
+  const handleAddRight = useCallback(() => {
     // Focus any row, last column
     focusCell(0, cols - 1);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (editor.chain().focus() as any).addColumnAfter().run();
-  };
+  }, [cols, editor, focusCell]);
 
-  const handleMoveColLeft = (colIndex: number) => {
+  const handleMoveColLeft = useCallback((colIndex: number) => {
     if (colIndex <= 0) return;
 
     const tablePos = getPos();
     if (tablePos === undefined) return;
 
     let tr = editor.state.tr;
-    // Iterate through all rows from the bottom up (to prevent position shifting from affecting earlier replacements in the same row)
+    // Iterate through all rows from the bottom up
     for (let r = rows - 1; r >= 0; r--) {
       const rowNode = node.child(r);
 
@@ -211,13 +211,13 @@ export function TableNodeView({ editor, node, getPos }: TableNodeViewProps) {
 
     editor.view.dispatch(tr);
     focusCell(0, colIndex - 1); // Follow the column
-  };
+  }, [editor, focusCell, getPos, node, rows]);
 
-  const handleMoveColRight = (colIndex: number) => {
+  const handleMoveColRight = useCallback((colIndex: number) => {
     if (colIndex >= cols - 1) return;
     handleMoveColLeft(colIndex + 1); // Moving right is just moving the next column left
     focusCell(0, colIndex + 1); // Follow the column
-  };
+  }, [cols, focusCell, handleMoveColLeft]);
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!isEditable) return;
@@ -274,6 +274,9 @@ export function TableNodeView({ editor, node, getPos }: TableNodeViewProps) {
     }, 150);
   };
 
+  const tableWidth = tableRef.current?.offsetWidth || '100%';
+  const tableHeight = tableRef.current?.offsetHeight || '100%';
+
   return (
     <NodeViewWrapper
       className="relative w-fit max-w-full my-6 group/table"
@@ -281,148 +284,55 @@ export function TableNodeView({ editor, node, getPos }: TableNodeViewProps) {
       onMouseLeave={handleMouseLeave}
     >
       {/* Top handles for columns */}
-      {isEditable && (
-        <div className="absolute -top-3 left-0 h-3 flex pointer-events-none z-10" style={{ width: tableRef.current?.offsetWidth || '100%' }}>
-          {Array.from({ length: cols }).map((_, colIndex) => (
-            <div
-              key={`col-${colIndex}`}
-              style={{ width: colWidths[colIndex] ? `${colWidths[colIndex]}px` : `${100 / cols}%` }}
-              className={`flex-none flex justify-center items-end pb-1 transition-opacity duration-200 ${hoveredCol === colIndex ? 'opacity-100 pointer-events-auto' : 'opacity-0'}`}
-            >
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <div className={`table-handle h-2 w-8 bg-muted rounded-full cursor-pointer hover:bg-primary/50 flex items-center justify-center`}>
-                    <GripHorizontal className={`w-3 h-3 text-muted-foreground ${hoveredCol === colIndex ? 'block' : 'hidden'} hover:block`} />
-                  </div>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                  <DropdownMenuItem onClick={() => { focusCell(0, colIndex); (editor.chain().focus() as any).addColumnBefore().run(); }}>
-                    <ArrowLeftFromLine className="w-4 h-4 mr-2" /> Insert Left
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => { focusCell(0, colIndex); (editor.chain().focus() as any).addColumnAfter().run(); }}>
-                    <ArrowRightFromLine className="w-4 h-4 mr-2" /> Insert Right
-                  </DropdownMenuItem>
-                  <div className="h-px bg-border my-1" />
-                  {colIndex > 0 && (
-                    <DropdownMenuItem onClick={() => handleMoveColLeft(colIndex)}>
-                      <MoveLeft className="w-4 h-4 mr-2" /> Move Left
-                    </DropdownMenuItem>
-                  )}
-                  {colIndex < cols - 1 && (
-                    <DropdownMenuItem onClick={() => handleMoveColRight(colIndex)}>
-                      <MoveRight className="w-4 h-4 mr-2" /> Move Right
-                    </DropdownMenuItem>
-                  )}
-                  <DropdownMenuItem onClick={() => { focusCell(0, colIndex); (editor.chain().focus() as any).deleteColumn().run(); }} className="text-destructive">
-                    <Trash2 className="w-4 h-4 mr-2" /> Delete Column
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          ))}
-        </div>
-      )}
+      <TableColumnHandles
+        isEditable={isEditable}
+        cols={cols}
+        colWidths={colWidths}
+        hoveredCol={hoveredCol}
+        tableWidth={tableWidth}
+        editor={editor}
+        focusCell={focusCell}
+        onMoveColLeft={handleMoveColLeft}
+        onMoveColRight={handleMoveColRight}
+      />
 
-      {/* Column resize handles — thin dividers at each <th> right edge */}
-      {isEditable && (
-        <div
-          className="absolute top-0 left-0 h-full pointer-events-none z-20"
-          style={{ width: tableRef.current?.offsetWidth || '100%' }}
-        >
-          {Array.from({ length: cols }).map((_, colIndex) => {
-            // Compute cumulative left offset up to (and including) this column
-            const leftOffset = colWidths.slice(0, colIndex + 1).reduce((sum, w) => sum + w, 0);
-            // Only show if we have measured widths yet
-            if (!colWidths[colIndex]) return null;
-            return (
-              <div
-                key={`resize-${colIndex}`}
-                ref={(el) => { resizeHandleRefs.current[colIndex] = el; }}
-                title="Drag to resize column"
-                className={`table-handle absolute top-0 bottom-0 w-1 -translate-x-px pointer-events-auto cursor-col-resize transition-colors duration-150 ${
-                  resizingCol === colIndex
-                    ? 'bg-primary'
-                    : 'bg-transparent hover:bg-primary/60'
-                }`}
-                style={{ left: `${leftOffset}px` }}
-                onMouseDown={(e) => startColumnResize(e, colIndex)}
-              />
-            );
-          })}
-        </div>
-      )}
+      {/* Column resize handles */}
+      <TableColumnResizeHandles
+        isEditable={isEditable}
+        cols={cols}
+        colWidths={colWidths}
+        resizingCol={resizingCol}
+        tableWidth={tableWidth}
+        resizeHandleRefs={resizeHandleRefs}
+        onStartColumnResize={startColumnResize}
+      />
 
       {/* Left handles for rows */}
-      {isEditable && (
-        <div className="absolute top-0 -left-3 w-3 flex flex-col pointer-events-none z-10" style={{ height: tableRef.current?.offsetHeight || '100%' }}>
-          {Array.from({ length: rows }).map((_, rowIndex) => (
-            <div
-              key={`row-${rowIndex}`}
-              style={{ height: rowHeights[rowIndex] ? `${rowHeights[rowIndex]}px` : `${100 / rows}%` }}
-              className={`flex-none flex items-center justify-end pr-1 transition-opacity duration-200 ${hoveredRow === rowIndex ? 'opacity-100 pointer-events-auto' : 'opacity-0'}`}
-            >
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <div className={`table-handle w-2 h-8 bg-muted rounded-full cursor-pointer hover:bg-primary/50 flex items-center justify-center`}>
-                    <GripVertical className={`w-3 h-3 text-muted-foreground ${hoveredRow === rowIndex ? 'block' : 'hidden'} hover:block`} />
-                  </div>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                  <DropdownMenuItem onClick={() => { focusCell(rowIndex, 0); (editor.chain().focus() as any).addRowBefore().run(); }}>
-                    <ArrowUpFromLine className="w-4 h-4 mr-2" /> Insert Above
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => { focusCell(rowIndex, 0); (editor.chain().focus() as any).addRowAfter().run(); }}>
-                    <ArrowDownFromLine className="w-4 h-4 mr-2" /> Insert Below
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => { focusCell(rowIndex, 0); (editor.chain().focus() as any).deleteRow().run(); }} className="text-destructive">
-                    <Trash2 className="w-4 h-4 mr-2" /> Delete Row
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          ))}
-        </div>
-      )}
+      <TableRowHandles
+        isEditable={isEditable}
+        rows={rows}
+        rowHeights={rowHeights}
+        hoveredRow={hoveredRow}
+        tableHeight={tableHeight}
+        editor={editor}
+        focusCell={focusCell}
+      />
 
       {/* The actual table content */}
       <div className="overflow-x-auto w-full rounded-sm">
         <table ref={tableRef} className="w-full m-0 border-collapse top-0 left-0 relative">
+          {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
           <NodeViewContent as={"tbody" as any} />
         </table>
       </div>
 
-      {/* Right Add Column Handle */}
-      {isEditable && (
-        <div
-          className="absolute top-0 -right-4 bottom-0 w-3 bg-muted/50 rounded-r hover:bg-primary/20 cursor-pointer flex items-center justify-center opacity-0 group-hover/table:opacity-100 transition-opacity"
-          onClick={handleAddRight}
-          title="Add Column"
-        >
-          <Plus className="w-3 h-3 text-muted-foreground" />
-        </div>
-      )}
-
-      {/* Bottom Add Row Handle */}
-      {isEditable && (
-        <div
-          className="absolute -bottom-4 left-0 right-0 h-3 bg-muted/50 rounded-b hover:bg-primary/20 cursor-pointer flex items-center justify-center opacity-0 group-hover/table:opacity-100 transition-opacity"
-          onClick={handleAddBottom}
-          title="Add Row"
-        >
-          <Plus className="w-3 h-3 text-muted-foreground" />
-        </div>
-      )}
-
-      {/* Top Right Delete Table Handle */}
-      {isEditable && (
-        <div
-          className="absolute -top-3 -right-3 w-6 h-6 bg-destructive/10 text-destructive rounded-md hover:bg-destructive hover:text-destructive-foreground cursor-pointer flex items-center justify-center opacity-0 group-hover/table:opacity-100 transition-opacity z-20"
-          onClick={() => (editor.chain().focus() as any).deleteTable().run()}
-          title="Delete Table"
-        >
-          <Trash2 className="w-3 h-3" />
-        </div>
-      )}
+      {/* Quick Action Handles: Add Column Right, Add Row Bottom, Delete Table */}
+      <TableQuickActionHandles
+        isEditable={isEditable}
+        editor={editor}
+        onAddColumnRight={handleAddRight}
+        onAddRowBottom={handleAddBottom}
+      />
     </NodeViewWrapper>
   );
 }

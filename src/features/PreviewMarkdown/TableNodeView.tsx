@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { NodeViewWrapper, NodeViewContent, Editor } from "@tiptap/react";
 import { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { GripHorizontal, GripVertical, Plus, Trash2, ArrowUpFromLine, ArrowDownFromLine, MoveLeft, MoveRight, ArrowLeftFromLine, ArrowRightFromLine } from "lucide-react";
@@ -21,9 +21,18 @@ export function TableNodeView({ editor, node, getPos }: TableNodeViewProps) {
   const [hoveredCol, setHoveredCol] = useState<number | null>(null);
   const [colWidths, setColWidths] = useState<number[]>([]);
   const [rowHeights, setRowHeights] = useState<number[]>([]);
+  const [resizingCol, setResizingCol] = useState<number | null>(null);
+
+  // Resize drag refs — kept outside React state to avoid re-renders during drag
+  const resizeStartXRef = useRef<number>(0);
+  const resizeStartWidthRef = useRef<number>(0);
+  const resizeStartHandleLeftRef = useRef<number>(0);
+  const resizeColIndexRef = useRef<number | null>(null);
+  const resizeHandleRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   const hideTimeoutRef = useRef<NodeJS.Timeout>();
   const tableRef = useRef<HTMLTableElement>(null);
+  const isResizingRef = useRef(false);
 
   useEffect(() => {
     return () => {
@@ -61,6 +70,95 @@ export function TableNodeView({ editor, node, getPos }: TableNodeViewProps) {
     // Set selection inside the cell
     editor.commands.setTextSelection(currentPos + 1);
   };
+
+  // ── Column resize ─────────────────────────────────────────────────────────
+
+  /**
+   * Get the <th> element at a given column index from the table's first row.
+   * Returns null if the table or column is not found.
+   */
+  const getThElement = useCallback((colIndex: number): HTMLTableCellElement | null => {
+    if (!tableRef.current) return null;
+    const firstRow = tableRef.current.querySelector('tr');
+    if (!firstRow) return null;
+    const cells = Array.from(firstRow.querySelectorAll('th, td')) as HTMLTableCellElement[];
+    return cells[colIndex] ?? null;
+  }, []);
+
+  /**
+   * startColumnResize — mirrors startResize() from the reference HTML.
+   * Captures the starting X position and the current <th> offsetWidth,
+   * then attaches document-level move/up listeners for smooth drag tracking.
+   */
+  const startColumnResize = useCallback((e: React.MouseEvent, colIndex: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const th = getThElement(colIndex);
+    if (!th) return;
+
+    const handleEl = resizeHandleRefs.current[colIndex];
+
+    resizeStartXRef.current = e.clientX;
+    resizeStartWidthRef.current = th.offsetWidth;
+    // Capture the handle's initial left so we can shift it during drag
+    resizeStartHandleLeftRef.current = handleEl ? parseFloat(handleEl.style.left) || 0 : 0;
+    resizeColIndexRef.current = colIndex;
+    isResizingRef.current = true;
+    setResizingCol(colIndex);
+
+    // Prevent text selection and cursor flicker while dragging
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      if (!isResizingRef.current) return;
+      const deltaX = moveEvent.clientX - resizeStartXRef.current;
+      const newWidth = Math.max(50, resizeStartWidthRef.current + deltaX);
+      // Clamp deltaX to the same minimum so the handle never overshoots
+      const clampedDelta = newWidth - resizeStartWidthRef.current;
+
+      // Live DOM update on the <th> — no React dispatch for 60fps smoothness
+      const thEl = getThElement(resizeColIndexRef.current ?? colIndex);
+      if (thEl) {
+        thEl.style.width = `${newWidth}px`;
+        thEl.style.minWidth = `${newWidth}px`;
+      }
+
+      // Move the handle divider to follow the column edge
+      const activeHandle = resizeHandleRefs.current[resizeColIndexRef.current ?? colIndex];
+      if (activeHandle) {
+        activeHandle.style.left = `${resizeStartHandleLeftRef.current + clampedDelta}px`;
+      }
+    };
+
+    const handleMouseUp = (upEvent: MouseEvent) => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      isResizingRef.current = false;
+      setResizingCol(null);
+
+      // Compute final width and persist into ProseMirror state
+      const deltaX = upEvent.clientX - resizeStartXRef.current;
+      const finalWidth = Math.max(50, resizeStartWidthRef.current + deltaX);
+
+      // Focus the header cell so setCellAttribute targets the right node
+      focusCell(0, resizeColIndexRef.current ?? colIndex);
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (editor.chain() as any)
+        .setCellAttribute('colwidth', finalWidth)
+        .run();
+
+      resizeColIndexRef.current = null;
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  }, [editor, getThElement, focusCell]);
 
   const handleAddBottom = () => {
     // Focus last row, any column
@@ -222,6 +320,35 @@ export function TableNodeView({ editor, node, getPos }: TableNodeViewProps) {
               </DropdownMenu>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Column resize handles — thin dividers at each <th> right edge */}
+      {isEditable && (
+        <div
+          className="absolute top-0 left-0 h-full pointer-events-none z-20"
+          style={{ width: tableRef.current?.offsetWidth || '100%' }}
+        >
+          {Array.from({ length: cols }).map((_, colIndex) => {
+            // Compute cumulative left offset up to (and including) this column
+            const leftOffset = colWidths.slice(0, colIndex + 1).reduce((sum, w) => sum + w, 0);
+            // Only show if we have measured widths yet
+            if (!colWidths[colIndex]) return null;
+            return (
+              <div
+                key={`resize-${colIndex}`}
+                ref={(el) => { resizeHandleRefs.current[colIndex] = el; }}
+                title="Drag to resize column"
+                className={`table-handle absolute top-0 bottom-0 w-1 -translate-x-px pointer-events-auto cursor-col-resize transition-colors duration-150 ${
+                  resizingCol === colIndex
+                    ? 'bg-primary'
+                    : 'bg-transparent hover:bg-primary/60'
+                }`}
+                style={{ left: `${leftOffset}px` }}
+                onMouseDown={(e) => startColumnResize(e, colIndex)}
+              />
+            );
+          })}
         </div>
       )}
 

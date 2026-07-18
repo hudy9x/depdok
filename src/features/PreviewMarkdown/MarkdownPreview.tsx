@@ -154,6 +154,9 @@ export function MarkdownPreview({
               if (cell.attrs?.backgroundColor) {
                 attrs.push(`class="${cell.attrs.backgroundColor}"`);
               }
+              if (tag === 'th' && cell.attrs?.colwidth) {
+                attrs.push(`style="width:${cell.attrs.colwidth}px; min-width:${cell.attrs.colwidth}px;"`);
+              }
               const attrString = attrs.length > 0 ? ' ' + attrs.join(' ') : '';
               const cellContent = (cell.content || []).map(serializeBlock).join('');
               return `<${tag}${attrString}>${cellContent}</${tag}>`;

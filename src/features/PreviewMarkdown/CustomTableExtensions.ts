@@ -4,6 +4,9 @@
  *
  * This allows the HTML table serializer to round-trip background colours
  * when saving/loading Markdown files.
+ *
+ * CustomTableHeader additionally adds a `colwidth` attribute that persists
+ * the user-dragged column width as `style="width:Xpx"` on the <th> element.
  */
 import { TableCell } from "@tiptap/extension-table-cell";
 import { TableHeader } from "@tiptap/extension-table-header";
@@ -23,6 +26,26 @@ const backgroundColorAttr = {
   },
 };
 
+/**
+ * Reads the pixel width from `style="width:Xpx"` on a <th> element.
+ * Returns null when no explicit width is set.
+ */
+const colWidthAttr = {
+  colwidth: {
+    default: null as number | null,
+    parseHTML: (element: HTMLElement) => {
+      const w = element.style.width;
+      if (!w) return null;
+      const px = parseFloat(w);
+      return Number.isFinite(px) && px > 0 ? px : null;
+    },
+    renderHTML: (attrs: Record<string, unknown>) => {
+      if (!attrs.colwidth) return {};
+      return { style: `width:${attrs.colwidth}px; min-width:${attrs.colwidth}px;` };
+    },
+  },
+};
+
 export const CustomTableCell = TableCell.extend({
   addAttributes() {
     return {
@@ -37,6 +60,7 @@ export const CustomTableHeader = TableHeader.extend({
     return {
       ...this.parent?.(),
       ...backgroundColorAttr,
+      ...colWidthAttr,
     };
   },
 });

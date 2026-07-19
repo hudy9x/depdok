@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { Editor } from "@tiptap/react";
+import { Editor, useEditorState } from "@tiptap/react";
 import {
   Bold,
   Code,
@@ -52,7 +52,7 @@ function MenuButton({ onClick, isActive, title, icon, disabled }: MenuButtonProp
     <button
       onClick={onClick}
       disabled={disabled}
-      className={`p-2 rounded hover:bg-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${isActive ? 'bg-accent text-accent-foreground' : ''
+      className={`p-2 rounded hover:bg-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${isActive ? 'bg-accent text-accent-foreground font-medium' : ''
         }`}
       title={title}
       type="button"
@@ -248,6 +248,11 @@ function AiActionsButton({
 }
 
 export function FormatButtons({ editor, onDropdownOpenChange }: FormatButtonsProps) {
+  useEditorState({
+    editor,
+    selector: (ctx) => ctx.transactionNumber,
+  });
+
   return (
     <>
       <MenuButton
@@ -334,6 +339,11 @@ export function FormatButtons({ editor, onDropdownOpenChange }: FormatButtonsPro
 
 
 export function BlockButtons({ editor }: FormatButtonsProps) {
+  useEditorState({
+    editor,
+    selector: (ctx) => ctx.transactionNumber,
+  });
+
   const [imagePopoverOpen, setImagePopoverOpen] = useState(false);
 
   return (

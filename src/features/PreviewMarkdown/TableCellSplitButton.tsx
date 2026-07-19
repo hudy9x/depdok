@@ -4,16 +4,15 @@ import { AiOutlineSplitCells } from "react-icons/ai";
 
 interface TableCellSplitButtonProps {
   editor: Editor;
+  disabled?: boolean;
 }
 
-export function TableCellSplitButton({ editor }: TableCellSplitButtonProps) {
-  // const canSplit = splitCell(editor.state);
-
+export function TableCellSplitButton({ editor, disabled }: TableCellSplitButtonProps) {
   return (
     <button
       type="button"
       title="Unmerge cell"
-      // disabled={!canSplit}
+      disabled={disabled}
       onMouseDown={(e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -22,9 +21,9 @@ export function TableCellSplitButton({ editor }: TableCellSplitButtonProps) {
         splitCell(editor.state, editor.view.dispatch);
         editor.view.focus();
       }}
-      className="flex items-center gap-1 px-2 py-1 rounded text-xs hover:bg-accent disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-muted-foreground hover:text-foreground"
+      className="p-2 rounded hover:bg-accent disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-muted-foreground hover:text-foreground flex items-center justify-center"
     >
-      <AiOutlineSplitCells className="!w-4 !h-4" />
+      <AiOutlineSplitCells className="w-4 h-4" />
     </button>
   );
 }

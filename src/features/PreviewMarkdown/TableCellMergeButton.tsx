@@ -4,9 +4,10 @@ import { AiOutlineMergeCells } from "react-icons/ai";
 
 interface TableCellMergeButtonProps {
   editor: Editor;
+  disabled?: boolean;
 }
 
-export function TableCellMergeButton({ editor }: TableCellMergeButtonProps) {
+export function TableCellMergeButton({ editor, disabled }: TableCellMergeButtonProps) {
   const { selection } = editor.state;
 
   // Robust check for CellSelection (survives bundler class renaming/duplication)
@@ -23,13 +24,13 @@ export function TableCellMergeButton({ editor }: TableCellMergeButtonProps) {
     });
   }
 
-  // const canMerge = isCellSelection && selectedCellCount > 1 && mergeCells(editor.state);
+  const canMerge = !disabled && isCellSelection && selectedCellCount > 1;
 
   return (
     <button
       type="button"
       title="Merge selected cells"
-      // disabled={!canMerge}
+      disabled={disabled || !canMerge}
       onMouseDown={(e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -38,9 +39,9 @@ export function TableCellMergeButton({ editor }: TableCellMergeButtonProps) {
         mergeCells(editor.state, editor.view.dispatch);
         editor.view.focus();
       }}
-      className="flex items-center gap-1 px-2 py-1 rounded text-xs hover:bg-accent disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-muted-foreground hover:text-foreground"
+      className="p-2 rounded hover:bg-accent disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-muted-foreground hover:text-foreground flex items-center justify-center"
     >
-      <AiOutlineMergeCells className="!w-4 !h-4" />
+      <AiOutlineMergeCells className="w-4 h-4" />
     </button>
   );
 }

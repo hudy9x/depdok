@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { Editor, useEditorState } from "@tiptap/react";
 import {
   Bold,
+  ChevronDown,
   Code,
   FileCode,
   Heading1,
@@ -39,6 +40,10 @@ import { CompleteSentence } from "./ai/CompleteSentence";
 import { SummarizeText } from "./ai/SummarizeText";
 import { TranslateText } from "./ai/TranslateText";
 
+import { TableCellColorPicker } from "./TableCellColorPicker";
+import { TableCellMergeButton } from "./TableCellMergeButton";
+import { TableCellSplitButton } from "./TableCellSplitButton";
+
 interface MenuButtonProps {
   onClick: () => void;
   isActive: boolean;
@@ -52,8 +57,9 @@ function MenuButton({ onClick, isActive, title, icon, disabled }: MenuButtonProp
     <button
       onClick={onClick}
       disabled={disabled}
-      className={`p-2 rounded hover:bg-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${isActive ? 'bg-accent text-accent-foreground font-medium' : ''
-        }`}
+      className={`p-2 rounded hover:bg-accent transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
+        isActive ? "bg-accent text-accent-foreground font-medium" : "text-muted-foreground hover:text-foreground"
+      }`}
       title={title}
       type="button"
     >
@@ -62,9 +68,102 @@ function MenuButton({ onClick, isActive, title, icon, disabled }: MenuButtonProp
   );
 }
 
-interface FormatButtonsProps {
-  editor: Editor;
-  onDropdownOpenChange?: (open: boolean) => void;
+/** Heading dropdown button displaying active heading level icon */
+function HeadingDropdown({ editor }: { editor: Editor }) {
+  const [open, setOpen] = useState(false);
+
+  let ActiveIcon = Heading1;
+
+  if (editor.isActive("heading", { level: 1 })) {
+    ActiveIcon = Heading1;
+  } else if (editor.isActive("heading", { level: 2 })) {
+    ActiveIcon = Heading2;
+  } else if (editor.isActive("heading", { level: 3 })) {
+    ActiveIcon = Heading3;
+  } else if (editor.isActive("heading", { level: 4 })) {
+    ActiveIcon = Heading4;
+  }
+
+  const isHeadingActive = editor.isActive("heading");
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          onMouseDown={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+          }}
+          className={`flex items-center gap-0.5 p-2 rounded hover:bg-accent transition-colors ${
+            isHeadingActive ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:text-foreground"
+          }`}
+          title="Heading options"
+        >
+          <ActiveIcon className="w-4 h-4" />
+          <ChevronDown className="w-3 h-3 opacity-60" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="start"
+        className="w-36 p-1 flex flex-col gap-0.5 bg-popover/95 backdrop-blur-md border border-border shadow-md"
+        onCloseAutoFocus={(e: Event) => e.preventDefault()}
+      >
+        <button
+          type="button"
+          onClick={() => {
+            editor.chain().focus().toggleHeading({ level: 1 }).run();
+            setOpen(false);
+          }}
+          className={`w-full text-left px-2 py-1.5 text-xs rounded hover:bg-accent flex items-center gap-2 transition-colors ${
+            editor.isActive("heading", { level: 1 }) ? "bg-accent font-medium text-accent-foreground" : "text-foreground"
+          }`}
+        >
+          <Heading1 className="w-3.5 h-3.5" />
+          <span>Heading 1</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            editor.chain().focus().toggleHeading({ level: 2 }).run();
+            setOpen(false);
+          }}
+          className={`w-full text-left px-2 py-1.5 text-xs rounded hover:bg-accent flex items-center gap-2 transition-colors ${
+            editor.isActive("heading", { level: 2 }) ? "bg-accent font-medium text-accent-foreground" : "text-foreground"
+          }`}
+        >
+          <Heading2 className="w-3.5 h-3.5" />
+          <span>Heading 2</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            editor.chain().focus().toggleHeading({ level: 3 }).run();
+            setOpen(false);
+          }}
+          className={`w-full text-left px-2 py-1.5 text-xs rounded hover:bg-accent flex items-center gap-2 transition-colors ${
+            editor.isActive("heading", { level: 3 }) ? "bg-accent font-medium text-accent-foreground" : "text-foreground"
+          }`}
+        >
+          <Heading3 className="w-3.5 h-3.5" />
+          <span>Heading 3</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            editor.chain().focus().toggleHeading({ level: 4 }).run();
+            setOpen(false);
+          }}
+          className={`w-full text-left px-2 py-1.5 text-xs rounded hover:bg-accent flex items-center gap-2 transition-colors ${
+            editor.isActive("heading", { level: 4 }) ? "bg-accent font-medium text-accent-foreground" : "text-foreground"
+          }`}
+        >
+          <Heading4 className="w-3.5 h-3.5" />
+          <span>Heading 4</span>
+        </button>
+      </PopoverContent>
+    </Popover>
+  );
 }
 
 /** Link popover: set or unset a hyperlink on the selection */
@@ -79,7 +178,6 @@ function LinkButton({ editor }: { editor: Editor }) {
     const existing = editor.getAttributes("link").href ?? "";
     setUrl(existing);
     setOpen(true);
-    // Focus input on next tick after popover renders
     setTimeout(() => inputRef.current?.focus(), 0);
   };
 
@@ -102,7 +200,9 @@ function LinkButton({ editor }: { editor: Editor }) {
       <PopoverTrigger asChild>
         <button
           onClick={openPopover}
-          className={`p-2 rounded hover:bg-accent transition-colors ${isActive ? 'bg-accent text-accent-foreground' : ''}`}
+          className={`p-2 rounded hover:bg-accent transition-colors ${
+            isActive ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:text-foreground"
+          }`}
           title="Link"
           type="button"
         >
@@ -119,8 +219,13 @@ function LinkButton({ editor }: { editor: Editor }) {
             placeholder="https://example.com"
             className="h-8 text-sm"
             onKeyDown={(e) => {
-              if (e.key === "Enter") { e.preventDefault(); apply(); }
-              if (e.key === "Escape") { setOpen(false); }
+              if (e.key === "Enter") {
+                e.preventDefault();
+                apply();
+              }
+              if (e.key === "Escape") {
+                setOpen(false);
+              }
             }}
           />
           <Button size="sm" className="h-8 px-3" onClick={apply}>
@@ -174,12 +279,11 @@ function AiActionsButton({
       <PopoverTrigger asChild>
         <button
           disabled={isAiRunning}
-          // Prevent mousedown from blurring the editor — keeps the bubble menu visible
           onMouseDown={(e) => {
             e.stopPropagation();
             e.preventDefault();
           }}
-          className="p-2 rounded hover:bg-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="p-2 rounded hover:bg-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-muted-foreground hover:text-foreground flex items-center justify-center"
           title="AI writing actions"
           type="button"
         >
@@ -193,7 +297,6 @@ function AiActionsButton({
       <PopoverContent
         align="start"
         className="w-52 p-1.5 flex flex-col gap-0.5"
-        // Prevent Radix from stealing focus back to the trigger on close
         onCloseAutoFocus={(e: Event) => e.preventDefault()}
       >
         {view === "main" && (
@@ -247,169 +350,121 @@ function AiActionsButton({
   );
 }
 
-export function FormatButtons({ editor, onDropdownOpenChange }: FormatButtonsProps) {
-  useEditorState({
-    editor,
-    selector: (ctx) => ctx.transactionNumber,
-  });
-
-  return (
-    <>
-      <MenuButton
-        onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
-        isActive={editor.isActive('heading', { level: 1 })}
-        title="Heading 1"
-        icon={<Heading1 className="w-4 h-4" />}
-      />
-      <MenuButton
-        onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-        isActive={editor.isActive('heading', { level: 2 })}
-        title="Heading 2"
-        icon={<Heading2 className="w-4 h-4" />}
-      />
-      <MenuButton
-        onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
-        isActive={editor.isActive('heading', { level: 3 })}
-        title="Heading 3"
-        icon={<Heading3 className="w-4 h-4" />}
-      />
-      <MenuButton
-        onClick={() => editor.chain().focus().toggleHeading({ level: 4 }).run()}
-        isActive={editor.isActive('heading', { level: 4 })}
-        title="Heading 4"
-        icon={<Heading4 className="w-4 h-4" />}
-      />
-      <div className="w-[1px] h-4 bg-border mx-1" />
-      <MenuButton
-        onClick={() => editor.chain().focus().toggleBold().run()}
-        isActive={editor.isActive('bold')}
-        title="Bold"
-        icon={<Bold className="w-4 h-4" />}
-      />
-      <MenuButton
-        onClick={() => editor.chain().focus().toggleItalic().run()}
-        isActive={editor.isActive('italic')}
-        title="Italic"
-        icon={<Italic className="w-4 h-4" />}
-      />
-      <MenuButton
-        onClick={() => editor.chain().focus().toggleStrike().run()}
-        isActive={editor.isActive('strike')}
-        title="Strikethrough"
-        icon={<Strikethrough className="w-4 h-4" />}
-      />
-      <MenuButton
-        onClick={() => editor.chain().focus().toggleCode().run()}
-        isActive={editor.isActive('code')}
-        title="Code"
-        icon={<Code className="w-4 h-4" />}
-      />
-      <MenuButton
-        onClick={() => editor.chain().focus().toggleBlockquote().run()}
-        isActive={editor.isActive('blockquote')}
-        title="Quote"
-        icon={<RiDoubleQuotesL className="w-4 h-4" />}
-      />
-      <div className="w-[1px] h-4 bg-border mx-1" />
-      <MenuButton
-        onClick={() => editor.chain().focus().toggleHighlight().run()}
-        isActive={editor.isActive('highlight')}
-        title="Highlight"
-        icon={<Highlighter className="w-4 h-4" />}
-      />
-      <MenuButton
-        onClick={() => editor.chain().focus().toggleSubscript().run()}
-        isActive={editor.isActive('subscript')}
-        title="Subscript"
-        icon={<Subscript className="w-4 h-4" />}
-      />
-      <MenuButton
-        onClick={() => editor.chain().focus().toggleSuperscript().run()}
-        isActive={editor.isActive('superscript')}
-        title="Superscript"
-        icon={<Superscript className="w-4 h-4" />}
-      />
-      <LinkButton editor={editor} />
-      <div className="w-[1px] h-4 bg-border mx-1" />
-      <AiActionsButton editor={editor} onDropdownOpenChange={onDropdownOpenChange} />
-    </>
-  );
-}
-
-
-
-export function BlockButtons({ editor }: FormatButtonsProps) {
+/** Categorized Editor Menu Buttons */
+export function CategorizedMenuButtons({ editor }: { editor: Editor }) {
   useEditorState({
     editor,
     selector: (ctx) => ctx.transactionNumber,
   });
 
   const [imagePopoverOpen, setImagePopoverOpen] = useState(false);
+  const isTableActive = editor.isActive("table");
 
   return (
-    <>
+    <div className="flex items-center gap-0.5 overflow-x-auto max-w-full">
+      {/* Category 1: Heading */}
+      <HeadingDropdown editor={editor} />
+
+      <div className="w-[1px] h-4 bg-border mx-1 shrink-0" />
+
+      {/* Category 2: Text Formatting (Inline) */}
       <MenuButton
-        onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
-        isActive={editor.isActive('heading', { level: 1 })}
-        title="Heading 1"
-        icon={<Heading1 className="w-4 h-4" />}
+        onClick={() => editor.chain().focus().toggleBold().run()}
+        isActive={editor.isActive("bold")}
+        title="Bold"
+        icon={<Bold className="w-4 h-4" />}
       />
       <MenuButton
-        onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-        isActive={editor.isActive('heading', { level: 2 })}
-        title="Heading 2"
-        icon={<Heading2 className="w-4 h-4" />}
+        onClick={() => editor.chain().focus().toggleItalic().run()}
+        isActive={editor.isActive("italic")}
+        title="Italic"
+        icon={<Italic className="w-4 h-4" />}
       />
       <MenuButton
-        onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
-        isActive={editor.isActive('heading', { level: 3 })}
-        title="Heading 3"
-        icon={<Heading3 className="w-4 h-4" />}
+        onClick={() => editor.chain().focus().toggleStrike().run()}
+        isActive={editor.isActive("strike")}
+        title="Strikethrough"
+        icon={<Strikethrough className="w-4 h-4" />}
       />
       <MenuButton
-        onClick={() => editor.chain().focus().toggleHeading({ level: 4 }).run()}
-        isActive={editor.isActive('heading', { level: 4 })}
-        title="Heading 4"
-        icon={<Heading4 className="w-4 h-4" />}
+        onClick={() => editor.chain().focus().toggleCode().run()}
+        isActive={editor.isActive("code")}
+        title="Code"
+        icon={<Code className="w-4 h-4" />}
       />
+      <MenuButton
+        onClick={() => editor.chain().focus().toggleHighlight().run()}
+        isActive={editor.isActive("highlight")}
+        title="Highlight"
+        icon={<Highlighter className="w-4 h-4" />}
+      />
+      <MenuButton
+        onClick={() => editor.chain().focus().toggleSubscript().run()}
+        isActive={editor.isActive("subscript")}
+        title="Subscript"
+        icon={<Subscript className="w-4 h-4" />}
+      />
+      <MenuButton
+        onClick={() => editor.chain().focus().toggleSuperscript().run()}
+        isActive={editor.isActive("superscript")}
+        title="Superscript"
+        icon={<Superscript className="w-4 h-4" />}
+      />
+
+      <div className="w-[1px] h-4 bg-border mx-1 shrink-0" />
+
+      {/* Category 3: Lists & Blocks */}
       <MenuButton
         onClick={() => editor.chain().focus().toggleBulletList().run()}
-        isActive={editor.isActive('bulletList')}
+        isActive={editor.isActive("bulletList")}
         title="Bullet List"
         icon={<List className="w-4 h-4" />}
       />
       <MenuButton
         onClick={() => editor.chain().focus().toggleOrderedList().run()}
-        isActive={editor.isActive('orderedList')}
+        isActive={editor.isActive("orderedList")}
         title="Ordered List"
         icon={<ListOrdered className="w-4 h-4" />}
       />
       <MenuButton
         onClick={() => editor.chain().focus().toggleBlockquote().run()}
-        isActive={editor.isActive('blockquote')}
+        isActive={editor.isActive("blockquote")}
         title="Quote"
         icon={<RiDoubleQuotesL className="w-4 h-4" />}
       />
       <MenuButton
         onClick={() => editor.chain().focus().toggleCodeBlock().run()}
-        isActive={editor.isActive('codeBlock')}
+        isActive={editor.isActive("codeBlock")}
         title="Code Block"
         icon={<FileCode className="w-4 h-4" />}
       />
+
+      <div className="w-[1px] h-4 bg-border mx-1 shrink-0" />
+
+      {/* Category 4: Inserts */}
       <MenuButton
-        onClick={() => editor.chain().focus().insertContent(`
+        onClick={() =>
+          editor
+            .chain()
+            .focus()
+            .insertContent(
+              `
 | Heading 1     | Heading 2              |
 | ------------- | ---------------------- |
 | Content 1     | Content 2              |
-        `, { contentType: 'markdown' }).run()}
-        isActive={editor.isActive('table')}
+        `,
+              { contentType: "markdown" }
+            )
+            .run()
+        }
+        isActive={editor.isActive("table")}
         title="Insert Table"
         icon={<TableIcon className="w-4 h-4" />}
       />
       <Popover open={imagePopoverOpen} onOpenChange={setImagePopoverOpen}>
         <PopoverTrigger asChild>
           <button
-            className="p-2 rounded hover:bg-accent transition-colors"
+            className="p-2 rounded hover:bg-accent transition-colors text-muted-foreground hover:text-foreground flex items-center justify-center"
             title="Insert Image"
             type="button"
           >
@@ -425,15 +480,31 @@ export function BlockButtons({ editor }: FormatButtonsProps) {
           </div>
         </PopoverContent>
       </Popover>
+      <LinkButton editor={editor} />
+
+      <div className="w-[1px] h-4 bg-border mx-1 shrink-0" />
+
+      {/* Category 5: Table Actions (only active when editor.isActive('table') === true) */}
+      <TableCellColorPicker editor={editor} disabled={!isTableActive} />
+      <TableCellMergeButton editor={editor} disabled={!isTableActive} />
+      <TableCellSplitButton editor={editor} disabled={!isTableActive} />
+
+      <div className="w-[1px] h-4 bg-border mx-1 shrink-0" />
+
+      {/* Category 6: AI & Node Actions */}
+      <AiActionsButton editor={editor} />
       <MenuButton
         onClick={() => {
           const { $from } = editor.state.selection;
           editor.commands.deleteNode($from.parent.type.name);
         }}
         isActive={false}
-        title="Delete"
+        title="Delete Node"
         icon={<Trash className="w-4 h-4" />}
       />
-    </>
+    </div>
   );
 }
+
+// Retain BlockButtons export as alias for backward compatibility
+export const BlockButtons = CategorizedMenuButtons;

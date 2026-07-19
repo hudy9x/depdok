@@ -14,9 +14,10 @@ const COLOR_PALETTE_ROWS: string[][] = [
 
 interface TableCellColorPickerProps {
   editor: Editor;
+  disabled?: boolean;
 }
 
-export function TableCellColorPicker({ editor }: TableCellColorPickerProps) {
+export function TableCellColorPicker({ editor, disabled }: TableCellColorPickerProps) {
   const [open, setOpen] = useState(false);
 
   const setCellBg = (color: string | null) => {
@@ -28,18 +29,19 @@ export function TableCellColorPicker({ editor }: TableCellColorPickerProps) {
   };
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={disabled ? false : open} onOpenChange={(nextOpen) => !disabled && setOpen(nextOpen)}>
       <PopoverTrigger asChild>
         <button
           type="button"
           title="Cell Background Color"
+          disabled={disabled}
           onMouseDown={(e) => {
             e.preventDefault();
             e.stopPropagation();
           }}
-          className="flex items-center gap-1 px-2 py-1 rounded text-xs hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
+          className="p-2 rounded hover:bg-accent disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-muted-foreground hover:text-foreground flex items-center justify-center"
         >
-          <Paintbrush className="w-3.5 h-3.5" />
+          <Paintbrush className="w-4 h-4" />
         </button>
       </PopoverTrigger>
       <PopoverContent

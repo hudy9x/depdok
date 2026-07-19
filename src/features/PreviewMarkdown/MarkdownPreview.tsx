@@ -15,7 +15,6 @@ import "./markdown.css";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 import { MarkdownBottomMenu } from "./MarkdownBottomMenu";
-import { MarkdownBubbleMenu } from "./MarkdownBubbleMenu";
 import { MarkdownDragHandle } from "./MarkdownDragHandle";
 import { type MarkdownEditorSize } from "./MarkdownSizeControl";
 import { useFileHandler } from "./useFileHandler";
@@ -391,7 +390,6 @@ export function MarkdownPreview({
         <ScrollArea className="w-full h-full markdown-editor-scroll">
           {editable && (
             <>
-              <MarkdownBubbleMenu editor={editor} />
               <MarkdownDragHandle editor={editor} />
             </>
           )}

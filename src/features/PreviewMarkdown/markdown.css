@@ -753,3 +753,11 @@
   background-color: #1e3a8a !important;
   color: #dbeafe !important;
 }
+
+/* Ensure table cell contents always use black text color when custom background color is applied */
+.prose table th[style*="color"],
+.prose table td[style*="color"],
+.prose table th[style*="color"] *,
+.prose table td[style*="color"] * {
+  color: #000000 !important;
+}

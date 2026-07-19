@@ -32,7 +32,7 @@ import Heading from "@tiptap/extension-heading";
 import { HeadingNodeView } from "./HeadingNodeView";
 import { Table } from "@tiptap/extension-table";
 import { TableRow } from "@tiptap/extension-table-row";
-import { CustomTableCell, CustomTableHeader } from "./CustomTableExtensions";
+import { CustomTableCell, CustomTableHeader, getContrastTextColor } from "./CustomTableExtensions";
 import { TableNodeView } from "./TableNodeView";
 import { CellSelection, cellAround } from "@tiptap/pm/tables";
 import Highlight from "@tiptap/extension-highlight";
@@ -151,11 +151,20 @@ export function MarkdownPreview({
               if (cell.attrs?.rowspan && cell.attrs.rowspan > 1) {
                 attrs.push(`rowspan="${cell.attrs.rowspan}"`);
               }
+              const styleAttrs: string[] = [];
               if (cell.attrs?.backgroundColor) {
-                attrs.push(`class="${cell.attrs.backgroundColor}"`);
+                if (cell.attrs.backgroundColor.startsWith('bg-table-')) {
+                  attrs.push(`class="${cell.attrs.backgroundColor}"`);
+                } else {
+                  const textColor = getContrastTextColor(cell.attrs.backgroundColor);
+                  styleAttrs.push(`background-color: ${cell.attrs.backgroundColor}`, `color: ${textColor}`);
+                }
               }
               if (tag === 'th' && cell.attrs?.colwidth) {
-                attrs.push(`style="width:${cell.attrs.colwidth}px; min-width:${cell.attrs.colwidth}px;"`);
+                styleAttrs.push(`width:${cell.attrs.colwidth}px`, `min-width:${cell.attrs.colwidth}px`);
+              }
+              if (styleAttrs.length > 0) {
+                attrs.push(`style="${styleAttrs.join('; ')};"`);
               }
               const attrString = attrs.length > 0 ? ' ' + attrs.join(' ') : '';
               const cellContent = (cell.content || []).map(serializeBlock).join('');

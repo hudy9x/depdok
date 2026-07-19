@@ -11,17 +11,42 @@
 import { TableCell } from "@tiptap/extension-table-cell";
 import { TableHeader } from "@tiptap/extension-table-header";
 
+/**
+ * Returns text color for styled table cells.
+ * Configured to always return black ("#000000").
+ */
+export function getContrastTextColor(_bgColor?: string): "#000000" {
+  return "#000000";
+}
+
 const backgroundColorAttr = {
   backgroundColor: {
     default: null as string | null,
     parseHTML: (element: HTMLElement) => {
       const classes = element.getAttribute("class") || "";
       const match = classes.match(/\bbg-table-[a-z]+\b/);
-      return match ? match[0] : null;
+      if (match) return match[0];
+
+      const styleBg = element.style.backgroundColor;
+      if (styleBg) return styleBg;
+
+      const style = element.getAttribute("style") || "";
+      const bgMatch = style.match(/background-color:\s*([^;]+)/i);
+      if (bgMatch) return bgMatch[1].trim();
+
+      return null;
     },
     renderHTML: (attrs: Record<string, unknown>) => {
       if (!attrs.backgroundColor) return {};
-      return { class: attrs.backgroundColor };
+
+      if (typeof attrs.backgroundColor === "string" && attrs.backgroundColor.startsWith("bg-table-")) {
+        return { class: attrs.backgroundColor };
+      }
+
+      const textColor = getContrastTextColor(attrs.backgroundColor as string);
+      return {
+        style: `background-color: ${attrs.backgroundColor}; color: ${textColor};`,
+      };
     },
   },
 };

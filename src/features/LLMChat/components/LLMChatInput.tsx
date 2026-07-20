@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState, useEffect, KeyboardEvent } from "react";
 import { useAtom, useAtomValue } from "jotai";
-import { Send, Square, Paperclip, FileCode, X, Eye } from "lucide-react";
+import { Send, Square, FileCode, X, Eye } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -133,28 +133,47 @@ export function LLMChatInput({ onSend, onStop, isGenerating, disabled }: LLMChat
     setActiveIndex(0);
   }, [searchQuery, searchResults, openTabsList.length]);
 
-  const handleAttachFile = useCallback((file: { name: string; path: string }) => {
-    setTaggedFiles((prev) => {
-      if (prev.some((f) => f.path === file.path)) return prev;
-      return [...prev, file];
+  // Parse tagged files from text
+  useEffect(() => {
+    if (!workspaceRoot) return;
+    const regex = /@\[([^\]]+)\]/g;
+    const matches = Array.from(value.matchAll(regex));
+    
+    const uniquePaths = Array.from(new Set(matches.map(m => m[1])));
+    const newTaggedFiles = uniquePaths.map((pathStr) => {
+      const absPath = pathStr.startsWith("/") ? pathStr : `${workspaceRoot}/${pathStr}`;
+      const name = absPath.split("/").pop() || absPath;
+      return { name, path: absPath };
     });
+    
+    // Update if changed
+    if (newTaggedFiles.length !== taggedFiles.length || 
+        newTaggedFiles.some((f, i) => f.path !== taggedFiles[i]?.path)) {
+      setTaggedFiles(newTaggedFiles);
+    }
+  }, [value, workspaceRoot, taggedFiles, setTaggedFiles]);
 
-    // Replace the '@query' string in the input value
+  const handleAttachFile = useCallback((file: { name: string; path: string }) => {
     if (triggerIndex !== -1 && textareaRef.current) {
       const cursorPosition = textareaRef.current.selectionEnd;
       const textBefore = value.slice(0, triggerIndex);
       const textAfter = value.slice(cursorPosition);
-      const newValue = textBefore + textAfter;
+      
+      const relativePath = (workspaceRoot && file.path.startsWith(workspaceRoot + "/"))
+        ? file.path.slice(workspaceRoot.length + 1) 
+        : file.path;
+        
+      const insertText = `@[${relativePath}] `;
+      const newValue = textBefore + insertText + textAfter;
       setValue(newValue);
 
-      // Reset height
       textareaRef.current.style.height = "auto";
 
-      // Focus and position cursor
       setTimeout(() => {
         if (textareaRef.current) {
           textareaRef.current.focus();
-          textareaRef.current.setSelectionRange(triggerIndex, triggerIndex);
+          const newCursor = textBefore.length + insertText.length;
+          textareaRef.current.setSelectionRange(newCursor, newCursor);
         }
       }, 0);
     }
@@ -162,7 +181,7 @@ export function LLMChatInput({ onSend, onStop, isGenerating, disabled }: LLMChat
     setIsTagging(false);
     setSearchQuery("");
     setTriggerIndex(-1);
-  }, [value, triggerIndex, setTaggedFiles]);
+  }, [value, triggerIndex, workspaceRoot]);
 
   const handleSend = useCallback(() => {
     const text = value.trim();
@@ -238,25 +257,7 @@ export function LLMChatInput({ onSend, onStop, isGenerating, disabled }: LLMChat
     }
   };
 
-  // Programmatically trigger tagging when Paperclip button is clicked
-  const handlePaperclipClick = () => {
-    if (!textareaRef.current) return;
-    const cursor = textareaRef.current.selectionEnd;
-    const before = value.slice(0, cursor);
-    const after = value.slice(cursor);
-    const spacing = (cursor === 0 || before.endsWith(" ")) ? "" : " ";
-    const newValue = before + spacing + "@" + after;
-    setValue(newValue);
 
-    setTimeout(() => {
-      if (textareaRef.current) {
-        textareaRef.current.focus();
-        const newCursor = cursor + spacing.length + 1;
-        textareaRef.current.setSelectionRange(newCursor, newCursor);
-        checkTagging(newValue, newCursor);
-      }
-    }, 0);
-  };
 
   return (
     <div className="border-t border-border/60 p-3 flex flex-col gap-2 bg-background/50 relative">
@@ -330,44 +331,9 @@ export function LLMChatInput({ onSend, onStop, isGenerating, disabled }: LLMChat
         </div>
       )}
 
-      {/* Tagged Files Bar */}
-      {taggedFiles.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 max-h-[100px] overflow-y-auto pr-1">
-          {taggedFiles.map((file, idx) => (
-            <div
-              key={idx}
-              className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-primary/10 border border-primary/20 text-primary text-xs animate-in fade-in zoom-in-95 duration-150"
-            >
-              <FileCode className="h-3.5 w-3.5" />
-              <span className="truncate max-w-[150px] font-medium" title={file.path}>
-                {file.name}
-              </span>
-              <button
-                type="button"
-                onClick={() => setTaggedFiles((prev) => prev.filter((_, i) => i !== idx))}
-                className="hover:bg-primary/20 rounded p-0.5 transition-colors cursor-pointer text-primary/75 hover:text-primary"
-              >
-                <X className="h-3 w-3" />
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
 
       <div className="flex items-end gap-2 rounded-xl border border-border/60 bg-muted/20 px-3 py-2 focus-within:border-primary/50 transition-colors">
-        {/* Attachment button */}
-        <div className="shrink-0 pb-0.5">
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-7 w-7 rounded-lg text-muted-foreground hover:text-foreground cursor-pointer"
-            disabled={disabled}
-            onClick={handlePaperclipClick}
-            title="Tag a file (@)"
-          >
-            <Paperclip className="h-4 w-4" />
-          </Button>
-        </div>
+
 
         <textarea
           ref={textareaRef}

@@ -9,6 +9,7 @@ import { getEffectiveGitStatus, getGitStatusColor } from '@/lib/gitUtils';
 import { FileIcon } from '@/components/FileIcon';
 import { FileContextMenu } from './FileContextMenu';
 import { clipboardAtom } from './store';
+import { isUnsupportedFile } from '@/lib/fileSupport';
 
 interface FileTreeItemProps {
   node: FlatTreeNode;
@@ -118,6 +119,7 @@ function FileTreeItemName({ path, isFolder, name }: FileTreeItemNameProps) {
 
   const status = useAtomValue(statusAtom);
   const colorClass = getGitStatusColor(status);
+  const unsupported = isUnsupportedFile(path);
 
-  return <span className={cn('truncate', colorClass)}>{name}</span>;
+  return <span className={cn('truncate', colorClass, unsupported && 'text-muted-foreground/50')}>{name}</span>;
 }

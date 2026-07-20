@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { useSetAtom, useAtomValue } from "jotai";
 import { useNavigate } from "react-router-dom";
-import { open } from "@tauri-apps/plugin-dialog";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -34,31 +33,6 @@ export default function Home() {
   useEffect(() => {
     setIsVisible(true);
   }, []);
-
-  const handleOpenFile = async () => {
-    try {
-      const selected = await open({
-        multiple: false,
-        filters: [
-          {
-            name: "Documentation Files",
-            extensions: supportedFileTypes,
-          },
-        ],
-      });
-
-      if (selected && typeof selected === "string") {
-        // Add to tab store and switch to it
-        const fileName = selected.split("/").pop() || "Untitled";
-        createTab({ filePath: selected, fileName, switchTo: true });
-        // Navigate to editor
-        navigate("/editor");
-      }
-    } catch (error) {
-      console.error("Error opening file:", error);
-      toast.error("Failed to open file");
-    }
-  };
 
   const handleOpenFolder = async () => {
     try {
@@ -131,10 +105,6 @@ export default function Home() {
           <Button size="lg" variant="outline" onClick={handleOpenFolder} className="gap-2">
             <Folder className="w-5 h-5" />
             Open Folder
-          </Button>
-          <Button size="lg" variant="outline" onClick={handleOpenFile} className="gap-2">
-            <FileText className="w-5 h-5" />
-            Open File
           </Button>
         </EmptyContent>
 

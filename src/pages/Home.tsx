@@ -11,18 +11,15 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
-import { FileText, Edit3, Folder, Clock } from "lucide-react";
+import { Edit3, Folder, Clock } from "lucide-react";
 import { toast } from "sonner";
-import { createTabAtom, createUntitledTabAtom, tabsAtom } from "@/stores/TabStore";
+import { createUntitledTabAtom, tabsAtom } from "@/stores/TabStore";
 import { openWorkspaceAtom, recentFoldersAtom } from "@/features/FileExplorer/store";
 import { openFolderDialog } from "@/features/FileExplorer/api";
 import { HomeTitlebar } from "@/features/Titlebar";
 
-const supportedFileTypes = ["md", "mmd", "txt", "pu", "puml", "plantuml", "todo", "excalidraw"];
-
 export default function Home() {
   const [isVisible, setIsVisible] = useState(false);
-  const createTab = useSetAtom(createTabAtom);
   const createUntitledTab = useSetAtom(createUntitledTabAtom);
   const tabs = useAtomValue(tabsAtom);
   const navigate = useNavigate();

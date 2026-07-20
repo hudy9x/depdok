@@ -102,7 +102,8 @@ impl LlamaEngine {
         mut on_token: impl FnMut(&str) -> Result<bool, Box<dyn std::error::Error + Send + Sync>>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let ctx_params = LlamaContextParams::default()
-            .with_n_ctx(Some(NonZeroU32::new(self.config.ctx_size).unwrap()));
+            .with_n_ctx(Some(NonZeroU32::new(self.config.ctx_size).unwrap()))
+            .with_n_batch(self.config.ctx_size);
         let mut ctx = self.model.new_context(&self.backend, ctx_params)?;
         let tokens = self.model.str_to_token(prompt, AddBos::Always)?;
         let mut batch = LlamaBatch::new(tokens.len().max(512), 1);

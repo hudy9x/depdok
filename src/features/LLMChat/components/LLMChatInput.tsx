@@ -1,14 +1,24 @@
 import { useCallback, useRef, useState, useEffect, KeyboardEvent } from "react";
 import { useAtom, useAtomValue } from "jotai";
-import { Send, Square, Paperclip, FileCode, X } from "lucide-react";
+import { Send, Square, Paperclip, FileCode, X, Eye } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { tabsAtom, isDummyPath } from "@/stores/TabStore";
 import { workspaceRootAtom } from "@/features/FileExplorer/store";
 import { fuzzySearchFiles } from "@/features/FileSearchDialog/api";
 import type { SearchResult } from "@/features/FileSearchDialog/api";
+import { readFileContent } from "@/lib/fileOperations";
+import { estimateTokens } from "@/lib/tokenUtils";
 
 import { taggedFilesAtom } from "../store/LLMChatStore";
+import { buildPromptPayload } from "../lib/promptBuilder";
 
 interface LLMChatInputProps {
   onSend: (text: string) => void;
@@ -31,6 +41,44 @@ export function LLMChatInput({ onSend, onStop, isGenerating, disabled }: LLMChat
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [triggerIndex, setTriggerIndex] = useState(-1);
   const [activeIndex, setActiveIndex] = useState(0);
+
+  // Token Estimation State
+  const [fileTokens, setFileTokens] = useState(0);
+  const [previewPayload, setPreviewPayload] = useState("");
+
+  // Calculate tokens for attached files whenever they change
+  useEffect(() => {
+    let active = true;
+    const fetchFiles = async () => {
+      let totalTokens = 0;
+      for (const f of taggedFiles) {
+        try {
+          const content = await readFileContent(f.path);
+          totalTokens += estimateTokens(content);
+        } catch (err) {
+          // Ignore errors for estimation
+        }
+      }
+      if (active) {
+        setFileTokens(totalTokens);
+      }
+    };
+    fetchFiles();
+    return () => {
+      active = false;
+    };
+  }, [taggedFiles]);
+
+  const currentTokens = estimateTokens(value) + fileTokens + (taggedFiles.length > 0 ? 150 : 0);
+  const tokenColorClass = currentTokens > 4000 ? "text-destructive font-semibold" : "text-muted-foreground/80";
+
+  const handlePreviewOpen = async (open: boolean) => {
+    if (open) {
+      setPreviewPayload("Loading preview...");
+      const payload = await buildPromptPayload(value, taggedFiles);
+      setPreviewPayload(payload);
+    }
+  };
 
   // Debounced fuzzy search for workspace files when tagging
   useEffect(() => {
@@ -358,9 +406,36 @@ export function LLMChatInput({ onSend, onStop, isGenerating, disabled }: LLMChat
           )}
         </div>
       </div>
-      <p className="text-[10px] text-muted-foreground/60 mt-1 px-1">
-        Tools: read_file · write_file · list_directory · run_shell · web_search
-      </p>
+      <div className="flex justify-between items-center mt-1 px-1">
+        <p className="text-[10px] text-muted-foreground/60">
+          Tools: read_file · write_file · list_directory · run_shell · web_search
+        </p>
+        <div className="flex items-center gap-2">
+          <span className={`text-[10px] ${tokenColorClass}`} title="Estimated tokens">
+            Est. Tokens: ~{currentTokens.toLocaleString()}
+          </span>
+          <Dialog onOpenChange={handlePreviewOpen}>
+            <DialogTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-5 w-5 text-muted-foreground hover:text-foreground cursor-pointer"
+                title="Preview Prompt Payload"
+              >
+                <Eye className="h-3 w-3" />
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col p-4 sm:max-w-3xl">
+              <DialogHeader>
+                <DialogTitle>Prompt Preview</DialogTitle>
+              </DialogHeader>
+              <div className="flex-1 overflow-auto bg-muted/30 p-4 rounded-md border border-border text-xs whitespace-pre-wrap font-mono mt-2 selection:bg-primary/30">
+                {previewPayload}
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
+      </div>
     </div>
   );
 }

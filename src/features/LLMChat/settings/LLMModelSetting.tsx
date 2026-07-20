@@ -134,6 +134,15 @@ const CURATED_MODELS: CuratedModel[] = [
     description: "Gemma 4 is a new model from Google. It is a 12B parameter model trained on 270B tokens. It is a causal language model with a context window of 128k tokens.",
     hfRepo: "unsloth/gemma-4-12b-it-GGUF",
     downloadUrl: "https://huggingface.co/unsloth/gemma-4-12b-it-GGUF/resolve/main/gemma-4-12b-it-Q5_K_M.gguf?download=true"
+  },
+  {
+    name: "gemma-4-E4B-it-Q4_0",
+    filename: "gemma-4-E4B_q4_0-it.gguf",
+    quant: "Q4_0",
+    sizGb: 5.15,
+    description: "Gemma 4 is a new model from Google. It is a 4B parameter model trained on 270B tokens. It is a causal language model with a context window of 128k tokens.",
+    hfRepo: "google/gemma-4-E4B-it-qat-q4_0-gguf",
+    downloadUrl: "https://huggingface.co/google/gemma-4-E4B-it-qat-q4_0-gguf/resolve/main/gemma-4-E4B_q4_0-it.gguf"
   }
 ];
 

@@ -38,10 +38,7 @@ export function LLMChatPanel() {
   // Mount streaming lifecycle hooks
   useLlmStream();
 
-  // Auto-scroll to bottom on new messages
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  // Auto-scroll to bottom disabled per user request
 
   const handleSend = useCallback(
     async (text: string) => {

@@ -853,3 +853,20 @@
     display: flex !important;
   }
 }
+
+/* Breakpoint for Hiding Size Control and Export Button (< 429px) */
+.export-button-group {
+  display: flex;
+}
+
+@container bottomMenuContainer (max-width: 428px) {
+  .size-control-dropdown {
+    display: none !important;
+  }
+  .export-button-group {
+    display: none !important;
+  }
+  .editor-tools-divider {
+    display: none !important;
+  }
+}

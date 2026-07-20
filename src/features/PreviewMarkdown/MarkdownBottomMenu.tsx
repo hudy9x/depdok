@@ -145,7 +145,7 @@ export function MarkdownBottomMenu({
           <div className="flex items-center gap-0.5">
             <BlockButtons editor={editor} />
           </div>
-          <div className="w-[1px] h-5 bg-border mx-1 shrink-0" />
+          <div className="w-[1px] h-5 bg-border mx-1 shrink-0 editor-tools-divider" />
         </>
       )}
       <div className="size-control-expanded items-center gap-0.5 shrink-0">
@@ -162,10 +162,10 @@ export function MarkdownBottomMenu({
         />
       </div>
       {editor && (
-        <>
+        <div className="export-button-group items-center shrink-0">
           <div className="w-[1px] h-5 bg-border mx-1 shrink-0" />
           <ExportButton editor={editor} filePath={filePath} />
-        </>
+        </div>
       )}
     </div>
   );

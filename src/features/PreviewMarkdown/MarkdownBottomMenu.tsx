@@ -6,7 +6,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { exportMarkdownToHtml, exportMarkdownToPdf, revealFile } from "@/lib/fileOperations";
 
 import { BlockButtons } from "./MenuButtons";
-import { MarkdownSizeControl, type MarkdownEditorSize } from "./MarkdownSizeControl";
+import { MarkdownSizeControl, MarkdownSizeDropdown, type MarkdownEditorSize } from "./MarkdownSizeControl";
 
 interface MarkdownBottomMenuProps {
   editor: Editor | null;
@@ -148,11 +148,19 @@ export function MarkdownBottomMenu({
           <div className="w-[1px] h-5 bg-border mx-1 shrink-0" />
         </>
       )}
-      <MarkdownSizeControl
-        size={size}
-        onSizeChange={onSizeChange}
-        className="flex items-center gap-0.5 shrink-0"
-      />
+      <div className="size-control-expanded items-center gap-0.5 shrink-0">
+        <MarkdownSizeControl
+          size={size}
+          onSizeChange={onSizeChange}
+          className="flex items-center gap-0.5 shrink-0"
+        />
+      </div>
+      <div className="size-control-dropdown items-center shrink-0">
+        <MarkdownSizeDropdown
+          size={size}
+          onSizeChange={onSizeChange}
+        />
+      </div>
       {editor && (
         <>
           <div className="w-[1px] h-5 bg-border mx-1 shrink-0" />

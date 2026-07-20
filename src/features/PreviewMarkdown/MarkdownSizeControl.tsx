@@ -1,4 +1,5 @@
-import React from "react";
+import React, { useState } from "react";
+import { ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
@@ -6,6 +7,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 export type MarkdownEditorSize = "full" | "wide" | "small";
 
@@ -80,3 +82,57 @@ export function MarkdownSizeControl({ size, onSizeChange, className }: MarkdownS
     </TooltipProvider>
   );
 }
+
+/** Size control dropdown for container query collapsed view (< 859px) */
+export function MarkdownSizeDropdown({
+  size,
+  onSizeChange,
+}: {
+  size: MarkdownEditorSize;
+  onSizeChange: (size: MarkdownEditorSize) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const activeSize = sizes.find((s) => s.value === size) || sizes[0];
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          onMouseDown={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+          }}
+          className="flex items-center gap-0.5 p-2 rounded hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
+          title={`Editor size: ${activeSize.label}`}
+        >
+          {activeSize.icon}
+          <ChevronDown className="w-3 h-3 opacity-60" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="center"
+        className="w-36 p-1 flex flex-col gap-0.5 bg-popover/95 backdrop-blur-md border border-border shadow-md"
+        onCloseAutoFocus={(e: Event) => e.preventDefault()}
+      >
+        {sizes.map((s) => (
+          <button
+            key={s.value}
+            type="button"
+            onClick={() => {
+              onSizeChange(s.value);
+              setOpen(false);
+            }}
+            className={`w-full text-left px-2 py-1.5 text-xs rounded hover:bg-accent flex items-center gap-2 transition-colors ${
+              size === s.value ? "bg-accent font-medium text-accent-foreground" : "text-foreground"
+            }`}
+          >
+            {s.icon}
+            <span>{s.label}</span>
+          </button>
+        ))}
+      </PopoverContent>
+    </Popover>
+  );
+}
+

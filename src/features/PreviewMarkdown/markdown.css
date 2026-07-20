@@ -761,3 +761,95 @@
 .prose table td[style*="color"] * {
   color: #000000 !important;
 }
+
+/* ── Bottom Menu Container Query Responsive Grouping ────────────────────── */
+.bottom-menu-container {
+  container-type: inline-size;
+  container-name: bottomMenuContainer;
+}
+
+/* Default state (width >= 1060px): Expanded buttons visible, dropdowns hidden */
+.text-formatting-expanded {
+  display: flex;
+}
+.text-formatting-dropdown {
+  display: none;
+}
+
+.lists-blocks-expanded {
+  display: flex;
+}
+.lists-blocks-dropdown {
+  display: none;
+}
+
+.inserts-expanded {
+  display: flex;
+}
+.inserts-dropdown {
+  display: none;
+}
+
+/* Breakpoint 1: container width < 1060px -> group Text Formatting actions into dropdown */
+@container bottomMenuContainer (max-width: 1059px) {
+  .text-formatting-expanded {
+    display: none !important;
+  }
+  .text-formatting-dropdown {
+    display: flex !important;
+  }
+}
+
+/* Breakpoint 2: container width < 859px -> group Lists & Blocks actions into dropdown */
+@container bottomMenuContainer (max-width: 858px) {
+  .lists-blocks-expanded {
+    display: none !important;
+  }
+  .lists-blocks-dropdown {
+    display: flex !important;
+  }
+}
+
+/* Breakpoint 3: container width < 680px -> group Inserts actions into dropdown */
+@container bottomMenuContainer (max-width: 679px) {
+  .inserts-expanded {
+    display: none !important;
+  }
+  .inserts-dropdown {
+    display: flex !important;
+  }
+}
+
+/* Breakpoint 4: container width < 561px -> group Table actions into dropdown */
+.table-actions-expanded {
+  display: flex;
+}
+.table-actions-dropdown {
+  display: none;
+}
+
+@container bottomMenuContainer (max-width: 560px) {
+  .table-actions-expanded {
+    display: none !important;
+  }
+  .table-actions-dropdown {
+    display: flex !important;
+  }
+}
+
+/* Breakpoint for Markdown Size Control (< 859px) */
+.size-control-expanded {
+  display: flex;
+}
+.size-control-dropdown {
+  display: none;
+}
+
+@container bottomMenuContainer (max-width: 858px) {
+  .size-control-expanded {
+    display: none !important;
+  }
+  .size-control-dropdown {
+    display: flex !important;
+  }
+}

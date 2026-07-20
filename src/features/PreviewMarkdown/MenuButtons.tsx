@@ -16,11 +16,12 @@ import {
   List,
   ListOrdered,
   LoaderCircle,
+  Plus,
   Strikethrough,
   Subscript,
   Superscript,
   Table as TableIcon,
-  Trash,
+  Type,
   Unlink,
 } from "lucide-react";
 import { RiDoubleQuotesL } from "react-icons/ri";
@@ -57,9 +58,8 @@ function MenuButton({ onClick, isActive, title, icon, disabled }: MenuButtonProp
     <button
       onClick={onClick}
       disabled={disabled}
-      className={`p-2 rounded hover:bg-accent transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
-        isActive ? "bg-accent text-accent-foreground font-medium" : "text-muted-foreground hover:text-foreground"
-      }`}
+      className={`p-2 rounded hover:bg-accent transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${isActive ? "bg-accent text-accent-foreground font-medium" : "text-muted-foreground hover:text-foreground"
+        }`}
       title={title}
       type="button"
     >
@@ -95,9 +95,8 @@ function HeadingDropdown({ editor }: { editor: Editor }) {
             e.stopPropagation();
             e.preventDefault();
           }}
-          className={`flex items-center gap-0.5 p-2 rounded hover:bg-accent transition-colors ${
-            isHeadingActive ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:text-foreground"
-          }`}
+          className={`flex items-center gap-0.5 p-2 rounded hover:bg-accent transition-colors ${isHeadingActive ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:text-foreground"
+            }`}
           title="Heading options"
         >
           <ActiveIcon className="w-4 h-4" />
@@ -115,9 +114,8 @@ function HeadingDropdown({ editor }: { editor: Editor }) {
             editor.chain().focus().toggleHeading({ level: 1 }).run();
             setOpen(false);
           }}
-          className={`w-full text-left px-2 py-1.5 text-xs rounded hover:bg-accent flex items-center gap-2 transition-colors ${
-            editor.isActive("heading", { level: 1 }) ? "bg-accent font-medium text-accent-foreground" : "text-foreground"
-          }`}
+          className={`w-full text-left px-2 py-1.5 text-xs rounded hover:bg-accent flex items-center gap-2 transition-colors ${editor.isActive("heading", { level: 1 }) ? "bg-accent font-medium text-accent-foreground" : "text-foreground"
+            }`}
         >
           <Heading1 className="w-3.5 h-3.5" />
           <span>Heading 1</span>
@@ -128,9 +126,8 @@ function HeadingDropdown({ editor }: { editor: Editor }) {
             editor.chain().focus().toggleHeading({ level: 2 }).run();
             setOpen(false);
           }}
-          className={`w-full text-left px-2 py-1.5 text-xs rounded hover:bg-accent flex items-center gap-2 transition-colors ${
-            editor.isActive("heading", { level: 2 }) ? "bg-accent font-medium text-accent-foreground" : "text-foreground"
-          }`}
+          className={`w-full text-left px-2 py-1.5 text-xs rounded hover:bg-accent flex items-center gap-2 transition-colors ${editor.isActive("heading", { level: 2 }) ? "bg-accent font-medium text-accent-foreground" : "text-foreground"
+            }`}
         >
           <Heading2 className="w-3.5 h-3.5" />
           <span>Heading 2</span>
@@ -141,9 +138,8 @@ function HeadingDropdown({ editor }: { editor: Editor }) {
             editor.chain().focus().toggleHeading({ level: 3 }).run();
             setOpen(false);
           }}
-          className={`w-full text-left px-2 py-1.5 text-xs rounded hover:bg-accent flex items-center gap-2 transition-colors ${
-            editor.isActive("heading", { level: 3 }) ? "bg-accent font-medium text-accent-foreground" : "text-foreground"
-          }`}
+          className={`w-full text-left px-2 py-1.5 text-xs rounded hover:bg-accent flex items-center gap-2 transition-colors ${editor.isActive("heading", { level: 3 }) ? "bg-accent font-medium text-accent-foreground" : "text-foreground"
+            }`}
         >
           <Heading3 className="w-3.5 h-3.5" />
           <span>Heading 3</span>
@@ -154,9 +150,8 @@ function HeadingDropdown({ editor }: { editor: Editor }) {
             editor.chain().focus().toggleHeading({ level: 4 }).run();
             setOpen(false);
           }}
-          className={`w-full text-left px-2 py-1.5 text-xs rounded hover:bg-accent flex items-center gap-2 transition-colors ${
-            editor.isActive("heading", { level: 4 }) ? "bg-accent font-medium text-accent-foreground" : "text-foreground"
-          }`}
+          className={`w-full text-left px-2 py-1.5 text-xs rounded hover:bg-accent flex items-center gap-2 transition-colors ${editor.isActive("heading", { level: 4 }) ? "bg-accent font-medium text-accent-foreground" : "text-foreground"
+            }`}
         >
           <Heading4 className="w-3.5 h-3.5" />
           <span>Heading 4</span>
@@ -200,13 +195,12 @@ function LinkButton({ editor }: { editor: Editor }) {
       <PopoverTrigger asChild>
         <button
           onClick={openPopover}
-          className={`p-2 rounded hover:bg-accent transition-colors ${
-            isActive ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:text-foreground"
-          }`}
+          className={` rounded hover:bg-accent transition-colors ${isActive ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:text-foreground"
+            }`}
           title="Link"
           type="button"
         >
-          <Link className="w-4 h-4" />
+          <Link className="w-3.5 h-3.5" />
         </button>
       </PopoverTrigger>
       <PopoverContent className="w-72 p-3" align="start">
@@ -350,6 +344,336 @@ function AiActionsButton({
   );
 }
 
+/** Text formatting dropdown for container query collapsed view (< 1060px) */
+function TextFormattingDropdown({ editor }: { editor: Editor }) {
+  const [open, setOpen] = useState(false);
+
+  const isAnyActive =
+    editor.isActive("bold") ||
+    editor.isActive("italic") ||
+    editor.isActive("strike") ||
+    editor.isActive("code") ||
+    editor.isActive("highlight") ||
+    editor.isActive("subscript") ||
+    editor.isActive("superscript");
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          onMouseDown={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+          }}
+          className={`flex items-center gap-0.5 p-2 rounded hover:bg-accent transition-colors ${isAnyActive ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:text-foreground"
+            }`}
+          title="Text formatting"
+        >
+          <Type className="w-4 h-4" />
+          <ChevronDown className="w-3 h-3 opacity-60" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="start"
+        className="w-44 p-1 flex flex-col gap-0.5 bg-popover/95 backdrop-blur-md border border-border shadow-md"
+        onCloseAutoFocus={(e: Event) => e.preventDefault()}
+      >
+        <button
+          type="button"
+          onClick={() => {
+            editor.chain().focus().toggleBold().run();
+            setOpen(false);
+          }}
+          className={`w-full text-left px-2 py-1.5 text-xs rounded hover:bg-accent flex items-center gap-2 transition-colors ${editor.isActive("bold") ? "bg-accent font-medium text-accent-foreground" : "text-foreground"
+            }`}
+        >
+          <Bold className="w-3.5 h-3.5" />
+          <span>Bold</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            editor.chain().focus().toggleItalic().run();
+            setOpen(false);
+          }}
+          className={`w-full text-left px-2 py-1.5 text-xs rounded hover:bg-accent flex items-center gap-2 transition-colors ${editor.isActive("italic") ? "bg-accent font-medium text-accent-foreground" : "text-foreground"
+            }`}
+        >
+          <Italic className="w-3.5 h-3.5" />
+          <span>Italic</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            editor.chain().focus().toggleStrike().run();
+            setOpen(false);
+          }}
+          className={`w-full text-left px-2 py-1.5 text-xs rounded hover:bg-accent flex items-center gap-2 transition-colors ${editor.isActive("strike") ? "bg-accent font-medium text-accent-foreground" : "text-foreground"
+            }`}
+        >
+          <Strikethrough className="w-3.5 h-3.5" />
+          <span>Strikethrough</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            editor.chain().focus().toggleCode().run();
+            setOpen(false);
+          }}
+          className={`w-full text-left px-2 py-1.5 text-xs rounded hover:bg-accent flex items-center gap-2 transition-colors ${editor.isActive("code") ? "bg-accent font-medium text-accent-foreground" : "text-foreground"
+            }`}
+        >
+          <Code className="w-3.5 h-3.5" />
+          <span>Inline Code</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            editor.chain().focus().toggleHighlight().run();
+            setOpen(false);
+          }}
+          className={`w-full text-left px-2 py-1.5 text-xs rounded hover:bg-accent flex items-center gap-2 transition-colors ${editor.isActive("highlight") ? "bg-accent font-medium text-accent-foreground" : "text-foreground"
+            }`}
+        >
+          <Highlighter className="w-3.5 h-3.5" />
+          <span>Highlight</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            editor.chain().focus().toggleSubscript().run();
+            setOpen(false);
+          }}
+          className={`w-full text-left px-2 py-1.5 text-xs rounded hover:bg-accent flex items-center gap-2 transition-colors ${editor.isActive("subscript") ? "bg-accent font-medium text-accent-foreground" : "text-foreground"
+            }`}
+        >
+          <Subscript className="w-3.5 h-3.5" />
+          <span>Subscript</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            editor.chain().focus().toggleSuperscript().run();
+            setOpen(false);
+          }}
+          className={`w-full text-left px-2 py-1.5 text-xs rounded hover:bg-accent flex items-center gap-2 transition-colors ${editor.isActive("superscript") ? "bg-accent font-medium text-accent-foreground" : "text-foreground"
+            }`}
+        >
+          <Superscript className="w-3.5 h-3.5" />
+          <span>Superscript</span>
+        </button>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+/** Lists & blocks dropdown for container query collapsed view (< 859px) */
+function ListsBlocksDropdown({ editor }: { editor: Editor }) {
+  const [open, setOpen] = useState(false);
+
+  const isAnyActive =
+    editor.isActive("bulletList") ||
+    editor.isActive("orderedList") ||
+    editor.isActive("blockquote") ||
+    editor.isActive("codeBlock");
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          onMouseDown={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+          }}
+          className={`flex items-center gap-0.5 p-2 rounded hover:bg-accent transition-colors ${isAnyActive ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:text-foreground"
+            }`}
+          title="Lists & blocks"
+        >
+          <List className="w-4 h-4" />
+          <ChevronDown className="w-3 h-3 opacity-60" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="start"
+        className="w-40 p-1 flex flex-col gap-0.5 bg-popover/95 backdrop-blur-md border border-border shadow-md"
+        onCloseAutoFocus={(e: Event) => e.preventDefault()}
+      >
+        <button
+          type="button"
+          onClick={() => {
+            editor.chain().focus().toggleBulletList().run();
+            setOpen(false);
+          }}
+          className={`w-full text-left px-2 py-1.5 text-xs rounded hover:bg-accent flex items-center gap-2 transition-colors ${editor.isActive("bulletList") ? "bg-accent font-medium text-accent-foreground" : "text-foreground"
+            }`}
+        >
+          <List className="w-3.5 h-3.5" />
+          <span>Bullet List</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            editor.chain().focus().toggleOrderedList().run();
+            setOpen(false);
+          }}
+          className={`w-full text-left px-2 py-1.5 text-xs rounded hover:bg-accent flex items-center gap-2 transition-colors ${editor.isActive("orderedList") ? "bg-accent font-medium text-accent-foreground" : "text-foreground"
+            }`}
+        >
+          <ListOrdered className="w-3.5 h-3.5" />
+          <span>Ordered List</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            editor.chain().focus().toggleBlockquote().run();
+            setOpen(false);
+          }}
+          className={`w-full text-left px-2 py-1.5 text-xs rounded hover:bg-accent flex items-center gap-2 transition-colors ${editor.isActive("blockquote") ? "bg-accent font-medium text-accent-foreground" : "text-foreground"
+            }`}
+        >
+          <RiDoubleQuotesL className="w-3.5 h-3.5" />
+          <span>Quote</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            editor.chain().focus().toggleCodeBlock().run();
+            setOpen(false);
+          }}
+          className={`w-full text-left px-2 py-1.5 text-xs rounded hover:bg-accent flex items-center gap-2 transition-colors ${editor.isActive("codeBlock") ? "bg-accent font-medium text-accent-foreground" : "text-foreground"
+            }`}
+        >
+          <FileCode className="w-3.5 h-3.5" />
+          <span>Code Block</span>
+        </button>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+/** Inserts dropdown for container query collapsed view (< 680px) */
+function InsertsDropdown({ editor }: { editor: Editor }) {
+  const [open, setOpen] = useState(false);
+  const [imagePopoverOpen, setImagePopoverOpen] = useState(false);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          onMouseDown={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+          }}
+          className="flex items-center gap-0.5 p-2 rounded hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
+          title="Insert elements"
+        >
+          <Plus className="w-4 h-4" />
+          <ChevronDown className="w-3 h-3 opacity-60" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="start"
+        className="w-44 p-1 flex flex-col gap-0.5 bg-popover/95 backdrop-blur-md border border-border shadow-md"
+        onCloseAutoFocus={(e: Event) => e.preventDefault()}
+      >
+        <button
+          type="button"
+          onClick={() => {
+            editor
+              .chain()
+              .focus()
+              .insertContent(
+                `
+| Heading 1     | Heading 2              |
+| ------------- | ---------------------- |
+| Content 1     | Content 2              |
+        `,
+                { contentType: "markdown" }
+              )
+              .run();
+            setOpen(false);
+          }}
+          className="w-full text-left px-2 py-1.5 text-xs rounded hover:bg-accent flex items-center gap-2 transition-colors text-foreground"
+        >
+          <TableIcon className="w-3.5 h-3.5" />
+          <span>Insert Table</span>
+        </button>
+
+        <Popover open={imagePopoverOpen} onOpenChange={setImagePopoverOpen}>
+          <PopoverTrigger asChild>
+            <button
+              type="button"
+              className="w-full text-left px-2 py-1.5 text-xs rounded hover:bg-accent flex items-center gap-2 transition-colors text-foreground"
+            >
+              <Image className="w-3.5 h-3.5" />
+              <span>Insert Image</span>
+            </button>
+          </PopoverTrigger>
+          <PopoverContent className="w-64" align="start">
+            <div className="space-y-2">
+              <p className="text-sm font-medium">Insert Image</p>
+              <p className="text-xs text-muted-foreground">
+                To add an image, copy and paste it or drag and drop it to the cursor position.
+              </p>
+            </div>
+          </PopoverContent>
+        </Popover>
+
+        <div className="w-full text-left px-2 py-1.5 text-xs rounded hover:bg-accent flex items-center gap-2 transition-colors text-foreground">
+          <LinkButton editor={editor} />
+          <span>Insert Link</span>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+/** Table actions dropdown for container query collapsed view (< 561px) */
+function TableActionsDropdown({ editor, disabled }: { editor: Editor; disabled: boolean }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <Popover open={disabled ? false : open} onOpenChange={(nextOpen) => !disabled && setOpen(nextOpen)}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          disabled={disabled}
+          onMouseDown={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+          }}
+          className="flex items-center gap-0.5 p-2 rounded hover:bg-accent transition-colors disabled:opacity-30 disabled:cursor-not-allowed text-muted-foreground hover:text-foreground"
+          title="Table actions"
+        >
+          <TableIcon className="w-4 h-4" />
+          <ChevronDown className="w-3 h-3 opacity-60" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="start"
+        className="w-44 p-1.5 flex flex-col gap-1 bg-popover/95 backdrop-blur-md border border-border shadow-md"
+        onCloseAutoFocus={(e: Event) => e.preventDefault()}
+      >
+        <div className="flex items-center justify-between px-2 py-1 text-xs text-foreground">
+          <span>Cell Color</span>
+          <TableCellColorPicker editor={editor} disabled={disabled} />
+        </div>
+        <div className="flex items-center justify-between px-2 py-1 text-xs text-foreground">
+          <span>Merge Cells</span>
+          <TableCellMergeButton editor={editor} disabled={disabled} />
+        </div>
+        <div className="flex items-center justify-between px-2 py-1 text-xs text-foreground">
+          <span>Split Cell</span>
+          <TableCellSplitButton editor={editor} disabled={disabled} />
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 /** Categorized Editor Menu Buttons */
 export function CategorizedMenuButtons({ editor }: { editor: Editor }) {
   useEditorState({
@@ -368,143 +692,162 @@ export function CategorizedMenuButtons({ editor }: { editor: Editor }) {
       <div className="w-[1px] h-4 bg-border mx-1 shrink-0" />
 
       {/* Category 2: Text Formatting (Inline) */}
-      <MenuButton
-        onClick={() => editor.chain().focus().toggleBold().run()}
-        isActive={editor.isActive("bold")}
-        title="Bold"
-        icon={<Bold className="w-4 h-4" />}
-      />
-      <MenuButton
-        onClick={() => editor.chain().focus().toggleItalic().run()}
-        isActive={editor.isActive("italic")}
-        title="Italic"
-        icon={<Italic className="w-4 h-4" />}
-      />
-      <MenuButton
-        onClick={() => editor.chain().focus().toggleStrike().run()}
-        isActive={editor.isActive("strike")}
-        title="Strikethrough"
-        icon={<Strikethrough className="w-4 h-4" />}
-      />
-      <MenuButton
-        onClick={() => editor.chain().focus().toggleCode().run()}
-        isActive={editor.isActive("code")}
-        title="Code"
-        icon={<Code className="w-4 h-4" />}
-      />
-      <MenuButton
-        onClick={() => editor.chain().focus().toggleHighlight().run()}
-        isActive={editor.isActive("highlight")}
-        title="Highlight"
-        icon={<Highlighter className="w-4 h-4" />}
-      />
-      <MenuButton
-        onClick={() => editor.chain().focus().toggleSubscript().run()}
-        isActive={editor.isActive("subscript")}
-        title="Subscript"
-        icon={<Subscript className="w-4 h-4" />}
-      />
-      <MenuButton
-        onClick={() => editor.chain().focus().toggleSuperscript().run()}
-        isActive={editor.isActive("superscript")}
-        title="Superscript"
-        icon={<Superscript className="w-4 h-4" />}
-      />
+      {/* Expanded view for width >= 1060px */}
+      <div className="text-formatting-expanded items-center gap-0.5">
+        <AiActionsButton editor={editor} />
+        <MenuButton
+          onClick={() => editor.chain().focus().toggleBold().run()}
+          isActive={editor.isActive("bold")}
+          title="Bold"
+          icon={<Bold className="w-4 h-4" />}
+        />
+        <MenuButton
+          onClick={() => editor.chain().focus().toggleItalic().run()}
+          isActive={editor.isActive("italic")}
+          title="Italic"
+          icon={<Italic className="w-4 h-4" />}
+        />
+        <MenuButton
+          onClick={() => editor.chain().focus().toggleStrike().run()}
+          isActive={editor.isActive("strike")}
+          title="Strikethrough"
+          icon={<Strikethrough className="w-4 h-4" />}
+        />
+        <MenuButton
+          onClick={() => editor.chain().focus().toggleCode().run()}
+          isActive={editor.isActive("code")}
+          title="Code"
+          icon={<Code className="w-4 h-4" />}
+        />
+        <MenuButton
+          onClick={() => editor.chain().focus().toggleHighlight().run()}
+          isActive={editor.isActive("highlight")}
+          title="Highlight"
+          icon={<Highlighter className="w-4 h-4" />}
+        />
+        <MenuButton
+          onClick={() => editor.chain().focus().toggleSubscript().run()}
+          isActive={editor.isActive("subscript")}
+          title="Subscript"
+          icon={<Subscript className="w-4 h-4" />}
+        />
+        <MenuButton
+          onClick={() => editor.chain().focus().toggleSuperscript().run()}
+          isActive={editor.isActive("superscript")}
+          title="Superscript"
+          icon={<Superscript className="w-4 h-4" />}
+        />
+      </div>
+      {/* Collapsed dropdown view for width < 1060px */}
+      <div className="text-formatting-dropdown items-center gap-0.5">
+        <AiActionsButton editor={editor} />
+        <TextFormattingDropdown editor={editor} />
+      </div>
 
       <div className="w-[1px] h-4 bg-border mx-1 shrink-0" />
 
       {/* Category 3: Lists & Blocks */}
-      <MenuButton
-        onClick={() => editor.chain().focus().toggleBulletList().run()}
-        isActive={editor.isActive("bulletList")}
-        title="Bullet List"
-        icon={<List className="w-4 h-4" />}
-      />
-      <MenuButton
-        onClick={() => editor.chain().focus().toggleOrderedList().run()}
-        isActive={editor.isActive("orderedList")}
-        title="Ordered List"
-        icon={<ListOrdered className="w-4 h-4" />}
-      />
-      <MenuButton
-        onClick={() => editor.chain().focus().toggleBlockquote().run()}
-        isActive={editor.isActive("blockquote")}
-        title="Quote"
-        icon={<RiDoubleQuotesL className="w-4 h-4" />}
-      />
-      <MenuButton
-        onClick={() => editor.chain().focus().toggleCodeBlock().run()}
-        isActive={editor.isActive("codeBlock")}
-        title="Code Block"
-        icon={<FileCode className="w-4 h-4" />}
-      />
+      {/* Expanded view for width >= 859px */}
+      <div className="lists-blocks-expanded items-center gap-0.5">
+        <MenuButton
+          onClick={() => editor.chain().focus().toggleBulletList().run()}
+          isActive={editor.isActive("bulletList")}
+          title="Bullet List"
+          icon={<List className="w-4 h-4" />}
+        />
+        <MenuButton
+          onClick={() => editor.chain().focus().toggleOrderedList().run()}
+          isActive={editor.isActive("orderedList")}
+          title="Ordered List"
+          icon={<ListOrdered className="w-4 h-4" />}
+        />
+        <MenuButton
+          onClick={() => editor.chain().focus().toggleBlockquote().run()}
+          isActive={editor.isActive("blockquote")}
+          title="Quote"
+          icon={<RiDoubleQuotesL className="w-4 h-4" />}
+        />
+        <MenuButton
+          onClick={() => editor.chain().focus().toggleCodeBlock().run()}
+          isActive={editor.isActive("codeBlock")}
+          title="Code Block"
+          icon={<FileCode className="w-4 h-4" />}
+        />
+      </div>
+      {/* Collapsed dropdown view for width < 859px */}
+      <div className="lists-blocks-dropdown items-center">
+        <ListsBlocksDropdown editor={editor} />
+      </div>
 
       <div className="w-[1px] h-4 bg-border mx-1 shrink-0" />
 
       {/* Category 4: Inserts */}
-      <MenuButton
-        onClick={() =>
-          editor
-            .chain()
-            .focus()
-            .insertContent(
-              `
+      {/* Expanded view for width >= 680px */}
+      <div className="inserts-expanded items-center gap-0.5">
+        <MenuButton
+          onClick={() =>
+            editor
+              .chain()
+              .focus()
+              .insertContent(
+                `
 | Heading 1     | Heading 2              |
 | ------------- | ---------------------- |
 | Content 1     | Content 2              |
         `,
-              { contentType: "markdown" }
-            )
-            .run()
-        }
-        isActive={editor.isActive("table")}
-        title="Insert Table"
-        icon={<TableIcon className="w-4 h-4" />}
-      />
-      <Popover open={imagePopoverOpen} onOpenChange={setImagePopoverOpen}>
-        <PopoverTrigger asChild>
-          <button
-            className="p-2 rounded hover:bg-accent transition-colors text-muted-foreground hover:text-foreground flex items-center justify-center"
-            title="Insert Image"
-            type="button"
-          >
-            <Image className="w-4 h-4" />
-          </button>
-        </PopoverTrigger>
-        <PopoverContent className="w-64">
-          <div className="space-y-2">
-            <p className="text-sm font-medium">Insert Image</p>
-            <p className="text-xs text-muted-foreground">
-              To add an image, copy and paste it or drag and drop it to the cursor position.
-            </p>
-          </div>
-        </PopoverContent>
-      </Popover>
-      <LinkButton editor={editor} />
+                { contentType: "markdown" }
+              )
+              .run()
+          }
+          isActive={editor.isActive("table")}
+          title="Insert Table"
+          icon={<TableIcon className="w-4 h-4" />}
+        />
+        <Popover open={imagePopoverOpen} onOpenChange={setImagePopoverOpen}>
+          <PopoverTrigger asChild>
+            <button
+              className="p-2 rounded hover:bg-accent transition-colors text-muted-foreground hover:text-foreground flex items-center justify-center"
+              title="Insert Image"
+              type="button"
+            >
+              <Image className="w-4 h-4" />
+            </button>
+          </PopoverTrigger>
+          <PopoverContent className="w-64">
+            <div className="space-y-2">
+              <p className="text-sm font-medium">Insert Image</p>
+              <p className="text-xs text-muted-foreground">
+                To add an image, copy and paste it or drag and drop it to the cursor position.
+              </p>
+            </div>
+          </PopoverContent>
+        </Popover>
+        <LinkButton editor={editor} />
+      </div>
+      {/* Collapsed dropdown view for width < 680px */}
+      <div className="inserts-dropdown items-center">
+        <InsertsDropdown editor={editor} />
+      </div>
 
       <div className="w-[1px] h-4 bg-border mx-1 shrink-0" />
 
       {/* Category 5: Table Actions (only active when editor.isActive('table') === true) */}
-      <TableCellColorPicker editor={editor} disabled={!isTableActive} />
-      <TableCellMergeButton editor={editor} disabled={!isTableActive} />
-      <TableCellSplitButton editor={editor} disabled={!isTableActive} />
-
-      <div className="w-[1px] h-4 bg-border mx-1 shrink-0" />
-
-      {/* Category 6: AI & Node Actions */}
-      <AiActionsButton editor={editor} />
-      <MenuButton
-        onClick={() => {
-          const { $from } = editor.state.selection;
-          editor.commands.deleteNode($from.parent.type.name);
-        }}
-        isActive={false}
-        title="Delete Node"
-        icon={<Trash className="w-4 h-4" />}
-      />
+      {/* Expanded view for width >= 561px */}
+      <div className="table-actions-expanded items-center gap-0.5">
+        <TableCellColorPicker editor={editor} disabled={!isTableActive} />
+        <TableCellMergeButton editor={editor} disabled={!isTableActive} />
+        <TableCellSplitButton editor={editor} disabled={!isTableActive} />
+      </div>
+      {/* Collapsed dropdown view for width < 561px */}
+      <div className="table-actions-dropdown items-center">
+        <TableActionsDropdown editor={editor} disabled={!isTableActive} />
+      </div>
     </div>
   );
 }
 
 // Retain BlockButtons export as alias for backward compatibility
 export const BlockButtons = CategorizedMenuButtons;
+
+
+

@@ -1,3 +1,4 @@
+import { ExportContextMenuItem } from '@/features/PreviewMarkdown/ExportContextMenuItem';
 import { useState } from 'react';
 import { useSetAtom } from 'jotai';
 import { writeText } from '@tauri-apps/plugin-clipboard-manager';
@@ -124,6 +125,7 @@ export function TabContextMenu({ tab, paneId, children }: TabContextMenuProps) {
             <FileSearch className="mr-2 h-4 w-4" />
             Reveal in Explorer
           </ContextMenuItem>
+          <ExportContextMenuItem filePath={tab.filePath} />
           <ContextMenuSeparator />
           <ContextMenuItem onClick={handleCopyFilename}>
             <FileText className="mr-2 h-4 w-4" />

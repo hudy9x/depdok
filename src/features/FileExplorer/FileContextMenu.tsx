@@ -1,3 +1,4 @@
+import { ExportContextMenuItem } from '@/features/PreviewMarkdown/ExportContextMenuItem';
 import {
   ContextMenu,
   ContextMenuContent,
@@ -184,6 +185,7 @@ export function FileContextMenu({ path, isFolder, children }: FileContextMenuPro
           <Copy className="mr-2 h-4 w-4" />
           Duplicate File
         </ContextMenuItem>
+        <ExportContextMenuItem filePath={path} />
         <ContextMenuItem onClick={handleReveal}>
           <ExternalLink className="mr-2 h-4 w-4" />
           Reveal in Folder

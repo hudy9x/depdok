@@ -44,7 +44,7 @@ unsafe fn sel(name: &std::ffi::CStr) -> Sel {
 /// to avoid the "non-primitive cast" error on the function item directly.
 macro_rules! objc_msg_send_fn {
     ($ty:ty) => {{
-        let raw: usize = objc2::ffi::objc_msgSend as usize;
+        let raw: usize = objc2::ffi::objc_msgSend as *const () as usize;
         std::mem::transmute::<usize, $ty>(raw)
     }};
 }

@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState, useEffect, KeyboardEvent } from "react";
 import { useAtom, useAtomValue } from "jotai";
-import { Send, Square, FileCode, X, Eye } from "lucide-react";
+import { Send, Square, FileCode, Eye } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {

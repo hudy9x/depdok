@@ -126,6 +126,7 @@ pub fn delete_model(app: &AppHandle, filename: &str) -> Result<(), String> {
     Ok(())
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize)]
 pub struct DownloadProgress {
     pub progress: f64, // 0.0 - 100.0

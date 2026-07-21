@@ -13,6 +13,7 @@ pub struct ChatMessage {
     pub tool_call_id: Option<String>, // for tool role
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ToolCallEvent {
     pub name: String,

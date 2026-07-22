@@ -105,6 +105,10 @@ This repository includes a semantic knowledge base, support for local & remote e
 - **Depdok MCP Server**: Exposes tools for other AI agents to interact with the workspace and the knowledge base. Run configurations, setup, and tools documentation is at [docs/knowledge-base/mcp-agent-guide.md](file:///Users/hudy/ws/depdok/docs/knowledge-base/mcp-agent-guide.md).
 - **LLM & Native AI Chat Integration**: Implements local GGUF models (`llama.cpp`), remote API clients, global state coordination, recursive agentic tool calls, and UI chat panel. Complete architecture and guide is at [docs/llm-integration.md](file:///Users/hudy/ws/depdok/docs/llm-integration.md).
 
+## Markdown Comments & Tiptap Extension
+Depdok supports inline Markdown comments using custom Tiptap mark extensions and invisible HTML comment blocks:
+- **Markdown Comments Architecture & Guide**: Details on inline `<span data-comment-id>` anchor marks, invisible JSON comment thread blocks (`<!-- DEPDOK_COMMENT_<id>: {...} -->`), Jotai state management in `src/stores/commentStore.ts`, parser utilities in `src/lib/commentParser.ts`, bottom menu controls, and sidebar drawer components are documented in [docs/markdown-comments.md](file:///Users/hudy/ws/depdok/docs/markdown-comments.md).
+
 ## Tooling rules
 - Cursor / Copilot rules: no `.cursor` or `.cursorrules` and no `.github/copilot-instructions.md` were found in repo — none to enforce.
 

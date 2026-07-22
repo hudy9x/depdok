@@ -1,4 +1,4 @@
-import { type CommentThread } from '@/stores/commentStore';
+import { type CommentThread } from './commentStore';
 
 const COMMENT_PREFIX = 'DEPDOK_COMMENT_';
 
@@ -6,6 +6,7 @@ const COMMENT_PREFIX = 'DEPDOK_COMMENT_';
  * Extract comment threads from the bottom of a markdown string.
  * Comments are stored as HTML comment blocks: <!-- DEPDOK_COMMENT_<id>: {...} -->
  * Returns the cleaned markdown (without comment blocks) and the parsed threads.
+ * For resolved comment threads, inline <span data-comment-id="..."> marks are unwrapped to plain text.
  */
 export function extractComments(markdown: string): {
   cleanMarkdown: string;
@@ -25,10 +26,22 @@ export function extractComments(markdown: string): {
   }
 
   // Remove all comment blocks from the markdown
-  const cleanMarkdown = markdown
+  let cleanMarkdown = markdown
     .replace(commentRegex, '')
     .replace(/\n{3,}$/g, '\n')
     .trimEnd();
+
+  // Unwrap span tags for any resolved comments (<span data-comment-id="id">text</span> -> text)
+  threads.forEach((thread) => {
+    if (thread.resolved) {
+      const safeId = thread.id.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
+      const resolvedSpanRegex = new RegExp(
+        `<span\\s+data-comment-id="${safeId}">([\\s\\S]*?)<\\/span>`,
+        'g'
+      );
+      cleanMarkdown = cleanMarkdown.replace(resolvedSpanRegex, '$1');
+    }
+  });
 
   return { cleanMarkdown, threads };
 }

@@ -1,7 +1,7 @@
 import { useRef, useState, useEffect } from "react";
 import { Editor, useEditorState } from "@tiptap/react";
 import { MessageSquare, MessageSquarePlus } from "lucide-react";
-import { useAtom, useSetAtom } from "jotai";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
 
 import { BlockButtons } from "./MenuButtons";
 import { MarkdownSizeControl, MarkdownSizeDropdown, type MarkdownEditorSize } from "./MarkdownSizeControl";
@@ -10,8 +10,10 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import {
   addCommentThreadAtom,
   commentSidebarVisibleAtom,
-} from "@/stores/commentStore";
-import { generateCommentId } from "@/lib/commentParser";
+  commentThreadsAtom,
+  generateCommentId,
+  useCommentAuthor,
+} from "./extensions/comment";
 
 interface MarkdownBottomMenuProps {
   editor: Editor | null;
@@ -25,9 +27,9 @@ interface MarkdownBottomMenuProps {
 function AddCommentButton({ editor }: { editor: Editor }) {
   const [open, setOpen] = useState(false);
   const [commentText, setCommentText] = useState("");
+  const [author, setAuthor] = useCommentAuthor();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const addThread = useSetAtom(addCommentThreadAtom);
-  const setSidebarVisible = useSetAtom(commentSidebarVisibleAtom);
 
   // Re-render when selection changes so the disabled state is reactive
   useEditorState({
@@ -50,19 +52,21 @@ function AddCommentButton({ editor }: { editor: Editor }) {
   const handleSubmit = () => {
     if (!commentText.trim()) return;
 
+    const finalAuthor = author.trim() || "Me";
+    setAuthor(finalAuthor);
+
     const id = generateCommentId();
     editor.chain().focus().setCommentMark(id).run();
 
     addThread({
       id,
       text: commentText.trim(),
-      author: "Me",
+      author: finalAuthor,
       createdAt: new Date().toISOString(),
       resolved: false,
       replies: [],
     });
 
-    setSidebarVisible(true);
     setCommentText("");
     setOpen(false);
   };
@@ -109,7 +113,19 @@ function AddCommentButton({ editor }: { editor: Editor }) {
         className="w-72 p-3 flex flex-col gap-2"
         onCloseAutoFocus={(e) => e.preventDefault()}
       >
-        <p className="text-xs font-semibold text-foreground">Add comment</p>
+        <div className="flex items-center justify-between gap-1">
+          <p className="text-xs font-semibold text-foreground">Add comment</p>
+          <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+            <span>Posting as:</span>
+            <input
+              type="text"
+              value={author}
+              onChange={(e) => setAuthor(e.target.value)}
+              placeholder="Your name"
+              className="px-1.5 py-0.5 rounded border border-border bg-background text-foreground text-[10px] w-24 focus:outline-none focus:ring-1 focus:ring-ring"
+            />
+          </div>
+        </div>
         <textarea
           ref={textareaRef}
           value={commentText}
@@ -152,6 +168,8 @@ export function MarkdownBottomMenu({
   filePath,
 }: MarkdownBottomMenuProps) {
   const [isSidebarVisible, setSidebarVisible] = useAtom(commentSidebarVisibleAtom);
+  const commentThreads = useAtomValue(commentThreadsAtom);
+  const openCommentCount = commentThreads.filter((t) => !t.resolved).length;
 
   return (
     <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 rounded-full border border-border bg-background/85 backdrop-blur-md px-2.5 py-1 shadow-lg max-w-[95vw] select-none overflow-x-auto">
@@ -186,21 +204,29 @@ export function MarkdownBottomMenu({
         <>
           <div className="w-[1px] h-5 bg-border mx-1 shrink-0" />
           <AddCommentButton editor={editor} />
-          <button
-            type="button"
-            id="toggle-comment-sidebar"
-            onClick={() => setSidebarVisible((v) => !v)}
-            title={isSidebarVisible ? "Hide comments" : "Show comments"}
-            className={`p-2 rounded hover:bg-accent transition-colors ${
-              isSidebarVisible
-                ? "bg-accent text-accent-foreground"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <MessageSquare className="w-4 h-4" />
-          </button>
+          <div className="relative inline-flex items-center">
+            <button
+              type="button"
+              id="toggle-comment-sidebar"
+              onClick={() => setSidebarVisible((v) => !v)}
+              title={isSidebarVisible ? "Hide comments" : "Show comments"}
+              className={`p-2 rounded hover:bg-accent transition-colors relative ${
+                isSidebarVisible
+                  ? "bg-accent text-accent-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <MessageSquare className="w-4 h-4" />
+              {openCommentCount > 0 && (
+                <span className="absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-primary px-1 text-[9px] font-bold text-primary-foreground shadow-xs">
+                  {openCommentCount}
+                </span>
+              )}
+            </button>
+          </div>
         </>
       )}
     </div>
   );
 }
+

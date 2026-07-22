@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import { MessageSquare, X } from 'lucide-react';
 import { Editor } from '@tiptap/react';
@@ -6,7 +7,7 @@ import {
   activeCommentIdAtom,
   commentSidebarVisibleAtom,
   commentThreadsAtom,
-} from '@/stores/commentStore';
+} from './commentStore';
 import { CommentThreadCard } from './CommentThread';
 
 interface CommentSidebarProps {
@@ -15,17 +16,17 @@ interface CommentSidebarProps {
 
 /**
  * Sidebar panel showing all comment threads for the current document.
- * Bidirectional selection:
- *  - Click on a thread → editor scrolls to + highlights the marked text.
- *  - Click on marked text in editor → sidebar highlights the thread.
+ * Includes a filter switcher for Open vs Resolved comments.
  */
 export function CommentSidebar({ editor }: CommentSidebarProps) {
   const threads = useAtomValue(commentThreadsAtom);
   const [activeId, setActiveId] = useAtom(activeCommentIdAtom);
   const setSidebarVisible = useSetAtom(commentSidebarVisibleAtom);
+  const [filterTab, setFilterTab] = useState<'open' | 'resolved'>('open');
 
   const activeThreads = threads.filter((t) => !t.resolved);
   const resolvedThreads = threads.filter((t) => t.resolved);
+  const currentThreads = filterTab === 'open' ? activeThreads : resolvedThreads;
 
   const handleThreadClick = (id: string) => {
     setActiveId(id);
@@ -70,18 +71,18 @@ export function CommentSidebar({ editor }: CommentSidebarProps) {
     editor.chain().focus().unsetCommentMark(id).run();
   };
 
-  const total = threads.length;
+  const openCount = activeThreads.length;
 
   return (
-    <div className="comment-sidebar flex flex-col h-full border-l border-border bg-background">
+    <div className="comment-sidebar flex flex-col h-full border-border bg-background">
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2.5 border-b border-border shrink-0">
         <div className="flex items-center gap-2">
           <MessageSquare className="w-4 h-4 text-muted-foreground" />
           <span className="text-sm font-semibold text-foreground">Comments</span>
-          {total > 0 && (
+          {openCount > 0 && (
             <span className="text-[10px] font-medium bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">
-              {total}
+              {openCount}
             </span>
           )}
         </div>
@@ -95,48 +96,60 @@ export function CommentSidebar({ editor }: CommentSidebarProps) {
         </button>
       </div>
 
+      {/* Filter Switcher (Open | Resolved) */}
+      <div className="flex items-center p-1 bg-muted/40 border-b border-border text-xs shrink-0">
+        <button
+          type="button"
+          onClick={() => setFilterTab('open')}
+          className={`flex-1 py-1 text-center rounded-md font-medium transition-colors text-[11px] ${
+            filterTab === 'open'
+              ? 'bg-background text-foreground shadow-xs'
+              : 'text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          Open ({activeThreads.length})
+        </button>
+        <button
+          type="button"
+          onClick={() => setFilterTab('resolved')}
+          className={`flex-1 py-1 text-center rounded-md font-medium transition-colors text-[11px] ${
+            filterTab === 'resolved'
+              ? 'bg-background text-foreground shadow-xs'
+              : 'text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          Resolved ({resolvedThreads.length})
+        </button>
+      </div>
+
       {/* Thread list */}
       <div className="flex-1 overflow-y-auto p-3 space-y-2">
-        {total === 0 && (
+        {currentThreads.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-40 text-center gap-3">
             <div className="w-10 h-10 rounded-full bg-muted/60 flex items-center justify-center">
               <MessageSquare className="w-5 h-5 text-muted-foreground" />
             </div>
             <div>
-              <p className="text-sm font-medium text-foreground">No comments yet</p>
+              <p className="text-sm font-medium text-foreground">
+                {filterTab === 'open' ? 'No open comments' : 'No resolved comments'}
+              </p>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Select text in the editor to add a comment.
+                {filterTab === 'open'
+                  ? 'Select text in the editor to add a comment.'
+                  : 'Resolved comments will appear here.'}
               </p>
             </div>
           </div>
-        )}
-
-        {activeThreads.length > 0 && (
+        ) : (
           <div className="space-y-2">
-            {activeThreads.map((thread) => (
+            {currentThreads.map((thread) => (
               <CommentThreadCard
                 key={thread.id}
                 thread={thread}
                 isActive={activeId === thread.id}
                 onClick={() => handleThreadClick(thread.id)}
                 onDeleteMark={handleDeleteMark}
-              />
-            ))}
-          </div>
-        )}
-
-        {resolvedThreads.length > 0 && (
-          <div className="space-y-2">
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground pt-2 px-1">
-              Resolved ({resolvedThreads.length})
-            </p>
-            {resolvedThreads.map((thread) => (
-              <CommentThreadCard
-                key={thread.id}
-                thread={thread}
-                isActive={activeId === thread.id}
-                onClick={() => handleThreadClick(thread.id)}
-                onDeleteMark={handleDeleteMark}
+                editor={editor}
               />
             ))}
           </div>

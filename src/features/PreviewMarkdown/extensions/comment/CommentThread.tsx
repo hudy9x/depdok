@@ -10,14 +10,18 @@ import {
   toggleCommentResolvedAtom,
   updateCommentTextAtom,
   type CommentThread,
-} from '@/stores/commentStore';
-import { generateCommentId } from '@/lib/commentParser';
+} from './commentStore';
+import { generateCommentId } from './commentParser';
+import { useCommentAuthor } from './useCommentAuthor';
+
+import { Editor } from '@tiptap/react';
 
 interface CommentThreadProps {
   thread: CommentThread;
   isActive: boolean;
   onClick: () => void;
   onDeleteMark: (id: string) => void;
+  editor?: Editor | null;
 }
 
 function formatDate(iso: string): string {
@@ -33,7 +37,9 @@ export function CommentThreadCard({
   isActive,
   onClick,
   onDeleteMark,
+  editor,
 }: CommentThreadProps) {
+  const [author, setAuthor] = useCommentAuthor();
   const [replyText, setReplyText] = useState('');
   const [isReplying, setIsReplying] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -55,12 +61,15 @@ export function CommentThreadCard({
 
   const handleAddReply = () => {
     if (!replyText.trim()) return;
+    const finalAuthor = author.trim() || 'Me';
+    setAuthor(finalAuthor);
+
     addReply({
       threadId: thread.id,
       reply: {
         id: generateCommentId(),
         text: replyText.trim(),
-        author: 'Me',
+        author: finalAuthor,
         createdAt: new Date().toISOString(),
       },
     });
@@ -71,6 +80,13 @@ export function CommentThreadCard({
   const handleDelete = () => {
     onDeleteMark(thread.id);
     deleteThread(thread.id);
+  };
+
+  const handleToggleResolve = () => {
+    if (!thread.resolved && editor) {
+      editor.chain().focus().unsetCommentMark(thread.id).run();
+    }
+    toggleResolved(thread.id);
   };
 
   return (
@@ -89,11 +105,6 @@ export function CommentThreadCard({
         {/* Header row */}
         <div className="flex items-start justify-between gap-2 mb-2">
           <div className="flex items-center gap-1.5 min-w-0">
-            <div className="w-5 h-5 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
-              <span className="text-[9px] font-bold text-primary uppercase">
-                {thread.author.charAt(0)}
-              </span>
-            </div>
             <span className="text-xs font-semibold text-foreground truncate">
               {thread.author}
             </span>
@@ -109,7 +120,7 @@ export function CommentThreadCard({
           >
             <button
               type="button"
-              onClick={() => toggleResolved(thread.id)}
+              onClick={handleToggleResolve}
               title={thread.resolved ? 'Reopen' : 'Resolve'}
               className="p-1 rounded hover:bg-accent transition-colors text-muted-foreground hover:text-green-600 dark:hover:text-green-400"
             >
@@ -224,6 +235,16 @@ export function CommentThreadCard({
             className="mt-2 space-y-1.5"
             onClick={(e) => e.stopPropagation()}
           >
+            <div className="flex items-center justify-between gap-1 text-[10px] text-muted-foreground">
+              <span>Replying as:</span>
+              <input
+                type="text"
+                value={author}
+                onChange={(e) => setAuthor(e.target.value)}
+                placeholder="Your name"
+                className="px-1.5 py-0.5 rounded border border-border bg-background text-foreground text-[10px] w-28 focus:outline-none focus:ring-1 focus:ring-ring"
+              />
+            </div>
             <textarea
               value={replyText}
               onChange={(e) => setReplyText(e.target.value)}

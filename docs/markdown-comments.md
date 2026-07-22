@@ -38,25 +38,27 @@ All rich comment metadata (author, timestamp, text, replies, resolved state) is 
 
 ```
 src/
-├── stores/
-│   └── commentStore.ts             # Jotai state store & action atoms
-├── lib/
-│   └── commentParser.ts            # Extract and serialize comment blocks
 └── features/
     └── PreviewMarkdown/
         ├── extensions/
-        │   └── CommentMark.ts      # Custom Tiptap mark with renderMarkdown support
-        ├── components/
-        │   ├── CommentSidebar.tsx  # Comment drawer / sidebar panel
-        │   └── CommentThread.tsx   # Thread card (edit, reply, resolve, delete)
-        ├── MarkdownBottomMenu.tsx  # Bottom menu toolbar containing Add Comment popover & sidebar toggle
-        ├── MarkdownPreview.tsx     # Markdown editor integration & bidirectional scroll handlers
-        └── markdown.css            # Styling for .comment-mark and .comment-sidebar-panel
+        │   └── comment/
+        │       ├── index.ts                   # Barrel export for all comment extension modules
+        │       ├── CommentMark.ts             # Custom Tiptap mark with renderMarkdown support
+        │       ├── commentStore.ts            # Jotai state store & action atoms
+        │       ├── commentParser.ts           # Extract and serialize HTML comment blocks
+        │       ├── useCommentExtension.ts     # Custom hook encapsulating parsing, syncing, DOM listeners & save logic
+        │       ├── useCommentAuthor.ts        # Hook & helpers for persistent author username (localStorage)
+        │       ├── CommentSidebar.tsx         # Comment drawer with Open / Resolved tab filter
+        │       ├── CommentThread.tsx          # Clean thread card (no avatar, inline author input, replies)
+        │       └── MarkdownCommentSidebar.tsx# Sidebar wrapper component with visibility check
+        ├── MarkdownBottomMenu.tsx             # Bottom menu toolbar containing Add Comment popover & sidebar toggle
+        ├── MarkdownPreview.tsx                # Clean Markdown editor integration
+        └── markdown.css                       # Styling for .comment-mark and .comment-sidebar-panel
 ```
 
 ---
 
-## State Management (`src/stores/commentStore.ts`)
+## State Management (`src/features/PreviewMarkdown/extensions/comment/commentStore.ts`)
 
 Global comment state is managed using **Jotai** atoms:
 
@@ -64,33 +66,38 @@ Global comment state is managed using **Jotai** atoms:
 - `activeCommentIdAtom`: `string | null` ID of the currently focused comment.
 - `commentSidebarVisibleAtom`: `boolean` flag to toggle the right-hand comment drawer.
 
-### Action Atoms
-- `addCommentThreadAtom`: Appends a new thread and sets it active.
-- `updateCommentTextAtom`: Edits a thread's main text.
-- `addCommentReplyAtom`: Adds a reply object to a thread.
-- `toggleCommentResolvedAtom`: Toggles the resolved status.
-- `deleteCommentThreadAtom`: Removes a thread and clears `activeCommentId` if active.
-- `deleteCommentReplyAtom`: Removes a specific reply from a thread.
-
 ---
 
 ## Component Details & Flow
 
-### 1. Adding a Comment
+### 1. Adding & Managing Comments
 1. User selects text in the editor.
 2. User clicks the **Add Comment** (`MessageSquarePlus`) button in the bottom menu (`MarkdownBottomMenu.tsx`).
-3. A popover opens to enter comment text.
+3. A popover opens with an **inline username field** (`Posting as: [ Name ]`) pre-filled from `localStorage` (`depdok-comment-username`).
 4. On submission:
    - `editor.chain().focus().setCommentMark(id).run()` applies `<span data-comment-id="...">`.
-   - `addThread` dispatches the new `CommentThread` to Jotai.
-   - Comment sidebar opens automatically.
+   - `addThread` dispatches the new `CommentThread` with the saved author name to Jotai.
+   - The sidebar does **not** auto-open (opens only when user clicks the sidebar toggle button).
+   - Document is marked as dirty (`markFileAsDirty`) so changes can be saved.
 
-### 2. Bidirectional Highlighting & Scrolling
+### 2. Open / Resolved Filter Switcher & Open-Only Badge Counter
+- **Sidebar Tab Filter**: The `CommentSidebar` header features an `[ Open (X) | Resolved (Y) ]` tab switcher, defaulting to **Open**.
+- **Open-Only Badge**: The bottom toolbar toggle button (`MessageSquare`) and sidebar header badge count **Open (unresolved) comments only** (`openCommentCount = threads.filter(t => !t.resolved).length`). If `openCommentCount === 0`, the badge is hidden.
+- **Resolving Comments**: When a comment is marked as resolved, `unsetCommentMark(id)` removes the `<span data-comment-id="...">` inline mark and dashed underline from the document text, returning the text to plain text (`<span data-comment-id="123">an answer grounde</span>` → `an answer grounde`). On file load, `extractComments` automatically unwraps resolved comment spans to plain text.
+
+### 3. Persistent Author Username (`useCommentAuthor`)
+- Reading and writing the username is abstracted via `useCommentAuthor()` hook and saved to `localStorage` (`depdok-comment-username`).
+- Shown as a small, clean inline input in both the **Add Comment** popover (`Posting as: ...`) and the **Reply** box (`Replying as: ...`). Editing either instantly persists the new display name.
+
+### 4. Dirty State Tracking
+- Adding replies, editing comments, resolving threads, or deleting comment threads automatically marks the file as dirty (`markFileAsDirty`) and triggers auto-save/draft save via `useCommentExtension`.
+
+### 5. Bidirectional Highlighting & Scrolling
 - **Editor → Sidebar**: Clicking a `<span data-comment-id>` in the editor sets `activeCommentIdAtom`, highlighting the matching `CommentThreadCard` with `border-primary`.
 - **Sidebar → Editor**: Clicking a card in `CommentSidebar` sets `activeCommentIdAtom` and calls `scrollIntoView({ behavior: 'smooth', block: 'center' })` on the matching DOM element in the editor.
 
-### 3. Drawer Item Styling
-- Selected comment card uses `border-primary bg-card` (border highlighted using primary theme color).
+### 6. Drawer Item Styling
+- Selected comment card uses `border-primary bg-card` (border highlighted using primary theme color). Circle avatars are removed for a clean, text-focused UI.
 
 ---
 

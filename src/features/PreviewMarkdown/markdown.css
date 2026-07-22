@@ -870,3 +870,52 @@
     display: none !important;
   }
 }
+
+/* ── Comment Mark Styles ─────────────────────────────────── */
+
+/* Inline comment anchor: dashed amber underline */
+.comment-mark {
+  border-bottom: 2px dashed #f59e0b;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+  border-radius: 2px;
+}
+
+.comment-mark:hover {
+  background-color: rgba(245, 158, 11, 0.12);
+}
+
+/* Active comment mark: solid amber background */
+.comment-mark.comment-mark-active,
+.comment-mark[data-active="true"] {
+  background-color: rgba(245, 158, 11, 0.25);
+  border-bottom-style: solid;
+}
+
+/* Dark mode comment mark */
+.dark .comment-mark {
+  border-bottom-color: #f59e0b;
+}
+
+.dark .comment-mark:hover {
+  background-color: rgba(245, 158, 11, 0.15);
+}
+
+.dark .comment-mark.comment-mark-active {
+  background-color: rgba(245, 158, 11, 0.3);
+}
+
+/* ── Comment Sidebar Panel ───────────────────────────────── */
+
+.comment-sidebar-panel {
+  border-left: 1px solid var(--border);
+  background-color: var(--background);
+  flex-shrink: 0;
+  width: 288px;
+}
+
+.comment-sidebar {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}

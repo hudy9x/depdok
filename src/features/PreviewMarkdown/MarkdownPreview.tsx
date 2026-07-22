@@ -1,6 +1,7 @@
 import { useEffect, useRef, useCallback, useState } from "react";
 import { useEditor, EditorContent, ReactNodeViewRenderer } from "@tiptap/react";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
+import { useAtom, useAtomValue } from "jotai";
 import StarterKit from "@tiptap/starter-kit";
 
 import { Markdown } from "@tiptap/markdown";
@@ -40,6 +41,15 @@ import Subscript from "@tiptap/extension-subscript";
 import Superscript from "@tiptap/extension-superscript";
 import Placeholder from "@tiptap/extension-placeholder";
 
+import { CommentMark } from "./extensions/CommentMark";
+import { CommentSidebar } from "./components/CommentSidebar";
+import {
+  activeCommentIdAtom,
+  commentSidebarVisibleAtom,
+  commentThreadsAtom,
+} from "@/stores/commentStore";
+import { appendComments, extractComments } from "@/lib/commentParser";
+
 const lowlight = createLowlight(common);
 
 // Intercept highlight calls and fallback to 'plaintext' for unregistered/unsupported languages
@@ -74,6 +84,14 @@ export function MarkdownPreview({
   const containerRef = useRef<HTMLDivElement>(null);
   // handleLinkClick initialised after containerRef below
 
+  const isSidebarVisible = useAtomValue(commentSidebarVisibleAtom);
+  const [commentThreads, setCommentThreads] = useAtom(commentThreadsAtom);
+  const [activeCommentId, setActiveCommentId] = useAtom(activeCommentIdAtom);
+
+  // Keep a ref to the current comment threads so the onUpdate callback has fresh data
+  const commentThreadsRef = useRef(commentThreads);
+  useEffect(() => { commentThreadsRef.current = commentThreads; }, [commentThreads]);
+
   const getAssetsFolder = useCallback(
     () => localStorage.getItem('settings-markdown-asset-folder') || '',
     []
@@ -87,6 +105,7 @@ export function MarkdownPreview({
     if (!filePath || !editable) return;
     await draftService.saveDraft(filePath, newContent);
   }, 500);
+
 
   const editor = useEditor({
     extensions: [
@@ -186,6 +205,7 @@ export function MarkdownPreview({
         placeholder: 'Start writing…',
         showOnlyCurrent: false,
       }),
+      CommentMark,
       TableOfContents.configure({
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         onUpdate: (anchors: any[]) => setTocAnchors(anchors as TocAnchor[]),
@@ -242,8 +262,11 @@ export function MarkdownPreview({
     onUpdate: ({ editor }) => {
       console.log('onUpdate')
       if (editable && !isUpdatingRef.current) {
-        // Get markdown content using getMarkdown from @tiptap/markdown v3.14.0
-        const markdownContent = editor.getMarkdown();
+        // Serialize with comment blocks appended
+        const markdownContent = appendComments(
+          editor.getMarkdown(),
+          commentThreadsRef.current
+        );
         onContentChange?.(markdownContent);
         debouncedSaveDraft(markdownContent);
       }
@@ -252,22 +275,36 @@ export function MarkdownPreview({
 
   useEffect(() => {
     if (editor && !editable) {
-      // Only update content when not in editable mode to prevent jumping
+      // Extract comments from the raw markdown before setting content
+      const { cleanMarkdown, threads } = extractComments(content);
+      setCommentThreads(threads);
       isUpdatingRef.current = true;
-      console.log('MarkdownPreview useEffect', content)
-      editor.commands.setContent(content, { contentType: 'markdown' });
+      console.log('MarkdownPreview useEffect', cleanMarkdown)
+      editor.commands.setContent(cleanMarkdown, { contentType: 'markdown' });
       isUpdatingRef.current = false;
     }
-  }, [content, editor, editable]);
+  }, [content, editor, editable, setCommentThreads]);
 
   // Set initial content when switching to editable mode OR when content changes in editable mode
   useEffect(() => {
     if (editor && editable && content) {
+      const { cleanMarkdown, threads } = extractComments(content);
+      setCommentThreads(threads);
       isUpdatingRef.current = true;
-      editor.commands.setContent(content, { contentType: 'markdown' });
+      editor.commands.setContent(cleanMarkdown, { contentType: 'markdown' });
       isUpdatingRef.current = false;
     }
-  }, [editable, content, editor]);
+  }, [editable, content, editor, setCommentThreads]);
+
+  // Re-save whenever the comment thread list changes (fixes stale-ref race condition
+  // where onUpdate fires before the Jotai atom has the new thread appended).
+  useEffect(() => {
+    if (!editor || !editable || isUpdatingRef.current) return;
+    const markdownContent = appendComments(editor.getMarkdown(), commentThreads);
+    onContentChange?.(markdownContent);
+    debouncedSaveDraft(markdownContent);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [commentThreads]);
 
   const handleLinkClick = useLocalLinkHandler(filePath, containerRef);
 
@@ -375,6 +412,32 @@ export function MarkdownPreview({
     };
   }, [editor, editable]);
 
+  // Click on comment marks in the editor → set activeCommentId
+  useEffect(() => {
+    if (!editor) return;
+    const handleClick = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      const markEl = target.closest('[data-comment-id]') as HTMLElement | null;
+      if (markEl) {
+        const id = markEl.getAttribute('data-comment-id');
+        if (id) setActiveCommentId(id);
+      }
+    };
+    const dom = editor.view.dom;
+    dom.addEventListener('click', handleClick);
+    return () => dom.removeEventListener('click', handleClick);
+  }, [editor, setActiveCommentId]);
+
+  // Sync comment-mark-active CSS class whenever activeCommentId or editor state changes
+  useEffect(() => {
+    if (!editor) return;
+    const dom = editor.view.dom;
+    dom.querySelectorAll<HTMLElement>('.comment-mark').forEach((el) => {
+      const id = el.getAttribute('data-comment-id');
+      el.classList.toggle('comment-mark-active', id === activeCommentId && activeCommentId !== null);
+    });
+  }, [editor, activeCommentId]);
+
   return (
     <div className="w-full h-full overflow-hidden bg-layout-content flex" ref={containerRef}>
       <div className="flex-1 h-full relative min-w-0 flex flex-col bottom-menu-container">
@@ -423,6 +486,13 @@ export function MarkdownPreview({
         onToggle={() => setIsOutlineOpen(!isOutlineOpen)}
       />
       {/* </LicenseGuard> */}
+
+      {/* Comment Sidebar */}
+      {isSidebarVisible && (
+        <div className="comment-sidebar-panel w-72 shrink-0 h-full overflow-hidden">
+          <CommentSidebar editor={editor} />
+        </div>
+      )}
     </div>
   );
 }

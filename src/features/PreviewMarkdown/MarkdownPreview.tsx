@@ -65,6 +65,8 @@ interface MarkdownPreviewProps {
   editable?: boolean;
   onContentChange?: (content: string) => void;
   filePath?: string;
+  /** Whether this tab is currently the active visible tab. */
+  isTabActive?: boolean;
 }
 
 export function MarkdownPreview({
@@ -72,6 +74,7 @@ export function MarkdownPreview({
   editable = false,
   onContentChange,
   filePath = "",
+  isTabActive = true,
 }: MarkdownPreviewProps) {
   const TauriImage = createTauriImage(filePath);
   const isUpdatingRef = useRef(false);
@@ -274,6 +277,15 @@ export function MarkdownPreview({
   });
 
   const handleLinkClick = useLocalLinkHandler(filePath, containerRef);
+
+  // Relay viewport recalculation when tab becomes visible after display:none → block.
+  useEffect(() => {
+    if (isTabActive && editor) {
+      requestAnimationFrame(() => {
+        editor.view.updateState(editor.view.state);
+      });
+    }
+  }, [isTabActive, editor]);
 
   // Toggle pagination mode at runtime via transaction meta
   useEffect(() => {

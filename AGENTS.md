@@ -109,6 +109,10 @@ This repository includes a semantic knowledge base, support for local & remote e
 Depdok supports inline Markdown comments using custom Tiptap mark extensions and invisible HTML comment blocks:
 - **Markdown Comments Architecture & Guide**: Details on inline `<span data-comment-id>` anchor marks, invisible JSON comment thread blocks (`<!-- DEPDOK_COMMENT_<id>: {...} -->`), co-located modules in `src/features/PreviewMarkdown/extensions/comment/`, bottom menu controls, and sidebar drawer components are documented in [docs/markdown-comments.md](file:///Users/hudy/ws/depdok/docs/markdown-comments.md).
 
+## Markdown Pagination & Word-Like Page Layout
+Depdok supports a Microsoft Word-like paginated view mode using a custom, open-source ProseMirror decoration plugin:
+- **Markdown Pagination Architecture & Guide**: Details on the decoration-based plugin (`PaginationExtension`), A4 sheet calculation, page break spacers, adjacent sibling top-margin rules (`.page-break-spacer + *`), gray canvas backdrop, page size modes (`"page"`), and zero-recreation runtime toggling are documented in [docs/markdown-pagination.md](file:///Users/hudy/ws/depdok/docs/markdown-pagination.md).
+
 ## Tooling rules
 - Cursor / Copilot rules: no `.cursor` or `.cursorrules` and no `.github/copilot-instructions.md` were found in repo — none to enforce.
 

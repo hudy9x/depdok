@@ -220,7 +220,7 @@ export function MarkdownPreview({
     content: "",
     contentType: 'markdown', // Enable markdown mode
     editable: editable,
-    autofocus: editable ? 'end' : false,
+    autofocus: false,
     editorProps: {
       attributes: {
         class: "prose prose-sm sm:prose lg:prose-lg dark:prose-invert mx-auto max-w-none px-8 pb-8 pt-0 focus:outline-none",

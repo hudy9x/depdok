@@ -54,13 +54,14 @@ export function EditorPane({ pane }: EditorPaneProps): React.JSX.Element {
       onClick={handlePaneClick}
       className={[
         "flex-1 flex flex-col min-w-0 min-h-0 bg-layout-content relative h-full w-full border-r last:border-r-0 border-border/40",
-        isFocused ? "outline-[1px] outline-primary/30 outline-offset-[-1px]" : "",
+        isFocused ? "is-focused" : "",
       ].join(" ")}
     >
+      {/* {isFocused ? <div className='focused-tab absolute top-0 left-0 w-full h-full w-[2px] z-[199] pointer-events-none border-2 border-dotted border-primary '></div> : null} */}
       {currentFilePath ? (
         <>
           {/* Row 1: Tab list header + split buttons */}
-          <div 
+          <div
             className={[
               "h-[35px] border-b shrink-0 flex items-end justify-between transition-colors",
               isFocused ? "border-border/60 bg-layout-content" : "border-border/30 bg-muted/20"
@@ -148,7 +149,7 @@ export function EditorPane({ pane }: EditorPaneProps): React.JSX.Element {
           </div>
         </>
       ) : (
-        <div 
+        <div
           onClick={handlePaneClick}
           className="h-full w-full flex flex-col items-center justify-center bg-layout-chrome text-muted-foreground p-8"
         >

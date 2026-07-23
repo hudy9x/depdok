@@ -93,7 +93,7 @@ export function TabItem({ tab, paneId }: TabItemProps) {
             'min-w-[120px] max-w-[200px]',
             isActive
               ? 'bg-layout-content text-foreground border-b border-b-transparent border-r border-r-border'
-              : 'bg-layout-chrome text-muted-foreground hover:bg-muted/30 hover:text-foreground border-b border-border',
+              : 'bg-layout-chrome text-muted-foreground hover:bg-muted/30 hover:text-foreground border-b border-b-transparent',
             tab.isPreview && 'italic',
             tab.isDeleted && 'opacity-70'
           )}

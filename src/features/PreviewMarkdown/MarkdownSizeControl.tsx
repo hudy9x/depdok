@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
-export type MarkdownEditorSize = "full" | "wide" | "small";
+export type MarkdownEditorSize = "full" | "wide" | "small" | "page";
 
 interface MarkdownSizeControlProps {
   size: MarkdownEditorSize;
@@ -38,6 +38,15 @@ const SizeLargeIcon = (props: React.SVGProps<SVGSVGElement>) => (
   </svg>
 );
 
+const SizePageIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
+    <rect x="5" y="2" width="14" height="20" rx="2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M9 7H15" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    <path d="M9 10.5H15" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    <path d="M9 14H13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+  </svg>
+);
+
 const sizes: { label: string; value: MarkdownEditorSize; icon: React.ReactNode }[] = [
   {
     label: "Small (default)",
@@ -53,6 +62,11 @@ const sizes: { label: string; value: MarkdownEditorSize; icon: React.ReactNode }
     label: "Full width",
     value: "full",
     icon: <SizeLargeIcon className="h-3.5 w-3.5" />,
+  },
+  {
+    label: "Page",
+    value: "page",
+    icon: <SizePageIcon className="h-3.5 w-3.5" />,
   },
 ];
 

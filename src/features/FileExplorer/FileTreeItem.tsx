@@ -121,5 +121,5 @@ function FileTreeItemName({ path, isFolder, name }: FileTreeItemNameProps) {
   const colorClass = getGitStatusColor(status);
   const unsupported = isUnsupportedFile(path);
 
-  return <span className={cn('truncate', colorClass, unsupported && 'text-muted-foreground/50')}>{name}</span>;
+  return <span className={cn('truncate text-[13px]', colorClass, unsupported && 'text-muted-foreground/50')}>{name}</span>;
 }

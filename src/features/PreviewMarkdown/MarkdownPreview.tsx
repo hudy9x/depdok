@@ -12,6 +12,7 @@ import { common, createLowlight } from "lowlight";
 import { useDebouncedCallback } from "use-debounce";
 import "highlight.js/styles/github-dark.css";
 import "./markdown.css";
+import "./extensions/pagination/PaginationExtension.css";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 import { MarkdownBottomMenu } from "./MarkdownBottomMenu";
@@ -40,6 +41,7 @@ import Subscript from "@tiptap/extension-subscript";
 import Superscript from "@tiptap/extension-superscript";
 import Placeholder from "@tiptap/extension-placeholder";
 
+import { PaginationExtension, PAGINATION_TOGGLE_META } from "./extensions/pagination";
 import {
   CommentMark,
   MarkdownCommentSidebar,
@@ -75,6 +77,7 @@ export function MarkdownPreview({
   const isUpdatingRef = useRef(false);
   const [isOutlineOpen, setIsOutlineOpen] = useLocalStorage('markdown-outline-open', false);
   const [editorSize, setEditorSize] = useLocalStorage<MarkdownEditorSize>('markdown-editor-size', 'wide');
+  const isPageMode = editorSize === 'page';
   const [tocAnchors, setTocAnchors] = useState<TocAnchor[]>([]);
   // containerRef moved here so it can be referenced in TableOfContents scrollParent
   const containerRef = useRef<HTMLDivElement>(null);
@@ -207,6 +210,9 @@ export function MarkdownPreview({
         nested: true,
       }),
       FileHandler.configure(fileHandler),
+      PaginationExtension.configure({
+        enabled: isPageMode,
+      }),
     ],
     content: "",
     contentType: 'markdown', // Enable markdown mode
@@ -268,6 +274,14 @@ export function MarkdownPreview({
   });
 
   const handleLinkClick = useLocalLinkHandler(filePath, containerRef);
+
+  // Toggle pagination mode at runtime via transaction meta
+  useEffect(() => {
+    if (!editor) return;
+    editor.view.dispatch(
+      editor.state.tr.setMeta(PAGINATION_TOGGLE_META, isPageMode),
+    );
+  }, [editor, isPageMode]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -376,8 +390,8 @@ export function MarkdownPreview({
 
 
   return (
-    <div className="w-full h-full overflow-hidden bg-layout-content flex" ref={containerRef}>
-      <div className="flex-1 h-full relative min-w-0 flex flex-col bottom-menu-container">
+    <div className={`w-full h-full overflow-hidden flex ${isPageMode ? 'bg-[#e5e7eb] dark:bg-[#18181b]' : 'bg-layout-content'}`} ref={containerRef}>
+      <div className={`flex-1 h-full relative min-w-0 flex flex-col bottom-menu-container ${isPageMode ? 'bg-[#e5e7eb] dark:bg-[#18181b]' : ''}`}>
         {!isOutlineOpen && (
           <div className="absolute top-2 right-2 z-10">
             <MarkdownOutlineMinimap
@@ -387,21 +401,23 @@ export function MarkdownPreview({
           </div>
         )}
 
-        <ScrollArea className="w-full h-full markdown-editor-scroll">
+        <ScrollArea className={`w-full h-full markdown-editor-scroll ${isPageMode ? 'paginated-scroll-area bg-[#e5e7eb] dark:bg-[#18181b]' : ''}`}>
           {editable && (
             <>
               <MarkdownDragHandle editor={editor} />
             </>
           )}
           <div
-            className="w-full mx-auto transition-all duration-300"
+            className={`w-full mx-auto transition-all duration-300 ${isPageMode ? 'paginated-editor-wrapper' : ''}`}
             style={{
               maxWidth:
-                editorSize === 'full'
-                  ? '100%'
-                  : editorSize === 'wide'
-                    ? '1100px'
-                    : '700px',
+                isPageMode
+                  ? '794px'
+                  : editorSize === 'full'
+                    ? '100%'
+                    : editorSize === 'wide'
+                      ? '1100px'
+                      : '700px',
             }}
           >
             <EditorContent editor={editor} spellCheck={false} className="min-h-full" />

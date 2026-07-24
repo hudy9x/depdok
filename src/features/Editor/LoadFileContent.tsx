@@ -26,18 +26,26 @@ export function LoadFileContent({
   onMetadataLoad,
   children,
 }: LoadFileContentProps) {
-  const [content, setContent] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
   const [liveFilesContent, setLiveFilesContent] = useAtom(liveFilesContentAtom);
   const liveFilesWriterPane = useAtomValue(liveFilesWriterPaneAtom);
   const markFileAsDirty = useSetAtom(markFileAsDirtyAtom);
 
+  // --- Synchronous cache hit (Phase 2) ---
+  // Read the cached value at mount time. If it exists we can render immediately
+  // without waiting for any async I/O. The background loadFile() will silently
+  // revalidate and update only if disk/draft differs.
+  const cachedContent = liveFilesContent[filePath];
+  const hasCachedContent = cachedContent !== undefined;
+
+  const [content, setContent] = useState<string>(hasCachedContent ? cachedContent : "");
+  const [isLoading, setIsLoading] = useState<boolean>(!hasCachedContent);
+
+  // Sync content when another pane writes to the same file (live collaboration
+  // within one workspace). Skip updates that originated from our own pane.
   useEffect(() => {
     if (isLoading) return;
 
     const liveValue = liveFilesContent[filePath];
-    // Skip if this atom update was written by our own pane — that is just the
-    // user's keystrokes reflecting back and would cause a stale-intermediate reset.
     const writerPane = liveFilesWriterPane[filePath];
     if (paneId && writerPane === paneId) return;
 
@@ -49,10 +57,6 @@ export function LoadFileContent({
   // Load file on mount or when filePath changes.
   // A `cancelled` flag ensures that if `filePath` changes while an async load
   // is in-flight, the stale load bails out before touching any state.
-  // Without this guard two concurrent loadFile calls can race: the stale one
-  // can overwrite correct content with wrong/empty content, or call
-  // setActiveFileContent(null) which (because it resolves via activeTabAtom)
-  // deletes the *new* file's live-content entry — causing the empty-content bug.
   useEffect(() => {
     if (!filePath) {
       toast.error("No file path provided");
@@ -63,7 +67,12 @@ export function LoadFileContent({
     let cancelled = false;
 
     const loadFile = async () => {
-      setIsLoading(true);
+      // Only show blank-screen loading state when we have no cached content.
+      // If we have a cache hit, stay visible while revalidating in the background.
+      if (!hasCachedContent) {
+        setIsLoading(true);
+      }
+
       try {
         let loadedFileContent = "";
         const isUntitled = filePath.startsWith("UNTITLED://");
@@ -111,8 +120,13 @@ export function LoadFileContent({
           }
         }
 
-        setContent(contentToLoad);
-        setLiveFilesContent((prev) => ({ ...prev, [filePath]: contentToLoad }));
+        // Stale-while-revalidate: only update state if content actually changed.
+        // This avoids a re-render flicker when the cached and disk content match.
+        if (contentToLoad !== content || !hasCachedContent) {
+          setContent(contentToLoad);
+          setLiveFilesContent((prev) => ({ ...prev, [filePath]: contentToLoad }));
+        }
+
         if (shouldMarkDirty) {
           markFileAsDirty(filePath);
         }
@@ -143,6 +157,9 @@ export function LoadFileContent({
     return () => {
       cancelled = true;
     };
+    // hasCachedContent is intentionally omitted — we only want this effect to
+    // re-run on filePath changes, not on every cache state change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filePath, onMetadataLoad, setLiveFilesContent, markFileAsDirty]);
 
   return (

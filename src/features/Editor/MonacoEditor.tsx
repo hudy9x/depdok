@@ -30,6 +30,8 @@ interface MonacoEditorProps {
   filePath: string;
   tabId: string;
   isDeleted?: boolean;
+  /** Whether this tab is currently visible. Used to trigger layout() after display:none→block. */
+  isTabActive?: boolean;
 }
 
 export function MonacoEditor({
@@ -41,6 +43,7 @@ export function MonacoEditor({
   filePath,
   tabId,
   isDeleted,
+  isTabActive = true,
 }: MonacoEditorProps) {
   const [content, setContent] = useState(initialContent);
   const [plantUMLJump, setPlantUMLJump] = useAtom(plantUMLJumpAtom);
@@ -177,8 +180,11 @@ export function MonacoEditor({
     register('menu://selection/select-all-occurrences', 'editor.action.selectHighlights');
     register('menu://selection/column-selection-mode', 'editor.action.toggleColumnSelection');
 
-    // Register cursor position change listener for status bar updates
+    // Register cursor position change listener for status bar updates.
+    // Only dispatch events when this tab is active to avoid clobbering
+    // the status bar from a background (hidden) tab.
     editor.onDidChangeCursorPosition((e: any) => {
+      if (!isTabActive) return;
       window.dispatchEvent(new CustomEvent('editor-cursor', {
         detail: {
           lineNumber: e.position.lineNumber,
@@ -189,7 +195,7 @@ export function MonacoEditor({
 
     // Dispatch initial cursor position
     const initPos = editor.getPosition();
-    if (initPos) {
+    if (initPos && isTabActive) {
       window.dispatchEvent(new CustomEvent('editor-cursor', {
         detail: {
           lineNumber: initPos.lineNumber,
@@ -215,6 +221,16 @@ export function MonacoEditor({
 
     };
   }, []);
+
+  // Relay layout when tab becomes visible after display:none → display:block.
+  // Monaco's ResizeObserver may not fire reliably on visibility toggles.
+  useEffect(() => {
+    if (isTabActive && editorRef.current) {
+      requestAnimationFrame(() => {
+        editorRef.current?.layout();
+      });
+    }
+  }, [isTabActive]);
 
   // Handle line jumping
   useLineJump({ editorRef, lineNumber });

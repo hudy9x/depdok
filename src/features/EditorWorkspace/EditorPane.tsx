@@ -3,6 +3,7 @@ import { useAtomValue, useSetAtom } from 'jotai';
 import { Pane, activePaneIdAtom, focusPaneAtom } from '@/stores/PaneStore';
 import { EditorTabs } from '@/features/EditorTabs';
 import { SplitPaneButton } from './SplitPaneButton';
+import { useKeepAliveTabs } from './useKeepAliveTabs';
 import { EditorBreadcrumbs } from '@/features/Editor/EditorBreadcrumbs';
 import { EditorViewMode } from '@/features/EditorViewMode';
 import { LoadFileContent } from '@/features/Editor/LoadFileContent';
@@ -18,6 +19,107 @@ interface EditorPaneProps {
   pane: Pane;
 }
 
+interface TabContentProps {
+  pane: Pane;
+  tabId: string;
+  isTabActive: boolean;
+  isFocused: boolean;
+  handleContentChange: ReturnType<typeof useAutoSave>['handleContentChange'];
+  markAsSaved: () => void;
+}
+
+/** Inner content for a single kept-alive tab slot. */
+function TabContent({
+  pane,
+  tabId,
+  isTabActive,
+  isFocused,
+  handleContentChange,
+  markAsSaved,
+}: TabContentProps) {
+  const tab = pane.tabs.find((t) => t.id === tabId);
+  if (!tab) return null;
+
+  const currentFilePath = tab.filePath;
+  const language = getMonacoLanguage(tab.fileExtension);
+
+  const localHandleChange = (val: string) => {
+    handleContentChange(val, {
+      filePath: currentFilePath,
+      tabId: tab.id,
+      isDeleted: tab.isDeleted,
+      paneId: pane.id,
+    });
+  };
+
+  const handleExternalReload = () => {
+    markAsSaved();
+  };
+
+  // Only enable file watcher for the active + focused tab to avoid
+  // background IPC noise from hidden tabs.
+  const enableWatcher = isTabActive && isFocused;
+
+  return (
+    <LoadFileContent
+      filePath={currentFilePath}
+      isDeleted={tab.isDeleted}
+      paneId={pane.id}
+    >
+      {(initialContent) => (
+        <div className="w-full h-full bg-layout-content">
+          {pane.viewMode === 'side-by-side' && (
+            <SideBySide
+              initialContent={initialContent}
+              enableFileWatcher={enableWatcher}
+              lineNumber={tab.lineNumber}
+              filePath={currentFilePath}
+              tabId={tab.id}
+              isDeleted={tab.isDeleted}
+              onContentChange={localHandleChange}
+              isTabActive={isTabActive}
+            />
+          )}
+
+          {pane.viewMode === 'editor-only' && (
+            <MonacoEditor
+              initialContent={initialContent}
+              language={language}
+              enableFileWatcher={enableWatcher}
+              lineNumber={tab.lineNumber}
+              filePath={currentFilePath}
+              tabId={tab.id}
+              isDeleted={tab.isDeleted}
+              onContentChange={localHandleChange}
+              isTabActive={isTabActive}
+            />
+          )}
+
+          {pane.viewMode === 'preview-only' && (
+            <PreviewFileWatcher
+              content={initialContent}
+              enableFileWatcher={enableWatcher}
+              filePath={currentFilePath}
+              onContentReload={handleExternalReload}
+            >
+              {(content) => (
+                <PreviewPanel
+                  content={content}
+                  fileExtension={tab.fileExtension}
+                  filePath={currentFilePath}
+                  editable={true}
+                  onContentChange={localHandleChange}
+                  isTabActive={isTabActive}
+                />
+              )}
+            </PreviewFileWatcher>
+          )}
+        </div>
+      )}
+    </LoadFileContent>
+  );
+}
+
 export function EditorPane({ pane }: EditorPaneProps): React.JSX.Element {
   const activePaneId = useAtomValue(activePaneIdAtom);
   const focusPane = useSetAtom(focusPaneAtom);
@@ -30,6 +132,11 @@ export function EditorPane({ pane }: EditorPaneProps): React.JSX.Element {
   const markAsSaved = useSetAtom(markAsSavedAtom);
   const clearLiveFileWriter = useSetAtom(clearLiveFileWriterAtom);
 
+  const visitedTabIds = useKeepAliveTabs({
+    activeTabId: pane.activeTabId,
+    tabs: pane.tabs,
+  });
+
   // When the view mode changes, clear the writer-pane tag so the newly-mounted
   // view component (e.g. preview after editing in editor mode) can pick up the
   // latest live content even though it was written by this same pane.
@@ -38,10 +145,6 @@ export function EditorPane({ pane }: EditorPaneProps): React.JSX.Element {
       clearLiveFileWriter(currentFilePath);
     }
   }, [pane.viewMode]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const handleExternalReload = () => {
-    markAsSaved();
-  };
 
   const handlePaneClick = () => {
     if (activePaneId !== pane.id) {
@@ -57,7 +160,6 @@ export function EditorPane({ pane }: EditorPaneProps): React.JSX.Element {
         isFocused ? "is-focused" : "",
       ].join(" ")}
     >
-      {/* {isFocused ? <div className='focused-tab absolute top-0 left-0 w-full h-full w-[2px] z-[199] pointer-events-none border-2 border-dotted border-primary '></div> : null} */}
       {currentFilePath ? (
         <>
           {/* Row 1: Tab list header + split buttons */}
@@ -79,73 +181,27 @@ export function EditorPane({ pane }: EditorPaneProps): React.JSX.Element {
             <EditorViewMode paneId={pane.id} filePath={currentFilePath} viewMode={pane.viewMode} />
           </div>
 
-          {/* Row 3: Active Document Content */}
+          {/* Row 3: Keep-alive tab containers */}
           <div className="flex-1 min-h-0 bg-layout-content relative">
-            <LoadFileContent
-              filePath={currentFilePath}
-              isDeleted={activeTab.isDeleted}
-              paneId={pane.id}
-            >
-              {(initialContent) => {
-                const language = getMonacoLanguage(activeTab.fileExtension);
-                const localHandleChange = (val: string) => {
-                  handleContentChange(val, {
-                    filePath: currentFilePath,
-                    tabId: activeTab.id,
-                    isDeleted: activeTab.isDeleted,
-                    paneId: pane.id,
-                  });
-                };
-
-                return (
-                  <div className="w-full h-full bg-layout-content">
-                    {pane.viewMode === 'side-by-side' && (
-                      <SideBySide
-                        initialContent={initialContent}
-                        enableFileWatcher={isFocused}
-                        lineNumber={activeTab.lineNumber}
-                        filePath={currentFilePath}
-                        tabId={activeTab.id}
-                        isDeleted={activeTab.isDeleted}
-                        onContentChange={localHandleChange}
-                      />
-                    )}
-
-                    {pane.viewMode === 'editor-only' && (
-                      <MonacoEditor
-                        initialContent={initialContent}
-                        language={language}
-                        enableFileWatcher={isFocused}
-                        lineNumber={activeTab.lineNumber}
-                        filePath={currentFilePath}
-                        tabId={activeTab.id}
-                        isDeleted={activeTab.isDeleted}
-                        onContentChange={localHandleChange}
-                      />
-                    )}
-
-                    {pane.viewMode === 'preview-only' && (
-                      <PreviewFileWatcher
-                        content={initialContent}
-                        enableFileWatcher={isFocused}
-                        filePath={currentFilePath}
-                        onContentReload={handleExternalReload}
-                      >
-                        {(content) => (
-                          <PreviewPanel
-                            content={content}
-                            fileExtension={activeTab.fileExtension}
-                            filePath={currentFilePath}
-                            editable={true}
-                            onContentChange={localHandleChange}
-                          />
-                        )}
-                      </PreviewFileWatcher>
-                    )}
-                  </div>
-                );
-              }}
-            </LoadFileContent>
+            {visitedTabIds.map((tabId) => {
+              const isTabActive = tabId === pane.activeTabId;
+              return (
+                <div
+                  key={tabId}
+                  style={{ display: isTabActive ? 'block' : 'none' }}
+                  className="absolute inset-0"
+                >
+                  <TabContent
+                    pane={pane}
+                    tabId={tabId}
+                    isTabActive={isTabActive}
+                    isFocused={isFocused}
+                    handleContentChange={handleContentChange}
+                    markAsSaved={markAsSaved}
+                  />
+                </div>
+              );
+            })}
           </div>
         </>
       ) : (

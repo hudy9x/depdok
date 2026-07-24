@@ -13,6 +13,8 @@ interface SideBySideProps {
   tabId: string;
   isDeleted?: boolean;
   onContentChange?: (content: string) => void;
+  /** Whether this tab is currently the active visible tab. */
+  isTabActive?: boolean;
 }
 
 export function SideBySide({
@@ -23,6 +25,7 @@ export function SideBySide({
   tabId,
   isDeleted,
   onContentChange,
+  isTabActive = true,
 }: SideBySideProps) {
   const [content, setContent] = useState(initialContent);
 
@@ -50,6 +53,7 @@ export function SideBySide({
           filePath={filePath}
           tabId={tabId}
           isDeleted={isDeleted}
+          isTabActive={isTabActive}
         />
       </Panel>
 
@@ -60,6 +64,7 @@ export function SideBySide({
           content={content}
           fileExtension={fileExtension}
           filePath={filePath}
+          isTabActive={isTabActive}
         />
       </Panel>
     </PanelGroup>

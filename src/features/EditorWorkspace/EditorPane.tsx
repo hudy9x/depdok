@@ -3,6 +3,7 @@ import { useAtomValue, useSetAtom } from 'jotai';
 import { Pane, activePaneIdAtom, focusPaneAtom } from '@/stores/PaneStore';
 import { EditorTabs } from '@/features/EditorTabs';
 import { SplitPaneButton } from './SplitPaneButton';
+import { useKeepAliveTabs } from './useKeepAliveTabs';
 import { EditorBreadcrumbs } from '@/features/Editor/EditorBreadcrumbs';
 import { EditorViewMode } from '@/features/EditorViewMode';
 import { LoadFileContent } from '@/features/Editor/LoadFileContent';
@@ -13,13 +14,6 @@ import { PreviewFileWatcher } from '@/features/Preview/PreviewFileWatcher';
 import { getMonacoLanguage } from '@/lib/utils/getMonacoLanguage';
 import { useAutoSave } from '@/features/Editor/useAutoSave';
 import { markAsSavedAtom, clearLiveFileWriterAtom } from '@/stores/EditorStore';
-
-/**
- * Maximum number of tabs kept alive in DOM at any time (LRU eviction).
- * Tabs beyond this limit are unmounted; re-opening them cold-starts (~300ms).
- * Increase for faster switching at the cost of more memory.
- */
-const MAX_KEEP_ALIVE = 8;
 
 interface EditorPaneProps {
   pane: Pane;
@@ -138,13 +132,10 @@ export function EditorPane({ pane }: EditorPaneProps): React.JSX.Element {
   const markAsSaved = useSetAtom(markAsSavedAtom);
   const clearLiveFileWriter = useSetAtom(clearLiveFileWriterAtom);
 
-  /**
-   * LRU keep-alive tracking.
-   * visitedRef: Set of tab IDs that have been mounted (and should stay alive).
-   * lruRef: Array of tab IDs in access order (oldest first, newest last).
-   */
-  const visitedRef = React.useRef<Set<string>>(new Set());
-  const lruRef = React.useRef<string[]>([]);
+  const visitedTabIds = useKeepAliveTabs({
+    activeTabId: pane.activeTabId,
+    tabs: pane.tabs,
+  });
 
   // When the view mode changes, clear the writer-pane tag so the newly-mounted
   // view component (e.g. preview after editing in editor mode) can pick up the
@@ -155,47 +146,11 @@ export function EditorPane({ pane }: EditorPaneProps): React.JSX.Element {
     }
   }, [pane.viewMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Mark the active tab as visited and update LRU order.
-  if (pane.activeTabId) {
-    const id = pane.activeTabId;
-
-    // Move to end of LRU list (most recently used)
-    const idx = lruRef.current.indexOf(id);
-    if (idx !== -1) {
-      lruRef.current.splice(idx, 1);
-    }
-    lruRef.current.push(id);
-
-    // Mount this tab
-    visitedRef.current.add(id);
-
-    // Evict oldest entries beyond MAX_KEEP_ALIVE
-    while (visitedRef.current.size > MAX_KEEP_ALIVE) {
-      const oldest = lruRef.current.shift();
-      if (oldest) {
-        visitedRef.current.delete(oldest);
-      }
-    }
-  }
-
-  // When a tab is closed, remove it from visited + LRU so its DOM is GC'd.
-  const currentTabIds = new Set(pane.tabs.map((t) => t.id));
-  for (const id of Array.from(visitedRef.current)) {
-    if (!currentTabIds.has(id)) {
-      visitedRef.current.delete(id);
-      const idx = lruRef.current.indexOf(id);
-      if (idx !== -1) lruRef.current.splice(idx, 1);
-    }
-  }
-
   const handlePaneClick = () => {
     if (activePaneId !== pane.id) {
       focusPane(pane.id);
     }
   };
-
-  // The visited snapshot for this render
-  const visitedSnapshot = Array.from(visitedRef.current);
 
   return (
     <div
@@ -228,7 +183,7 @@ export function EditorPane({ pane }: EditorPaneProps): React.JSX.Element {
 
           {/* Row 3: Keep-alive tab containers */}
           <div className="flex-1 min-h-0 bg-layout-content relative">
-            {visitedSnapshot.map((tabId) => {
+            {visitedTabIds.map((tabId) => {
               const isTabActive = tabId === pane.activeTabId;
               return (
                 <div

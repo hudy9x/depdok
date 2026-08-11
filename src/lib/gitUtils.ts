@@ -53,7 +53,7 @@ export function getGitStatusColor(status: string | undefined): string {
             return "text-amber-500 dark:text-amber-400";
         case "added":
         case "untracked":
-            return "text-emerald-600 dark:text-emerald-400";
+            return "text-emerald-800 dark:text-emerald-400";
         case "deleted":
             return "text-rose-600 dark:text-rose-400";
         case "renamed":
@@ -86,8 +86,8 @@ export function getFolderGitStatus(
     }
 
     // Check if any children have status
-    const folderPathWithSlash = normalizedFolder.endsWith('/') 
-        ? normalizedFolder 
+    const folderPathWithSlash = normalizedFolder.endsWith('/')
+        ? normalizedFolder
         : `${normalizedFolder}/`;
 
     let hasModified = false;

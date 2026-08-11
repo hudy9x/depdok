@@ -11,10 +11,10 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
-import { Edit3, Folder, Clock } from "lucide-react";
+import { Edit3, Folder, Clock, X } from "lucide-react";
 import { toast } from "sonner";
 import { createUntitledTabAtom, tabsAtom } from "@/stores/TabStore";
-import { openWorkspaceAtom, recentFoldersAtom } from "@/features/FileExplorer/store";
+import { openWorkspaceAtom, recentFoldersAtom, removeRecentFolderAtom } from "@/features/FileExplorer/store";
 import { openFolderDialog } from "@/features/FileExplorer/api";
 import { HomeTitlebar } from "@/features/Titlebar";
 
@@ -26,6 +26,7 @@ export default function Home() {
 
   const recentFolders = useAtomValue(recentFoldersAtom);
   const openWorkspace = useSetAtom(openWorkspaceAtom);
+  const removeRecentFolder = useSetAtom(removeRecentFolderAtom);
 
   useEffect(() => {
     setIsVisible(true);
@@ -52,6 +53,12 @@ export default function Home() {
       console.error("Failed to open recent folder:", error);
       toast.error("Failed to open folder");
     }
+  };
+
+  const handleRemoveFolder = (e: React.MouseEvent, path: string) => {
+    e.stopPropagation();
+    removeRecentFolder(path);
+    toast.success("Removed folder from recent history");
   };
 
   const handleStartWriting = () => {
@@ -117,21 +124,28 @@ export default function Home() {
             </div>
             <div className="flex flex-col gap-1 max-h-[240px] overflow-y-auto">
               {recentFolders.map((folderPath) => (
-                <button
+                <div
                   key={folderPath}
                   onClick={() => handleRecentFolderClick(folderPath)}
                   className="flex items-center cursor-pointer justify-between w-full p-2 text-sm rounded-md hover:bg-muted text-left transition-colors group"
                 >
-                  <div className="flex items-center gap-3 truncate">
+                  <div className="flex items-center gap-3 truncate min-w-0 flex-1 pr-2">
                     <Folder className="w-4 h-4 text-muted-foreground group-hover:text-foreground shrink-0" />
                     <span className="truncate font-medium text-foreground" title={folderPath}>
                       {getFolderName(folderPath)}
                     </span>
+                    <span className="text-xs text-muted-foreground truncate" title={folderPath}>
+                      {folderPath}
+                    </span>
                   </div>
-                  <span className="text-xs text-muted-foreground truncate max-w-[180px]" title={folderPath}>
-                    {folderPath}
-                  </span>
-                </button>
+                  <button
+                    onClick={(e) => handleRemoveFolder(e, folderPath)}
+                    title="Remove from recent history"
+                    className="opacity-0 group-hover:opacity-100 p-1 rounded-md hover:bg-destructive/15 text-muted-foreground hover:text-destructive transition-all shrink-0 cursor-pointer"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               ))}
             </div>
           </div>

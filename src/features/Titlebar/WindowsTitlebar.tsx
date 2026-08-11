@@ -12,6 +12,7 @@ import { PiTerminalWindowLight, PiTerminalFill } from 'react-icons/pi';
 import { Button } from '@/components/ui/button';
 
 import { SettingsDialog } from '@/features/SettingsDialog';
+import { RecentFoldersDialog } from '@/features/RecentFoldersDialog';
 import { workspaceRootAtom, isFileExplorerVisibleAtom } from '@/features/FileExplorer/store';
 import { licensePopoverOpenAtom } from '@/stores/license-popover';
 import { isTerminalOpenAtom, setIsTerminalOpenAtom } from '@/stores/TerminalStore';
@@ -29,6 +30,7 @@ export function WindowsTitlebar() {
   const setIsTerminalOpen = useSetAtom(setIsTerminalOpenAtom);
 
   const [showSettings, setShowSettings] = useState(false);
+  const [showRecentFolders, setShowRecentFolders] = useState(false);
 
   const workspaceName = workspaceRoot 
     ? workspaceRoot.split(/[/\\]/).pop() || 'workspace' 
@@ -79,8 +81,8 @@ export function WindowsTitlebar() {
         <div 
           data-tauri-drag-region="false"
           className="flex items-center gap-1 hover:bg-muted/30 px-2.5 py-1 rounded-md text-[12px] font-semibold text-foreground/80 cursor-pointer select-none transition-colors border border-transparent hover:border-border/30"
-          onClick={() => setShowSettings(true)}
-          title="Open Settings"
+          onClick={() => setShowRecentFolders(true)}
+          title="Select Recent Folder"
         >
           <span data-tauri-drag-region="false" className="truncate lowercase max-w-[200px]">
             {workspaceName}
@@ -137,6 +139,7 @@ export function WindowsTitlebar() {
 
         {/* Dialog Renders */}
         <SettingsDialog open={showSettings} onOpenChange={setShowSettings} />
+        <RecentFoldersDialog open={showRecentFolders} onOpenChange={setShowRecentFolders} />
 
         {/* Windows OS native look window controls */}
         <WindowsButtons />

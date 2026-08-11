@@ -134,7 +134,7 @@ export function FileContextMenu({ path, isFolder, children }: FileContextMenuPro
         <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
         <ContextMenuContent className="w-56">
           <ContextMenuItem disabled>
-            <Copy className="mr-2 h-4 w-4" />
+            <Copy className="mr-2 h-4 w-4 text-foreground/60" />
             {effectivePaths.length} items selected
           </ContextMenuItem>
           <ContextMenuSeparator />

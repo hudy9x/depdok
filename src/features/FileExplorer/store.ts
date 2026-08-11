@@ -20,6 +20,15 @@ export const recentFoldersAtom = atomWithStorage<string[]>(
   []
 );
 
+// Action: Remove folder from recent folders
+export const removeRecentFolderAtom = atom(
+  null,
+  (get, set, folderPath: string) => {
+    const recent = get(recentFoldersAtom);
+    set(recentFoldersAtom, recent.filter(p => p !== folderPath));
+  }
+);
+
 // Persisted expanded folders (stored as array for JSON serialization)
 const expandedFoldersArrayAtom = atomWithStorage<string[]>(
   'depdok-expanded-folders',

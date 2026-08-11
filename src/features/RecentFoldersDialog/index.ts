@@ -1,0 +1,1 @@
+export { RecentFoldersDialog } from './RecentFoldersDialog';

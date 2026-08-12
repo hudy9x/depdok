@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { getPendingOpenPaths } from '@/api-client/cli';
 import { createTabAtom } from '@/stores/TabStore';
 import { openWorkspaceAtom } from '@/features/FileExplorer/store';
+import { isOnboarded } from '@/lib/userProfile';
 
 const Checking = (): JSX.Element => {
   const navigate = useNavigate();
@@ -76,6 +77,12 @@ const Checking = (): JSX.Element => {
         } catch (error) {
           console.error('Error parsing saved tabs:', error);
         }
+      }
+
+      // Check onboarding status
+      if (!isOnboarded()) {
+        navigate('/onboarding', { replace: true });
+        return;
       }
 
       navigate('/home', { replace: true });

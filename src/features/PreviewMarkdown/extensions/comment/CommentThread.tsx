@@ -39,7 +39,7 @@ export function CommentThreadCard({
   onDeleteMark,
   editor,
 }: CommentThreadProps) {
-  const [author, setAuthor] = useCommentAuthor();
+  const [author, setAuthor, _avatarId, preset] = useCommentAuthor();
   const [replyText, setReplyText] = useState('');
   const [isReplying, setIsReplying] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -104,7 +104,13 @@ export function CommentThreadCard({
       <div className="p-3">
         {/* Header row */}
         <div className="flex items-start justify-between gap-2 mb-2">
-          <div className="flex items-center gap-1.5 min-w-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <div
+              className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] border shrink-0 ${preset.colorClass}`}
+              title={preset.label}
+            >
+              {preset.emoji}
+            </div>
             <span className="text-xs font-semibold text-foreground truncate">
               {thread.author}
             </span>
@@ -236,7 +242,12 @@ export function CommentThreadCard({
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between gap-1 text-[10px] text-muted-foreground">
-              <span>Replying as:</span>
+              <div className="flex items-center gap-1.5">
+                <div className={`w-4 h-4 rounded-full flex items-center justify-center text-[9px] border shrink-0 ${preset.colorClass}`}>
+                  {preset.emoji}
+                </div>
+                <span>Replying as:</span>
+              </div>
               <input
                 type="text"
                 value={author}

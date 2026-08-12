@@ -1,12 +1,14 @@
 // import './App.css';
 
-import { BrowserRouter, Routes, Route, Outlet } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Outlet, useLocation, Navigate } from 'react-router-dom';
 import { ThemeProvider } from 'next-themes';
 import { Toaster } from "@/components/ui/sonner"
 import { settingsService } from '@/lib/settings';
+import { isOnboarded } from '@/lib/userProfile';
 import Home from './pages/Home';
 import Editor from './pages/Editor';
 import Checking from './pages/Checking';
+import Onboarding from './pages/Onboarding';
 import { Layout } from './components/Layout';
 import Empty from './pages/Empty';
 import { AppMenuListener } from './components/AppMenuListener';
@@ -27,6 +29,16 @@ function LayoutRoute() {
   );
 }
 
+function OnboardingGuard({ children }: { children: React.ReactNode }) {
+  const location = useLocation();
+
+  if (!isOnboarded() && location.pathname !== '/onboarding') {
+    return <Navigate to="/onboarding" replace />;
+  }
+
+  return <>{children}</>;
+}
+
 function App() {
   const savedTheme = settingsService.getSettings().theme;
   const refreshLicenseStatus = useSetAtom(refreshLicenseStatusAtom);
@@ -42,19 +54,22 @@ function App() {
     <ThemeProvider attribute="class" defaultTheme={savedTheme} enableSystem>
       <>
         <BrowserRouter>
-          <AppMenuListener />
-          <CLIListener />
-          <Toaster position="bottom-right" richColors />
-          <LicensePopover />
-          <LLMChatPanel />
-          <Routes>
-            <Route path="/home" element={<Home />} />
-            <Route element={<LayoutRoute />}>
-              <Route path="/" element={<Checking />} />
-              <Route path="/editor" element={<Editor />} />
-              <Route path="/empty" element={<Empty />} />
-            </Route>
-          </Routes>
+          <OnboardingGuard>
+            <AppMenuListener />
+            <CLIListener />
+            <Toaster position="bottom-right" richColors />
+            <LicensePopover />
+            <LLMChatPanel />
+            <Routes>
+              <Route path="/home" element={<Home />} />
+              <Route path="/onboarding" element={<Onboarding />} />
+              <Route element={<LayoutRoute />}>
+                <Route path="/" element={<Checking />} />
+                <Route path="/editor" element={<Editor />} />
+                <Route path="/empty" element={<Empty />} />
+              </Route>
+            </Routes>
+          </OnboardingGuard>
         </BrowserRouter>
       </>
     </ThemeProvider>

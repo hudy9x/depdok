@@ -1,7 +1,7 @@
 import { useAtomValue, useSetAtom } from 'jotai';
 import { useNavigate } from 'react-router-dom';
 import { PiFolderSimpleFill, PiFolderPlusFill } from 'react-icons/pi';
-import { Check, X, Clock, Folder } from 'lucide-react';
+import { Check, X, Folder } from 'lucide-react';
 import { toast } from 'sonner';
 
 import {
@@ -30,8 +30,6 @@ export function RecentFoldersDialog({ open, onOpenChange }: RecentFoldersDialogP
   const openWorkspace = useSetAtom(openWorkspaceAtom);
   const removeRecentFolder = useSetAtom(removeRecentFolderAtom);
   const navigate = useNavigate();
-
-  const latestFolders = recentFolders.slice(0, 2);
 
   const handleSelectFolder = async (path: string) => {
     try {

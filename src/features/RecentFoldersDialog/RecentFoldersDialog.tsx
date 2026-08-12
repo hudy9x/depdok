@@ -1,7 +1,7 @@
 import { useAtomValue, useSetAtom } from 'jotai';
 import { useNavigate } from 'react-router-dom';
 import { PiFolderSimpleFill, PiFolderPlusFill } from 'react-icons/pi';
-import { Check, X } from 'lucide-react';
+import { Check, X, Clock, Folder } from 'lucide-react';
 import { toast } from 'sonner';
 
 import {
@@ -30,6 +30,8 @@ export function RecentFoldersDialog({ open, onOpenChange }: RecentFoldersDialogP
   const openWorkspace = useSetAtom(openWorkspaceAtom);
   const removeRecentFolder = useSetAtom(removeRecentFolderAtom);
   const navigate = useNavigate();
+
+  const latestFolders = recentFolders.slice(0, 2);
 
   const handleSelectFolder = async (path: string) => {
     try {
@@ -69,71 +71,84 @@ export function RecentFoldersDialog({ open, onOpenChange }: RecentFoldersDialogP
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl p-6">
+      <DialogContent className="!fixed !top-4 !bottom-4 !left-4 !right-4 sm:!top-6 sm:!bottom-6 sm:!left-6 sm:!right-6 !z-50 !w-auto !h-auto !max-w-none sm:!max-w-none !max-h-none !translate-x-0 !translate-y-0 !transform-none !rounded-lg border border-border/50 bg-background/95 shadow-2xl p-6 sm:p-10 flex flex-col justify-between overflow-hidden duration-300 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0">
         <DialogHeader className="sr-only">
           <DialogTitle>Select Folder</DialogTitle>
         </DialogHeader>
 
-        <ScrollArea className="max-h-[440px] pt-1 pb-2 pr-3 -mr-3">
-          <div className="grid grid-cols-4 gap-3">
-            {/* First Item: Open Folder... */}
-            <button
-              onClick={handleOpenFolderDialog}
-              title="Open Folder from disk"
-              className="group relative flex flex-col items-center justify-between p-3 rounded-xl hover:bg-muted/50 transition-all cursor-pointer text-center select-none"
-            >
-              <div className="relative my-1 flex items-center justify-center">
-                <PiFolderPlusFill className="w-18 h-18 text-muted-foreground/60 group-hover:text-primary transition-all duration-150 group-hover:scale-105" />
-              </div>
-              <div className="w-full min-w-0 mt-1">
-                <p className="text-xs font-medium text-foreground line-clamp-2 break-words leading-tight w-full">
-                  Open Folder...
-                </p>
-              </div>
-            </button>
+        <div className="flex-1 flex flex-col max-w-5xl w-full mx-auto justify-center py-4 min-h-0">
+          <ScrollArea className="flex-1 max-h-full pr-4">
+            <div className="flex flex-col gap-8">
 
-            {/* Recent Folders */}
-            {recentFolders.map((folderPath) => {
-              const isActive = workspaceRoot === folderPath;
-              const folderName = getFolderName(folderPath);
 
-              return (
-                <button
-                  key={folderPath}
-                  onClick={() => handleSelectFolder(folderPath)}
-                  title={folderPath}
-                  className="group relative flex flex-col items-center justify-between p-3 rounded-xl hover:bg-muted/50 transition-all cursor-pointer text-center select-none"
-                >
-                  <span
-                    onClick={(e) => handleRemoveFolder(e, folderPath)}
-                    title="Remove from recent history"
-                    className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 flex h-5 w-5 items-center justify-center rounded-md hover:bg-destructive/15 text-muted-foreground hover:text-destructive transition-all cursor-pointer z-10"
+              {/* Section 2: All Recent Folders */}
+              <div>
+                <div className="flex items-center gap-2 mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground select-none">
+                  <Folder className="w-3.5 h-3.5" />
+                  <span>Recent Folders</span>
+                </div>
+                <div className="grid grid-cols-4 gap-4">
+                  {/* First Item in All Folders: Open Folder... */}
+                  <button
+                    onClick={handleOpenFolderDialog}
+                    title="Open Folder from disk"
+                    className="group relative flex flex-col items-center justify-between p-4 rounded-xl hover:bg-muted/50 transition-colors cursor-pointer text-center select-none"
                   >
-                    <X className="h-3.5 w-3.5" />
-                  </span>
+                    <div className="relative my-2 flex items-center justify-center">
+                      <PiFolderPlusFill className="w-20 h-20 text-muted-foreground/50 group-hover:text-primary transition-colors duration-150" />
+                    </div>
+                    <div className="w-full min-w-0 mt-1">
+                      <p className="text-xs font-medium text-foreground line-clamp-2 break-words leading-tight w-full">
+                        Open Folder...
+                      </p>
+                    </div>
+                  </button>
 
-                  <div className="relative my-1 flex items-center justify-center">
-                    <PiFolderSimpleFill className="w-18 h-18 text-amber-500/90 group-hover:text-amber-500 transition-transform duration-150 group-hover:scale-105" />
-                    {isActive && (
-                      <span
-                        className="absolute -top-1 -left-1 flex h-4.5 w-4.5 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-xs"
-                        title="Current Active Workspace"
+                  {/* All Recent Folders */}
+                  {recentFolders.map((folderPath) => {
+                    const isActive = workspaceRoot === folderPath;
+                    const folderName = getFolderName(folderPath);
+
+                    return (
+                      <button
+                        key={`all-${folderPath}`}
+                        onClick={() => handleSelectFolder(folderPath)}
+                        title={folderPath}
+                        className="group relative flex flex-col items-center justify-between p-4 rounded-xl hover:bg-muted/50 transition-colors cursor-pointer text-center select-none"
                       >
-                        <Check className="h-3 w-3" />
-                      </span>
-                    )}
-                  </div>
+                        <span
+                          onClick={(e) => handleRemoveFolder(e, folderPath)}
+                          title="Remove from recent history"
+                          className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 flex h-5 w-5 items-center justify-center rounded-md hover:bg-destructive/15 text-muted-foreground hover:text-destructive transition-colors cursor-pointer z-10"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </span>
 
-                  <div className="w-full min-w-0 mt-1">
-                    <p className="text-xs font-medium text-foreground line-clamp-2 break-words leading-tight w-full">
-                      {folderName}
-                    </p>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </ScrollArea>
+                        <div className="relative my-2 flex items-center justify-center">
+                          <PiFolderSimpleFill className="w-20 h-20 text-amber-500/80 group-hover:text-amber-400 transition-colors duration-150" />
+                          {isActive && (
+                            <span
+                              className="absolute top-3 right-0 flex h-4.5 w-4.5 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-xs"
+                              title="Current Active Workspace"
+                            >
+                              <Check className="h-3 w-3" />
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="w-full min-w-0 mt-1">
+                          <p className="text-xs font-medium text-foreground line-clamp-2 break-words leading-tight w-full">
+                            {folderName}
+                          </p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </ScrollArea>
+        </div>
       </DialogContent>
     </Dialog>
   );

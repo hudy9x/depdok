@@ -8,16 +8,17 @@ export interface AvatarPreset {
   id: string;
   label: string;
   emoji: string;
+  bg: string;
   colorClass: string;
 }
 
 export const AVATAR_PRESETS: AvatarPreset[] = [
-  { id: 'avatar-1', label: 'Developer', emoji: '💻', colorClass: 'bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30' },
-  { id: 'avatar-2', label: 'Writer', emoji: '✍️', colorClass: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30' },
-  { id: 'avatar-3', label: 'Rocket', emoji: '🚀', colorClass: 'bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/30' },
-  { id: 'avatar-4', label: 'Sparkles', emoji: '✨', colorClass: 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30' },
-  { id: 'avatar-5', label: 'Ninja', emoji: '🥷', colorClass: 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30' },
-  { id: 'avatar-6', label: 'Cat', emoji: '🐱', colorClass: 'bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 border-indigo-500/30' },
+  { id: 'developer', label: 'Developer', emoji: '💻', bg: '#DCE7FB', colorClass: 'bg-blue-100 text-blue-900 dark:bg-blue-900/40 dark:text-blue-100' },
+  { id: 'writer',    label: 'Writer',    emoji: '✒️', bg: '#DCEFE1', colorClass: 'bg-emerald-100 text-emerald-900 dark:bg-emerald-900/40 dark:text-emerald-100' },
+  { id: 'rocket',    label: 'Rocket',    emoji: '🚀', bg: '#F6E3EC', colorClass: 'bg-pink-100 text-pink-900 dark:bg-pink-900/40 dark:text-pink-100' },
+  { id: 'sparkles',  label: 'Sparkles',  emoji: '✨', bg: '#FBEAD2', colorClass: 'bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-100' },
+  { id: 'ninja',     label: 'Ninja',     emoji: '🥷', bg: '#F6DCDF', colorClass: 'bg-rose-100 text-rose-900 dark:bg-rose-900/40 dark:text-rose-100' },
+  { id: 'cat',       label: 'Cat',       emoji: '🐱', bg: '#E4E1FB', colorClass: 'bg-purple-100 text-purple-900 dark:bg-purple-900/40 dark:text-purple-100' },
 ];
 
 const PROFILE_STORAGE_KEY = 'depdok-user-profile';
@@ -25,8 +26,8 @@ const ONBOARDED_STORAGE_KEY = 'depdok-onboarded';
 const LEGACY_COMMENT_NAME_KEY = 'depdok-comment-username';
 
 const DEFAULT_PROFILE: UserProfile = {
-  name: 'Developer',
-  avatar: 'avatar-1',
+  name: '',
+  avatar: 'writer',
   onboarded: false,
 };
 
@@ -39,7 +40,7 @@ export function getUserProfile(): UserProfile {
     if (raw) {
       const parsed = JSON.parse(raw);
       return {
-        name: parsed.name || legacyName || DEFAULT_PROFILE.name,
+        name: parsed.name ?? (legacyName || DEFAULT_PROFILE.name),
         avatar: parsed.avatar || DEFAULT_PROFILE.avatar,
         onboarded: parsed.onboarded ?? onboarded,
       };
@@ -66,7 +67,7 @@ export function saveUserProfile(updates: Partial<UserProfile>): UserProfile {
       localStorage.setItem(ONBOARDED_STORAGE_KEY, String(updates.onboarded));
     }
 
-    if (updates.name) {
+    if (updates.name !== undefined) {
       localStorage.setItem(LEGACY_COMMENT_NAME_KEY, updates.name);
     }
 

@@ -10,6 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   recentFoldersAtom,
   removeRecentFolderAtom,
@@ -73,16 +74,16 @@ export function RecentFoldersDialog({ open, onOpenChange }: RecentFoldersDialogP
           <DialogTitle>Select Folder</DialogTitle>
         </DialogHeader>
 
-        <div className="pt-2 pb-4 max-h-[440px] overflow-y-auto pr-1">
-          <div className="grid grid-cols-3 gap-3">
+        <ScrollArea className="max-h-[440px] pt-1 pb-2 pr-3 -mr-3">
+          <div className="grid grid-cols-4 gap-3">
             {/* First Item: Open Folder... */}
             <button
               onClick={handleOpenFolderDialog}
               title="Open Folder from disk"
-              className="group relative flex flex-col items-center justify-between p-3.5 rounded-xl hover:bg-muted/50 transition-all cursor-pointer text-center select-none"
+              className="group relative flex flex-col items-center justify-between p-3 rounded-xl hover:bg-muted/50 transition-all cursor-pointer text-center select-none"
             >
               <div className="relative my-1 flex items-center justify-center">
-                <PiFolderPlusFill className="w-20 h-20 text-muted-foreground/60 group-hover:text-primary transition-all duration-150 group-hover:scale-105" />
+                <PiFolderPlusFill className="w-18 h-18 text-muted-foreground/60 group-hover:text-primary transition-all duration-150 group-hover:scale-105" />
               </div>
               <div className="w-full min-w-0 mt-1">
                 <p className="text-xs font-medium text-foreground line-clamp-2 break-words leading-tight w-full">
@@ -101,7 +102,7 @@ export function RecentFoldersDialog({ open, onOpenChange }: RecentFoldersDialogP
                   key={folderPath}
                   onClick={() => handleSelectFolder(folderPath)}
                   title={folderPath}
-                  className="group relative flex flex-col items-center justify-between p-3.5 rounded-xl hover:bg-muted/50 transition-all cursor-pointer text-center select-none"
+                  className="group relative flex flex-col items-center justify-between p-3 rounded-xl hover:bg-muted/50 transition-all cursor-pointer text-center select-none"
                 >
                   <span
                     onClick={(e) => handleRemoveFolder(e, folderPath)}
@@ -112,7 +113,7 @@ export function RecentFoldersDialog({ open, onOpenChange }: RecentFoldersDialogP
                   </span>
 
                   <div className="relative my-1 flex items-center justify-center">
-                    <PiFolderSimpleFill className="w-20 h-20 text-amber-500/90 group-hover:text-amber-500 transition-transform duration-150 group-hover:scale-105" />
+                    <PiFolderSimpleFill className="w-18 h-18 text-amber-500/90 group-hover:text-amber-500 transition-transform duration-150 group-hover:scale-105" />
                     {isActive && (
                       <span
                         className="absolute -top-1 -left-1 flex h-4.5 w-4.5 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-xs"
@@ -132,7 +133,7 @@ export function RecentFoldersDialog({ open, onOpenChange }: RecentFoldersDialogP
               );
             })}
           </div>
-        </div>
+        </ScrollArea>
       </DialogContent>
     </Dialog>
   );

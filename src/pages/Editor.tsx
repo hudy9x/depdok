@@ -62,12 +62,6 @@ export default function Editor() {
   // Watch the workspace for external file system changes
   useWorkspaceWatcher();
 
-  useEffect(() => {
-    if (workspaceRoot) {
-      console.log(`[PERF ${new Date().toISOString().slice(11, 23)}] Editor page mounted/rendered for "${workspaceRoot}"`);
-    }
-  }, [workspaceRoot]);
-
   const filePath = searchParams.get("path") || "";
   const isInitialMount = useRef(true);
 

@@ -32,14 +32,9 @@ export function RecentFoldersDialog({ open, onOpenChange }: RecentFoldersDialogP
   const navigate = useNavigate();
 
   const handleSelectFolder = async (path: string) => {
-    const t0 = Date.now();
-    const wall = () => new Date().toISOString().slice(11, 23);
-    console.log(`[PERF ${wall()}] RecentFoldersDialog: handleSelectFolder clicked for "${path}"`);
     try {
       await openWorkspace(path);
-      console.log(`[PERF ${wall()}] RecentFoldersDialog: openWorkspace completed in ${Date.now() - t0}ms`);
       onOpenChange(false);
-      console.log(`[PERF ${wall()}] RecentFoldersDialog: calling navigate('/editor')`);
       navigate('/editor');
     } catch (error) {
       console.error('Failed to open recent folder:', error);

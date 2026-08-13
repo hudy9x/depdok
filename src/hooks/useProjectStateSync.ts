@@ -89,13 +89,9 @@ export function useProjectStateSync() {
     hydratedProjectKeyRef.current = null;
 
     const loadState = async () => {
-      const t0 = Date.now();
-      const wall = () => new Date().toISOString().slice(11, 23);
-      console.log(`[PERF ${wall()}] useProjectStateSync: loadState started for "${projectKey}"`);
       try {
         const allProjects = await readProjectsState();
         const projectState = allProjects[projectKey];
-        console.log(`[PERF ${wall()}] useProjectStateSync: readProjectsState took ${Date.now() - t0}ms (hasSavedState: ${!!projectState}, expandedFoldersCount: ${projectState?.expandedFolders?.length ?? 0})`);
 
         if (!isMounted) {
           return;
@@ -126,7 +122,6 @@ export function useProjectStateSync() {
         if (isMounted) {
           hydratedProjectKeyRef.current = projectKey;
           isHydratingRef.current = false;
-          console.log(`[PERF ${wall()}] useProjectStateSync: loadState finished total ${Date.now() - t0}ms`);
         }
       }
     };

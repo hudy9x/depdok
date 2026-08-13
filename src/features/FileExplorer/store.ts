@@ -72,29 +72,21 @@ import { readProjectsState, writeProjectsState } from '@/hooks/useProjectStateSy
 export const openWorkspaceAtom = atom(
   null,
   async (get, set, rootPath: string) => {
-    const tStart = Date.now();
-    const wall = () => new Date().toISOString().slice(11, 23);
-    console.log(`[PERF ${wall()}] openWorkspaceAtom started for: "${rootPath}"`);
     set(isLoadingAtom, true);
     try {
-      const tListStart = Date.now();
       const entries = await listDirectory(rootPath);
-      console.log(`[PERF ${wall()}] 1. listDirectory(rootPath) took ${Date.now() - tListStart}ms (${entries.length} items)`);
 
-      const tGroupStart = Date.now();
       set(workspaceRootAtom, rootPath);
       await setCurrentProjectGroup(rootPath).catch((error) => {
         console.error('Failed to set current project group:', error);
       });
-      console.log(`[PERF ${wall()}] 2. setCurrentProjectGroup took ${Date.now() - tGroupStart}ms`);
 
       // Update recent folders
       const recent = get(recentFoldersAtom);
       const newRecent = [rootPath, ...recent.filter(p => p !== rootPath)].slice(0, 20);
       set(recentFoldersAtom, newRecent);
 
-      // LRU Eviction: Prune project states not in recent list (0ms)
-      const tLruStart = Date.now();
+      // LRU Eviction: Prune project states not in recent list
       try {
         const allProjects = await readProjectsState();
         let changed = false;
@@ -111,7 +103,6 @@ export const openWorkspaceAtom = atom(
       } catch (err) {
         console.error('Failed to prune project states LRU:', err);
       }
-      console.log(`[PERF ${wall()}] 3. LRU Eviction check took ${Date.now() - tLruStart}ms`);
 
       set(fileTreeDataAtom, { ...get(fileTreeDataAtom), [rootPath]: entries });
 
@@ -121,7 +112,6 @@ export const openWorkspaceAtom = atom(
       set(expandedFoldersAtom, new Set(expanded));
 
       // Load all previously expanded folders
-      const tExpandedStart = Date.now();
       const expandedFolders = Array.from(expanded);
       const treeData: Record<string, FileEntry[]> = { [rootPath]: entries };
 
@@ -130,10 +120,8 @@ export const openWorkspaceAtom = atom(
         if (folderPath === rootPath) continue;
 
         try {
-          const tSingleStart = Date.now();
           const folderEntries = await listDirectory(folderPath);
           treeData[folderPath] = folderEntries;
-          console.log(`[PERF ${wall()}] 4a. listDirectory for expanded child "${folderPath}" took ${Date.now() - tSingleStart}ms (${folderEntries.length} items)`);
         } catch (error) {
           console.error(`Failed to load expanded folder ${folderPath}:`, error);
           // Remove from expanded set if it can't be loaded
@@ -145,20 +133,16 @@ export const openWorkspaceAtom = atom(
       set(fileTreeDataAtom, { ...get(fileTreeDataAtom), ...treeData });
       // Update expanded folders (may have removed some that failed to load)
       set(expandedFoldersAtom, new Set(expanded));
-      console.log(`[PERF ${wall()}] 4. All expanded folders loaded (total ${expandedFolders.length}) in ${Date.now() - tExpandedStart}ms`);
 
       // Index workspace files for search
-      const tIndexStart = Date.now();
       try {
-        const count = await indexWorkspaceFiles(rootPath);
-        console.log(`[PERF ${wall()}] 5. indexWorkspaceFiles took ${Date.now() - tIndexStart}ms (indexed ${count} files)`);
+        await indexWorkspaceFiles(rootPath);
       } catch (indexError) {
         // On Windows, this can fire when a new window opens while a prior
         // window's indexing callback is still pending — downgrade to warn
         // since it does not affect workspace functionality.
-        console.warn(`[PERF ${wall()}] 5. Workspace indexing skipped or failed (non-critical):`, indexError);
+        console.warn('Workspace indexing skipped or failed (non-critical):', indexError);
       }
-      console.log(`[PERF ${wall()}] openWorkspaceAtom TOTAL took ${Date.now() - tStart}ms`);
     } catch (error) {
       console.error('Failed to open workspace:', error);
       throw error;

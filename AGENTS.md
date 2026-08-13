@@ -27,8 +27,7 @@ src/                    # Frontend React application
 src-tauri/              # Tauri backend (Rust)
 ├── src/
 │   ├── commands/       # Tauri command modules
-│   │   ├── files.rs    # File system operations
-│   │   └── git.rs      # Git operations
+│   │   └── files.rs    # File system operations
 │   ├── lib.rs          # Main library file
 │   └── main.rs         # Application entry point
 ├── Cargo.toml          # Rust dependencies
@@ -48,13 +47,6 @@ src-tauri/              # Tauri backend (Rust)
 - `create_file(path: string)` - Create file
 - `delete_node(path: string)` - Delete file/directory
 - `rename_node(old_path: string, new_path: string)` - Rename/move file/directory
-
-### Git Commands (git.rs)
-- `get_current_branch(working_dir: string)` - Get current branch
-- `get_all_branches(working_dir: string)` - List all branches
-- `switch_branch(working_dir: string, branch: string)` - Switch branch
-- `get_git_status(working_dir: string)` - Get file status (modified, added, etc.)
-- `git_pull(working_dir: string)` - Pull from remote
 
 ## Build / dev / app commands
 - Run dev UI: `pnpm dev` (runs `vite`).

@@ -36,10 +36,15 @@ export function TerminalTabItem({
 }: TerminalTabItemProps) {
   if (isRight) {
     return (
-      <button
+      <div
+        role="button"
+        tabIndex={0}
         id={`terminal-tab-${tab.id}`}
         onClick={onSelect}
         onDoubleClick={onDoubleClick}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') onSelect();
+        }}
         title={tab.name}
         className="group flex items-center justify-center w-9 h-9 rounded-md transition-colors relative hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer"
         style={{
@@ -87,15 +92,20 @@ export function TerminalTabItem({
         >
           <X size={8} />
         </span>
-      </button>
+      </div>
     );
   }
 
   return (
-    <button
+    <div
+      role="button"
+      tabIndex={0}
       id={`terminal-tab-${tab.id}`}
       onClick={onSelect}
       onDoubleClick={onDoubleClick}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') onSelect();
+      }}
       title={tab.name}
       className="group flex items-center gap-2 w-full px-2.5 text-left transition-all relative hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer animate-in fade-in-50 duration-150"
       style={{
@@ -169,6 +179,6 @@ export function TerminalTabItem({
           isDark={isDark}
         />
       </div>
-    </button>
+    </div>
   );
 }

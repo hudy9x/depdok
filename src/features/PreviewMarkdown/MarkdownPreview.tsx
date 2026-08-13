@@ -94,8 +94,6 @@ export function MarkdownPreview({
   );
   const fileHandler = useFileHandler(filePath, getAssetsFolder);
 
-  console.log('MarkdownPreview', content)
-
   // Debounced draft save (only when editable)
   const debouncedSaveDraft = useDebouncedCallback(async (newContent: string) => {
     if (!filePath || !editable) return;

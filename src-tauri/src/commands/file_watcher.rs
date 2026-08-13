@@ -238,69 +238,80 @@ impl WorkspaceWatcher {
 /// Start watching the workspace root recursively, skipping ignored directories.
 /// Any previously active workspace watcher is stopped first.
 #[tauri::command]
-pub fn start_watching_workspace(workspace_root: String, app: AppHandle) -> Result<(), String> {
+pub async fn start_watching_workspace(workspace_root: String, app: AppHandle) -> Result<(), String> {
     let root_path = PathBuf::from(&workspace_root);
     if !root_path.exists() {
         return Err(format!("Workspace root does not exist: {}", workspace_root));
     }
 
-    let state = app.state::<WorkspaceWatcher>();
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = app.state::<WorkspaceWatcher>();
 
-    // Drop existing watcher before creating a new one (stops threads + descriptors).
-    {
-        let mut guard = state.inner.lock().map_err(|e| e.to_string())?;
-        *guard = None;
-    }
+        // Drop existing watcher before creating a new one (stops threads + OS kernel handles).
+        {
+            if let Ok(mut guard) = state.inner.lock() {
+                *guard = None;
+            }
+        }
 
-    #[cfg(debug_assertions)]
-    println!("[WorkspaceWatcher] Starting watch on: {}", workspace_root);
+        #[cfg(debug_assertions)]
+        println!("[WorkspaceWatcher] Starting watch on: {}", workspace_root);
 
-    let app_clone = app.clone();
+        let app_clone = app.clone();
 
-    let mut debouncer = new_debouncer(
-        Duration::from_millis(500),
-        None,
-        move |result: DebounceEventResult| {
-            match result {
-                Ok(events) => {
-                    #[cfg(debug_assertions)]
-                    println!("[WorkspaceWatcher] 📬 Received raw notify event batch of size: {}", events.len());
-
-                    let mut batch: Vec<WorkspaceChangeEvent> = Vec::new();
-
-                    for event in &events {
+        let debouncer_res = new_debouncer(
+            Duration::from_millis(500),
+            None,
+            move |result: DebounceEventResult| {
+                match result {
+                    Ok(events) => {
                         #[cfg(debug_assertions)]
-                        println!("[WorkspaceWatcher] 🔍 Raw notify event: {:?}", event);
+                        println!("[WorkspaceWatcher] 📬 Received raw notify event batch of size: {}", events.len());
 
-                        match &event.kind {
-                            EventKind::Create(_) => {
-                                for p in &event.paths {
-                                    if !is_ignored_path(p) {
-                                        batch.push(WorkspaceChangeEvent {
-                                            kind: ChangeKind::Created,
-                                            path: normalize_path_str(p),
-                                            from_path: None,
-                                        });
+                        let mut batch: Vec<WorkspaceChangeEvent> = Vec::new();
+
+                        for event in &events {
+                            #[cfg(debug_assertions)]
+                            println!("[WorkspaceWatcher] 🔍 Raw notify event: {:?}", event);
+
+                            match &event.kind {
+                                EventKind::Create(_) => {
+                                    for p in &event.paths {
+                                        if !is_ignored_path(p) {
+                                            batch.push(WorkspaceChangeEvent {
+                                                kind: ChangeKind::Created,
+                                                path: normalize_path_str(p),
+                                                from_path: None,
+                                            });
+                                        }
                                     }
                                 }
-                            }
-                            EventKind::Modify(notify_debouncer_full::notify::event::ModifyKind::Name(
-                                notify_debouncer_full::notify::event::RenameMode::Both,
-                            )) => {
-                                // notify-debouncer-full coalesces rename pairs into a single event
-                                // with paths[0] = from, paths[1] = to
-                                if event.paths.len() >= 2 {
-                                    let from = &event.paths[0];
-                                    let to = &event.paths[1];
-                                    if !is_ignored_path(from) || !is_ignored_path(to) {
-                                        batch.push(WorkspaceChangeEvent {
-                                            kind: ChangeKind::Renamed,
-                                            path: normalize_path_str(to),
-                                            from_path: Some(normalize_path_str(from)),
-                                        });
+                                EventKind::Modify(notify_debouncer_full::notify::event::ModifyKind::Name(
+                                    notify_debouncer_full::notify::event::RenameMode::Both,
+                                )) => {
+                                    if event.paths.len() >= 2 {
+                                        let from = &event.paths[0];
+                                        let to = &event.paths[1];
+                                        if !is_ignored_path(from) || !is_ignored_path(to) {
+                                            batch.push(WorkspaceChangeEvent {
+                                                kind: ChangeKind::Renamed,
+                                                path: normalize_path_str(to),
+                                                from_path: Some(normalize_path_str(from)),
+                                            });
+                                        }
+                                    } else {
+                                        for p in &event.paths {
+                                            if !is_ignored_path(p) {
+                                                batch.push(WorkspaceChangeEvent {
+                                                    kind: ChangeKind::Modified,
+                                                    path: normalize_path_str(p),
+                                                    from_path: None,
+                                                });
+                                            }
+                                        }
                                     }
-                                } else {
-                                    // Partial rename info — treat as remove + create
+                                }
+                                EventKind::Modify(_) => {
                                     for p in &event.paths {
                                         if !is_ignored_path(p) {
                                             batch.push(WorkspaceChangeEvent {
@@ -311,77 +322,66 @@ pub fn start_watching_workspace(workspace_root: String, app: AppHandle) -> Resul
                                         }
                                     }
                                 }
-                            }
-                            EventKind::Modify(_) => {
-                                for p in &event.paths {
-                                    if !is_ignored_path(p) {
-                                        batch.push(WorkspaceChangeEvent {
-                                            kind: ChangeKind::Modified,
-                                            path: normalize_path_str(p),
-                                            from_path: None,
-                                        });
+                                EventKind::Remove(_) => {
+                                    for p in &event.paths {
+                                        if !is_ignored_path(p) {
+                                            batch.push(WorkspaceChangeEvent {
+                                                kind: ChangeKind::Removed,
+                                                path: normalize_path_str(p),
+                                                from_path: None,
+                                            });
+                                        }
                                     }
                                 }
+                                _ => {}
                             }
-                            EventKind::Remove(_) => {
-                                for p in &event.paths {
-                                    if !is_ignored_path(p) {
-                                        batch.push(WorkspaceChangeEvent {
-                                            kind: ChangeKind::Removed,
-                                            path: normalize_path_str(p),
-                                            from_path: None,
-                                        });
-                                    }
-                                }
-                            }
-                            _ => {}
+                        }
+
+                        if !batch.is_empty() {
+                            #[cfg(debug_assertions)]
+                            println!("[WorkspaceWatcher] 📢 Emitting {} events to frontend: {:?}", batch.len(), batch);
+                            let _ = app_clone.emit("workspace-changed", batch);
                         }
                     }
-
-                    if !batch.is_empty() {
-                        #[cfg(debug_assertions)]
-                        println!("[WorkspaceWatcher] 📢 Emitting {} events to frontend: {:?}", batch.len(), batch);
-                        let _ = app_clone.emit("workspace-changed", batch);
+                    Err(errors) => {
+                        eprintln!("[WorkspaceWatcher] ❌ Watch error: {:?}", errors);
                     }
                 }
-                Err(errors) => {
-                    eprintln!("[WorkspaceWatcher] ❌ Watch error: {:?}", errors);
+            },
+        );
+
+        match debouncer_res {
+            Ok(mut debouncer) => {
+                if let Err(e) = debouncer.watch(&root_path, RecursiveMode::Recursive) {
+                    eprintln!("[WorkspaceWatcher] Failed to register watch: {}", e);
+                    return;
                 }
+                if let Ok(mut guard) = state.inner.lock() {
+                    *guard = Some(debouncer);
+                }
+                #[cfg(debug_assertions)]
+                println!("[WorkspaceWatcher] Watch registered on: {}", workspace_root);
             }
-        },
-    )
-    .map_err(|e| e.to_string())?;
-
-    // Register watch on the root recursively.
-    // notify's recursive mode handles subdirectories; we rely on our frontend
-    // ignore-list filtering to avoid reacting to events from ignored dirs.
-    // On platforms where recursive watch is expensive, we could switch to
-    // manual per-dir registration, but for now recursive is simplest.
-    debouncer
-        .watch(&root_path, RecursiveMode::Recursive)
-        .map_err(|e| e.to_string())?;
-
-    // Store the debouncer so it stays alive.
-    {
-        let mut guard = state.inner.lock().map_err(|e| e.to_string())?;
-        *guard = Some(debouncer);
-    }
-
-    #[cfg(debug_assertions)]
-    println!("[WorkspaceWatcher] Watch registered on: {}", workspace_root);
+            Err(e) => {
+                eprintln!("[WorkspaceWatcher] Failed to create debouncer: {}", e);
+            }
+        }
+    });
 
     Ok(())
 }
 
 /// Stop the active workspace watcher (drops the debouncer thread and OS handles).
 #[tauri::command]
-pub fn stop_watching_workspace(app: AppHandle) -> Result<(), String> {
-    let state = app.state::<WorkspaceWatcher>();
-    let mut guard = state.inner.lock().map_err(|e| e.to_string())?;
-    if guard.is_some() {
-        *guard = None;
-        #[cfg(debug_assertions)]
-        println!("[WorkspaceWatcher] Stopped");
-    }
+pub async fn stop_watching_workspace(app: AppHandle) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = app.state::<WorkspaceWatcher>();
+        let mut guard = state.inner.lock().ok();
+        if let Some(ref mut g) = guard {
+            **g = None;
+            #[cfg(debug_assertions)]
+            println!("[WorkspaceWatcher] Stopped");
+        }
+    });
     Ok(())
 }

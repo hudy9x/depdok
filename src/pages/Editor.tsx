@@ -19,7 +19,6 @@ import {
 import { FileSearchDialog } from "@/features/FileSearchDialog";
 import { EditorSave } from "@/features/Editor/EditorSaveHandler";
 import { ContentSearchDialog } from "@/features/ContentSearchDialog";
-import { BranchSelectorDialog } from "@/features/BranchSelector";
 import { useGlobalShortcuts } from "@/hooks/useGlobalShortcuts";
 import { useWorkspaceWatcher } from "@/hooks/useWorkspaceWatcher";
 import { TerminalPanel } from "@/features/Terminal/TerminalPanel";
@@ -62,6 +61,12 @@ export default function Editor() {
 
   // Watch the workspace for external file system changes
   useWorkspaceWatcher();
+
+  useEffect(() => {
+    if (workspaceRoot) {
+      console.log(`[PERF ${new Date().toISOString().slice(11, 23)}] Editor page mounted/rendered for "${workspaceRoot}"`);
+    }
+  }, [workspaceRoot]);
 
   const filePath = searchParams.get("path") || "";
   const isInitialMount = useRef(true);
@@ -107,7 +112,6 @@ export default function Editor() {
     <>
       <FileSearchDialog />
       <ContentSearchDialog />
-      <BranchSelectorDialog />
       <EditorSave />
       {/* <EditorViewMode /> */}
 

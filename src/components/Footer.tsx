@@ -3,7 +3,6 @@ import { useAtomValue } from 'jotai';
 import { FileCode } from 'lucide-react';
 
 import { activeTabAtom } from '@/stores/TabStore';
-import { FooterGitSection } from './FooterGitSection';
 
 export function Footer() {
   const activeTab = useAtomValue(activeTabAtom);
@@ -39,9 +38,8 @@ export function Footer() {
 
   return (
     <footer className="h-7 w-full flex items-center justify-between px-3 border-t border-border/80 bg-layout-chrome text-[11px] text-muted-foreground select-none shrink-0 z-50">
-      {/* Left Side: Git Status, Sync, Workspace, Terminal toggle */}
+      {/* Left Side */}
       <div className="flex items-center gap-2">
-        <FooterGitSection />
       </div>
 
       

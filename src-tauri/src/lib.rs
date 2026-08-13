@@ -842,9 +842,6 @@ pub fn run() {
             // Initialize workspace watcher state
             app.manage(commands::file_watcher::WorkspaceWatcher::new());
             
-            // Initialize Git watcher state
-            app.manage(commands::git::GitWatcher::new());
-            
             // Initialize file search state
             app.manage(commands::file_search::init());
             
@@ -1008,19 +1005,6 @@ pub fn run() {
             commands::files::reveal_file,
             commands::export::export_markdown_to_html,
             commands::export::export_markdown_to_pdf,
-            commands::git::get_current_branch,
-            commands::git::get_all_branches,
-            commands::git::get_git_refs,
-            commands::git::create_branch,
-            commands::git::checkout_detached,
-            commands::git::switch_branch,
-            commands::git::get_git_status,
-            commands::git::git_pull,
-            commands::git::has_git_upstream,
-            commands::git::get_git_sync_status,
-            commands::git::start_watching_git,
-            commands::git::stop_watching_git,
-            commands::git::is_git_repository,
             commands::file_watcher::start_watching,
             commands::file_watcher::stop_watching,
             commands::file_watcher::start_watching_workspace,

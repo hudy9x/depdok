@@ -145,23 +145,24 @@ pub fn reveal_file(path: &str) -> Result<(), String> {
 
 #[tauri::command]
 pub fn list_dir(path: &str) -> Result<Vec<FileEntry>, String> {
-    let path = Path::new(path);
-    if !path.exists() {
+    let start_time = std::time::Instant::now();
+    let p = Path::new(path);
+    if !p.exists() {
         return Err("Path does not exist".to_string());
     }
 
     let mut entries = Vec::new();
-    let read_dir = fs::read_dir(path).map_err(|e| e.to_string())?;
+    let read_dir = fs::read_dir(p).map_err(|e| e.to_string())?;
 
     for entry in read_dir {
         let entry = entry.map_err(|e| e.to_string())?;
-        let path = entry.path();
-        let name = path
+        let entry_path = entry.path();
+        let name = entry_path
             .file_name()
             .and_then(|n| n.to_str())
             .unwrap_or("")
             .to_string();
-        let is_dir = path.is_dir();
+        let is_dir = entry_path.is_dir();
 
         // Skip hidden files/dirs (starting with .)
         if name.starts_with('.') {
@@ -170,7 +171,7 @@ pub fn list_dir(path: &str) -> Result<Vec<FileEntry>, String> {
 
         entries.push(FileEntry {
             name,
-            path: path.to_string_lossy().to_string(),
+            path: entry_path.to_string_lossy().to_string(),
             is_dir,
             children: None, // We don't recursively load for now, frontend can request on expand
         });
@@ -186,6 +187,9 @@ pub fn list_dir(path: &str) -> Result<Vec<FileEntry>, String> {
             std::cmp::Ordering::Greater
         }
     });
+
+    let duration = start_time.elapsed();
+    println!("[PERF RUST] list_dir for '{}' returned {} entries in {:?}", path, entries.len(), duration);
 
     Ok(entries)
 }

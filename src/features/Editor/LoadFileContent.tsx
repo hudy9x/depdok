@@ -67,6 +67,9 @@ export function LoadFileContent({
     let cancelled = false;
 
     const loadFile = async () => {
+      const t0 = Date.now();
+      const wall = () => new Date().toISOString().slice(11, 23);
+      console.log(`[PERF ${wall()}] LoadFileContent: loadFile started for "${filePath}"`);
       // Only show blank-screen loading state when we have no cached content.
       // If we have a cache hit, stay visible while revalidating in the background.
       if (!hasCachedContent) {
@@ -86,7 +89,9 @@ export function LoadFileContent({
         if (!isUntitled && !isImage) {
           // 1. Load real file from disk
           try {
+            const tDisk = Date.now();
             loadedFileContent = await readFileContent(filePath);
+            console.log(`[PERF ${wall()}] LoadFileContent: readFileContent from disk took ${Date.now() - tDisk}ms`);
           } catch (err) {
             readFailed = true;
             console.log("[LoadFileContent] Could not read file from disk (might be deleted):", err);
@@ -94,7 +99,9 @@ export function LoadFileContent({
         }
 
         // 2. Check for draft in IndexedDB
+        const tDraft = Date.now();
         const draft = await draftService.getDraft(filePath);
+        console.log(`[PERF ${wall()}] LoadFileContent: draftService.getDraft took ${Date.now() - tDraft}ms`);
 
         // Bail out if filePath changed while we were awaiting — prevents a stale
         // load from overwriting state that the current load already set correctly.
@@ -138,6 +145,7 @@ export function LoadFileContent({
             extension,
           });
         }
+        console.log(`[PERF ${wall()}] LoadFileContent: loadFile total completed in ${Date.now() - t0}ms`);
       } catch (error) {
         if (cancelled) return;
         console.error("Error loading file:", error);

@@ -28,6 +28,8 @@ pub fn index_workspace_files(
     workspace_path: String,
     state: State<FileSearchStateHandle>,
 ) -> Result<usize, String> {
+    let start_time = std::time::Instant::now();
+    println!("[PERF RUST] index_workspace_files starting for: {}", workspace_path);
     let mut indexed_files = Vec::new();
     
     // Use WalkBuilder to traverse directory
@@ -59,6 +61,7 @@ pub fn index_workspace_files(
     }
     
     let count = indexed_files.len();
+    println!("[PERF RUST] index_workspace_files completed: indexed {} files in {:?}", count, start_time.elapsed());
     
     // Update state
     let mut state_guard = state.lock().map_err(|e| e.to_string())?;

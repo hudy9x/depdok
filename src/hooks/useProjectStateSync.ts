@@ -39,6 +39,39 @@ const getStore = () => {
   return storePromise;
 };
 
+import { localStorageDriver } from '@/lib/storage';
+
+export async function readProjectsState(): Promise<ProjectsStateMap> {
+  const local = localStorageDriver.getItem('depdok-projects-state', null);
+  if (local) {
+    return local;
+  }
+  try {
+    const store = await getStore();
+    const allProjects = await store.get<ProjectsStateMap>('depdok-projects-state') || {};
+    if (Object.keys(allProjects).length > 0) {
+      localStorageDriver.setItem('depdok-projects-state', allProjects);
+    }
+    return allProjects;
+  } catch (err) {
+    console.error('Failed to read projects state from store.json:', err);
+    return {};
+  }
+}
+
+export function writeProjectsState(allProjects: ProjectsStateMap): void {
+  localStorageDriver.setItem('depdok-projects-state', allProjects);
+  // Async background sync to store.json without blocking UI
+  getStore().then(async (store) => {
+    try {
+      await store.set('depdok-projects-state', allProjects);
+      await store.save();
+    } catch (err) {
+      console.error('Background store.json sync error:', err);
+    }
+  }).catch(() => {});
+}
+
 export function useProjectStateSync() {
   const workspaceRoot = useAtomValue(workspaceRootAtom);
   const [paneTree, setPaneTree] = useAtom(paneTreeAtom);
@@ -56,10 +89,13 @@ export function useProjectStateSync() {
     hydratedProjectKeyRef.current = null;
 
     const loadState = async () => {
+      const t0 = Date.now();
+      const wall = () => new Date().toISOString().slice(11, 23);
+      console.log(`[PERF ${wall()}] useProjectStateSync: loadState started for "${projectKey}"`);
       try {
-        const store = await getStore();
-        const allProjects = await store.get<ProjectsStateMap>('depdok-projects-state') || {};
+        const allProjects = await readProjectsState();
         const projectState = allProjects[projectKey];
+        console.log(`[PERF ${wall()}] useProjectStateSync: readProjectsState took ${Date.now() - t0}ms (hasSavedState: ${!!projectState}, expandedFoldersCount: ${projectState?.expandedFolders?.length ?? 0})`);
 
         if (!isMounted) {
           return;
@@ -90,6 +126,7 @@ export function useProjectStateSync() {
         if (isMounted) {
           hydratedProjectKeyRef.current = projectKey;
           isHydratingRef.current = false;
+          console.log(`[PERF ${wall()}] useProjectStateSync: loadState finished total ${Date.now() - t0}ms`);
         }
       }
     };
@@ -113,8 +150,7 @@ export function useProjectStateSync() {
 
     const saveState = async () => {
       try {
-        const store = await getStore();
-        const allProjects = await store.get<ProjectsStateMap>('depdok-projects-state') || {};
+        const allProjects = await readProjectsState();
         
         const newState: ProjectState = {
           paneTree,
@@ -124,8 +160,7 @@ export function useProjectStateSync() {
         };
 
         allProjects[projectKey] = newState;
-        await store.set('depdok-projects-state', allProjects);
-        await store.save(); // Actually write to disk
+        writeProjectsState(allProjects);
       } catch (error) {
         console.error('Failed to save project state:', error);
       }

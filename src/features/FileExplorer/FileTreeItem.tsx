@@ -1,11 +1,8 @@
 import { ChevronRight, ChevronDown } from 'lucide-react';
 import { PiFolderSimpleFill, PiFolderOpenFill } from 'react-icons/pi';
-import { useAtomValue, atom } from 'jotai';
-import { useMemo } from 'react';
+import { useAtomValue } from 'jotai';
 import { FlatTreeNode } from './utils';
 import { cn } from '@/lib/utils';
-import { gitStatusAtom } from '@/stores/GitStore';
-import { getEffectiveGitStatus, getGitStatusColor } from '@/lib/gitUtils';
 import { FileIcon } from '@/components/FileIcon';
 import { FileContextMenu } from './FileContextMenu';
 import { clipboardAtom } from './store';
@@ -95,7 +92,7 @@ export function FileTreeItem({
         </span>
 
         {/* Name */}
-        <FileTreeItemName path={node.path} isFolder={node.isFolder} name={node.name} />
+        <FileTreeItemName path={node.path} name={node.name} />
       </div>
     </FileContextMenu >
   );
@@ -103,26 +100,13 @@ export function FileTreeItem({
 
 interface FileTreeItemNameProps {
   path: string;
-  isFolder: boolean;
   name: string;
 }
 
-function FileTreeItemName({ path, isFolder, name }: FileTreeItemNameProps) {
-  const statusAtom = useMemo(
-    () =>
-      atom((get) => {
-        const gitStatus = get(gitStatusAtom);
-        return getEffectiveGitStatus(path, isFolder, gitStatus);
-      }),
-    [path, isFolder]
-  );
-
-  const status = useAtomValue(statusAtom);
-  const colorClass = getGitStatusColor(status);
+function FileTreeItemName({ path, name }: FileTreeItemNameProps) {
   const unsupported = isUnsupportedFile(path);
 
-  return <span className={cn('truncate text-[13px]', colorClass, unsupported && 'text-muted-foreground/50')}>
+  return <span className={cn('truncate text-[13px]', unsupported && 'text-muted-foreground/50')}>
     {name}
-    <small className='text-emerald-800 hidden'></small>
   </span>;
 }

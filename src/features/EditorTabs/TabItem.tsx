@@ -23,9 +23,10 @@ import { TabContextMenu } from './TabContextMenu';
 interface TabItemProps {
   tab: Tab;
   paneId?: string;
+  isNextActive?: boolean;
 }
 
-export function TabItem({ tab, paneId }: TabItemProps) {
+export function TabItem({ tab, paneId, isNextActive }: TabItemProps) {
   const navigate = useNavigate();
   const activePaneId = useAtomValue(activePaneIdAtom);
   const activeTabId = useAtomValue(activeTabIdAtom);
@@ -95,11 +96,9 @@ export function TabItem({ tab, paneId }: TabItemProps) {
         <div
           ref={tabRef}
           className={cn(
-            'flex items-center gap-2 px-3 h-[35px] cursor-pointer border-r border-border group relative transition-all',
+            'depdok-tab flex items-center gap-2 px-3.5 h-[31px] cursor-pointer group relative',
             'min-w-[120px] max-w-[200px]',
-            isActive
-              ? 'bg-layout-content text-foreground border-b border-b-primary/60 border-r border-r-border shadow-xs'
-              : 'bg-layout-chrome text-muted-foreground hover:bg-muted/30 hover:text-foreground border-b border-b-transparent',
+            isActive && 'active',
             tab.isPreview && 'italic',
             tab.isDeleted && 'opacity-70'
           )}
@@ -113,18 +112,24 @@ export function TabItem({ tab, paneId }: TabItemProps) {
           </span>
 
           <span className={cn(
-            'text-xs truncate flex-1',
+            'text-xs truncate flex-1 font-normal',
+            isActive ? 'font-medium text-foreground' : 'text-muted-foreground group-hover:text-foreground',
             tab.isDeleted && 'line-through text-destructive'
           )}>
             {displayName}
           </span>
+
+          {/* Inactive tab separator (hidden on active, when next tab is active, or on hover) */}
+          {!isActive && !isNextActive && (
+            <span className="tab-divider absolute right-0 top-1.5 bottom-1.5 w-[1px] bg-border/40 group-hover:opacity-0 pointer-events-none" />
+          )}
 
           {/* Right side interactions: Dirty Indicator + Close Button */}
           <div className="relative w-4 h-4 flex items-center justify-center">
             {/* Dirty Indicator (visible when dirty, hidden on hover to show close button) */}
             {isDirty && (
               <div
-                className="w-2 h-2 rounded-full bg-blue-500/80 absolute transition-opacity group-hover:opacity-0"
+                className="w-2 h-2 rounded-full bg-blue-500/80 absolute group-hover:opacity-0"
                 title="Unsaved changes"
               />
             )}
@@ -132,7 +137,7 @@ export function TabItem({ tab, paneId }: TabItemProps) {
             {/* Close Button (visible on hover) */}
             <button
               className={cn(
-                "absolute inset-0 flex items-center justify-center rounded hover:bg-muted transition-opacity",
+                "absolute inset-0 flex items-center justify-center rounded hover:bg-muted",
                 "opacity-0 group-hover:opacity-100"
               )}
               onClick={handleClose}

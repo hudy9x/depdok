@@ -197,8 +197,8 @@ export function CommentThreadCard({
             </div>
           </div>
         ) : (
-          <p className="text-xs text-foreground leading-relaxed break-words">
-            {thread.text}
+          <p className={`text-xs leading-relaxed break-words ${thread.text ? 'text-foreground' : 'text-muted-foreground italic'}`}>
+            {thread.text || 'No comment content (Click … to edit)'}
           </p>
         )}
 

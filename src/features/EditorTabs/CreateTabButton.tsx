@@ -68,7 +68,7 @@ export function CreateTabButton() {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <div
-          className="h-[35px] w-8 p-0 rounded-none border-r border-border bg-layout-chrome hover:bg-muted/30 text-muted-foreground hover:text-foreground cursor-pointer flex items-center justify-center transition-colors"
+          className="h-[28px] w-7 mb-0.5 ml-1 rounded-md hover:bg-muted/50 text-muted-foreground hover:text-foreground cursor-pointer flex items-center justify-center shrink-0"
           title="Create new file"
         >
           <Plus className="w-4 h-4" />

@@ -1,0 +1,67 @@
+/* ─── Chrome / Inverted Curve Tab Bar Styles ─────────────────────────────────── */
+.depdok-tabs-container {
+  --tab-radius: 10px;
+  background-color: var(--layout-chrome);
+}
+
+.depdok-tab {
+  position: relative;
+  cursor: pointer;
+  color: var(--muted-foreground);
+  user-select: none;
+}
+
+.depdok-tab:not(.active):hover {
+  color: var(--foreground);
+  background-color: color-mix(in oklch, var(--foreground) 4%, transparent);
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+}
+
+/* Hide divider immediately before an active tab */
+.group:has(+ .group .active) .tab-divider {
+  display: none;
+}
+
+/* Active tab */
+.depdok-tab.active {
+  background-color: var(--layout-content);
+  color: var(--foreground);
+  border-top-left-radius: var(--tab-radius);
+  border-top-right-radius: var(--tab-radius);
+  font-weight: 500;
+  z-index: 10;
+  box-shadow: 0 -1px 3px 0 rgba(0, 0, 0, 0.06);
+}
+
+.dark .depdok-tab.active {
+  box-shadow: 0 -1px 3px 0 rgba(0, 0, 0, 0.25);
+}
+
+/* Left inverted curve */
+.depdok-tab.active::before {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: calc(-1 * var(--tab-radius));
+  width: var(--tab-radius);
+  height: var(--tab-radius);
+  background: transparent;
+  border-bottom-right-radius: var(--tab-radius);
+  box-shadow: calc(var(--tab-radius) / 2) calc(var(--tab-radius) / 2) 0 calc(var(--tab-radius) / 2) var(--layout-content);
+  pointer-events: none;
+}
+
+/* Right inverted curve */
+.depdok-tab.active::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  right: calc(-1 * var(--tab-radius));
+  width: var(--tab-radius);
+  height: var(--tab-radius);
+  background: transparent;
+  border-bottom-left-radius: var(--tab-radius);
+  box-shadow: calc(-1 * var(--tab-radius) / 2) calc(var(--tab-radius) / 2) 0 calc(var(--tab-radius) / 2) var(--layout-content);
+  pointer-events: none;
+}

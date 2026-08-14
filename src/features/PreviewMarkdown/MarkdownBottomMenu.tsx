@@ -8,9 +8,10 @@ import { MarkdownSizeControl, MarkdownSizeDropdown, type MarkdownEditorSize } fr
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   addCommentThreadAtom,
-  commentThreadsAtom,
+  fileCommentThreadsAtomFamily,
   generateCommentId,
   useCommentAuthor,
+  type CommentThread,
 } from "./extensions/comment";
 
 interface MarkdownBottomMenuProps {
@@ -21,16 +22,15 @@ interface MarkdownBottomMenuProps {
   filePath?: string;
   isSidebarVisible?: boolean;
   onToggleSidebar?: () => void;
-  onOpenSidebar?: () => void;
 }
 
 /** Add Comment button with inline Popover for entering comment text. */
 function AddCommentButton({
   editor,
-  onCommentAdded,
+  filePath = '',
 }: {
   editor: Editor;
-  onCommentAdded?: () => void;
+  filePath?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [commentText, setCommentText] = useState("");
@@ -63,20 +63,25 @@ function AddCommentButton({
     setAuthor(finalAuthor);
 
     const id = generateCommentId();
-    editor.chain().focus().setCommentMark(id).run();
 
-    addThread({
+    const newThread: CommentThread = {
       id,
       text: commentText.trim(),
       author: finalAuthor,
       createdAt: new Date().toISOString(),
       resolved: false,
       replies: [],
+    };
+
+    addThread({
+      filePath,
+      thread: newThread,
     });
+
+    editor.chain().focus().setCommentMark(id).run();
 
     setCommentText("");
     setOpen(false);
-    onCommentAdded?.();
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -173,12 +178,11 @@ export function MarkdownBottomMenu({
   editable = false,
   size,
   onSizeChange,
-  filePath: _filePath,
+  filePath = '',
   isSidebarVisible = false,
   onToggleSidebar,
-  onOpenSidebar,
 }: MarkdownBottomMenuProps) {
-  const commentThreads = useAtomValue(commentThreadsAtom);
+  const commentThreads = useAtomValue(fileCommentThreadsAtomFamily(filePath));
   const openCommentCount = commentThreads.filter((t) => !t.resolved).length;
 
   return (
@@ -207,7 +211,7 @@ export function MarkdownBottomMenu({
       {editable && editor && (
         <>
           <div className="w-[1px] h-5 bg-border mx-1 shrink-0" />
-          <AddCommentButton editor={editor} onCommentAdded={onOpenSidebar} />
+          <AddCommentButton editor={editor} filePath={filePath} />
           <div className="relative inline-flex items-center">
             <button
               type="button"

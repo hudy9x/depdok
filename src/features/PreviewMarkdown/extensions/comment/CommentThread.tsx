@@ -22,6 +22,7 @@ interface CommentThreadProps {
   onClick: () => void;
   onDeleteMark: (id: string) => void;
   editor?: Editor | null;
+  filePath?: string;
 }
 
 function formatDate(iso: string): string {
@@ -38,6 +39,7 @@ export function CommentThreadCard({
   onClick,
   onDeleteMark,
   editor,
+  filePath = '',
 }: CommentThreadProps) {
   const [author, setAuthor, _avatarId, preset] = useCommentAuthor();
   const [replyText, setReplyText] = useState('');
@@ -54,7 +56,7 @@ export function CommentThreadCard({
 
   const handleSaveEdit = () => {
     if (editText.trim()) {
-      updateText({ id: thread.id, text: editText.trim() });
+      updateText({ filePath, id: thread.id, text: editText.trim() });
     }
     setIsEditing(false);
   };
@@ -65,6 +67,7 @@ export function CommentThreadCard({
     setAuthor(finalAuthor);
 
     addReply({
+      filePath,
       threadId: thread.id,
       reply: {
         id: generateCommentId(),
@@ -79,18 +82,19 @@ export function CommentThreadCard({
 
   const handleDelete = () => {
     onDeleteMark(thread.id);
-    deleteThread(thread.id);
+    deleteThread({ filePath, id: thread.id });
   };
 
   const handleToggleResolve = () => {
     if (!thread.resolved && editor) {
       editor.chain().focus().unsetCommentMark(thread.id).run();
     }
-    toggleResolved(thread.id);
+    toggleResolved({ filePath, id: thread.id });
   };
 
   return (
     <div
+      data-thread-card-id={thread.id}
       onClick={onClick}
       className={`
         group relative rounded-xl border transition-all duration-200 cursor-pointer
@@ -224,7 +228,7 @@ export function CommentThreadCard({
                     </div>
                     <button
                       type="button"
-                      onClick={(e) => { e.stopPropagation(); deleteReply({ threadId: thread.id, replyId: reply.id }); }}
+                      onClick={(e) => { e.stopPropagation(); deleteReply({ filePath, threadId: thread.id, replyId: reply.id }); }}
                       className="opacity-0 group-hover/reply:opacity-100 p-0.5 rounded hover:bg-accent text-muted-foreground hover:text-destructive transition-all shrink-0"
                     >
                       <Trash2 className="w-3 h-3" />

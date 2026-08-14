@@ -2,8 +2,8 @@ import { useEffect, useRef, useCallback } from "react";
 import { Editor } from "@tiptap/react";
 import { useAtom, useSetAtom } from "jotai";
 import {
-  activeCommentIdAtom,
-  commentThreadsAtom,
+  fileActiveCommentIdAtomFamily,
+  fileCommentThreadsAtomFamily,
 } from "./commentStore";
 import { appendComments, extractComments } from "./commentParser";
 import { markFileAsDirtyAtom } from "@/stores/DirtyStore";
@@ -30,13 +30,13 @@ export function useCommentExtension({
   editor,
   content,
   editable,
-  filePath,
+  filePath = "",
   onContentChange,
   debouncedSaveDraft,
   isUpdatingRef,
 }: UseCommentExtensionOptions) {
-  const [commentThreads, setCommentThreads] = useAtom(commentThreadsAtom);
-  const [activeCommentId, setActiveCommentId] = useAtom(activeCommentIdAtom);
+  const [commentThreads, setCommentThreads] = useAtom(fileCommentThreadsAtomFamily(filePath));
+  const [activeCommentId, setActiveCommentId] = useAtom(fileActiveCommentIdAtomFamily(filePath));
   const markFileAsDirty = useSetAtom(markFileAsDirtyAtom);
 
   // Track the last known content (from load, save, or edit) to avoid false-positive dirty states

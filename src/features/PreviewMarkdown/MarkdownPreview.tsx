@@ -442,7 +442,6 @@ export function MarkdownPreview({
           filePath={filePath}
           isSidebarVisible={isCommentSidebarVisible}
           onToggleSidebar={() => setIsCommentSidebarVisible((v) => !v)}
-          onOpenSidebar={() => setIsCommentSidebarVisible(true)}
         />
       </div>
 
@@ -459,6 +458,7 @@ export function MarkdownPreview({
         editor={editor}
         visible={isCommentSidebarVisible}
         onClose={() => setIsCommentSidebarVisible(false)}
+        filePath={filePath}
       />
     </div>
   );

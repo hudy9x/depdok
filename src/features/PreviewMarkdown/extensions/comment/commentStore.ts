@@ -1,4 +1,5 @@
 import { atom } from 'jotai';
+import { atomFamily } from 'jotai/utils';
 
 export interface CommentReply {
   id: string;
@@ -16,29 +17,30 @@ export interface CommentThread {
   replies: CommentReply[];
 }
 
-// All comment threads for the current file
-export const commentThreadsAtom = atom<CommentThread[]>([]);
+// All comment threads for a specific file path
+export const fileCommentThreadsAtomFamily = atomFamily((_filePath: string) =>
+  atom<CommentThread[]>([])
+);
 
-// The currently active/focused comment id (for bidirectional highlighting)
-export const activeCommentIdAtom = atom<string | null>(null);
-
-// Whether the comment sidebar is visible
-export const commentSidebarVisibleAtom = atom<boolean>(false);
+// The currently active/focused comment id per file path
+export const fileActiveCommentIdAtomFamily = atomFamily((_filePath: string) =>
+  atom<string | null>(null)
+);
 
 // Write atom to add a new comment thread
 export const addCommentThreadAtom = atom(
   null,
-  (_get, set, thread: CommentThread) => {
-    set(commentThreadsAtom, (prev) => [...prev, thread]);
-    set(activeCommentIdAtom, thread.id);
+  (_get, set, payload: { filePath: string; thread: CommentThread }) => {
+    set(fileCommentThreadsAtomFamily(payload.filePath), (prev) => [...prev, payload.thread]);
+    set(fileActiveCommentIdAtomFamily(payload.filePath), payload.thread.id);
   }
 );
 
 // Write atom to update a comment thread's text
 export const updateCommentTextAtom = atom(
   null,
-  (_get, set, payload: { id: string; text: string }) => {
-    set(commentThreadsAtom, (prev) =>
+  (_get, set, payload: { filePath: string; id: string; text: string }) => {
+    set(fileCommentThreadsAtomFamily(payload.filePath), (prev) =>
       prev.map((t) => (t.id === payload.id ? { ...t, text: payload.text } : t))
     );
   }
@@ -47,8 +49,8 @@ export const updateCommentTextAtom = atom(
 // Write atom to add a reply to a comment thread
 export const addCommentReplyAtom = atom(
   null,
-  (_get, set, payload: { threadId: string; reply: CommentReply }) => {
-    set(commentThreadsAtom, (prev) =>
+  (_get, set, payload: { filePath: string; threadId: string; reply: CommentReply }) => {
+    set(fileCommentThreadsAtomFamily(payload.filePath), (prev) =>
       prev.map((t) =>
         t.id === payload.threadId
           ? { ...t, replies: [...t.replies, payload.reply] }
@@ -61,9 +63,9 @@ export const addCommentReplyAtom = atom(
 // Write atom to resolve/unresolve a comment thread
 export const toggleCommentResolvedAtom = atom(
   null,
-  (_get, set, id: string) => {
-    set(commentThreadsAtom, (prev) =>
-      prev.map((t) => (t.id === id ? { ...t, resolved: !t.resolved } : t))
+  (_get, set, payload: { filePath: string; id: string }) => {
+    set(fileCommentThreadsAtomFamily(payload.filePath), (prev) =>
+      prev.map((t) => (t.id === payload.id ? { ...t, resolved: !t.resolved } : t))
     );
   }
 );
@@ -71,17 +73,17 @@ export const toggleCommentResolvedAtom = atom(
 // Write atom to delete a comment thread
 export const deleteCommentThreadAtom = atom(
   null,
-  (_get, set, id: string) => {
-    set(commentThreadsAtom, (prev) => prev.filter((t) => t.id !== id));
-    set(activeCommentIdAtom, (prev) => (prev === id ? null : prev));
+  (_get, set, payload: { filePath: string; id: string }) => {
+    set(fileCommentThreadsAtomFamily(payload.filePath), (prev) => prev.filter((t) => t.id !== payload.id));
+    set(fileActiveCommentIdAtomFamily(payload.filePath), (prev) => (prev === payload.id ? null : prev));
   }
 );
 
 // Write atom to delete a reply
 export const deleteCommentReplyAtom = atom(
   null,
-  (_get, set, payload: { threadId: string; replyId: string }) => {
-    set(commentThreadsAtom, (prev) =>
+  (_get, set, payload: { filePath: string; threadId: string; replyId: string }) => {
+    set(fileCommentThreadsAtomFamily(payload.filePath), (prev) =>
       prev.map((t) =>
         t.id === payload.threadId
           ? { ...t, replies: t.replies.filter((r) => r.id !== payload.replyId) }

@@ -99,8 +99,8 @@ function AddCommentButton({ editor }: { editor: Editor }) {
             hasCommentMark
               ? "Selection already has a comment"
               : !hasSelection
-              ? "Select text to add a comment"
-              : "Add comment"
+                ? "Select text to add a comment"
+                : "Add comment"
           }
           className={`p-2 rounded hover:bg-accent transition-colors disabled:opacity-30 disabled:cursor-not-allowed text-muted-foreground hover:text-foreground`}
         >
@@ -194,12 +194,12 @@ export function MarkdownBottomMenu({
           onSizeChange={onSizeChange}
         />
       </div>
-      {editor && (
+      {/* {editor && (
         <div className="export-button-group items-center shrink-0">
           <div className="w-[1px] h-5 bg-border mx-1 shrink-0" />
           <ExportButton editor={editor} filePath={filePath} />
         </div>
-      )}
+      )} */}
       {editable && editor && (
         <>
           <div className="w-[1px] h-5 bg-border mx-1 shrink-0" />
@@ -210,11 +210,10 @@ export function MarkdownBottomMenu({
               id="toggle-comment-sidebar"
               onClick={() => setSidebarVisible((v) => !v)}
               title={isSidebarVisible ? "Hide comments" : "Show comments"}
-              className={`p-2 rounded hover:bg-accent transition-colors relative ${
-                isSidebarVisible
+              className={`p-2 rounded hover:bg-accent transition-colors relative ${isSidebarVisible
                   ? "bg-accent text-accent-foreground"
                   : "text-muted-foreground hover:text-foreground"
-              }`}
+                }`}
             >
               <MessageSquare className="w-4 h-4" />
               {openCommentCount > 0 && (

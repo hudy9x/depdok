@@ -1,6 +1,6 @@
 import { ExportContextMenuItem } from '@/features/PreviewMarkdown/ExportContextMenuItem';
 import { useState } from 'react';
-import { useSetAtom } from 'jotai';
+import { useSetAtom, useAtomValue } from 'jotai';
 import { writeText } from '@tauri-apps/plugin-clipboard-manager';
 import { toast } from 'sonner';
 import {
@@ -27,17 +27,19 @@ import {
   isDummyPath,
   type Tab,
 } from '@/stores/TabStore';
-import { splitPaneAtom } from '@/stores/PaneStore';
+import { activePaneIdAtom, splitPaneAtom } from '@/stores/PaneStore';
 import { revealFileAtom, isFileExplorerVisibleAtom } from '@/features/FileExplorer/store';
 import { RenameTabDialog } from './RenameTabDialog';
 
 interface TabContextMenuProps {
   tab: Tab;
-  paneId: string;
+  paneId?: string;
   children: React.ReactNode;
 }
 
 export function TabContextMenu({ tab, paneId, children }: TabContextMenuProps) {
+  const activePaneId = useAtomValue(activePaneIdAtom);
+  const targetPaneId = paneId || activePaneId;
   const closeTab = useSetAtom(closeTabAtom);
   const closeOtherTabs = useSetAtom(closeOtherTabsAtom);
   const closeAllTabs = useSetAtom(closeAllTabsAtom);
@@ -51,11 +53,11 @@ export function TabContextMenu({ tab, paneId, children }: TabContextMenuProps) {
   };
 
   const handleCloseOthers = () => {
-    closeOtherTabs({ tabId: tab.id, paneId });
+    closeOtherTabs({ tabId: tab.id, paneId: targetPaneId });
   };
 
   const handleCloseAll = () => {
-    closeAllTabs({ paneId });
+    closeAllTabs();
   };
 
   const handleCopyFilename = async () => {
@@ -85,7 +87,7 @@ export function TabContextMenu({ tab, paneId, children }: TabContextMenuProps) {
   };
 
   const handleClose = () => {
-    closeTab({ tabId: tab.id, paneId });
+    closeTab({ tabId: tab.id, paneId: targetPaneId });
   };
 
   return (
@@ -100,11 +102,11 @@ export function TabContextMenu({ tab, paneId, children }: TabContextMenuProps) {
             Rename
           </ContextMenuItem>
           <ContextMenuSeparator />
-          <ContextMenuItem onClick={() => splitPane({ paneId, direction: 'horizontal' })}>
+          <ContextMenuItem onClick={() => splitPane({ paneId: targetPaneId, direction: 'horizontal' })}>
             <Columns2 className="mr-2 h-4 w-4" />
             Split Right
           </ContextMenuItem>
-          <ContextMenuItem onClick={() => splitPane({ paneId, direction: 'vertical' })}>
+          <ContextMenuItem onClick={() => splitPane({ paneId: targetPaneId, direction: 'vertical' })}>
             <Rows className="mr-2 h-4 w-4" />
             Split Down
           </ContextMenuItem>

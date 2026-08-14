@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
-  paneActiveTabIdAtomFamily,
+  activeTabIdAtom,
   switchTabAtom,
   closeTabAtom,
   updateTabAtom,
@@ -12,20 +12,23 @@ import {
   extractFilenameFromDummyPath,
   type Tab,
 } from '@/stores/TabStore';
+import {
+  activePaneIdAtom,
+} from '@/stores/PaneStore';
 import { isFileDirtyAtom } from '@/stores/DirtyStore';
 import { CloseTabWarning } from './CloseTabWarning';
 import { FileIcon } from '@/components/FileIcon';
 import { TabContextMenu } from './TabContextMenu';
 
-
 interface TabItemProps {
   tab: Tab;
-  paneId: string;
+  paneId?: string;
 }
 
 export function TabItem({ tab, paneId }: TabItemProps) {
   const navigate = useNavigate();
-  const activeTabId = useAtomValue(paneActiveTabIdAtomFamily(paneId));
+  const activePaneId = useAtomValue(activePaneIdAtom);
+  const activeTabId = useAtomValue(activeTabIdAtom);
   const isDirty = useAtomValue(isFileDirtyAtom(tab.filePath));
   const switchTab = useSetAtom(switchTabAtom);
   const closeTab = useSetAtom(closeTabAtom);
@@ -35,23 +38,30 @@ export function TabItem({ tab, paneId }: TabItemProps) {
 
   const isActive = tab.id === activeTabId;
 
+  // Auto-sync: When this tab becomes active (e.g. section/view focused or tab switched), scroll into view
   useEffect(() => {
     if (isActive) {
-      tabRef.current?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+      tabRef.current?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest',
+        inline: 'nearest',
+      });
     }
   }, [isActive]);
 
   const handleClick = () => {
     if (!isActive) {
+      // Switch active tab in currently focused pane
       switchTab(tab.id);
-      // Navigate to the file path to trigger content reload
-      navigate(`/editor?path=${encodeURIComponent(tab.filePath)}`);
     }
+
+    // Navigate to the file path to sync URL
+    navigate(`/editor?path=${encodeURIComponent(tab.filePath)}`);
   };
 
   const handleDoubleClick = () => {
     if (tab.isPreview) {
-      updateTab({ tabId: tab.id, updates: { isPreview: false }, paneId });
+      updateTab({ tabId: tab.id, updates: { isPreview: false } });
     }
   };
 
@@ -62,19 +72,15 @@ export function TabItem({ tab, paneId }: TabItemProps) {
     if (isDirty) {
       setShowCloseWarning(true);
     } else {
-      closeTab({ tabId: tab.id, paneId });
+      closeTab(tab.id);
     }
   };
 
   const handleConfirmClose = (action: 'save' | 'discard' | 'cancel') => {
     setShowCloseWarning(false);
 
-    if (action === 'discard') {
-      closeTab({ tabId: tab.id, paneId });
-    } else if (action === 'save') {
-      // TODO: Trigger save flow, then close
-      // For now, just close
-      closeTab({ tabId: tab.id, paneId });
+    if (action === 'discard' || action === 'save') {
+      closeTab(tab.id);
     }
     // 'cancel' does nothing
   };
@@ -85,14 +91,14 @@ export function TabItem({ tab, paneId }: TabItemProps) {
 
   return (
     <>
-      <TabContextMenu tab={tab} paneId={paneId}>
+      <TabContextMenu tab={tab} paneId={paneId || activePaneId}>
         <div
           ref={tabRef}
           className={cn(
             'flex items-center gap-2 px-3 h-[35px] cursor-pointer border-r border-border group relative transition-all',
             'min-w-[120px] max-w-[200px]',
             isActive
-              ? 'bg-layout-content text-foreground border-b border-b-transparent border-r border-r-border'
+              ? 'bg-layout-content text-foreground font-medium border-b border-b-primary/60 border-r border-r-border shadow-xs'
               : 'bg-layout-chrome text-muted-foreground hover:bg-muted/30 hover:text-foreground border-b border-b-transparent',
             tab.isPreview && 'italic',
             tab.isDeleted && 'opacity-70'

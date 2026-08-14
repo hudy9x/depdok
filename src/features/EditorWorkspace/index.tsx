@@ -1,20 +1,21 @@
 import * as React from 'react';
 import { useAtom, useAtomValue } from 'jotai';
-import { paneTreeAtom, collectLeafPanes } from '@/stores/PaneStore';
+import { paneTreeAtom } from '@/stores/PaneStore';
 import { isFileExplorerVisibleAtom } from '@/features/FileExplorer/store';
 import { PaneTree } from './PaneTree';
 import { FileBox } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
+import { EditorTabs } from '@/features/EditorTabs';
+import { tabsAtom } from '@/stores/TabStore';
+
 export function EditorWorkspace(): React.JSX.Element {
   const tree = useAtomValue(paneTreeAtom);
-  const leafPanes = collectLeafPanes(tree);
+  const tabs = useAtomValue(tabsAtom);
   const [isFileExplorerVisible, setIsFileExplorerVisible] = useAtom(isFileExplorerVisibleAtom);
 
-  // If no leaf panes have any tabs, show welcome/empty workspace UI
-  const totalTabs = leafPanes.reduce((acc, pane) => acc + pane.tabs.length, 0);
-
-  if (totalTabs === 0) {
+  // If no tabs in workspace, show welcome/empty workspace UI
+  if (tabs.length === 0) {
     return (
       <div className="h-full w-full flex flex-col items-center justify-center bg-layout-chrome text-muted-foreground p-8 select-none">
         <div className="flex flex-col items-center gap-2 max-w-sm text-center">
@@ -53,8 +54,11 @@ export function EditorWorkspace(): React.JSX.Element {
   }
 
   return (
-    <div className="w-full h-full relative overflow-hidden flex bg-layout-content">
-      <PaneTree node={tree} />
+    <div className="w-full h-full relative overflow-hidden flex flex-col bg-layout-content">
+      <EditorTabs />
+      <div className="flex-1 min-h-0 min-w-0 relative">
+        <PaneTree node={tree} />
+      </div>
     </div>
   );
 }

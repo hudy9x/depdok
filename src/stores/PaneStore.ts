@@ -187,15 +187,6 @@ export const splitPaneAtom = atom(
     const newPaneId = `pane-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     const newSplitId = `split-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-    const newTabCreator = (activeTab: Tab | null): Tab | null => {
-      if (!activeTab) return null;
-      return {
-        ...activeTab,
-        id: `tab-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        isActive: true,
-      };
-    };
-
     function splitPaneInTree(
       node: PaneNode,
       targetId: string,
@@ -203,12 +194,10 @@ export const splitPaneAtom = atom(
     ): PaneNode {
       if (node.type === 'leaf') {
         if (node.pane.id === targetId) {
-          const activeTab = node.pane.tabs.find((t) => t.id === node.pane.activeTabId) || null;
-          const newTab = newTabCreator(activeTab);
           const newPane: Pane = {
             id: newPaneId,
-            tabs: newTab ? [newTab] : [],
-            activeTabId: newTab ? newTab.id : null,
+            tabs: [...node.pane.tabs],
+            activeTabId: node.pane.activeTabId,
             viewMode: node.pane.viewMode,
           };
           return {

@@ -86,6 +86,7 @@ export function MonacoEditor({
   const handleChange = (value: string | undefined) => {
     if (value === undefined) return;
 
+    console.log('[MonacoEditor] 📝 handleChange fired for:', filePath);
     setContent(value);
     if (onContentChange) {
       onContentChange(value); // Notify parent (handles save in pane context)

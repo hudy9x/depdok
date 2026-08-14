@@ -54,10 +54,15 @@ export function useCommentExtension({
   // Helper to process markdown changes and mark file as dirty if content actually changed
   const processContentChange = useCallback(
     (newMarkdown: string) => {
-      if (newMarkdown === lastContentRef.current) {
+      const normNew = newMarkdown.replace(/\r\n/g, "\n").trim();
+      const normLast = (lastContentRef.current || "").replace(/\r\n/g, "\n").trim();
+
+      console.log('[useCommentExtension] processContentChange called | normNew === normLast?', normNew === normLast);
+      if (normNew === normLast) {
         return; // Content is identical to loaded/saved version — keep clean
       }
 
+      console.log('[useCommentExtension] 🔴 Content differs! Marking file dirty:', filePath);
       lastContentRef.current = newMarkdown;
       if (filePath) {
         markFileAsDirty(filePath);
@@ -84,8 +89,11 @@ export function useCommentExtension({
       isUpdatingRef.current = true;
       setCommentThreads(threads);
       editor.commands.setContent(cleanMarkdown, { contentType: "markdown" });
-      isUpdatingRef.current = false;
-      lastContentRef.current = content;
+      const initialSerialized = appendComments(editor.getMarkdown(), threads);
+      lastContentRef.current = initialSerialized;
+      setTimeout(() => {
+        isUpdatingRef.current = false;
+      }, 0);
     }
   }, [content, editor, editable, setCommentThreads, isUpdatingRef]);
 
@@ -96,15 +104,22 @@ export function useCommentExtension({
       isUpdatingRef.current = true;
       setCommentThreads(threads);
       editor.commands.setContent(cleanMarkdown, { contentType: "markdown" });
-      isUpdatingRef.current = false;
-      lastContentRef.current = content;
+      const initialSerialized = appendComments(editor.getMarkdown(), threads);
+      lastContentRef.current = initialSerialized;
+      setTimeout(() => {
+        isUpdatingRef.current = false;
+      }, 0);
     }
   }, [editable, content, editor, setCommentThreads, isUpdatingRef]);
 
   // Re-save and mark file as dirty whenever comment threads change (add reply, edit, delete, resolve)
   useEffect(() => {
-    if (!editor || !editable || isUpdatingRef.current) return;
+    if (!editor || !editable || isUpdatingRef.current) {
+      if (isUpdatingRef.current) console.log('[useCommentExtension] ⏭️ Skipping useEffect[commentThreads] because isUpdatingRef is true');
+      return;
+    }
 
+    console.log('[useCommentExtension] 🔄 useEffect[commentThreads] executing');
     const markdownContent = appendComments(editor.getMarkdown(), commentThreads);
     processContentChange(markdownContent);
   }, [commentThreads, editor, editable, isUpdatingRef, processContentChange]);

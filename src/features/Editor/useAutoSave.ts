@@ -47,6 +47,7 @@ export function useAutoSave() {
     async (payload: { content: string; filePath: string; tabId: string; paneId?: string }) => {
       const { content, filePath } = payload;
       if (!filePath) return;
+      console.log('[useAutoSave] 💾 debouncedSaveDraft executing for:', filePath, '| calling markFileAsDirty');
       await draftService.saveDraft(filePath, content);
 
       markFileAsDirty(filePath);

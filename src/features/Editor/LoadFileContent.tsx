@@ -106,9 +106,17 @@ export function LoadFileContent({
         let shouldMarkDirty = filePath.startsWith("UNTITLED://");
 
         if (!isImage && draft) {
-          if (isUntitled || draft.content !== loadedFileContent) {
+          const normDraft = (draft.content || "").replace(/\r\n/g, "\n").trim();
+          const normLoaded = (loadedFileContent || "").replace(/\r\n/g, "\n").trim();
+          console.log("[LoadFileContent] Draft found for:", filePath, "| normDraft === normLoaded?", normDraft === normLoaded);
+
+          if (isUntitled || normDraft !== normLoaded) {
             contentToLoad = draft.content;
             shouldMarkDirty = true;
+            console.log("[LoadFileContent] ⚠️ Setting shouldMarkDirty = true due to draft mismatch or untitled.");
+          } else {
+            console.log("[LoadFileContent] 🧹 Draft matches disk — removing stale draft from IndexedDB.");
+            await draftService.removeDraft(filePath);
           }
         }
 
@@ -128,6 +136,7 @@ export function LoadFileContent({
         }
 
         if (shouldMarkDirty) {
+          console.log("[LoadFileContent] 🔴 Calling markFileAsDirty for:", filePath);
           markFileAsDirty(filePath);
         }
 

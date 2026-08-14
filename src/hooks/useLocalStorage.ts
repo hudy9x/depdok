@@ -21,7 +21,12 @@ export function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T 
       if (typeof initialValue === 'boolean' && item !== null) {
         return (item === 'true') as unknown as T;
       }
-      return item ? JSON.parse(item) : initialValue;
+      if (!item) return initialValue;
+      try {
+        return JSON.parse(item);
+      } catch {
+        return item as unknown as T;
+      }
     } catch (error) {
       console.log(error);
       return initialValue;
@@ -39,11 +44,7 @@ export function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T 
       setStoredValue(valueToStore);
       // Save to local storage
       if (typeof window !== "undefined") {
-        if (typeof valueToStore === 'string') {
-          window.localStorage.setItem(key, valueToStore);
-        } else {
-          window.localStorage.setItem(key, String(valueToStore));
-        }
+        window.localStorage.setItem(key, JSON.stringify(valueToStore));
       }
     } catch (error) {
       console.log(error);

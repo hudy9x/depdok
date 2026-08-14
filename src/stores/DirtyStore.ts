@@ -5,6 +5,8 @@ export const dirtyFilesAtom = atom<Set<string>>(new Set<string>());
 
 export const markFileAsDirtyAtom = atom(null, (get, set, filePath: string) => {
   const previous = get(dirtyFilesAtom);
+  console.log('[DirtyStore] 🔴 markFileAsDirtyAtom called for:', filePath, '| Already dirty?', previous.has(filePath));
+  console.trace('[DirtyStore] Call stack for markFileAsDirtyAtom:');
   if (previous.has(filePath)) return;
 
   const next = new Set(previous);
@@ -14,6 +16,7 @@ export const markFileAsDirtyAtom = atom(null, (get, set, filePath: string) => {
 
 export const markFileAsSavedAtom = atom(null, (get, set, filePath: string) => {
   const previous = get(dirtyFilesAtom);
+  console.log('[DirtyStore] 🟢 markFileAsSavedAtom called for:', filePath, '| Was dirty?', previous.has(filePath));
   if (!previous.has(filePath)) return;
 
   const next = new Set(previous);

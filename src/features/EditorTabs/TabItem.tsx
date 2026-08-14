@@ -98,7 +98,7 @@ export function TabItem({ tab, paneId }: TabItemProps) {
             'flex items-center gap-2 px-3 h-[35px] cursor-pointer border-r border-border group relative transition-all',
             'min-w-[120px] max-w-[200px]',
             isActive
-              ? 'bg-layout-content text-foreground font-medium border-b border-b-primary/60 border-r border-r-border shadow-xs'
+              ? 'bg-layout-content text-foreground border-b border-b-primary/60 border-r border-r-border shadow-xs'
               : 'bg-layout-chrome text-muted-foreground hover:bg-muted/30 hover:text-foreground border-b border-b-transparent',
             tab.isPreview && 'italic',
             tab.isDeleted && 'opacity-70'

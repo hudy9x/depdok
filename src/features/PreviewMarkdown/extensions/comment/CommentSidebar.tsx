@@ -1,27 +1,26 @@
 import { useState } from 'react';
-import { useAtom, useAtomValue, useSetAtom } from 'jotai';
+import { useAtom, useAtomValue } from 'jotai';
 import { MessageSquare, X } from 'lucide-react';
 import { Editor } from '@tiptap/react';
 
 import {
   activeCommentIdAtom,
-  commentSidebarVisibleAtom,
   commentThreadsAtom,
 } from './commentStore';
 import { CommentThreadCard } from './CommentThread';
 
 interface CommentSidebarProps {
   editor: Editor | null;
+  onClose?: () => void;
 }
 
 /**
  * Sidebar panel showing all comment threads for the current document.
  * Includes a filter switcher for Open vs Resolved comments.
  */
-export function CommentSidebar({ editor }: CommentSidebarProps) {
+export function CommentSidebar({ editor, onClose }: CommentSidebarProps) {
   const threads = useAtomValue(commentThreadsAtom);
   const [activeId, setActiveId] = useAtom(activeCommentIdAtom);
-  const setSidebarVisible = useSetAtom(commentSidebarVisibleAtom);
   const [filterTab, setFilterTab] = useState<'open' | 'resolved'>('open');
 
   const activeThreads = threads.filter((t) => !t.resolved);
@@ -88,7 +87,7 @@ export function CommentSidebar({ editor }: CommentSidebarProps) {
         </div>
         <button
           type="button"
-          onClick={() => setSidebarVisible(false)}
+          onClick={onClose}
           className="p-1 rounded hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
           title="Close comments"
         >

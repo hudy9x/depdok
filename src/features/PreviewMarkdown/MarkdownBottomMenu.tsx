@@ -1,15 +1,13 @@
 import { useRef, useState, useEffect } from "react";
 import { Editor, useEditorState } from "@tiptap/react";
 import { MessageSquare, MessageSquarePlus } from "lucide-react";
-import { useAtom, useAtomValue, useSetAtom } from "jotai";
+import { useAtomValue, useSetAtom } from "jotai";
 
 import { BlockButtons } from "./MenuButtons";
 import { MarkdownSizeControl, MarkdownSizeDropdown, type MarkdownEditorSize } from "./MarkdownSizeControl";
-import { ExportButton } from "./ExportButton";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   addCommentThreadAtom,
-  commentSidebarVisibleAtom,
   commentThreadsAtom,
   generateCommentId,
   useCommentAuthor,
@@ -21,10 +19,19 @@ interface MarkdownBottomMenuProps {
   size: MarkdownEditorSize;
   onSizeChange: (size: MarkdownEditorSize) => void;
   filePath?: string;
+  isSidebarVisible?: boolean;
+  onToggleSidebar?: () => void;
+  onOpenSidebar?: () => void;
 }
 
 /** Add Comment button with inline Popover for entering comment text. */
-function AddCommentButton({ editor }: { editor: Editor }) {
+function AddCommentButton({
+  editor,
+  onCommentAdded,
+}: {
+  editor: Editor;
+  onCommentAdded?: () => void;
+}) {
   const [open, setOpen] = useState(false);
   const [commentText, setCommentText] = useState("");
   const [author, setAuthor] = useCommentAuthor();
@@ -69,6 +76,7 @@ function AddCommentButton({ editor }: { editor: Editor }) {
 
     setCommentText("");
     setOpen(false);
+    onCommentAdded?.();
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -165,9 +173,11 @@ export function MarkdownBottomMenu({
   editable = false,
   size,
   onSizeChange,
-  filePath,
+  filePath: _filePath,
+  isSidebarVisible = false,
+  onToggleSidebar,
+  onOpenSidebar,
 }: MarkdownBottomMenuProps) {
-  const [isSidebarVisible, setSidebarVisible] = useAtom(commentSidebarVisibleAtom);
   const commentThreads = useAtomValue(commentThreadsAtom);
   const openCommentCount = commentThreads.filter((t) => !t.resolved).length;
 
@@ -194,21 +204,15 @@ export function MarkdownBottomMenu({
           onSizeChange={onSizeChange}
         />
       </div>
-      {/* {editor && (
-        <div className="export-button-group items-center shrink-0">
-          <div className="w-[1px] h-5 bg-border mx-1 shrink-0" />
-          <ExportButton editor={editor} filePath={filePath} />
-        </div>
-      )} */}
       {editable && editor && (
         <>
           <div className="w-[1px] h-5 bg-border mx-1 shrink-0" />
-          <AddCommentButton editor={editor} />
+          <AddCommentButton editor={editor} onCommentAdded={onOpenSidebar} />
           <div className="relative inline-flex items-center">
             <button
               type="button"
               id="toggle-comment-sidebar"
-              onClick={() => setSidebarVisible((v) => !v)}
+              onClick={onToggleSidebar}
               title={isSidebarVisible ? "Hide comments" : "Show comments"}
               className={`p-2 rounded hover:bg-accent transition-colors relative ${isSidebarVisible
                   ? "bg-accent text-accent-foreground"

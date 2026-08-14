@@ -79,6 +79,7 @@ export function MarkdownPreview({
   const TauriImage = createTauriImage(filePath);
   const isUpdatingRef = useRef(false);
   const [isOutlineOpen, setIsOutlineOpen] = useLocalStorage('markdown-outline-open', false);
+  const [isCommentSidebarVisible, setIsCommentSidebarVisible] = useState(false);
   const [editorSize, setEditorSize] = useLocalStorage<MarkdownEditorSize>('markdown-editor-size', 'wide');
   const isPageMode = editorSize === 'page';
   const [tocAnchors, setTocAnchors] = useState<TocAnchor[]>([]);
@@ -439,6 +440,9 @@ export function MarkdownPreview({
           size={editorSize}
           onSizeChange={setEditorSize}
           filePath={filePath}
+          isSidebarVisible={isCommentSidebarVisible}
+          onToggleSidebar={() => setIsCommentSidebarVisible((v) => !v)}
+          onOpenSidebar={() => setIsCommentSidebarVisible(true)}
         />
       </div>
 
@@ -451,7 +455,11 @@ export function MarkdownPreview({
       {/* </LicenseGuard> */}
 
       {/* Comment Sidebar */}
-      <MarkdownCommentSidebar editor={editor} />
+      <MarkdownCommentSidebar
+        editor={editor}
+        visible={isCommentSidebarVisible}
+        onClose={() => setIsCommentSidebarVisible(false)}
+      />
     </div>
   );
 }

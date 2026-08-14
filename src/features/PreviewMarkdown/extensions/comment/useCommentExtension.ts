@@ -6,7 +6,11 @@ import {
   commentThreadsAtom,
 } from "./commentStore";
 import { appendComments, extractComments } from "./commentParser";
-import { markFileAsDirtyAtom } from "@/stores/DirtyStore";
+import { markFileAsDirtyAtom, markFileAsSavedAtom } from "@/stores/DirtyStore";
+import { writeFileContent } from "@/lib/fileOperations";
+import { draftService } from "@/lib/indexeddb";
+import { isSavingAtom, lastSavedContentMap } from "@/stores/FileWatchStore";
+import { isDummyPath } from "@/stores/TabStore";
 
 interface UseCommentExtensionOptions {
   editor: Editor | null;
@@ -25,6 +29,7 @@ interface UseCommentExtensionOptions {
  * - Managing comment thread state and active comment ID
  * - Syncing comment mark click events and CSS active classes in the editor DOM
  * - Marking file as dirty ONLY when content actually changes from loaded/saved version
+ * - Saving to disk immediately on comment modifications
  */
 export function useCommentExtension({
   editor,
@@ -38,6 +43,8 @@ export function useCommentExtension({
   const [commentThreads, setCommentThreads] = useAtom(commentThreadsAtom);
   const [activeCommentId, setActiveCommentId] = useAtom(activeCommentIdAtom);
   const markFileAsDirty = useSetAtom(markFileAsDirtyAtom);
+  const markFileAsSaved = useSetAtom(markFileAsSavedAtom);
+  const setIsSaving = useSetAtom(isSavingAtom);
 
   // Track the last known content (from load, save, or edit) to avoid false-positive dirty states
   const lastContentRef = useRef(content);
@@ -51,15 +58,37 @@ export function useCommentExtension({
     commentThreadsRef.current = commentThreads;
   }, [commentThreads]);
 
+  // Helper to save file immediately to disk when comments are added/modified
+  const saveFileImmediately = useCallback(
+    async (filePathToSave: string, markdownContent: string) => {
+      if (!filePathToSave || isDummyPath(filePathToSave)) return;
+      try {
+        console.log("[useCommentExtension] 💾 Immediately saving file after comment modification:", filePathToSave);
+        setIsSaving(filePathToSave);
+        await writeFileContent(filePathToSave, markdownContent);
+        lastSavedContentMap.set(filePathToSave, markdownContent);
+        await draftService.removeDraft(filePathToSave);
+        markFileAsSaved(filePathToSave);
+        setTimeout(() => {
+          setIsSaving(null);
+        }, 1000);
+      } catch (err) {
+        console.error("Failed to save file after modifying comments:", err);
+        setIsSaving(null);
+      }
+    },
+    [setIsSaving, markFileAsSaved]
+  );
+
   // Helper to process markdown changes and mark file as dirty if content actually changed
   const processContentChange = useCallback(
-    (newMarkdown: string) => {
+    (newMarkdown: string, shouldForceSave: boolean = false) => {
       const normNew = newMarkdown.replace(/\r\n/g, "\n").trim();
       const normLast = (lastContentRef.current || "").replace(/\r\n/g, "\n").trim();
 
       console.log('[useCommentExtension] processContentChange called | normNew === normLast?', normNew === normLast);
       if (normNew === normLast) {
-        return; // Content is identical to loaded/saved version — keep clean
+        return; // Content is identical to loaded/saved version — keep clean and avoid unnecessary saves
       }
 
       console.log('[useCommentExtension] 🔴 Content differs! Marking file dirty:', filePath);
@@ -69,8 +98,12 @@ export function useCommentExtension({
       }
       onContentChange?.(newMarkdown);
       debouncedSaveDraft(newMarkdown);
+
+      if (shouldForceSave && filePath && !isDummyPath(filePath)) {
+        saveFileImmediately(filePath, newMarkdown);
+      }
     },
-    [filePath, markFileAsDirty, onContentChange, debouncedSaveDraft]
+    [filePath, markFileAsDirty, onContentChange, debouncedSaveDraft, saveFileImmediately]
   );
 
   // Handle editor updates: serialize markdown with comments appended
@@ -112,7 +145,7 @@ export function useCommentExtension({
     }
   }, [editable, content, editor, setCommentThreads, isUpdatingRef]);
 
-  // Re-save and mark file as dirty whenever comment threads change (add reply, edit, delete, resolve)
+  // Re-save and mark file as dirty/saved whenever comment threads change (add reply, edit, delete, resolve)
   useEffect(() => {
     if (!editor || !editable || isUpdatingRef.current) {
       if (isUpdatingRef.current) console.log('[useCommentExtension] ⏭️ Skipping useEffect[commentThreads] because isUpdatingRef is true');
@@ -121,7 +154,7 @@ export function useCommentExtension({
 
     console.log('[useCommentExtension] 🔄 useEffect[commentThreads] executing');
     const markdownContent = appendComments(editor.getMarkdown(), commentThreads);
-    processContentChange(markdownContent);
+    processContentChange(markdownContent, true);
   }, [commentThreads, editor, editable, isUpdatingRef, processContentChange]);
 
   // Click on comment mark in editor DOM -> set activeCommentId

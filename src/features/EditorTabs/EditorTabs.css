@@ -58,18 +58,13 @@
   height: var(--tab-radius);
   background: transparent;
   border-bottom-right-radius: var(--tab-radius);
-
-  /* border-bottom-color: var(--border);
-  border-bottom-width: 1px; */
-
   box-shadow: calc(var(--tab-radius) / 2) calc(var(--tab-radius) / 2) 0 calc(var(--tab-radius) / 2) var(--layout-content);
   pointer-events: none;
 }
 
-/* Hide left inverted curve for the first active tab */
-.depdok-tabs-wrapper> :first-child .depdok-tab.active::before,
-.group:first-child .depdok-tab.active::before,
-.depdok-tab.first-tab.active::before {
+/* Hide left inverted curve for the first active tab when flush to left edge */
+.depdok-tabs-wrapper.pl-0 > :first-child .depdok-tab.active::before,
+.depdok-tabs-wrapper.pl-0 .depdok-tab.first-tab.active::before {
   display: none;
 }
 

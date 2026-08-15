@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { useAtom, useSetAtom, useAtomValue } from 'jotai';
 import { useNavigate } from 'react-router-dom';
 import { 
-  ChevronDown,
   ChevronLeft, 
   Settings
 } from 'lucide-react';
@@ -32,14 +31,10 @@ export function WindowsTitlebar() {
   const [showSettings, setShowSettings] = useState(false);
   const [showRecentFolders, setShowRecentFolders] = useState(false);
 
-  const workspaceName = workspaceRoot 
-    ? workspaceRoot.split(/[/\\]/).pop() || 'workspace' 
-    : 'depdok';
-
   return (
     <TitlebarContainer>
       {/* Left Section: app icon, back/forward arrows, sidebar toggle */}
-      <div data-tauri-drag-region="false" className="flex items-center gap-2 pl-3 flex-shrink-0">
+      <div className="pointer-events-auto flex items-center gap-2 pl-3 pr-2 flex-shrink-0 h-full">
         <img src="/app-icon.png" alt="App Icon" className="w-4 h-4 pointer-events-none mr-1.5" />
         
         {/* Back Navigation arrow */}
@@ -73,31 +68,19 @@ export function WindowsTitlebar() {
         )}
       </div>
 
-      {/* Center Section: Project Name & quick settings dropdown */}
+      {/* Center Section: Transparent drag area */}
       <div 
         data-tauri-drag-region 
-        className="flex items-center justify-center h-full px-4 flex-1 min-w-0 overflow-hidden cursor-default"
-      >
-        <div 
-          data-tauri-drag-region="false"
-          className="flex items-center gap-1 hover:bg-muted/30 px-2.5 py-1 rounded-md text-[12px] font-semibold text-foreground/80 cursor-pointer select-none transition-colors border border-transparent hover:border-border/30"
-          onClick={() => setShowRecentFolders(true)}
-          title="Select Recent Folder"
-        >
-          <span data-tauri-drag-region="false" className="truncate lowercase max-w-[200px]">
-            {workspaceName}
-          </span>
-          <ChevronDown data-tauri-drag-region="false" className="h-3 w-3 text-muted-foreground" />
-        </div>
-      </div>
+        className="flex-1 min-w-0 h-full pointer-events-none"
+      />
 
       {/* Right Section: Pro upgrade, terminal, settings, and Windows system controls */}
-      <div data-tauri-drag-region="false" className="flex h-full items-center flex-shrink-0 gap-3.5">
+      <div className="pointer-events-auto flex h-full items-center flex-shrink-0 gap-3.5">
         <div className="flex items-center gap-3.5">
           {/* Upgrade to Pro button */}
           <button
             onClick={() => setLicenseOpen(true)}
-            className="text-muted-foreground hover:text-foreground text-xs cursor-pointer select-none transition-colors"
+            className="text-muted-foreground hover:text-foreground text-xs cursor-pointer select-none transition-colors px-1.5 py-1"
             title="Upgrade to Pro License"
           >
             Upgrade to Pro
@@ -116,10 +99,10 @@ export function WindowsTitlebar() {
             title={`${isTerminalOpen ? 'Hide' : 'Show'} Terminal (Ctrl+\`)`}
           >
             {isTerminalOpen ? (
-          <PiTerminalFill className="!h-4.5 !w-4.5" />
-          ) : (
-          <PiTerminalWindowLight className="!h-4.5 !w-4.5" />
-          )}
+              <PiTerminalFill className="!h-4.5 !w-4.5" />
+            ) : (
+              <PiTerminalWindowLight className="!h-4.5 !w-4.5" />
+            )}
           </Button>
 
           {/* AI Chat Button */}

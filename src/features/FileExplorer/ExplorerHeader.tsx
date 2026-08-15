@@ -8,12 +8,14 @@ import {
   VscNewFolder,
   VscCollapseAll
 } from 'react-icons/vsc';
+import { ChevronDown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { createTabAtom } from '@/stores/TabStore';
 import { viewModeAtom } from '@/stores/EditorStore';
 import { createFile, readFileContent, writeFileContent } from '@/lib/fileOperations';
 import { buildKnowledgeGraphFilePath, KNOWLEDGE_GRAPH_FILE_NAME } from '@/lib/knowledgeGraph';
+import { RecentFoldersDialog } from '@/features/RecentFoldersDialog';
 import { KnowledgeBaseSearchDialog } from './KnowledgeBaseSearchDialog';
 import { MarkdownKnowledgeBaseDialog } from './MarkdownKnowledgeBaseDialog';
 import {
@@ -31,6 +33,7 @@ export function ExplorerHeader() {
   const navigate = useNavigate();
   const [isScanDialogOpen, setIsScanDialogOpen] = useState(false);
   const [isSearchDialogOpen, setIsSearchDialogOpen] = useState(false);
+  const [showRecentFolders, setShowRecentFolders] = useState(false);
 
   const handleCreateFile = () => {
     if (workspaceRoot) {
@@ -77,9 +80,16 @@ export function ExplorerHeader() {
   return (
     <>
       <div className="flex items-center justify-between px-2 py-1 shrink-0 group/explorer-header">
-        <span className="text-xs h-6 leading-6 font-semibold text-muted-foreground truncate" title={workspaceRoot}>
-          {workspaceRoot.split(/[/\\]/).pop() || 'WORKSPACE'}
-        </span>
+        <button
+          onClick={() => setShowRecentFolders(true)}
+          className="flex items-center gap-1 hover:bg-muted/40 px-1.5 py-0.5 rounded text-xs h-6 leading-6 font-semibold text-muted-foreground hover:text-foreground truncate transition-colors cursor-pointer"
+          title={`Switch folder (${workspaceRoot})`}
+        >
+          <span className="truncate max-w-[130px]">
+            {workspaceRoot.split(/[/\\]/).pop() || 'WORKSPACE'}
+          </span>
+          <ChevronDown className="h-3 w-3 opacity-60 flex-shrink-0" />
+        </button>
         <div className="items-center gap-0.5 hidden group-hover:flex transition-opacity duration-200">
           <Button variant="ghost" size="icon" className="h-6 w-6 text-gray-500" onClick={() => setIsSearchDialogOpen(true)} title="Search Knowledge Base">
             <VscSearch className="h-3.5 w-3.5" />
@@ -109,6 +119,10 @@ export function ExplorerHeader() {
       <KnowledgeBaseSearchDialog
         open={isSearchDialogOpen}
         onOpenChange={setIsSearchDialogOpen}
+      />
+      <RecentFoldersDialog
+        open={showRecentFolders}
+        onOpenChange={setShowRecentFolders}
       />
     </>
   );

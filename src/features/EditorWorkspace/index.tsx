@@ -61,7 +61,7 @@ export function EditorWorkspace(): React.JSX.Element {
   return (
     <div className="w-full h-full relative overflow-hidden flex flex-col bg-layout-chrome">
       <div className="relative z-10">
-        <EditorTabs />
+        <EditorTabs isSidebarVisible={isFileExplorerVisible} />
       </div>
       <div
         className={cn(

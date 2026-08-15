@@ -7,12 +7,14 @@ interface LayoutProps {
 
 export function Layout({ children }: LayoutProps) {
   return (
-    <div className="flex flex-col h-screen w-screen overflow-hidden bg-layout-chrome text-foreground select-none">
-      {/* Header - fixed height custom titlebar */}
-      <Titlebar />
+    <div className="relative h-screen w-screen overflow-hidden bg-layout-chrome text-foreground select-none">
+      {/* Header - fixed overlay titlebar */}
+      <div className="fixed top-0 left-0 right-0 z-50 pointer-events-none">
+        <Titlebar />
+      </div>
 
-      {/* Body - takes remaining vertical space */}
-      <main className="flex-1 min-h-0 relative overflow-hidden">
+      {/* Body - takes full height */}
+      <main className="h-full w-full relative overflow-hidden">
         {children}
       </main>
     </div>

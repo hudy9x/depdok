@@ -3,7 +3,6 @@ import { useAtom, useSetAtom, useAtomValue } from 'jotai';
 import { useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
-  ChevronDown,
   Settings
 } from 'lucide-react';
 import { BsLayoutSidebar, BsLayoutSidebarInset } from 'react-icons/bs';
@@ -32,14 +31,10 @@ export function MacOSTitlebar() {
   const [showSettings, setShowSettings] = useState(false);
   const [showRecentFolders, setShowRecentFolders] = useState(false);
 
-  const workspaceName = workspaceRoot
-    ? workspaceRoot.split(/[/\\]/).pop() || 'workspace'
-    : 'depdok';
-
   return (
     <TitlebarContainer>
       {/* Left Section: window buttons, back/forward arrows, sidebar toggle */}
-      <div data-tauri-drag-region="false" className="flex items-center gap-3 pl-3 pr-2 flex-shrink-0">
+      <div className="pointer-events-auto flex items-center gap-2.5 pl-3 pr-2 flex-shrink-0 h-full">
         <MacOSButtons />
 
         {/* Sidebar Explorer Toggle */}
@@ -71,34 +66,20 @@ export function MacOSTitlebar() {
             <ArrowLeft className="h-3.5 w-3.5" />
           </Button>
         </div>
-
-
       </div>
 
-      {/* Center Section: Project Name & quick settings dropdown */}
+      {/* Center Section: Transparent drag area so tabs underneath can receive events */}
       <div
         data-tauri-drag-region
-        className="flex items-center justify-center h-full px-4 flex-1 min-w-0 overflow-hidden cursor-default"
-      >
-        <div
-          data-tauri-drag-region="false"
-          className="flex items-center gap-1 hover:bg-muted/30 px-2.5 py-1 rounded-md text-[12px] text-foreground/80 cursor-pointer select-none transition-colors border border-transparent hover:border-border/30"
-          onClick={() => setShowRecentFolders(true)}
-          title="Select Recent Folder"
-        >
-          <span data-tauri-drag-region="false" className="truncate lowercase max-w-[200px]">
-            {workspaceName}
-          </span>
-          <ChevronDown data-tauri-drag-region="false" className="h-3 w-3 text-muted-foreground" />
-        </div>
-      </div>
+        className="flex-1 min-w-0 h-full pointer-events-none"
+      />
 
       {/* Right Section: Pro upgrade, terminal, settings */}
-      <div data-tauri-drag-region="false" className="flex items-center gap-1 pr-3 flex-shrink-0">
+      <div className="pointer-events-auto flex items-center gap-1 pr-3 flex-shrink-0 h-full">
         {/* Upgrade to Pro button */}
         <button
           onClick={() => setLicenseOpen(true)}
-          className="text-muted-foreground hover:text-foreground text-xs cursor-pointer select-none transition-colors"
+          className="text-muted-foreground hover:text-foreground text-xs cursor-pointer select-none transition-colors px-1.5 py-1"
           title="Upgrade to Pro License"
         >
           Upgrade to Pro

@@ -135,7 +135,7 @@ export default function Editor() {
               className="bg-transparent group-hover:bg-primary/0 transition-colors"
             />
 
-            <PanelSectionItem flex={1} className="bg-layout-content min-w-0 min-h-0">
+            <PanelSectionItem flex={1} className="bg-layout-chrome min-w-0 min-h-0">
               <EditorWorkspace />
             </PanelSectionItem>
           </PanelSectionGroup>

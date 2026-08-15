@@ -1,18 +1,23 @@
 import * as React from 'react';
 import { useAtom, useAtomValue } from 'jotai';
-import { paneTreeAtom } from '@/stores/PaneStore';
-import { isFileExplorerVisibleAtom } from '@/features/FileExplorer/store';
-import { PaneTree } from './PaneTree';
 import { FileBox } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 
+import { Button } from '@/components/ui/button';
 import { EditorTabs } from '@/features/EditorTabs';
-import { tabsAtom } from '@/stores/TabStore';
+import { isFileExplorerVisibleAtom } from '@/features/FileExplorer/store';
+import { cn } from '@/lib/utils';
+import { paneTreeAtom } from '@/stores/PaneStore';
+import { activeTabIdAtom, tabsAtom } from '@/stores/TabStore';
+
+import { PaneTree } from './PaneTree';
 
 export function EditorWorkspace(): React.JSX.Element {
   const tree = useAtomValue(paneTreeAtom);
   const tabs = useAtomValue(tabsAtom);
+  const activeTabId = useAtomValue(activeTabIdAtom);
   const [isFileExplorerVisible, setIsFileExplorerVisible] = useAtom(isFileExplorerVisibleAtom);
+
+  const isFirstTabActive = tabs.length > 0 && tabs[0]?.id === activeTabId;
 
   // If no tabs in workspace, show welcome/empty workspace UI
   if (tabs.length === 0) {
@@ -54,9 +59,16 @@ export function EditorWorkspace(): React.JSX.Element {
   }
 
   return (
-    <div className="w-full h-full relative overflow-hidden flex flex-col bg-layout-content">
-      <EditorTabs />
-      <div className="flex-1 min-h-0 min-w-0 relative border-l border-border">
+    <div className="w-full h-full relative overflow-hidden flex flex-col bg-layout-chrome">
+      <div className="relative z-10">
+        <EditorTabs />
+      </div>
+      <div
+        className={cn(
+          "flex-1 min-h-0 min-w-0 relative bg-layout-content -mt-px border-l border-t border-border overflow-hidden",
+          isFirstTabActive ? "rounded-tl-none" : "rounded-tl-xl"
+        )}
+      >
         <PaneTree node={tree} />
       </div>
     </div>

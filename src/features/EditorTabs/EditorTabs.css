@@ -1,6 +1,6 @@
 /* ─── Chrome / Inverted Curve Tab Bar Styles ─────────────────────────────────── */
 .depdok-tabs-container {
-  --tab-radius: 10px;
+  --tab-radius: 0.625rem;
   background-color: var(--layout-chrome);
 }
 
@@ -16,8 +16,8 @@
 .depdok-tab:not(.active):hover {
   color: var(--foreground);
   background-color: color-mix(in oklch, var(--foreground) 4%, transparent);
-  border-top-left-radius: 8px;
-  border-top-right-radius: 8px;
+  border-top-left-radius: var(--tab-radius);
+  border-top-right-radius: var(--tab-radius);
 }
 
 /* Hide divider immediately before an active tab */
@@ -67,7 +67,7 @@
 }
 
 /* Hide left inverted curve for the first active tab */
-.depdok-tabs-wrapper > :first-child .depdok-tab.active::before,
+.depdok-tabs-wrapper> :first-child .depdok-tab.active::before,
 .group:first-child .depdok-tab.active::before,
 .depdok-tab.first-tab.active::before {
   display: none;

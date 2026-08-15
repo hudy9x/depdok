@@ -9,6 +9,8 @@
   cursor: pointer;
   color: var(--muted-foreground);
   user-select: none;
+
+
 }
 
 .depdok-tab:not(.active):hover {
@@ -29,9 +31,17 @@
   color: var(--foreground);
   border-top-left-radius: var(--tab-radius);
   border-top-right-radius: var(--tab-radius);
+
+  border-top-color: var(--border);
+  border-top-width: 1px;
+
+  border-left-color: var(--border);
+  border-left-width: 1px;
+
+
   font-weight: 500;
   z-index: 10;
-  box-shadow: 0 -1px 3px 0 rgba(0, 0, 0, 0.06);
+  box-shadow: var(--shadow-xl);
 }
 
 .dark .depdok-tab.active {
@@ -48,8 +58,19 @@
   height: var(--tab-radius);
   background: transparent;
   border-bottom-right-radius: var(--tab-radius);
+
+  /* border-bottom-color: var(--border);
+  border-bottom-width: 1px; */
+
   box-shadow: calc(var(--tab-radius) / 2) calc(var(--tab-radius) / 2) 0 calc(var(--tab-radius) / 2) var(--layout-content);
   pointer-events: none;
+}
+
+/* Hide left inverted curve for the first active tab */
+.depdok-tabs-wrapper > :first-child .depdok-tab.active::before,
+.group:first-child .depdok-tab.active::before,
+.depdok-tab.first-tab.active::before {
+  display: none;
 }
 
 /* Right inverted curve */

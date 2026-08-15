@@ -24,9 +24,10 @@ interface TabItemProps {
   tab: Tab;
   paneId?: string;
   isNextActive?: boolean;
+  isFirst?: boolean;
 }
 
-export function TabItem({ tab, paneId, isNextActive }: TabItemProps) {
+export function TabItem({ tab, paneId, isNextActive, isFirst }: TabItemProps) {
   const navigate = useNavigate();
   const activePaneId = useAtomValue(activePaneIdAtom);
   const activeTabId = useAtomValue(activeTabIdAtom);
@@ -96,9 +97,10 @@ export function TabItem({ tab, paneId, isNextActive }: TabItemProps) {
         <div
           ref={tabRef}
           className={cn(
-            'depdok-tab flex items-center gap-2 px-3.5 h-[31px] cursor-pointer group relative',
+            'depdok-tab flex items-center gap-2 px-3.5 pt-0.5 h-[32px] cursor-pointer group relative',
             'min-w-[120px] max-w-[200px]',
             isActive && 'active',
+            isFirst && 'first-tab',
             tab.isPreview && 'italic',
             tab.isDeleted && 'opacity-70'
           )}

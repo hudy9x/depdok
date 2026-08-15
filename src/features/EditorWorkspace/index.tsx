@@ -56,7 +56,7 @@ export function EditorWorkspace(): React.JSX.Element {
   return (
     <div className="w-full h-full relative overflow-hidden flex flex-col bg-layout-content">
       <EditorTabs />
-      <div className="flex-1 min-h-0 min-w-0 relative">
+      <div className="flex-1 min-h-0 min-w-0 relative border-l border-border">
         <PaneTree node={tree} />
       </div>
     </div>

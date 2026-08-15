@@ -1,18 +1,14 @@
 import * as React from 'react';
 import { useAtomValue, useSetAtom } from 'jotai';
-import { X } from 'lucide-react';
 import {
   Pane,
   activePaneIdAtom,
   focusPaneAtom,
-  closePaneAtom,
   paneTreeAtom,
   collectLeafPanes,
 } from '@/stores/PaneStore';
-import { SplitPaneButton } from './SplitPaneButton';
+import { EditorPaneHeader } from './EditorPaneHeader';
 import { useKeepAliveTabs } from './useKeepAliveTabs';
-import { EditorBreadcrumbs } from '@/features/Editor/EditorBreadcrumbs';
-import { EditorViewMode } from '@/features/EditorViewMode';
 import { LoadFileContent } from '@/features/Editor/LoadFileContent';
 import { SideBySide } from '@/features/SidebySide';
 import { MonacoEditor } from '@/features/Editor/MonacoEditor';
@@ -134,7 +130,6 @@ export function EditorPane({ pane }: EditorPaneProps): React.JSX.Element {
   const tree = useAtomValue(paneTreeAtom);
   const tabs = useAtomValue(tabsAtom);
   const focusPane = useSetAtom(focusPaneAtom);
-  const closePane = useSetAtom(closePaneAtom);
   const isFocused = activePaneId === pane.id;
   const leafPanes = collectLeafPanes(tree);
 
@@ -177,31 +172,12 @@ export function EditorPane({ pane }: EditorPaneProps): React.JSX.Element {
     >
       {currentFilePath ? (
         <>
-          {/* Pane Header: Breadcrumbs path + View Mode switch + Split buttons + Close Pane */}
-          <div
-            className={[
-              "h-8 shrink-0 px-3 flex items-center justify-between border-b transition-colors select-none",
-              isFocused ? "border-border/60 bg-layout-content" : "border-border/30 bg-muted/10"
-            ].join(" ")}
-          >
-            <EditorBreadcrumbs filePath={currentFilePath} />
-            <div className="flex items-center gap-1">
-              <EditorViewMode paneId={pane.id} filePath={currentFilePath} viewMode={pane.viewMode} />
-              <SplitPaneButton paneId={pane.id} />
-              {leafPanes.length > 1 && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    closePane(pane.id);
-                  }}
-                  className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground cursor-pointer transition-colors ml-0.5"
-                  title="Close Split Pane"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              )}
-            </div>
-          </div>
+          <EditorPaneHeader
+            pane={pane}
+            currentFilePath={currentFilePath}
+            isFocused={isFocused}
+            leafPanesCount={leafPanes.length}
+          />
 
           {/* Keep-alive tab containers */}
           <div className="flex-1 min-h-0 bg-layout-content relative">

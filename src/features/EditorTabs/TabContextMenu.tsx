@@ -5,7 +5,6 @@ import { writeText } from '@tauri-apps/plugin-clipboard-manager';
 import { toast } from 'sonner';
 import {
   Pencil,
-  X,
   XCircle,
   FileSearch,
   FileText,
@@ -21,7 +20,6 @@ import {
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
 import {
-  closeTabAtom,
   closeOtherTabsAtom,
   closeAllTabsAtom,
   isDummyPath,
@@ -40,7 +38,6 @@ interface TabContextMenuProps {
 export function TabContextMenu({ tab, paneId, children }: TabContextMenuProps) {
   const activePaneId = useAtomValue(activePaneIdAtom);
   const targetPaneId = paneId || activePaneId;
-  const closeTab = useSetAtom(closeTabAtom);
   const closeOtherTabs = useSetAtom(closeOtherTabsAtom);
   const closeAllTabs = useSetAtom(closeAllTabsAtom);
   const splitPane = useSetAtom(splitPaneAtom);
@@ -86,10 +83,6 @@ export function TabContextMenu({ tab, paneId, children }: TabContextMenuProps) {
     revealFile(tab.filePath);
   };
 
-  const handleClose = () => {
-    closeTab({ tabId: tab.id, paneId: targetPaneId });
-  };
-
   return (
     <>
       <ContextMenu>
@@ -110,15 +103,7 @@ export function TabContextMenu({ tab, paneId, children }: TabContextMenuProps) {
             <Rows className="mr-2 h-4 w-4" />
             Split Down
           </ContextMenuItem>
-          <ContextMenuSeparator />
-          <ContextMenuItem onClick={handleCloseOthers}>
-            <XCircle className="mr-2 h-4 w-4" />
-            Close Others
-          </ContextMenuItem>
-          <ContextMenuItem onClick={handleCloseAll}>
-            <XCircle className="mr-2 h-4 w-4" />
-            Close All
-          </ContextMenuItem>
+
           <ContextMenuSeparator />
           <ContextMenuItem
             onClick={handleRevealInExplorer}
@@ -140,11 +125,22 @@ export function TabContextMenu({ tab, paneId, children }: TabContextMenuProps) {
             <ClipboardCopy className="mr-2 h-4 w-4" />
             Copy File Path
           </ContextMenuItem>
+
           <ContextMenuSeparator />
-          <ContextMenuItem onClick={handleClose}>
+          <ContextMenuItem onClick={handleCloseOthers}>
+            <XCircle className="mr-2 h-4 w-4" />
+            Close Others
+          </ContextMenuItem>
+          <ContextMenuItem onClick={handleCloseAll}>
+            <XCircle className="mr-2 h-4 w-4" />
+            Close All
+          </ContextMenuItem>
+
+          {/* <ContextMenuSeparator /> */}
+          {/* <ContextMenuItem onClick={handleClose}>
             <X className="mr-2 h-4 w-4" />
             Close
-          </ContextMenuItem>
+          </ContextMenuItem> */}
         </ContextMenuContent>
       </ContextMenu>
 

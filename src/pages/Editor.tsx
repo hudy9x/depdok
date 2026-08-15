@@ -132,7 +132,7 @@ export default function Editor() {
               targetId="sidebar"
               visible={isFileExplorerVisible}
               resizeDirection="right"
-              className="bg-border hover:bg-primary/50 transition-colors"
+              className="bg-transparent group-hover:bg-primary/0 transition-colors"
             />
 
             <PanelSectionItem flex={1} className="bg-layout-content min-w-0 min-h-0">

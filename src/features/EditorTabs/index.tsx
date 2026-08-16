@@ -39,7 +39,7 @@ export function EditorTabs({ paneId, isSidebarVisible }: EditorTabsProps = {}) {
     ? 'pl-0'
     : (currentPlatform === 'macos' ? 'pl-[148px]' : 'pl-[112px]');
 
-  const rightPaddingClass = currentPlatform === 'macos' ? 'pr-[165px]' : 'pr-[230px]';
+  const rightPaddingClass = currentPlatform === 'macos' ? 'pr-[220px]' : 'pr-[360px]';
 
   return (
     <div

@@ -9,7 +9,7 @@ interface MarkdownDragHandleProps {
 const DRAG_HANDLE_CONFIG = {
   placement: "left-start" as const,
   strategy: "fixed" as const,
-  middleware: [{ name: 'offset' as const, fn: ({ x, y }: { x: number; y: number }) => ({ x: x - 46, y: y + 2 }) }],
+  middleware: [{ name: 'offset' as const, fn: ({ x, y }: { x: number; y: number }) => ({ x: x - 6, y: y - -45 }) }],
 };
 
 export function MarkdownDragHandle({ editor }: MarkdownDragHandleProps) {

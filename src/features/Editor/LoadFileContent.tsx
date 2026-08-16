@@ -19,6 +19,19 @@ interface LoadFileContentProps {
   children: (content: string) => ReactNode;
 }
 
+const inFlightDiskReads = new Map<string, Promise<string>>();
+
+function getOrReadFileContent(filePath: string): Promise<string> {
+  const existing = inFlightDiskReads.get(filePath);
+  if (existing) return existing;
+
+  const promise = readFileContent(filePath).finally(() => {
+    inFlightDiskReads.delete(filePath);
+  });
+  inFlightDiskReads.set(filePath, promise);
+  return promise;
+}
+
 export function LoadFileContent({
   filePath,
   isDeleted,
@@ -84,9 +97,9 @@ export function LoadFileContent({
         let readFailed = false;
 
         if (!isUntitled && !isImage) {
-          // 1. Load real file from disk
+          // 1. Load real file from disk (deduplicated across concurrent panels)
           try {
-            loadedFileContent = await readFileContent(filePath);
+            loadedFileContent = await getOrReadFileContent(filePath);
           } catch (err) {
             readFailed = true;
             console.log("[LoadFileContent] Could not read file from disk (might be deleted):", err);

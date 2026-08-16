@@ -186,6 +186,45 @@ export function ExcalidrawPreview({ content, filePath, onContentChange }: Excali
 
   const scene = useMemo(() => parseScene(content), [content]);
 
+  const initialData = useMemo(() => ({
+    elements: scene.elements ?? [],
+    appState: {
+      ...scene.appState,
+      zenModeEnabled: false,
+    },
+    files: scene.files ?? {},
+  }), [scene]);
+
+  const handleImportLibrary = useCallback(async (e: React.MouseEvent) => {
+    e.preventDefault();
+    const items = await installCustomLibrary();
+    if (items && items.length > 0 && excalidrawAPI) {
+      excalidrawAPI.updateLibrary({ libraryItems: items, merge: true, openLibraryMenu: true });
+    }
+  }, [excalidrawAPI]);
+
+  const renderTopRightUI = useCallback(() => (
+    <button
+      className="flex items-center gap-2 px-3 py-1 bg-accent hover:bg-accent/80 text-foreground rounded-md text-sm font-medium transition-colors border border-border shadow-xs h-9 cursor-pointer"
+      onClick={handleImportLibrary}
+    >
+      <FolderPlus className="w-4 h-4" />
+      Import
+    </button>
+  ), [handleImportLibrary]);
+
+  const uiOptions = useMemo(() => ({
+    canvasActions: {
+      changeViewBackgroundColor: true,
+      clearCanvas: false,
+      export: false,
+      loadScene: false,
+      saveToActiveFile: false,
+      saveAsImage: true,
+      theme: false,
+    },
+  }), []);
+
   const excalidrawTheme = resolvedTheme === "dark" ? "dark" : "light";
 
   const handleChange = useCallback(
@@ -277,43 +316,12 @@ export function ExcalidrawPreview({ content, filePath, onContentChange }: Excali
       <div className="absolute inset-0">
         <Excalidraw
           excalidrawAPI={setExcalidrawAPI}
-          renderTopRightUI={() => (
-            <button
-              className="flex items-center gap-2 px-3 py-1 bg-accent hover:bg-accent/80  text-foreground rounded-md text-sm font-medium transition-colors border border-border shadow-xs h-9 cursor-pointer"
-              onClick={async (e) => {
-                e.preventDefault();
-                const items = await installCustomLibrary();
-                if (items && items.length > 0 && excalidrawAPI) {
-                  excalidrawAPI.updateLibrary({ libraryItems: items, merge: true, openLibraryMenu: true });
-                }
-              }}
-            >
-              <FolderPlus className="w-4 h-4" />
-              Import
-            </button>
-          )}
-          initialData={{
-            elements: scene.elements ?? [],
-            appState: {
-              ...scene.appState,
-              zenModeEnabled: false,
-            },
-            files: scene.files ?? {},
-          }}
+          renderTopRightUI={renderTopRightUI}
+          initialData={initialData}
           theme={excalidrawTheme}
           zenModeEnabled={false}
           onChange={onContentChange ? handleChange : undefined}
-          UIOptions={{
-            canvasActions: {
-              changeViewBackgroundColor: true,
-              clearCanvas: false,
-              export: false,
-              loadScene: false,
-              saveToActiveFile: false,
-              saveAsImage: true,
-              theme: false,
-            },
-          }}
+          UIOptions={uiOptions}
         />
       </div>
 

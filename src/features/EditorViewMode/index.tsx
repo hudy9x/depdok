@@ -86,7 +86,7 @@ export function EditorViewMode(props: EditorViewModeProps) {
   return (
     <div
       className={cn(
-        "flex items-center bg-background/85 backdrop-blur-md border border-border/80 shadow-md rounded-lg p-1 select-none",
+        "flex items-center bg-background/95 border border-border/80 shadow-md rounded-lg p-1 select-none",
         isVertical ? "flex-col gap-1" : "flex-row gap-0.5",
         props.className
       )}

@@ -1,9 +1,13 @@
 import * as React from 'react';
 import { useAtomValue, useSetAtom } from 'jotai';
+import { X } from 'lucide-react';
 import {
   Pane,
   activePaneIdAtom,
   focusPaneAtom,
+  closePaneAtom,
+  paneTreeAtom,
+  collectLeafPanes,
 } from '@/stores/PaneStore';
 import { PaneContext } from './PaneContext';
 import { useKeepAliveTabs } from './useKeepAliveTabs';
@@ -125,9 +129,14 @@ function TabContent({
 
 export function EditorPane({ pane }: EditorPaneProps): React.JSX.Element {
   const activePaneId = useAtomValue(activePaneIdAtom);
+  const paneTree = useAtomValue(paneTreeAtom);
   const tabs = useAtomValue(tabsAtom);
   const focusPane = useSetAtom(focusPaneAtom);
+  const closePane = useSetAtom(closePaneAtom);
   const isFocused = activePaneId === pane.id;
+
+  const leafPanes = React.useMemo(() => collectLeafPanes(paneTree), [paneTree]);
+  const isSplit = leafPanes.length > 1;
 
   const activeTab = tabs.find((t) => t.id === pane.activeTabId) || pane.tabs.find((t) => t.id === pane.activeTabId) || null;
   const currentFilePath = activeTab?.filePath;
@@ -162,10 +171,25 @@ export function EditorPane({ pane }: EditorPaneProps): React.JSX.Element {
       onPointerDownCapture={handlePaneClick}
       onFocusCapture={handlePaneClick}
       className={[
-        "flex-1 flex flex-col min-w-0 min-h-0 bg-layout-content relative h-full w-full border-r last:border-r-0 border-border/40 transition-shadow",
+        "flex-1 flex flex-col min-w-0 min-h-0 bg-layout-content relative h-full w-full border-r last:border-r-0 border-border/40 transition-shadow group/pane",
         isFocused ? "is-focused ring-1 ring-inset ring-primary/20" : "",
       ].join(" ")}
     >
+      {isSplit && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            closePane(pane.id);
+          }}
+          className="absolute top-2.5 right-2.5 z-40 flex items-center justify-center w-6 h-6 rounded-md bg-background/90 hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-all duration-150 border border-border/50 shadow-xs cursor-pointer group/close"
+          title="Close Panel"
+          aria-label="Close Panel"
+        >
+          <X className="w-3.5 h-3.5 transition-transform group-hover/close:scale-110" />
+        </button>
+      )}
+
       {currentFilePath ? (
         <PaneContext.Provider value={{ paneId: pane.id, filePath: currentFilePath, viewMode: pane.viewMode }}>
           {/* Keep-alive tab containers */}

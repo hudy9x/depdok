@@ -30,6 +30,12 @@ export function HomeTitlebar() {
         <div />
       )}
 
+      {/* Center Section: Transparent drag area */}
+      <div 
+        data-tauri-drag-region 
+        className="flex-1 min-w-0 h-full"
+      />
+
       {currentPlatform !== 'macos' ? (
         <div data-tauri-drag-region="false" className="flex items-center h-full">
           <WindowsButtons />

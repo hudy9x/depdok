@@ -1,12 +1,13 @@
 import { useRef, useEffect, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 
-interface CustomScrollerProps {
+interface CustomScrollerProps extends React.HTMLAttributes<HTMLDivElement> {
   orientation?: 'horizontal' | 'vertical';
   className?: string;
   style?: React.CSSProperties;
   contentClassName?: string;
   children: React.ReactNode;
+  'data-tauri-drag-region'?: boolean | string;
 }
 
 /**
@@ -30,6 +31,8 @@ export function CustomScroller({
   style,
   contentClassName,
   children,
+  'data-tauri-drag-region': dataTauriDragRegion,
+  ...rest
 }: CustomScrollerProps) {
   const contentRef = useRef<HTMLDivElement>(null);
   const thumbRef = useRef<HTMLDivElement>(null);
@@ -186,11 +189,17 @@ export function CustomScroller({
   );
 
   return (
-    <div className={cn('group/scroller relative overflow-hidden', className)} style={style}>
+    <div
+      data-tauri-drag-region={dataTauriDragRegion}
+      className={cn('group/scroller relative overflow-hidden', className)}
+      style={style}
+      {...rest}
+    >
       {/* ── Content child ─────────────────────────────────────────────── */}
       <div
         ref={contentRef}
         data-custom-scroller-content
+        data-tauri-drag-region={dataTauriDragRegion}
         className={cn(
           'absolute inset-0',
           isHorizontal

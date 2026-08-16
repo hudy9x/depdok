@@ -68,10 +68,11 @@ export function CreateTabButton() {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <div
+          data-tauri-drag-region="false"
           className="h-[28px] w-7 mb-0.5 ml-1 rounded-md hover:bg-muted/50 text-muted-foreground hover:text-foreground cursor-pointer flex items-center justify-center shrink-0"
           title="Create new file"
         >
-          <Plus className="w-4 h-4" />
+          <Plus data-tauri-drag-region="false" className="w-4 h-4" />
         </div>
       </DropdownMenuTrigger>
       <DropdownMenuContent side="bottom" align="start" className="w-48 z-[9999]">

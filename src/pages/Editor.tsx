@@ -121,9 +121,10 @@ export default function Editor() {
               minWidth={180}
               maxWidth={400}
               defaultWidth={240}
+              data-tauri-drag-region
               className="bg-layout-chrome flex flex-col select-none pt-[38px]"
             >
-              <div className="flex-1 min-h-0 overflow-y-auto">
+              <div data-tauri-drag-region="false" className="flex-1 min-h-0 overflow-y-auto">
                 <FileExplorer />
               </div>
             </PanelSectionItem>

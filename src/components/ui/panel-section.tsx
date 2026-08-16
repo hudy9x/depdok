@@ -117,7 +117,7 @@ export function PanelSectionGroup({ children, storageKey, className }: PanelSect
 }
 
 // 2. PanelSectionItem
-interface PanelSectionItemProps {
+interface PanelSectionItemProps extends React.HTMLAttributes<HTMLDivElement> {
   id?: string;
   children: ReactNode;
   visible?: boolean;
@@ -137,13 +137,14 @@ export function PanelSectionItem({
   defaultWidth = 240,
   flex,
   className,
+  ...rest
 }: PanelSectionItemProps): ReactElement | null {
   const { panelSizes, storageKey, registerPanel } = usePanelSection();
 
   // If flex is set, this behaves as a fluid pane taking dynamic remaining space
   if (flex !== undefined) {
     return (
-      <div style={{ flex }} className={cn("min-w-0 h-full flex flex-col", className)}>
+      <div style={{ flex }} className={cn("min-w-0 h-full flex flex-col", className)} {...rest}>
         {children}
       </div>
     );
@@ -179,6 +180,7 @@ export function PanelSectionItem({
     <div
       style={{ width: `${currentWidth}px` }}
       className={cn("h-full shrink-0", className)}
+      {...rest}
     >
       {children}
     </div>

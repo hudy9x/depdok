@@ -8,6 +8,7 @@ export function LLMChatButton() {
 
   return (
     <Button
+      data-tauri-drag-region="false"
       variant="ghost"
       size="icon"
       className={`h-7 w-7 cursor-pointer transition-colors ${
@@ -19,9 +20,9 @@ export function LLMChatButton() {
       title={`${isChatOpen ? "Close" : "Open"} AI Chat`}
     >
       {isChatOpen ? (
-        <PiChatCircleTextFill className="!h-4.5 !w-4.5" />
+        <PiChatCircleTextFill data-tauri-drag-region="false" className="!h-4.5 !w-4.5" />
       ) : (
-        <PiChatCircleText className="!h-4.5 !w-4.5" />
+        <PiChatCircleText data-tauri-drag-region="false" className="!h-4.5 !w-4.5" />
       )}
     </Button>
   );

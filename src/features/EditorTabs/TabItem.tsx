@@ -96,6 +96,7 @@ export function TabItem({ tab, paneId, isNextActive, isFirst }: TabItemProps) {
       <TabContextMenu tab={tab} paneId={paneId || activePaneId}>
         <div
           ref={tabRef}
+          data-tauri-drag-region="false"
           className={cn(
             'depdok-tab flex items-center gap-2 px-3.5 pt-0.5 h-[32px] cursor-pointer group relative',
             'min-w-[120px] max-w-[200px]',
@@ -109,15 +110,18 @@ export function TabItem({ tab, paneId, isNextActive, isFirst }: TabItemProps) {
           title={tab.isDeleted ? 'File was deleted externally — Save As to recover' : undefined}
         >
           {/* File Icon */}
-          <span className="flex-shrink-0 opacity-70">
+          <span data-tauri-drag-region="false" className="flex-shrink-0 opacity-70">
             <FileIcon filename={displayName} />
           </span>
 
-          <span className={cn(
-            'text-xs truncate flex-1 font-normal',
-            isActive ? 'font-medium text-foreground' : 'text-muted-foreground group-hover:text-foreground',
-            tab.isDeleted && 'line-through text-destructive'
-          )}>
+          <span
+            data-tauri-drag-region="false"
+            className={cn(
+              'text-xs truncate flex-1 font-normal',
+              isActive ? 'font-medium text-foreground' : 'text-muted-foreground group-hover:text-foreground',
+              tab.isDeleted && 'line-through text-destructive'
+            )}
+          >
             {displayName}
           </span>
 
@@ -127,10 +131,11 @@ export function TabItem({ tab, paneId, isNextActive, isFirst }: TabItemProps) {
           )}
 
           {/* Right side interactions: Dirty Indicator + Close Button */}
-          <div className="relative w-4 h-4 flex items-center justify-center">
+          <div data-tauri-drag-region="false" className="relative w-4 h-4 flex items-center justify-center">
             {/* Dirty Indicator (visible when dirty, hidden on hover to show close button) */}
             {isDirty && (
               <div
+                data-tauri-drag-region="false"
                 className="w-2 h-2 rounded-full bg-blue-500/80 absolute group-hover:opacity-0"
                 title="Unsaved changes"
               />
@@ -138,6 +143,7 @@ export function TabItem({ tab, paneId, isNextActive, isFirst }: TabItemProps) {
 
             {/* Close Button (visible on hover) */}
             <button
+              data-tauri-drag-region="false"
               className={cn(
                 "absolute inset-0 flex items-center justify-center rounded hover:bg-muted",
                 "opacity-0 group-hover:opacity-100"
@@ -145,7 +151,7 @@ export function TabItem({ tab, paneId, isNextActive, isFirst }: TabItemProps) {
               onClick={handleClose}
               title="Close"
             >
-              <X className="w-3 h-3" />
+              <X data-tauri-drag-region="false" className="w-3 h-3" />
             </button>
           </div>
         </div>

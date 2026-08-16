@@ -931,3 +931,10 @@
   flex-direction: column;
   height: 100%;
 }
+
+/* ── Slash Command Popup ─────────────────────────────────── */
+
+.slash-command-popup-container {
+  z-index: 9999;
+  filter: drop-shadow(0 10px 25px rgba(0, 0, 0, 0.2));
+}

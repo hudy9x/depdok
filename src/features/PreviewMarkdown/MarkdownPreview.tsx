@@ -48,6 +48,7 @@ import {
   MarkdownCommentSidebar,
   useCommentExtension,
 } from "./extensions/comment";
+import { SlashCommandExtension } from "./extensions/slash-command";
 
 const lowlight = createLowlight(common);
 
@@ -216,6 +217,7 @@ export function MarkdownPreview({
       PaginationExtension.configure({
         enabled: isPageMode,
       }),
+      SlashCommandExtension,
     ],
     content: "",
     contentType: 'markdown', // Enable markdown mode

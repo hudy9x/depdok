@@ -4,6 +4,7 @@ import { useTheme } from "next-themes";
 import { useAtom } from "jotai";
 import { ZoomPanContainer } from "@/components/ZoomPanContainer";
 import { Loader2 } from "lucide-react";
+import { EditorViewMode } from "@/features/EditorViewMode";
 import { queuePlantUMLRender } from "./plantuml-queue";
 import { plantUmlThemeLightAtom, plantUmlThemeDarkAtom } from "@/stores/SettingsStore";
 import { PLANTUML_THEMES } from "./themes";
@@ -95,6 +96,10 @@ export function PlantUMLNativePreview({ content }: PlantUMLNativePreviewProps) {
       >
         <g dangerouslySetInnerHTML={{ __html: svgContent }} />
       </ZoomPanContainer>
+
+      <div className="absolute bottom-4 right-16 z-20">
+        <EditorViewMode />
+      </div>
     </div>
   );
 }

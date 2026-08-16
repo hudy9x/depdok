@@ -5,6 +5,7 @@ import { useSetAtom } from "jotai";
 import { isSavingAtom } from "@/stores/FileWatchStore";
 import { FolderPlus } from "lucide-react";
 import { installCustomLibrary, loadAllInstalledLibraries } from "./libraryManager";
+import { EditorViewMode } from "@/features/EditorViewMode";
 // Lazy-load Excalidraw only on the client (it's a large package)
 const loadExcalidraw = () => import("@excalidraw/excalidraw");
 
@@ -314,6 +315,10 @@ export function ExcalidrawPreview({ content, filePath, onContentChange }: Excali
             },
           }}
         />
+      </div>
+
+      <div className="absolute bottom-4 right-4 z-20">
+        <EditorViewMode />
       </div>
     </div>
   );

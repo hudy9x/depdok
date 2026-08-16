@@ -2,6 +2,7 @@ import { useTodoDocument } from "./useTodoDocument";
 import { WeekView } from "./Week/WeekView";
 import { KanbanView } from "./Kanban/KanbanView";
 import { ViewModeSwitcher } from "./ViewModeSwitcher";
+import { EditorViewMode } from "@/features/EditorViewMode";
 
 interface TodoPreviewProps {
   content: string;
@@ -20,7 +21,7 @@ export function TodoPreview({ content, onContentChange, editable = false, filePa
   const currentMode = document.config?.mode || "kanban";
 
   return (
-    <>
+    <div className="relative w-full h-full">
       {currentMode === "week" ? (
         <WeekView
           document={document}
@@ -35,11 +36,14 @@ export function TodoPreview({ content, onContentChange, editable = false, filePa
         <KanbanView document={document} editable={editable} handlers={handlers} />
       )}
 
-      <ViewModeSwitcher
-        mode={currentMode}
-        onModeChange={handleModeChange}
-        editable={editable}
-      />
-    </>
+      <div className="absolute bottom-6 right-6 z-30 flex items-center gap-2">
+        <EditorViewMode />
+        <ViewModeSwitcher
+          mode={currentMode}
+          onModeChange={handleModeChange}
+          editable={editable}
+        />
+      </div>
+    </div>
   );
 }

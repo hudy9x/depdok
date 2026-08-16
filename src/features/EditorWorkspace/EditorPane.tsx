@@ -4,10 +4,8 @@ import {
   Pane,
   activePaneIdAtom,
   focusPaneAtom,
-  paneTreeAtom,
-  collectLeafPanes,
 } from '@/stores/PaneStore';
-import { EditorPaneHeader } from './EditorPaneHeader';
+import { PaneContext } from './PaneContext';
 import { useKeepAliveTabs } from './useKeepAliveTabs';
 import { LoadFileContent } from '@/features/Editor/LoadFileContent';
 import { SideBySide } from '@/features/SidebySide';
@@ -127,11 +125,9 @@ function TabContent({
 
 export function EditorPane({ pane }: EditorPaneProps): React.JSX.Element {
   const activePaneId = useAtomValue(activePaneIdAtom);
-  const tree = useAtomValue(paneTreeAtom);
   const tabs = useAtomValue(tabsAtom);
   const focusPane = useSetAtom(focusPaneAtom);
   const isFocused = activePaneId === pane.id;
-  const leafPanes = collectLeafPanes(tree);
 
   const activeTab = tabs.find((t) => t.id === pane.activeTabId) || pane.tabs.find((t) => t.id === pane.activeTabId) || null;
   const currentFilePath = activeTab?.filePath;
@@ -171,16 +167,9 @@ export function EditorPane({ pane }: EditorPaneProps): React.JSX.Element {
       ].join(" ")}
     >
       {currentFilePath ? (
-        <>
-          <EditorPaneHeader
-            pane={pane}
-            currentFilePath={currentFilePath}
-            isFocused={isFocused}
-            leafPanesCount={leafPanes.length}
-          />
-
+        <PaneContext.Provider value={{ paneId: pane.id, filePath: currentFilePath, viewMode: pane.viewMode }}>
           {/* Keep-alive tab containers */}
-          <div className="flex-1 min-h-0 bg-layout-content relative">
+          <div className="flex-1 min-h-0 bg-layout-content relative h-full w-full">
             {visitedTabIds.map((tabId) => {
               const isTabActive = tabId === pane.activeTabId;
               return (
@@ -201,7 +190,7 @@ export function EditorPane({ pane }: EditorPaneProps): React.JSX.Element {
               );
             })}
           </div>
-        </>
+        </PaneContext.Provider>
       ) : (
         <div
           onClick={handlePaneClick}

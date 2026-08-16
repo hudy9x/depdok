@@ -58,7 +58,7 @@ export function Titlebar() {
       <div
         data-tauri-drag-region
         className={cn(
-          "pointer-events-auto flex items-center pt-1.5 pl-3 pr-2 flex-shrink-0 h-full",
+          "pointer-events-auto flex items-center pt-1.5 pl-3 pr-2 flex-shrink-0 h-full bg-layout-chrome",
           isMacOS ? "gap-2.5" : "gap-2"
         )}
       >
@@ -138,7 +138,7 @@ export function Titlebar() {
       <div
         data-tauri-drag-region
         className={cn(
-          "pointer-events-auto flex h-full items-center pt-1.5 flex-shrink-0",
+          "pointer-events-auto flex h-full items-center pt-1.5 flex-shrink-0 bg-layout-chrome",
           isMacOS ? "gap-1 pr-3" : "gap-3.5"
         )}
       >

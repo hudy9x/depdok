@@ -99,7 +99,6 @@ export function TabItem({ tab, paneId, isNextActive, isFirst }: TabItemProps) {
           data-tauri-drag-region="false"
           className={cn(
             'depdok-tab flex items-center gap-2 px-3.5 pt-0.5 h-[32px] cursor-pointer group relative',
-            'min-w-[120px] max-w-[200px]',
             isActive && 'active',
             isFirst && 'first-tab',
             tab.isPreview && 'italic',

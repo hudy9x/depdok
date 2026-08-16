@@ -46,6 +46,7 @@ export function EditorTabs({ paneId, isSidebarVisible }: EditorTabsProps = {}) {
       data-tauri-drag-region
       className={cn(
         "depdok-tabs-container flex items-end pt-1.5 h-[38px] w-full shrink-0 overflow-hidden bg-layout-chrome",
+        leftPaddingClass,
         rightPaddingClass
       )}
     >
@@ -60,7 +61,7 @@ export function EditorTabs({ paneId, isSidebarVisible }: EditorTabsProps = {}) {
           data-tauri-drag-region
           className={cn(
             "depdok-tabs-wrapper flex w-max min-w-full space-x-0 h-full items-end pr-2",
-            leftPaddingClass
+            isSidebarOpen && "sidebar-open"
           )}
         >
           {tabs.map((tab, index) => {

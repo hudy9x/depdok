@@ -412,7 +412,7 @@ export function MarkdownPreview({
         </div>
 
         {!isOutlineOpen && (
-          <div className="absolute top-2 right-2 z-10">
+          <div className="absolute top-6 right-2 z-10">
             <MarkdownOutlineMinimap
               anchors={tocAnchors}
               onClick={() => setIsOutlineOpen(true)}

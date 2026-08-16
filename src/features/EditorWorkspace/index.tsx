@@ -1,20 +1,26 @@
 import * as React from 'react';
 import { useAtom, useAtomValue } from 'jotai';
-import { paneTreeAtom, collectLeafPanes } from '@/stores/PaneStore';
-import { isFileExplorerVisibleAtom } from '@/features/FileExplorer/store';
-import { PaneTree } from './PaneTree';
 import { FileBox } from 'lucide-react';
+
 import { Button } from '@/components/ui/button';
+import { EditorTabs } from '@/features/EditorTabs';
+import { isFileExplorerVisibleAtom } from '@/features/FileExplorer/store';
+import { cn } from '@/lib/utils';
+import { paneTreeAtom } from '@/stores/PaneStore';
+import { activeTabIdAtom, tabsAtom } from '@/stores/TabStore';
+
+import { PaneTree } from './PaneTree';
 
 export function EditorWorkspace(): React.JSX.Element {
   const tree = useAtomValue(paneTreeAtom);
-  const leafPanes = collectLeafPanes(tree);
+  const tabs = useAtomValue(tabsAtom);
+  const activeTabId = useAtomValue(activeTabIdAtom);
   const [isFileExplorerVisible, setIsFileExplorerVisible] = useAtom(isFileExplorerVisibleAtom);
 
-  // If no leaf panes have any tabs, show welcome/empty workspace UI
-  const totalTabs = leafPanes.reduce((acc, pane) => acc + pane.tabs.length, 0);
+  const isFirstTabActive = tabs.length > 0 && tabs[0]?.id === activeTabId;
 
-  if (totalTabs === 0) {
+  // If no tabs in workspace, show welcome/empty workspace UI
+  if (tabs.length === 0) {
     return (
       <div className="h-full w-full flex flex-col items-center justify-center bg-layout-chrome text-muted-foreground p-8 select-none">
         <div className="flex flex-col items-center gap-2 max-w-sm text-center">
@@ -53,8 +59,23 @@ export function EditorWorkspace(): React.JSX.Element {
   }
 
   return (
-    <div className="w-full h-full relative overflow-hidden flex bg-layout-content">
-      <PaneTree node={tree} />
+    <div
+      className={cn(
+        "w-full h-full relative overflow-hidden flex flex-col bg-layout-chrome",
+        isFileExplorerVisible ? "pr-2 pb-2" : "px-2 pb-2"
+      )}
+    >
+      <div className="relative z-10">
+        <EditorTabs isSidebarVisible={isFileExplorerVisible} />
+      </div>
+      <div
+        className={cn(
+          "flex-1 min-h-0 min-w-0 relative bg-layout-content -mt-px border border-border overflow-hidden rounded-xl rounded-b-lg",
+          isFirstTabActive && isFileExplorerVisible && "rounded-tl-none"
+        )}
+      >
+        <PaneTree node={tree} />
+      </div>
     </div>
   );
 }

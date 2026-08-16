@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
-  paneActiveTabIdAtomFamily,
+  activeTabIdAtom,
   switchTabAtom,
   closeTabAtom,
   updateTabAtom,
@@ -12,20 +12,25 @@ import {
   extractFilenameFromDummyPath,
   type Tab,
 } from '@/stores/TabStore';
+import {
+  activePaneIdAtom,
+} from '@/stores/PaneStore';
 import { isFileDirtyAtom } from '@/stores/DirtyStore';
 import { CloseTabWarning } from './CloseTabWarning';
 import { FileIcon } from '@/components/FileIcon';
 import { TabContextMenu } from './TabContextMenu';
 
-
 interface TabItemProps {
   tab: Tab;
-  paneId: string;
+  paneId?: string;
+  isNextActive?: boolean;
+  isFirst?: boolean;
 }
 
-export function TabItem({ tab, paneId }: TabItemProps) {
+export function TabItem({ tab, paneId, isNextActive, isFirst }: TabItemProps) {
   const navigate = useNavigate();
-  const activeTabId = useAtomValue(paneActiveTabIdAtomFamily(paneId));
+  const activePaneId = useAtomValue(activePaneIdAtom);
+  const activeTabId = useAtomValue(activeTabIdAtom);
   const isDirty = useAtomValue(isFileDirtyAtom(tab.filePath));
   const switchTab = useSetAtom(switchTabAtom);
   const closeTab = useSetAtom(closeTabAtom);
@@ -35,23 +40,30 @@ export function TabItem({ tab, paneId }: TabItemProps) {
 
   const isActive = tab.id === activeTabId;
 
+  // Auto-sync: When this tab becomes active (e.g. section/view focused or tab switched), scroll into view
   useEffect(() => {
     if (isActive) {
-      tabRef.current?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+      tabRef.current?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest',
+        inline: 'nearest',
+      });
     }
   }, [isActive]);
 
   const handleClick = () => {
     if (!isActive) {
+      // Switch active tab in currently focused pane
       switchTab(tab.id);
-      // Navigate to the file path to trigger content reload
-      navigate(`/editor?path=${encodeURIComponent(tab.filePath)}`);
     }
+
+    // Navigate to the file path to sync URL
+    navigate(`/editor?path=${encodeURIComponent(tab.filePath)}`);
   };
 
   const handleDoubleClick = () => {
     if (tab.isPreview) {
-      updateTab({ tabId: tab.id, updates: { isPreview: false }, paneId });
+      updateTab({ tabId: tab.id, updates: { isPreview: false } });
     }
   };
 
@@ -62,19 +74,15 @@ export function TabItem({ tab, paneId }: TabItemProps) {
     if (isDirty) {
       setShowCloseWarning(true);
     } else {
-      closeTab({ tabId: tab.id, paneId });
+      closeTab(tab.id);
     }
   };
 
   const handleConfirmClose = (action: 'save' | 'discard' | 'cancel') => {
     setShowCloseWarning(false);
 
-    if (action === 'discard') {
-      closeTab({ tabId: tab.id, paneId });
-    } else if (action === 'save') {
-      // TODO: Trigger save flow, then close
-      // For now, just close
-      closeTab({ tabId: tab.id, paneId });
+    if (action === 'discard' || action === 'save') {
+      closeTab(tab.id);
     }
     // 'cancel' does nothing
   };
@@ -85,15 +93,14 @@ export function TabItem({ tab, paneId }: TabItemProps) {
 
   return (
     <>
-      <TabContextMenu tab={tab} paneId={paneId}>
+      <TabContextMenu tab={tab} paneId={paneId || activePaneId}>
         <div
           ref={tabRef}
+          data-tauri-drag-region="false"
           className={cn(
-            'flex items-center gap-2 px-3 h-[35px] cursor-pointer border-r border-border group relative transition-all',
-            'min-w-[120px] max-w-[200px]',
-            isActive
-              ? 'bg-layout-content text-foreground border-b border-b-transparent border-r border-r-border'
-              : 'bg-layout-chrome text-muted-foreground hover:bg-muted/30 hover:text-foreground border-b border-b-transparent',
+            'depdok-tab flex items-center gap-2 px-3.5 pt-0.5 h-[32px] cursor-pointer group relative',
+            isActive && 'active',
+            isFirst && 'first-tab',
             tab.isPreview && 'italic',
             tab.isDeleted && 'opacity-70'
           )}
@@ -102,37 +109,48 @@ export function TabItem({ tab, paneId }: TabItemProps) {
           title={tab.isDeleted ? 'File was deleted externally — Save As to recover' : undefined}
         >
           {/* File Icon */}
-          <span className="flex-shrink-0 opacity-70">
+          <span data-tauri-drag-region="false" className="flex-shrink-0 opacity-70">
             <FileIcon filename={displayName} />
           </span>
 
-          <span className={cn(
-            'text-xs truncate flex-1',
-            tab.isDeleted && 'line-through text-destructive'
-          )}>
+          <span
+            data-tauri-drag-region="false"
+            className={cn(
+              'text-xs truncate flex-1 font-normal',
+              isActive ? 'font-medium text-foreground' : 'text-muted-foreground group-hover:text-foreground',
+              tab.isDeleted && 'line-through text-destructive'
+            )}
+          >
             {displayName}
           </span>
 
+          {/* Inactive tab separator (hidden on active, when next tab is active, or on hover) */}
+          {!isActive && !isNextActive && (
+            <span className="tab-divider absolute right-0 top-1.5 bottom-1.5 w-[1px] bg-border/40 group-hover:opacity-0 pointer-events-none" />
+          )}
+
           {/* Right side interactions: Dirty Indicator + Close Button */}
-          <div className="relative w-4 h-4 flex items-center justify-center">
+          <div data-tauri-drag-region="false" className="relative w-4 h-4 flex items-center justify-center">
             {/* Dirty Indicator (visible when dirty, hidden on hover to show close button) */}
             {isDirty && (
               <div
-                className="w-2 h-2 rounded-full bg-blue-500/80 absolute transition-opacity group-hover:opacity-0"
+                data-tauri-drag-region="false"
+                className="w-2 h-2 rounded-full bg-blue-500/80 absolute group-hover:opacity-0"
                 title="Unsaved changes"
               />
             )}
 
             {/* Close Button (visible on hover) */}
             <button
+              data-tauri-drag-region="false"
               className={cn(
-                "absolute inset-0 flex items-center justify-center rounded hover:bg-muted transition-opacity",
+                "absolute inset-0 flex items-center justify-center rounded hover:bg-muted",
                 "opacity-0 group-hover:opacity-100"
               )}
               onClick={handleClose}
               title="Close"
             >
-              <X className="w-3 h-3" />
+              <X data-tauri-drag-region="false" className="w-3 h-3" />
             </button>
           </div>
         </div>

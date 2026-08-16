@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { useSetAtom, useAtomValue } from "jotai";
 import { useNavigate } from "react-router-dom";
+import { Edit3, Folder, Clock, X } from "lucide-react";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,8 +13,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
-import { Edit3, Folder, Clock, X } from "lucide-react";
-import { toast } from "sonner";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { createUntitledTabAtom, tabsAtom } from "@/stores/TabStore";
 import { openWorkspaceAtom, recentFoldersAtom, removeRecentFolderAtom } from "@/features/FileExplorer/store";
 import { openFolderDialog } from "@/features/FileExplorer/api";
@@ -122,32 +123,34 @@ export default function Home() {
               <Clock className="w-4 h-4" />
               Recent Folders
             </div>
-            <div className="flex flex-col gap-1 max-h-[240px] overflow-y-auto">
-              {recentFolders.map((folderPath) => (
-                <div
-                  key={folderPath}
-                  onClick={() => handleRecentFolderClick(folderPath)}
-                  className="flex items-center cursor-pointer justify-between w-full p-2 text-sm rounded-md hover:bg-muted text-left transition-colors group"
-                >
-                  <div className="flex items-center gap-3 truncate min-w-0 flex-1 pr-2">
-                    <Folder className="w-4 h-4 text-muted-foreground group-hover:text-foreground shrink-0" />
-                    <span className="truncate font-medium text-foreground" title={folderPath}>
-                      {getFolderName(folderPath)}
-                    </span>
-                    <span className="text-xs text-muted-foreground truncate" title={folderPath}>
-                      {folderPath}
-                    </span>
-                  </div>
-                  <button
-                    onClick={(e) => handleRemoveFolder(e, folderPath)}
-                    title="Remove from recent history"
-                    className="opacity-0 group-hover:opacity-100 p-1 rounded-md hover:bg-destructive/15 text-muted-foreground hover:text-destructive transition-all shrink-0 cursor-pointer"
+            <ScrollArea className="max-h-[240px]">
+              <div className="flex flex-col gap-1 pr-3">
+                {recentFolders.map((folderPath) => (
+                  <div
+                    key={folderPath}
+                    onClick={() => handleRecentFolderClick(folderPath)}
+                    className="flex items-center cursor-pointer justify-between w-full p-2 text-sm rounded-md hover:bg-muted text-left transition-colors group"
                   >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              ))}
-            </div>
+                    <div className="flex items-center gap-3 truncate min-w-0 flex-1 pr-2">
+                      <Folder className="w-4 h-4 text-muted-foreground group-hover:text-foreground shrink-0" />
+                      <span className="truncate font-medium text-foreground" title={folderPath}>
+                        {getFolderName(folderPath)}
+                      </span>
+                      <span className="text-xs text-muted-foreground truncate" title={folderPath}>
+                        {folderPath}
+                      </span>
+                    </div>
+                    <button
+                      onClick={(e) => handleRemoveFolder(e, folderPath)}
+                      title="Remove from recent history"
+                      className="opacity-0 group-hover:opacity-100 p-1 rounded-md hover:bg-destructive/15 text-muted-foreground hover:text-destructive transition-all shrink-0 cursor-pointer"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
           </div>
         )}
       </Empty>

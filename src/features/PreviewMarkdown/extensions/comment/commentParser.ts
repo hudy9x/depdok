@@ -31,6 +31,25 @@ export function extractComments(markdown: string): {
     .replace(/\n{3,}$/g, '\n')
     .trimEnd();
 
+  // Find any orphan inline <span data-comment-id="..."> marks without corresponding comment blocks
+  const existingIds = new Set(threads.map((t) => t.id));
+  const spanRegex = /<span[^>]*\bdata-comment-id=["']([^"']+)["'][^>]*>/gi;
+  let spanMatch: RegExpExecArray | null;
+  while ((spanMatch = spanRegex.exec(cleanMarkdown)) !== null) {
+    const orphanId = spanMatch[1];
+    if (orphanId && !existingIds.has(orphanId)) {
+      existingIds.add(orphanId);
+      threads.push({
+        id: orphanId,
+        text: '',
+        author: 'Unknown',
+        createdAt: new Date().toISOString(),
+        resolved: false,
+        replies: [],
+      });
+    }
+  }
+
   // Unwrap span tags for any resolved comments (<span data-comment-id="id">text</span> -> text)
   threads.forEach((thread) => {
     if (thread.resolved) {

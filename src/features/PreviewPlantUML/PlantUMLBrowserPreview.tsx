@@ -1,5 +1,6 @@
 import { useTheme } from "next-themes";
 import { ZoomPanContainer } from "@/components/ZoomPanContainer";
+import { EditorViewMode } from "@/features/EditorViewMode";
 
 import {
   DiagramProvider,
@@ -45,6 +46,10 @@ export function PlantUMLBrowserPreview({
           <NoteMenuBar />
         </DiagramProvider>
       </ZoomPanContainer>
+
+      <div className="absolute bottom-4 right-16 z-20">
+        <EditorViewMode />
+      </div>
     </div>
   );
 }

@@ -1,32 +1,87 @@
+import { useEffect, useState } from 'react';
 import { useAtomValue } from 'jotai';
+import { platform } from '@tauri-apps/plugin-os';
 
-import { paneTabsAtomFamily } from '@/stores/TabStore';
-import { TabItem } from './TabItem';
-import { CreateTabButton } from './CreateTabButton';
 import { CustomScroller } from '@/components/CustomScroller';
+import { isFileExplorerVisibleAtom } from '@/features/FileExplorer/store';
+import { cn } from '@/lib/utils';
+import { activeTabIdAtom, paneTabsAtomFamily, tabsAtom } from '@/stores/TabStore';
+
+import { CreateTabButton } from './CreateTabButton';
+import { TabItem } from './TabItem';
+import './EditorTabs.css';
 
 interface EditorTabsProps {
-  paneId: string;
+  paneId?: string;
+  isSidebarVisible?: boolean;
 }
 
-export function EditorTabs({ paneId }: EditorTabsProps) {
-  const tabs = useAtomValue(paneTabsAtomFamily(paneId));
+export function EditorTabs({ paneId, isSidebarVisible }: EditorTabsProps = {}) {
+  const globalTabs = useAtomValue(tabsAtom);
+  const paneTabs = useAtomValue(paneTabsAtomFamily(paneId || ''));
+  const activeTabId = useAtomValue(activeTabIdAtom);
+  const fileExplorerVisible = useAtomValue(isFileExplorerVisibleAtom);
+  const isSidebarOpen = isSidebarVisible !== undefined ? isSidebarVisible : fileExplorerVisible;
+  const tabs = paneId ? paneTabs : globalTabs;
+
+  const [currentPlatform, setCurrentPlatform] = useState<string>('macos');
+
+  useEffect(() => {
+    try {
+      const p = platform();
+      setCurrentPlatform(p);
+    } catch {
+      // fallback in browser preview
+    }
+  }, []);
+
+  const leftPaddingClass = isSidebarOpen
+    ? 'pl-0'
+    : (currentPlatform === 'macos' ? 'pl-[148px]' : 'pl-[112px]');
+
+  const rightPaddingClass = currentPlatform === 'macos' ? 'pr-[220px]' : 'pr-[360px]';
 
   return (
-    <div className="flex items-end pt-0 h-[35px] w-full overflow-hidden bg-layout-chrome">
+    <div
+      data-tauri-drag-region
+      className={cn(
+        "depdok-tabs-container flex items-end pt-1.5 h-[38px] w-full shrink-0 overflow-hidden bg-layout-chrome",
+        leftPaddingClass,
+        rightPaddingClass
+      )}
+    >
       {/* Tabs list with horizontal scroll */}
       <CustomScroller
         orientation="horizontal"
-        className="h-[35px] flex-1 min-w-0"
+        data-tauri-drag-region
+        className="h-[38px] flex-1 min-w-0"
       >
-        <div id={`tab-content-wrapper-${paneId}`} className="flex w-max space-x-0 h-full items-end">
-          {tabs.map((tab) => (
-            <div key={tab.id} className="group flex-shrink-0">
-              <TabItem tab={tab} paneId={paneId} />
-            </div>
-          ))}
+        <div
+          id="unified-tab-content-wrapper"
+          data-tauri-drag-region
+          className={cn(
+            "depdok-tabs-wrapper flex w-max min-w-full space-x-0 h-full items-end pr-2",
+            isSidebarOpen && "sidebar-open"
+          )}
+        >
+          {tabs.map((tab, index) => {
+            const isNextActive = tabs[index + 1]?.id === activeTabId;
+            return (
+              <div key={tab.id} data-tauri-drag-region="false" className="group flex-shrink-0">
+                <TabItem
+                  tab={tab}
+                  paneId={paneId}
+                  isNextActive={isNextActive}
+                  isFirst={index === 0}
+                />
+              </div>
+            );
+          })}
           {/* Create button on the right of tabs */}
           <CreateTabButton />
+
+          {/* Empty trailing space to allow window dragging on empty header */}
+          <div data-tauri-drag-region className="flex-1 min-w-[32px] h-full" />
         </div>
       </CustomScroller>
     </div>

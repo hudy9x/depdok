@@ -28,8 +28,8 @@ export function PaneSplit({ node }: PaneSplitProps): React.JSX.Element {
                 className={[
                   "relative flex items-center justify-center transition-colors bg-border/40 hover:bg-primary/50",
                   direction === "horizontal"
-                    ? "w-[4px] cursor-col-resize h-full"
-                    : "h-[4px] cursor-row-resize w-full",
+                    ? "w-[1px] cursor-col-resize h-full"
+                    : "h-[1px] cursor-row-resize w-full",
                 ].join(" ")}
               />
             )}

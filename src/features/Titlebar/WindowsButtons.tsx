@@ -29,33 +29,36 @@ export function WindowsButtons() {
   };
 
   return (
-    <div className="flex h-full">
+    <div data-tauri-drag-region="false" className="flex h-full">
       <button
+        data-tauri-drag-region="false"
         onClick={handleMinimize}
         title="Minimize"
         aria-label="Minimize window"
         className={`cursor-pointer w-[46px] h-full flex items-center justify-center text-foreground hover:bg-accent transition-colors ${!isFocused ? 'opacity-50' : ''
           }`}
       >
-        <Minus size={14} />
+        <Minus data-tauri-drag-region="false" size={14} />
       </button>
       <button
+        data-tauri-drag-region="false"
         onClick={handleMaximize}
         title="Maximize"
         aria-label="Maximize window"
         className={`cursor-pointer w-[46px] h-full flex items-center justify-center text-foreground hover:bg-accent transition-colors ${!isFocused ? 'opacity-50' : ''
           }`}
       >
-        <Square size={12} />
+        <Square data-tauri-drag-region="false" size={12} />
       </button>
       <button
+        data-tauri-drag-region="false"
         onClick={handleClose}
         title="Close"
         aria-label="Close window"
         className={`cursor-pointer w-[46px] h-full flex items-center justify-center text-foreground hover:bg-[#e81123] hover:text-white active:bg-[#c50f1f] transition-colors ${!isFocused ? 'opacity-50' : ''
           }`}
       >
-        <X size={14} />
+        <X data-tauri-drag-region="false" size={14} />
       </button>
     </div>
   );

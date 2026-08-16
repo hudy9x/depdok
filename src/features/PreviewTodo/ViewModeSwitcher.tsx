@@ -11,33 +11,31 @@ export function ViewModeSwitcher({ mode, onModeChange, editable }: ViewModeSwitc
   if (!editable) return null;
 
   return (
-    <div className="fixed bottom-10 right-6 z-50">
-      <ToggleGroup
-        type="single"
-        variant={"outline"}
-        value={mode}
-        onValueChange={(value: string) => {
-          if (value) onModeChange(value as 'kanban' | 'week');
-        }}
-        className="bg-background border border-border shadow-lg rounded-lg p-1"
+    <ToggleGroup
+      type="single"
+      variant="outline"
+      value={mode}
+      onValueChange={(value: string) => {
+        if (value) onModeChange(value as 'kanban' | 'week');
+      }}
+      className="bg-background/85 backdrop-blur-md border border-border/80 shadow-md rounded-lg p-1 gap-0.5"
+    >
+      <ToggleGroupItem
+        value="kanban"
+        aria-label="Kanban view"
+        className="gap-1.5 h-6 px-2 text-xs"
       >
-        <ToggleGroupItem
-          value="kanban"
-          aria-label="Kanban view"
-          className="gap-2 border border-border"
-        >
-          <LayoutGrid className="h-4 w-4" />
-          Kanban
-        </ToggleGroupItem>
-        <ToggleGroupItem
-          value="week"
-          aria-label="Week view"
-          className="gap-2 border border-border"
-        >
-          <CalendarDays className="h-4 w-4" />
-          Week
-        </ToggleGroupItem>
-      </ToggleGroup>
-    </div>
+        <LayoutGrid className="h-3.5 w-3.5" />
+        Kanban
+      </ToggleGroupItem>
+      <ToggleGroupItem
+        value="week"
+        aria-label="Week view"
+        className="gap-1.5 h-6 px-2 text-xs"
+      >
+        <CalendarDays className="h-3.5 w-3.5" />
+        Week
+      </ToggleGroupItem>
+    </ToggleGroup>
   );
 }

@@ -1,18 +1,17 @@
 import { useRef, useState, useEffect } from "react";
 import { Editor, useEditorState } from "@tiptap/react";
 import { MessageSquare, MessageSquarePlus } from "lucide-react";
-import { useAtom, useAtomValue, useSetAtom } from "jotai";
+import { useAtomValue, useSetAtom } from "jotai";
 
 import { BlockButtons } from "./MenuButtons";
 import { MarkdownSizeControl, MarkdownSizeDropdown, type MarkdownEditorSize } from "./MarkdownSizeControl";
-import { ExportButton } from "./ExportButton";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   addCommentThreadAtom,
-  commentSidebarVisibleAtom,
-  commentThreadsAtom,
+  fileCommentThreadsAtomFamily,
   generateCommentId,
   useCommentAuthor,
+  type CommentThread,
 } from "./extensions/comment";
 
 interface MarkdownBottomMenuProps {
@@ -21,10 +20,18 @@ interface MarkdownBottomMenuProps {
   size: MarkdownEditorSize;
   onSizeChange: (size: MarkdownEditorSize) => void;
   filePath?: string;
+  isSidebarVisible?: boolean;
+  onToggleSidebar?: () => void;
 }
 
 /** Add Comment button with inline Popover for entering comment text. */
-function AddCommentButton({ editor }: { editor: Editor }) {
+function AddCommentButton({
+  editor,
+  filePath = '',
+}: {
+  editor: Editor;
+  filePath?: string;
+}) {
   const [open, setOpen] = useState(false);
   const [commentText, setCommentText] = useState("");
   const [author, setAuthor] = useCommentAuthor();
@@ -56,16 +63,22 @@ function AddCommentButton({ editor }: { editor: Editor }) {
     setAuthor(finalAuthor);
 
     const id = generateCommentId();
-    editor.chain().focus().setCommentMark(id).run();
 
-    addThread({
+    const newThread: CommentThread = {
       id,
       text: commentText.trim(),
       author: finalAuthor,
       createdAt: new Date().toISOString(),
       resolved: false,
       replies: [],
+    };
+
+    addThread({
+      filePath,
+      thread: newThread,
     });
+
+    editor.chain().focus().setCommentMark(id).run();
 
     setCommentText("");
     setOpen(false);
@@ -99,8 +112,8 @@ function AddCommentButton({ editor }: { editor: Editor }) {
             hasCommentMark
               ? "Selection already has a comment"
               : !hasSelection
-              ? "Select text to add a comment"
-              : "Add comment"
+                ? "Select text to add a comment"
+                : "Add comment"
           }
           className={`p-2 rounded hover:bg-accent transition-colors disabled:opacity-30 disabled:cursor-not-allowed text-muted-foreground hover:text-foreground`}
         >
@@ -165,10 +178,11 @@ export function MarkdownBottomMenu({
   editable = false,
   size,
   onSizeChange,
-  filePath,
+  filePath = '',
+  isSidebarVisible = false,
+  onToggleSidebar,
 }: MarkdownBottomMenuProps) {
-  const [isSidebarVisible, setSidebarVisible] = useAtom(commentSidebarVisibleAtom);
-  const commentThreads = useAtomValue(commentThreadsAtom);
+  const commentThreads = useAtomValue(fileCommentThreadsAtomFamily(filePath));
   const openCommentCount = commentThreads.filter((t) => !t.resolved).length;
 
   return (
@@ -181,40 +195,21 @@ export function MarkdownBottomMenu({
           <div className="w-[1px] h-5 bg-border mx-1 shrink-0 editor-tools-divider" />
         </>
       )}
-      <div className="size-control-expanded items-center gap-0.5 shrink-0">
-        <MarkdownSizeControl
-          size={size}
-          onSizeChange={onSizeChange}
-          className="flex items-center gap-0.5 shrink-0"
-        />
-      </div>
-      <div className="size-control-dropdown items-center shrink-0">
-        <MarkdownSizeDropdown
-          size={size}
-          onSizeChange={onSizeChange}
-        />
-      </div>
-      {editor && (
-        <div className="export-button-group items-center shrink-0">
-          <div className="w-[1px] h-5 bg-border mx-1 shrink-0" />
-          <ExportButton editor={editor} filePath={filePath} />
-        </div>
-      )}
+
+
       {editable && editor && (
         <>
-          <div className="w-[1px] h-5 bg-border mx-1 shrink-0" />
-          <AddCommentButton editor={editor} />
+          <AddCommentButton editor={editor} filePath={filePath} />
           <div className="relative inline-flex items-center">
             <button
               type="button"
               id="toggle-comment-sidebar"
-              onClick={() => setSidebarVisible((v) => !v)}
+              onClick={onToggleSidebar}
               title={isSidebarVisible ? "Hide comments" : "Show comments"}
-              className={`p-2 rounded hover:bg-accent transition-colors relative ${
-                isSidebarVisible
-                  ? "bg-accent text-accent-foreground"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
+              className={`p-2 rounded hover:bg-accent transition-colors relative ${isSidebarVisible
+                ? "bg-accent text-accent-foreground"
+                : "text-muted-foreground hover:text-foreground"
+                }`}
             >
               <MessageSquare className="w-4 h-4" />
               {openCommentCount > 0 && (
@@ -224,8 +219,25 @@ export function MarkdownBottomMenu({
               )}
             </button>
           </div>
+          <div className="w-[1px] h-5 bg-border mx-1 shrink-0" />
+
         </>
       )}
+
+      <div className="size-control-expanded items-center gap-0.5 shrink-0">
+        <MarkdownSizeControl
+          size={size}
+          onSizeChange={onSizeChange}
+          className="flex items-center gap-0.5 shrink-0"
+        />
+      </div>
+
+      <div className="size-control-dropdown items-center shrink-0">
+        <MarkdownSizeDropdown
+          size={size}
+          onSizeChange={onSizeChange}
+        />
+      </div>
     </div>
   );
 }

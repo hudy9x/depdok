@@ -1,24 +1,28 @@
-import { useAtomValue } from "jotai";
 import { Editor } from "@tiptap/react";
-import { commentSidebarVisibleAtom } from "./commentStore";
 import { CommentSidebar } from "./CommentSidebar";
 
 interface MarkdownCommentSidebarProps {
   editor: Editor | null;
+  visible?: boolean;
+  onClose?: () => void;
+  filePath?: string;
 }
 
 /**
  * Wrapper component for the CommentSidebar panel.
- * Controls sidebar visibility from the Jotai store.
+ * Controls sidebar visibility per view instance.
  */
-export function MarkdownCommentSidebar({ editor }: MarkdownCommentSidebarProps) {
-  const isSidebarVisible = useAtomValue(commentSidebarVisibleAtom);
-
-  if (!isSidebarVisible) return null;
+export function MarkdownCommentSidebar({
+  editor,
+  visible,
+  onClose,
+  filePath = '',
+}: MarkdownCommentSidebarProps) {
+  if (!visible) return null;
 
   return (
     <div className="comment-sidebar-panel w-72 shrink-0 h-full overflow-hidden">
-      <CommentSidebar editor={editor} />
+      <CommentSidebar editor={editor} onClose={onClose} filePath={filePath} />
     </div>
   );
 }

@@ -121,9 +121,10 @@ export default function Editor() {
               minWidth={180}
               maxWidth={400}
               defaultWidth={240}
-              className="bg-layout-chrome flex flex-col select-none"
+              data-tauri-drag-region
+              className="bg-layout-chrome flex flex-col select-none pt-[38px]"
             >
-              <div className="flex-1 min-h-0 overflow-y-auto">
+              <div data-tauri-drag-region="false" className="flex-1 min-h-0 overflow-y-auto">
                 <FileExplorer />
               </div>
             </PanelSectionItem>
@@ -132,10 +133,10 @@ export default function Editor() {
               targetId="sidebar"
               visible={isFileExplorerVisible}
               resizeDirection="right"
-              className="bg-border hover:bg-primary/50 transition-colors"
+              className="bg-transparent group-hover:bg-primary/0 transition-colors"
             />
 
-            <PanelSectionItem flex={1} className="bg-layout-content min-w-0 min-h-0">
+            <PanelSectionItem flex={1} className="bg-layout-chrome min-w-0 min-h-0">
               <EditorWorkspace />
             </PanelSectionItem>
           </PanelSectionGroup>

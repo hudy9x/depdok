@@ -184,31 +184,30 @@ export const splitPaneAtom = atom(
   null,
   (get, set, payload: { paneId: string; direction: PaneDirection }) => {
     const tree = get(paneTreeAtom);
+    const leaves = collectLeafPanes(tree);
+    if (leaves.length === 0) return;
+
+    // Find the requested target pane or fallback to the first available leaf pane
+    const targetPane = leaves.find((l) => l.id === payload.paneId) ?? leaves[0];
+    const targetId = targetPane.id;
+
     const newPaneId = `pane-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     const newSplitId = `split-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-    const newTabCreator = (activeTab: Tab | null): Tab | null => {
-      if (!activeTab) return null;
-      return {
-        ...activeTab,
-        id: `tab-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        isActive: true,
-      };
-    };
-
+    let didSplit = false;
     function splitPaneInTree(
       node: PaneNode,
-      targetId: string,
+      tId: string,
       dir: PaneDirection
     ): PaneNode {
+      if (didSplit) return node;
       if (node.type === 'leaf') {
-        if (node.pane.id === targetId) {
-          const activeTab = node.pane.tabs.find((t) => t.id === node.pane.activeTabId) || null;
-          const newTab = newTabCreator(activeTab);
+        if (node.pane.id === tId) {
+          didSplit = true;
           const newPane: Pane = {
             id: newPaneId,
-            tabs: newTab ? [newTab] : [],
-            activeTabId: newTab ? newTab.id : null,
+            tabs: [...node.pane.tabs],
+            activeTabId: node.pane.activeTabId,
             viewMode: node.pane.viewMode,
           };
           return {
@@ -227,14 +226,16 @@ export const splitPaneAtom = atom(
       return {
         ...node,
         children: node.children.map((child) =>
-          splitPaneInTree(child, targetId, dir)
+          splitPaneInTree(child, tId, dir)
         ),
       };
     }
 
-    const newTree = splitPaneInTree(tree, payload.paneId, payload.direction);
-    set(paneTreeAtom, newTree);
-    set(activePaneIdAtom, newPaneId); // Automatically focus the newly created split pane
+    const newTree = splitPaneInTree(tree, targetId, payload.direction);
+    if (didSplit) {
+      set(paneTreeAtom, newTree);
+      set(activePaneIdAtom, newPaneId); // Automatically focus the newly created split pane
+    }
   }
 );
 
@@ -247,21 +248,25 @@ export const closePaneAtom = atom(null, (get, set, paneId: string) => {
     if (node.type === 'leaf') {
       return node.pane.id === targetId ? null : node;
     }
-    const newChildren = node.children
-      .map((child) => closePaneInTree(child, targetId))
-      .filter((c): c is PaneNode => c !== null);
+    const mappedChildren = node.children.map((child) => ({
+      child,
+      result: closePaneInTree(child, targetId),
+    }));
+
+    const newChildren: PaneNode[] = [];
+    let newSizes: number[] = [];
+
+    for (let i = 0; i < mappedChildren.length; i++) {
+      const { result } = mappedChildren[i];
+      if (result !== null) {
+        newChildren.push(result);
+        newSizes.push(node.sizes[i] ?? (100 / node.children.length));
+      }
+    }
 
     if (newChildren.length === 0) return null;
     if (newChildren.length === 1) return newChildren[0];
 
-    // Recalculate panel sizes after removal
-    const closedIndex = node.children.findIndex((child) => {
-      return findPaneNode(child, targetId) !== null;
-    });
-    let newSizes = [...node.sizes];
-    if (closedIndex !== -1 && closedIndex < newSizes.length) {
-      newSizes.splice(closedIndex, 1);
-    }
     const sum = newSizes.reduce((a, b) => a + b, 0);
     if (sum > 0) {
       newSizes = newSizes.map((s) => (s / sum) * 100);

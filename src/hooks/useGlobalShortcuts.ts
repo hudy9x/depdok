@@ -18,6 +18,7 @@ export function useGlobalShortcuts() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.repeat) return;
       const isCmdOrCtrl = e.metaKey || e.ctrlKey;
 
       // Cmd/Ctrl + B to toggle File Explorer

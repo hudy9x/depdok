@@ -1,27 +1,27 @@
-import { useState } from 'react';
-import { useAtom, useAtomValue, useSetAtom } from 'jotai';
+import { useState, useEffect } from 'react';
+import { useAtom, useAtomValue } from 'jotai';
 import { MessageSquare, X } from 'lucide-react';
 import { Editor } from '@tiptap/react';
 
 import {
-  activeCommentIdAtom,
-  commentSidebarVisibleAtom,
-  commentThreadsAtom,
+  fileActiveCommentIdAtomFamily,
+  fileCommentThreadsAtomFamily,
 } from './commentStore';
 import { CommentThreadCard } from './CommentThread';
 
 interface CommentSidebarProps {
   editor: Editor | null;
+  onClose?: () => void;
+  filePath?: string;
 }
 
 /**
  * Sidebar panel showing all comment threads for the current document.
  * Includes a filter switcher for Open vs Resolved comments.
  */
-export function CommentSidebar({ editor }: CommentSidebarProps) {
-  const threads = useAtomValue(commentThreadsAtom);
-  const [activeId, setActiveId] = useAtom(activeCommentIdAtom);
-  const setSidebarVisible = useSetAtom(commentSidebarVisibleAtom);
+export function CommentSidebar({ editor, onClose, filePath = '' }: CommentSidebarProps) {
+  const threads = useAtomValue(fileCommentThreadsAtomFamily(filePath));
+  const [activeId, setActiveId] = useAtom(fileActiveCommentIdAtomFamily(filePath));
   const [filterTab, setFilterTab] = useState<'open' | 'resolved'>('open');
 
   const activeThreads = threads.filter((t) => !t.resolved);
@@ -33,38 +33,56 @@ export function CommentSidebar({ editor }: CommentSidebarProps) {
 
     if (!editor) return;
 
-    // Scroll the editor to the comment mark and highlight it
+    // Apply active class to all matching comment marks immediately in the editor DOM
+    editor.view.dom.querySelectorAll<HTMLElement>('.comment-mark').forEach((el) => {
+      const match = el.getAttribute('data-comment-id') === id;
+      el.classList.toggle('comment-mark-active', match);
+      if (match) {
+        el.setAttribute('data-active', 'true');
+      } else {
+        el.removeAttribute('data-active');
+      }
+    });
+
+    // 1. Direct DOM lookup for smooth, reliable scrolling
+    const markEl = editor.view.dom.querySelector<HTMLElement>(`[data-comment-id="${id}"]`);
+    if (markEl) {
+      markEl.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      });
+    }
+
+    // 2. Also set ProseMirror text selection to the mark position
     const { doc } = editor.state;
-    let found = false;
+    let markPos: number | null = null;
 
     doc.descendants((node, pos) => {
-      if (found || !node.isInline) return;
+      if (markPos !== null || !node.isInline) return;
       node.marks.forEach((mark) => {
         if (
-          !found &&
+          markPos === null &&
           mark.type.name === 'commentMark' &&
           mark.attrs.commentId === id
         ) {
-          found = true;
-          // Set selection to the mark range so it scrolls into view
-          editor.chain().focus().setTextSelection(pos).run();
-
-          // After a tick, scroll the mark into the viewport
-          setTimeout(() => {
-            const view = editor.view;
-            const domPos = view.domAtPos(pos);
-            const el = domPos.node instanceof Element
-              ? domPos.node
-              : domPos.node.parentElement;
-            el?.closest('[data-comment-id]')?.scrollIntoView({
-              behavior: 'smooth',
-              block: 'center',
-            });
-          }, 50);
+          markPos = pos;
         }
       });
     });
+
+    if (markPos !== null) {
+      editor.chain().setTextSelection(markPos).run();
+    }
   };
+
+  // Auto-scroll the active thread card into view in the sidebar whenever activeId changes
+  useEffect(() => {
+    if (!activeId) return;
+    const cardEl = document.querySelector<HTMLElement>(`[data-thread-card-id="${activeId}"]`);
+    if (cardEl) {
+      cardEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }, [activeId]);
 
   const handleDeleteMark = (id: string) => {
     if (!editor) return;
@@ -88,7 +106,7 @@ export function CommentSidebar({ editor }: CommentSidebarProps) {
         </div>
         <button
           type="button"
-          onClick={() => setSidebarVisible(false)}
+          onClick={onClose}
           className="p-1 rounded hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
           title="Close comments"
         >
@@ -150,6 +168,7 @@ export function CommentSidebar({ editor }: CommentSidebarProps) {
                 onClick={() => handleThreadClick(thread.id)}
                 onDeleteMark={handleDeleteMark}
                 editor={editor}
+                filePath={filePath}
               />
             ))}
           </div>

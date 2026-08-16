@@ -1,9 +1,12 @@
+import * as React from "react";
 import { useSetAtom } from "jotai";
 import { Columns2, Code, Eye } from "lucide-react";
 import { useEffect, useMemo } from "react";
 import { updatePaneViewModeAtom, type ViewMode } from "@/stores/PaneStore";
 import { viewModeSettingAtom } from "@/stores/SettingsStore";
 import { isKnowledgeGraphFile } from "@/lib/knowledgeGraph";
+import { usePaneContext } from "@/features/EditorWorkspace/PaneContext";
+import { cn } from "@/lib/utils";
 
 const VIEW_MODES: { mode: ViewMode; icon: React.ReactNode; title: string }[] = [
   { mode: "editor-only", icon: <Code className="w-3.5 h-3.5" />, title: "Editor Only" },
@@ -13,6 +16,13 @@ const VIEW_MODES: { mode: ViewMode; icon: React.ReactNode; title: string }[] = [
 
 const EXTENSION_SUPPORTED_MODES: Record<string, ViewMode[]> = {
   md: ["editor-only", "preview-only"],
+  todo: ["editor-only", "preview-only"],
+  mmd: ["editor-only", "preview-only"],
+  puml: ["editor-only", "preview-only"],
+  pu: ["editor-only", "preview-only"],
+  npuml: ["editor-only", "preview-only"],
+  nplantuml: ["editor-only", "preview-only"],
+  excalidraw: ["editor-only", "preview-only"],
   png: ["preview-only"],
   jpg: ["preview-only"],
   jpeg: ["preview-only"],
@@ -21,16 +31,23 @@ const EXTENSION_SUPPORTED_MODES: Record<string, ViewMode[]> = {
   svg: ["preview-only"],
   ico: ["preview-only"],
   bmp: ["preview-only"],
-  excalidraw: ["preview-only"],
 };
 
-interface EditorViewModeProps {
-  paneId: string;
-  filePath: string;
-  viewMode: ViewMode;
+export interface EditorViewModeProps {
+  paneId?: string;
+  filePath?: string;
+  viewMode?: ViewMode;
+  orientation?: "horizontal" | "vertical";
+  className?: string;
 }
 
-export function EditorViewMode({ paneId, filePath, viewMode }: EditorViewModeProps) {
+export function EditorViewMode(props: EditorViewModeProps) {
+  const context = usePaneContext();
+  const paneId = props.paneId ?? context?.paneId ?? "";
+  const filePath = props.filePath ?? context?.filePath ?? "";
+  const viewMode = props.viewMode ?? context?.viewMode ?? "preview-only";
+  const orientation = props.orientation ?? "horizontal";
+
   const setPaneViewMode = useSetAtom(updatePaneViewModeAtom);
   const setViewModeSetting = useSetAtom(viewModeSettingAtom);
 
@@ -46,48 +63,55 @@ export function EditorViewMode({ paneId, filePath, viewMode }: EditorViewModePro
   }, [ext, isGraphFile]);
 
   useEffect(() => {
-    if (!supportedModes.includes(viewMode) && supportedModes.length > 0) {
+    if (!supportedModes.includes(viewMode) && supportedModes.length > 0 && paneId) {
       setPaneViewMode({ paneId, viewMode: supportedModes[0] });
     }
   }, [viewMode, supportedModes, paneId, setPaneViewMode]);
 
   const handleViewModeChange = (mode: ViewMode) => {
-    setPaneViewMode({ paneId, viewMode: mode });
+    if (paneId) {
+      setPaneViewMode({ paneId, viewMode: mode });
+    }
     setViewModeSetting(mode);
   };
 
-  const availableViewModes = VIEW_MODES.filter(m => supportedModes.includes(m.mode));
+  const availableViewModes = VIEW_MODES.filter((m) => supportedModes.includes(m.mode));
 
   if (availableViewModes.length <= 1) {
     return null; // hide switcher if there is only 1 or 0 options
   }
 
+  const isVertical = orientation === "vertical";
+
   return (
-    <div className="">
-      <div className="flex items-center gap-3">
-        {/* Group button view-mode switcher */}
-        <div className="flex items-center bg-muted rounded-md p-0.5 gap-0.5">
-          {availableViewModes.map(({ mode, icon, title }) => {
-            const isActive = viewMode === mode;
-            return (
-              <button
-                key={mode}
-                title={title}
-                disabled={isActive}
-                onClick={() => handleViewModeChange(mode)}
-                className={[
-                  "flex items-center justify-center w-7 h-5 rounded transition-colors",
-                  isActive
-                    ? "bg-background text-foreground shadow-sm cursor-default"
-                    : "text-muted-foreground hover:text-foreground cursor-pointer",
-                ].join(" ")}
-              >
-                {icon}
-              </button>
-            );
-          })}
-        </div>
-      </div>
+    <div
+      className={cn(
+        "flex items-center bg-background/95 border border-border/80 shadow-md rounded-lg p-1 select-none",
+        isVertical ? "flex-col gap-1" : "flex-row gap-0.5",
+        props.className
+      )}
+    >
+      {availableViewModes.map(({ mode, icon, title }) => {
+        const isActive = viewMode === mode;
+        return (
+          <button
+            key={mode}
+            type="button"
+            title={title}
+            disabled={isActive}
+            onClick={() => handleViewModeChange(mode)}
+            className={cn(
+              "flex items-center justify-center rounded-md transition-colors",
+              isVertical ? "w-6 h-6" : "w-6 h-6",
+              isActive
+                ? "bg-accent text-accent-foreground shadow-xs font-semibold cursor-default"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted/80 cursor-pointer"
+            )}
+          >
+            {icon}
+          </button>
+        );
+      })}
     </div>
   );
 }

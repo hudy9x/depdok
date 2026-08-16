@@ -20,6 +20,7 @@ import { MarkdownDragHandle } from "./MarkdownDragHandle";
 import { type MarkdownEditorSize } from "./MarkdownSizeControl";
 import { useFileHandler } from "./useFileHandler";
 import { useLocalLinkHandler } from "./useLocalLinkHandler";
+import { EditorViewMode } from "@/features/EditorViewMode";
 
 import { createTauriImage } from "./TauriImage";
 import { CodeBlockNodeView } from "./CodeBlockNodeView";
@@ -47,6 +48,7 @@ import {
   MarkdownCommentSidebar,
   useCommentExtension,
 } from "./extensions/comment";
+import { SlashCommandExtension } from "./extensions/slash-command";
 
 const lowlight = createLowlight(common);
 
@@ -79,6 +81,7 @@ export function MarkdownPreview({
   const TauriImage = createTauriImage(filePath);
   const isUpdatingRef = useRef(false);
   const [isOutlineOpen, setIsOutlineOpen] = useLocalStorage('markdown-outline-open', false);
+  const [isCommentSidebarVisible, setIsCommentSidebarVisible] = useState(false);
   const [editorSize, setEditorSize] = useLocalStorage<MarkdownEditorSize>('markdown-editor-size', 'wide');
   const isPageMode = editorSize === 'page';
   const [tocAnchors, setTocAnchors] = useState<TocAnchor[]>([]);
@@ -214,6 +217,7 @@ export function MarkdownPreview({
       PaginationExtension.configure({
         enabled: isPageMode,
       }),
+      SlashCommandExtension,
     ],
     content: "",
     contentType: 'markdown', // Enable markdown mode
@@ -221,7 +225,7 @@ export function MarkdownPreview({
     autofocus: false,
     editorProps: {
       attributes: {
-        class: "prose prose-sm sm:prose lg:prose-lg dark:prose-invert mx-auto max-w-none px-8 pb-8 pt-0 focus:outline-none",
+        class: "prose prose-sm sm:prose lg:prose-lg dark:prose-invert mx-auto max-w-none px-16 pb-8 pt-0 focus:outline-none",
       },
       // Intercept Mod-Enter before StarterKit's HardBreak can consume it.
       // When inside a table cell, exit the table and insert a paragraph below.
@@ -402,8 +406,13 @@ export function MarkdownPreview({
   return (
     <div className={`w-full h-full overflow-hidden flex ${isPageMode ? 'bg-[#e5e7eb] dark:bg-[#18181b]' : 'bg-layout-content'}`} ref={containerRef}>
       <div className={`flex-1 h-full relative min-w-0 flex flex-col bottom-menu-container ${isPageMode ? 'bg-[#e5e7eb] dark:bg-[#18181b]' : ''}`}>
+        {/* Left-center View Mode Switcher */}
+        <div className="absolute left-3 top-1/2 -translate-y-1/2 z-30">
+          <EditorViewMode orientation="vertical" />
+        </div>
+
         {!isOutlineOpen && (
-          <div className="absolute top-2 right-2 z-10">
+          <div className="absolute top-6 right-2 z-10">
             <MarkdownOutlineMinimap
               anchors={tocAnchors}
               onClick={() => setIsOutlineOpen(true)}
@@ -439,6 +448,8 @@ export function MarkdownPreview({
           size={editorSize}
           onSizeChange={setEditorSize}
           filePath={filePath}
+          isSidebarVisible={isCommentSidebarVisible}
+          onToggleSidebar={() => setIsCommentSidebarVisible((v) => !v)}
         />
       </div>
 
@@ -451,7 +462,12 @@ export function MarkdownPreview({
       {/* </LicenseGuard> */}
 
       {/* Comment Sidebar */}
-      <MarkdownCommentSidebar editor={editor} />
+      <MarkdownCommentSidebar
+        editor={editor}
+        visible={isCommentSidebarVisible}
+        onClose={() => setIsCommentSidebarVisible(false)}
+        filePath={filePath}
+      />
     </div>
   );
 }

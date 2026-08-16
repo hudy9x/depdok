@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useTheme } from "next-themes";
 import { renderMermaid } from "beautiful-mermaid";
 import { ZoomPanContainer } from "@/components/ZoomPanContainer";
+import { EditorViewMode } from "@/features/EditorViewMode";
 
 interface MermaidPreviewProps {
   content: string;
@@ -95,11 +96,15 @@ export function MermaidPreview({ content }: MermaidPreviewProps) {
         config={{
           minZoom: 0.1,
           maxZoom: 10,
-          initialZoom: 1
+          initialZoom: 1,
         }}
       >
         <g dangerouslySetInnerHTML={{ __html: svg }} />
       </ZoomPanContainer>
+
+      <div className="absolute bottom-4 right-16 z-20">
+        <EditorViewMode />
+      </div>
     </div>
   );
 }

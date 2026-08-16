@@ -772,6 +772,7 @@
 .text-formatting-expanded {
   display: flex;
 }
+
 .text-formatting-dropdown {
   display: none;
 }
@@ -779,6 +780,7 @@
 .lists-blocks-expanded {
   display: flex;
 }
+
 .lists-blocks-dropdown {
   display: none;
 }
@@ -786,6 +788,7 @@
 .inserts-expanded {
   display: flex;
 }
+
 .inserts-dropdown {
   display: none;
 }
@@ -795,6 +798,7 @@
   .text-formatting-expanded {
     display: none !important;
   }
+
   .text-formatting-dropdown {
     display: flex !important;
   }
@@ -805,6 +809,7 @@
   .lists-blocks-expanded {
     display: none !important;
   }
+
   .lists-blocks-dropdown {
     display: flex !important;
   }
@@ -815,6 +820,7 @@
   .inserts-expanded {
     display: none !important;
   }
+
   .inserts-dropdown {
     display: flex !important;
   }
@@ -824,6 +830,7 @@
 .table-actions-expanded {
   display: flex;
 }
+
 .table-actions-dropdown {
   display: none;
 }
@@ -832,6 +839,7 @@
   .table-actions-expanded {
     display: none !important;
   }
+
   .table-actions-dropdown {
     display: flex !important;
   }
@@ -841,6 +849,7 @@
 .size-control-expanded {
   display: flex;
 }
+
 .size-control-dropdown {
   display: none;
 }
@@ -849,6 +858,7 @@
   .size-control-expanded {
     display: none !important;
   }
+
   .size-control-dropdown {
     display: flex !important;
   }
@@ -863,9 +873,11 @@
   .size-control-dropdown {
     display: none !important;
   }
+
   .export-button-group {
     display: none !important;
   }
+
   .editor-tools-divider {
     display: none !important;
   }
@@ -918,4 +930,11 @@
   display: flex;
   flex-direction: column;
   height: 100%;
+}
+
+/* ── Slash Command Popup ─────────────────────────────────── */
+
+.slash-command-popup-container {
+  z-index: 9999;
+  filter: drop-shadow(0 10px 25px rgba(0, 0, 0, 0.2));
 }

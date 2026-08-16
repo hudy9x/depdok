@@ -19,6 +19,7 @@ import {
 } from '@/lib/monaco-actions';
 import { registerTodoSnippets, registerDateSnippets } from '@/lib/monaco-snippets';
 import { plantUMLJumpAtom } from "@/features/PreviewPlantUML/store";
+import { EditorViewMode } from "@/features/EditorViewMode";
 
 
 interface MonacoEditorProps {
@@ -246,10 +247,8 @@ export function MonacoEditor({
     setPlantUMLJump(null);
   }, [plantUMLJump, setPlantUMLJump]);
 
-  console.log("MonacoEditorReact language", language)
-
   return (
-    <div className="w-full h-full">
+    <div className="w-full h-full relative">
       <MonacoThemeLoader>
         <MonacoEditorReact
           value={content}
@@ -271,6 +270,10 @@ export function MonacoEditor({
           }}
         />
       </MonacoThemeLoader>
+
+      <div className="absolute bottom-4 right-4 z-30">
+        <EditorViewMode orientation="horizontal" />
+      </div>
     </div>
   );
 }

@@ -1,11 +1,16 @@
 import * as React from 'react';
 import { useAtomValue, useSetAtom } from 'jotai';
-import { Pane, activePaneIdAtom, focusPaneAtom } from '@/stores/PaneStore';
-import { EditorTabs } from '@/features/EditorTabs';
-import { SplitPaneButton } from './SplitPaneButton';
+import { X } from 'lucide-react';
+import {
+  Pane,
+  activePaneIdAtom,
+  focusPaneAtom,
+  closePaneAtom,
+  paneTreeAtom,
+  collectLeafPanes,
+} from '@/stores/PaneStore';
+import { PaneContext } from './PaneContext';
 import { useKeepAliveTabs } from './useKeepAliveTabs';
-import { EditorBreadcrumbs } from '@/features/Editor/EditorBreadcrumbs';
-import { EditorViewMode } from '@/features/EditorViewMode';
 import { LoadFileContent } from '@/features/Editor/LoadFileContent';
 import { SideBySide } from '@/features/SidebySide';
 import { MonacoEditor } from '@/features/Editor/MonacoEditor';
@@ -14,6 +19,7 @@ import { PreviewFileWatcher } from '@/features/Preview/PreviewFileWatcher';
 import { getMonacoLanguage } from '@/lib/utils/getMonacoLanguage';
 import { useAutoSave } from '@/features/Editor/useAutoSave';
 import { markAsSavedAtom, clearLiveFileWriterAtom } from '@/stores/EditorStore';
+import { tabsAtom } from '@/stores/TabStore';
 
 interface EditorPaneProps {
   pane: Pane;
@@ -37,7 +43,8 @@ function TabContent({
   handleContentChange,
   markAsSaved,
 }: TabContentProps) {
-  const tab = pane.tabs.find((t) => t.id === tabId);
+  const tabs = useAtomValue(tabsAtom);
+  const tab = tabs.find((t) => t.id === tabId) || pane.tabs.find((t) => t.id === tabId);
   if (!tab) return null;
 
   const currentFilePath = tab.filePath;
@@ -122,10 +129,16 @@ function TabContent({
 
 export function EditorPane({ pane }: EditorPaneProps): React.JSX.Element {
   const activePaneId = useAtomValue(activePaneIdAtom);
+  const paneTree = useAtomValue(paneTreeAtom);
+  const tabs = useAtomValue(tabsAtom);
   const focusPane = useSetAtom(focusPaneAtom);
+  const closePane = useSetAtom(closePaneAtom);
   const isFocused = activePaneId === pane.id;
 
-  const activeTab = pane.tabs.find((t) => t.id === pane.activeTabId) || null;
+  const leafPanes = React.useMemo(() => collectLeafPanes(paneTree), [paneTree]);
+  const isSplit = leafPanes.length > 1;
+
+  const activeTab = tabs.find((t) => t.id === pane.activeTabId) || pane.tabs.find((t) => t.id === pane.activeTabId) || null;
   const currentFilePath = activeTab?.filePath;
 
   const { handleContentChange } = useAutoSave();
@@ -134,7 +147,7 @@ export function EditorPane({ pane }: EditorPaneProps): React.JSX.Element {
 
   const visitedTabIds = useKeepAliveTabs({
     activeTabId: pane.activeTabId,
-    tabs: pane.tabs,
+    tabs: tabs,
   });
 
   // When the view mode changes, clear the writer-pane tag so the newly-mounted
@@ -155,34 +168,32 @@ export function EditorPane({ pane }: EditorPaneProps): React.JSX.Element {
   return (
     <div
       onClick={handlePaneClick}
+      onPointerDownCapture={handlePaneClick}
+      onFocusCapture={handlePaneClick}
       className={[
-        "flex-1 flex flex-col min-w-0 min-h-0 bg-layout-content relative h-full w-full border-r last:border-r-0 border-border/40",
-        isFocused ? "is-focused" : "",
+        "flex-1 flex flex-col min-w-0 min-h-0 bg-layout-content relative h-full w-full border-r last:border-r-0 border-border/40 transition-shadow group/pane",
+        isFocused ? "is-focused ring-1 ring-inset ring-primary/20" : "",
       ].join(" ")}
     >
+      {isSplit && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            closePane(pane.id);
+          }}
+          className="absolute top-2.5 right-2.5 z-40 flex items-center justify-center w-6 h-6 rounded-md bg-background/90 hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-all duration-150 border border-border/50 shadow-xs cursor-pointer group/close"
+          title="Close Panel"
+          aria-label="Close Panel"
+        >
+          <X className="w-3.5 h-3.5 transition-transform group-hover/close:scale-110" />
+        </button>
+      )}
+
       {currentFilePath ? (
-        <>
-          {/* Row 1: Tab list header + split buttons */}
-          <div
-            className={[
-              "h-[35px] border-b shrink-0 flex items-end justify-between transition-colors",
-              isFocused ? "border-border/60 bg-layout-content" : "border-border/30 bg-muted/20"
-            ].join(" ")}
-          >
-            <div className="flex-1 min-w-0 overflow-x-auto scrollbar-none">
-              <EditorTabs paneId={pane.id} />
-            </div>
-            <SplitPaneButton paneId={pane.id} />
-          </div>
-
-          {/* Row 2: Breadcrumbs path and Preview/Markdown switch */}
-          <div className="h-8 bg-layout-content shrink-0 px-3 flex items-center justify-between border-b border-border/20 select-none">
-            <EditorBreadcrumbs filePath={currentFilePath} />
-            <EditorViewMode paneId={pane.id} filePath={currentFilePath} viewMode={pane.viewMode} />
-          </div>
-
-          {/* Row 3: Keep-alive tab containers */}
-          <div className="flex-1 min-h-0 bg-layout-content relative">
+        <PaneContext.Provider value={{ paneId: pane.id, filePath: currentFilePath, viewMode: pane.viewMode }}>
+          {/* Keep-alive tab containers */}
+          <div className="flex-1 min-h-0 bg-layout-content relative h-full w-full">
             {visitedTabIds.map((tabId) => {
               const isTabActive = tabId === pane.activeTabId;
               return (
@@ -203,7 +214,7 @@ export function EditorPane({ pane }: EditorPaneProps): React.JSX.Element {
               );
             })}
           </div>
-        </>
+        </PaneContext.Provider>
       ) : (
         <div
           onClick={handlePaneClick}

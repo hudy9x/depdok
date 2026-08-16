@@ -52,7 +52,7 @@ export function FileTreeItem({
           isSelected
             ? 'bg-accent text-accent-foreground'
             : isActive
-              ? 'bg-primary/10 text-primary font-medium'
+              ? 'bg-primary/10 text-primary'
               : 'text-muted-foreground hover:bg-accent/50',
           isCut && 'opacity-50'
         )}

@@ -5,6 +5,7 @@ import { createTabAtom } from '@/stores/TabStore';
 import { splitPaneAtom, activePaneIdAtom } from '@/stores/PaneStore';
 import { FileTree } from './FileTree';
 import { ExplorerHeader } from './ExplorerHeader';
+import { ExplorerFooter } from './ExplorerFooter';
 import {
   workspaceRootAtom,
 } from './store';
@@ -38,7 +39,10 @@ export function ExplorerView() {
   return (
     <div className="flex-1 flex flex-col min-h-0">
       <ExplorerHeader />
-      <FileTree onFileOpen={handleFileOpen} />
+      <div className="flex-1 min-h-0">
+        <FileTree onFileOpen={handleFileOpen} />
+      </div>
+      <ExplorerFooter />
     </div>
   );
 }

@@ -405,7 +405,7 @@ export function MarkdownPreview({
 
   return (
     <div className={`w-full h-full overflow-hidden flex ${isPageMode ? 'bg-[#e5e7eb] dark:bg-[#18181b]' : 'bg-layout-content'}`} ref={containerRef}>
-      <div className={`flex-1 h-full relative min-w-0 flex flex-col bottom-menu-container ${isPageMode ? 'bg-[#e5e7eb] dark:bg-[#18181b]' : ''}`}>
+      <div className={`flex-1 h-full relative min-w-0 flex flex-col bottom-menu-container pt-1.5 ${isPageMode ? 'bg-[#e5e7eb] dark:bg-[#18181b]' : ''}`}>
         {/* Left-center View Mode Switcher */}
         <div className="absolute left-3 top-1/2 -translate-y-1/2 z-30">
           <EditorViewMode orientation="vertical" />

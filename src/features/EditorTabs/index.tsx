@@ -1,11 +1,10 @@
-import { useEffect, useState } from 'react';
 import { useAtomValue } from 'jotai';
-import { platform } from '@tauri-apps/plugin-os';
 
 import { CustomScroller } from '@/components/CustomScroller';
 import { isFileExplorerVisibleAtom } from '@/features/FileExplorer/store';
 import { cn } from '@/lib/utils';
 import { activeTabIdAtom, paneTabsAtomFamily, tabsAtom } from '@/stores/TabStore';
+import { usePlatform } from '@/lib/platform';
 
 import { CreateTabButton } from './CreateTabButton';
 import { TabItem } from './TabItem';
@@ -24,22 +23,13 @@ export function EditorTabs({ paneId, isSidebarVisible }: EditorTabsProps = {}) {
   const isSidebarOpen = isSidebarVisible !== undefined ? isSidebarVisible : fileExplorerVisible;
   const tabs = paneId ? paneTabs : globalTabs;
 
-  const [currentPlatform, setCurrentPlatform] = useState<string>('macos');
-
-  useEffect(() => {
-    try {
-      const p = platform();
-      setCurrentPlatform(p);
-    } catch {
-      // fallback in browser preview
-    }
-  }, []);
+  const { isMacOS } = usePlatform();
 
   const leftPaddingClass = isSidebarOpen
     ? 'pl-0'
-    : (currentPlatform === 'macos' ? 'pl-[148px]' : 'pl-[112px]');
+    : (isMacOS ? 'pl-[148px]' : 'pl-[30px]');
 
-  const rightPaddingClass = currentPlatform === 'macos' ? 'pr-[220px]' : 'pr-[360px]';
+  const rightPaddingClass = isMacOS ? 'pr-3' : 'pr-[142px]';
 
   return (
     <div

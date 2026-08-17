@@ -178,6 +178,7 @@ export function EditorPane({ pane }: EditorPaneProps): React.JSX.Element {
       {isSplit && (
         <EditorPaneHeader
           filePath={currentFilePath}
+          isFocused={isFocused}
           onClose={() => closePane(pane.id)}
         />
       )}

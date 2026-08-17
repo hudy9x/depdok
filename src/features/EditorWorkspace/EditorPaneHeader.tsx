@@ -2,19 +2,27 @@ import * as React from 'react';
 import { X } from 'lucide-react';
 
 import { EditorBreadcrumbs } from '@/features/Editor/EditorBreadcrumbs';
+import { cn } from '@/lib/utils';
 
 interface EditorPaneHeaderProps {
   filePath?: string;
+  isFocused?: boolean;
   onClose?: () => void;
 }
 
 export function EditorPaneHeader({
   filePath,
+  isFocused = true,
   onClose,
 }: EditorPaneHeaderProps): React.JSX.Element {
   return (
     <div className="h-8 px-2.5 flex items-center justify-between border-b border-border/40 bg-layout-content select-none shrink-0 z-10 min-w-0">
-      <div className="flex items-center min-w-0 flex-1 overflow-hidden pr-2">
+      <div
+        className={cn(
+          "flex items-center min-w-0 flex-1 overflow-hidden pr-2 transition-all duration-150",
+          !isFocused && "opacity-50 grayscale hover:opacity-80 hover:grayscale-0"
+        )}
+      >
         {filePath ? <EditorBreadcrumbs filePath={filePath} /> : null}
       </div>
       <div className="flex items-center gap-1 shrink-0">

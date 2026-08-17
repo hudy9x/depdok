@@ -219,7 +219,7 @@ export function MarkdownBottomMenu({
               )}
             </button>
           </div>
-          <div className="w-[1px] h-5 bg-border mx-1 shrink-0" />
+          <div className="w-[1px] h-5 bg-border mx-1 shrink-0 size-control-divider" />
 
         </>
       )}

@@ -803,6 +803,10 @@
   display: none;
 }
 
+.combined-sections-dropdown {
+  display: none;
+}
+
 /* Breakpoint 1: container width < 1060px -> group Text Formatting actions into dropdown */
 @container bottomMenuContainer (max-width: 1059px) {
   .text-formatting-expanded {
@@ -874,13 +878,38 @@
   }
 }
 
-/* Breakpoint for Hiding Size Control and Export Button (< 429px) */
+/* Breakpoint 5: container width < 429px -> group 3 sections into one combined dropdown, and hide size control / export */
 .export-button-group {
   display: flex;
 }
 
 @container bottomMenuContainer (max-width: 428px) {
+  .text-formatting-dropdown {
+    display: none !important;
+  }
+
+  .lists-blocks-dropdown {
+    display: none !important;
+  }
+
+  .inserts-dropdown {
+    display: none !important;
+  }
+
+  .combined-sections-dropdown {
+    display: flex !important;
+  }
+
+  .menu-divider-text-lists,
+  .menu-divider-lists-inserts {
+    display: none !important;
+  }
+
   .size-control-dropdown {
+    display: none !important;
+  }
+
+  .size-control-divider {
     display: none !important;
   }
 

@@ -1,6 +1,5 @@
 import * as React from 'react';
 import { useAtomValue, useSetAtom } from 'jotai';
-import { X } from 'lucide-react';
 import {
   Pane,
   activePaneIdAtom,
@@ -9,6 +8,7 @@ import {
   paneTreeAtom,
   collectLeafPanes,
 } from '@/stores/PaneStore';
+import { EditorPaneHeader } from './EditorPaneHeader';
 import { PaneContext } from './PaneContext';
 import { useKeepAliveTabs } from './useKeepAliveTabs';
 import { LoadFileContent } from '@/features/Editor/LoadFileContent';
@@ -176,18 +176,10 @@ export function EditorPane({ pane }: EditorPaneProps): React.JSX.Element {
       ].join(" ")}
     >
       {isSplit && (
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            closePane(pane.id);
-          }}
-          className="absolute top-2.5 right-2.5 z-40 flex items-center justify-center w-6 h-6 rounded-md bg-background/90 hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-all duration-150 border border-border/50 shadow-xs cursor-pointer group/close"
-          title="Close Panel"
-          aria-label="Close Panel"
-        >
-          <X className="w-3.5 h-3.5 transition-transform group-hover/close:scale-110" />
-        </button>
+        <EditorPaneHeader
+          filePath={currentFilePath}
+          onClose={() => closePane(pane.id)}
+        />
       )}
 
       {currentFilePath ? (

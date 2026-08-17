@@ -16,7 +16,7 @@ import "./extensions/pagination/PaginationExtension.css";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 import { MarkdownBottomMenu } from "./MarkdownBottomMenu";
-import { MarkdownDragHandle } from "./MarkdownDragHandle";
+// import { MarkdownDragHandle } from "./MarkdownDragHandle";
 import { type MarkdownEditorSize } from "./MarkdownSizeControl";
 import { useFileHandler } from "./useFileHandler";
 import { useLocalLinkHandler } from "./useLocalLinkHandler";
@@ -421,11 +421,11 @@ export function MarkdownPreview({
         )}
 
         <ScrollArea className={`w-full h-full markdown-editor-scroll ${isPageMode ? 'paginated-scroll-area bg-[#e5e7eb] dark:bg-[#18181b]' : ''}`}>
-          {editable && (
+          {/* {editable && (
             <>
               <MarkdownDragHandle editor={editor} />
             </>
-          )}
+          )} */}
           <div
             className={`w-full mx-auto transition-all duration-300 ${isPageMode ? 'paginated-editor-wrapper' : ''}`}
             style={{

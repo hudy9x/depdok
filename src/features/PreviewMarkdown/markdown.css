@@ -420,18 +420,28 @@
   padding: 0;
 }
 
-.prose ul[data-type="taskList"] li {
+.prose ul[data-type="taskList"] li,
+.prose li[data-type="taskItem"] {
   align-items: flex-start;
   display: flex;
+  padding-left: 0;
 }
 
-.prose ul[data-type="taskList"] li>label {
+.prose ul[data-type="taskList"] li::before,
+.prose li[data-type="taskItem"]::before {
+  content: none;
+  display: none;
+}
+
+.prose ul[data-type="taskList"] li>label,
+.prose li[data-type="taskItem"]>label {
   flex: 0 0 auto;
   margin-right: 0.5rem;
   user-select: none;
 }
 
-.prose ul[data-type="taskList"] li>div {
+.prose ul[data-type="taskList"] li>div,
+.prose li[data-type="taskItem"]>div {
   flex: 1 1 auto;
 }
 

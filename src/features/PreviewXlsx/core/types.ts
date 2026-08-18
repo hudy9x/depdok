@@ -119,6 +119,7 @@ export type SpreadsheetCommand =
   | { type: 'CLEAR_RANGE'; sheet?: string; range: string; clearStyles?: boolean }
   | { type: 'ADD_SHEET'; name?: string }
   | { type: 'DELETE_SHEET'; name: string }
+  | { type: 'DUPLICATE_SHEET'; name: string }
   | { type: 'RENAME_SHEET'; oldName: string; newName: string }
   | { type: 'SET_ACTIVE_SHEET'; name: string }
   | { type: 'INSERT_ROW'; sheet?: string; rowIndex: number }

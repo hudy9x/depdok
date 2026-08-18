@@ -15,9 +15,7 @@ import {
 } from "@/stores/TabStore";
 import { refreshDirectoryAtom, workspaceRootAtom } from "@/features/FileExplorer/store";
 import { autoSaveEnabledAtom } from "@/stores/SettingsStore";
-import { writeFileContent, writeBinaryFile } from "@/lib/fileOperations";
-import { base64ToUint8Array } from "@/features/PreviewXlsx/core/xlsxSerializer";
-import { SpreadsheetSDK } from "@/features/PreviewXlsx";
+import { saveFileContent } from "@/lib/fileOperations";
 
 const supportedFileTypes = ["md", "mmd", "txt", "pu", "puml", "plantuml", "todo", "excalidraw", "xlsx", "xls", "csv"];
 
@@ -132,7 +130,7 @@ export function EditorSave() {
         ? normalizeWindowsSavePath(selected)
         : selected;
 
-      // Get draft content
+      // Get content from IndexedDB draft first, fall back to editor state
       const draft = await draftService.getDraft(currentPath);
       let contentToSave: string;
 
@@ -148,25 +146,8 @@ export function EditorSave() {
       // Set flag (with file path) to prevent file watcher from reacting
       setIsSaving(selectedPath);
 
-      // Write to new location (binary for xlsx/xls, csv text for csv)
-      const saveExt = selectedPath.split('.').pop()?.toLowerCase() || '';
-      if (saveExt === 'csv') {
-        let csvText = contentToSave;
-        const isBase64 = contentToSave.startsWith('data:') || (/^[A-Za-z0-9+/=\s]+$/.test(contentToSave.trim()) && contentToSave.length % 4 === 0 && !contentToSave.includes('\n'));
-        if (isBase64) {
-          try {
-            const wb = SpreadsheetSDK.loadWorkbook(contentToSave);
-            csvText = SpreadsheetSDK.toCsv(wb);
-          } catch {
-            // keep raw content
-          }
-        }
-        await writeFileContent(selectedPath, csvText);
-      } else if (['xlsx', 'xls'].includes(saveExt)) {
-        await writeBinaryFile(selectedPath, base64ToUint8Array(contentToSave));
-      } else {
-        await writeFileContent(selectedPath, contentToSave);
-      }
+      // Write to new location
+      await saveFileContent(selectedPath, contentToSave);
       lastSavedContentMap.set(selectedPath, contentToSave);
 
       // Refresh file explorer for the parent folder
@@ -234,24 +215,7 @@ export function EditorSave() {
       // Set flag (with file path) to prevent file watcher from reacting
       setIsSaving(editorState.filePath);
 
-      const saveExt = editorState.filePath.split('.').pop()?.toLowerCase() || '';
-      if (saveExt === 'csv') {
-        let csvText = contentToSave;
-        const isBase64 = contentToSave.startsWith('data:') || (/^[A-Za-z0-9+/=\s]+$/.test(contentToSave.trim()) && contentToSave.length % 4 === 0 && !contentToSave.includes('\n'));
-        if (isBase64) {
-          try {
-            const wb = SpreadsheetSDK.loadWorkbook(contentToSave);
-            csvText = SpreadsheetSDK.toCsv(wb);
-          } catch {
-            // keep raw content
-          }
-        }
-        await writeFileContent(editorState.filePath, csvText);
-      } else if (['xlsx', 'xls'].includes(saveExt)) {
-        await writeBinaryFile(editorState.filePath, base64ToUint8Array(contentToSave));
-      } else {
-        await writeFileContent(editorState.filePath, contentToSave);
-      }
+      await saveFileContent(editorState.filePath, contentToSave);
       lastSavedContentMap.set(editorState.filePath, contentToSave);
       await draftService.removeDraft(editorState.filePath);
 

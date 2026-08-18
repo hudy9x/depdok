@@ -21,7 +21,7 @@
 import { useAtomValue, useSetAtom } from "jotai";
 import { useDebouncedCallback } from "use-debounce";
 
-import { writeFileContent } from "@/lib/fileOperations";
+import { saveFileContent } from "@/lib/fileOperations";
 import { draftService } from "@/lib/indexeddb";
 
 import { editorStateAtom, activeFileContentAtom, setLiveFileWriterAtom } from "@/stores/EditorStore";
@@ -73,7 +73,8 @@ export function useAutoSave() {
         console.log("[useAutoSave] 💾 Auto-saving:", filePath, "| setting isSaving =", filePath);
         setIsSaving(filePath);
 
-        await writeFileContent(filePath, newContent);
+        await saveFileContent(filePath, newContent);
+
         // Record exactly what we wrote so useFileWatcher can skip false-positive toasts
         lastSavedContentMap.set(filePath, newContent);
         await draftService.removeDraft(filePath);

@@ -29,6 +29,9 @@ export const XlsxPreview: React.FC<XlsxPreviewProps> = ({
     return SpreadsheetSDK.createWorkbook();
   });
 
+  const workbookRef = useRef<WorkbookModel>(workbook);
+  workbookRef.current = workbook;
+
   // Undo / Redo stacks
   const [history, setHistory] = useState<WorkbookModel[]>([]);
   const [future, setFuture] = useState<WorkbookModel[]>([]);
@@ -53,8 +56,10 @@ export const XlsxPreview: React.FC<XlsxPreviewProps> = ({
   useEffect(() => {
     if (!content) return;
     if (content !== lastEmittedB64.current) {
+      console.log('[XlsxPreview] ⚠️ Content sync: external content changed → resetting workbook');
       lastEmittedB64.current = content;
       const parsed = SpreadsheetSDK.loadWorkbook(content);
+      workbookRef.current = parsed;
       setWorkbook(parsed);
     }
   }, [content]);
@@ -84,15 +89,16 @@ export const XlsxPreview: React.FC<XlsxPreviewProps> = ({
       if (!onContentChange) return;
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
 
-      saveTimerRef.current = setTimeout(() => {
-        try {
-          const b64 = SpreadsheetSDK.toBase64(newWb);
-          lastEmittedB64.current = b64;
+      try {
+        const b64 = SpreadsheetSDK.toBase64(newWb);
+        lastEmittedB64.current = b64;
+
+        saveTimerRef.current = setTimeout(() => {
           onContentChange(b64);
-        } catch (err) {
-          console.error('[XlsxPreview] Error serializing workbook:', err);
-        }
-      }, 400);
+        }, 400);
+      } catch (err) {
+        console.error('[XlsxPreview] Error serializing workbook:', err);
+      }
     },
     [onContentChange]
   );
@@ -100,34 +106,47 @@ export const XlsxPreview: React.FC<XlsxPreviewProps> = ({
   // Execute SDK command with history tracking
   const runCommand = useCallback(
     (command: SpreadsheetCommand) => {
-      setHistory((prev) => [...prev.slice(-30), workbook]);
-      setFuture([]);
+      const currentWb = workbookRef.current;
+      console.log('[XlsxPreview] runCommand:', command.type, 'sheets before:', currentWb.sheetNames);
 
-      const { workbook: nextWb } = SpreadsheetSDK.executeCommand(workbook, command);
+      const { workbook: nextWb, result } = SpreadsheetSDK.executeCommand(currentWb, command);
+      console.log('[XlsxPreview] runCommand result:', result.success, result.message || '', 'sheets after:', nextWb.sheetNames);
+
+      if (!result.success) {
+        return;
+      }
+
+      workbookRef.current = nextWb;
+      setHistory((prev) => [...prev.slice(-30), currentWb]);
+      setFuture([]);
       setWorkbook(nextWb);
       emitChange(nextWb);
     },
-    [workbook, emitChange]
+    [emitChange]
   );
 
   // Undo / Redo
   const handleUndo = useCallback(() => {
     if (history.length === 0) return;
+    const currentWb = workbookRef.current;
     const previous = history[history.length - 1];
+    workbookRef.current = previous;
     setHistory((prev) => prev.slice(0, -1));
-    setFuture((prev) => [workbook, ...prev]);
+    setFuture((prev) => [currentWb, ...prev]);
     setWorkbook(previous);
     emitChange(previous);
-  }, [history, workbook, emitChange]);
+  }, [history, emitChange]);
 
   const handleRedo = useCallback(() => {
     if (future.length === 0) return;
+    const currentWb = workbookRef.current;
     const next = future[0];
+    workbookRef.current = next;
     setFuture((prev) => prev.slice(1));
-    setHistory((prev) => [...prev, workbook]);
+    setHistory((prev) => [...prev, currentWb]);
     setWorkbook(next);
     emitChange(next);
-  }, [future, workbook, emitChange]);
+  }, [future, emitChange]);
 
   // Formula & Cell editing handlers
   const handleStartEdit = useCallback(
@@ -341,7 +360,15 @@ export const XlsxPreview: React.FC<XlsxPreviewProps> = ({
 
   const handleDeleteSheet = useCallback(
     (name: string) => {
+      console.log('[XlsxPreview] 🗑️ handleDeleteSheet called for:', name);
       runCommand({ type: 'DELETE_SHEET', name });
+    },
+    [runCommand]
+  );
+
+  const handleDuplicateSheet = useCallback(
+    (name: string) => {
+      runCommand({ type: 'DUPLICATE_SHEET', name });
     },
     [runCommand]
   );
@@ -488,6 +515,7 @@ export const XlsxPreview: React.FC<XlsxPreviewProps> = ({
         onAddSheet={handleAddSheet}
         onRenameSheet={handleRenameSheet}
         onDeleteSheet={handleDeleteSheet}
+        onDuplicateSheet={handleDuplicateSheet}
       />
     </div>
   );

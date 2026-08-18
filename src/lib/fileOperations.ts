@@ -71,6 +71,45 @@ export async function writeFileContent(path: string, content: string): Promise<v
 }
 
 /**
+ * Extension-aware file saver.
+ * Formats and writes file content appropriately:
+ * - .xlsx / .xls: converts Base64 to binary bytes and writes binary
+ * - .csv: converts Base64/Workbook (if applicable) to CSV text
+ * - other formats: writes as plain UTF-8 text
+ */
+export async function saveFileContent(path: string, content: string): Promise<void> {
+  const ext = path.split('.').pop()?.toLowerCase() || '';
+
+  if (['xlsx', 'xls'].includes(ext)) {
+    const { base64ToUint8Array } = await import('@/features/PreviewXlsx/core/xlsxSerializer');
+    await writeBinaryFile(path, base64ToUint8Array(content));
+    return;
+  }
+
+  if (ext === 'csv') {
+    let csvText = content;
+    const isBase64 =
+      content.startsWith('data:') ||
+      (/^[A-Za-z0-9+/=\s]+$/.test(content.trim()) &&
+        content.length % 4 === 0 &&
+        !content.includes('\n'));
+    if (isBase64) {
+      try {
+        const { SpreadsheetSDK } = await import('@/features/PreviewXlsx/core/spreadsheetSdk');
+        const wb = SpreadsheetSDK.loadWorkbook(content);
+        csvText = SpreadsheetSDK.toCsv(wb);
+      } catch {
+        // Fall back to raw content if parsing fails
+      }
+    }
+    await writeFileContent(path, csvText);
+    return;
+  }
+
+  await writeFileContent(path, content);
+}
+
+/**
  * Export markdown content to an HTML file
  * @param markdown - The markdown content
  * @param filePath - The original markdown file path (if any)

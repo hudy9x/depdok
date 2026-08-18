@@ -514,6 +514,57 @@ export class SpreadsheetSDK {
         break;
       }
 
+      case 'DUPLICATE_SHEET': {
+        const sourceName = command.name || currentWb.activeSheet;
+        const sourceSheet = currentWb.sheets[sourceName];
+        if (!sourceSheet) {
+          return {
+            workbook: currentWb,
+            result: { success: false, message: `Sheet '${sourceName}' not found`, modifiedSheets, modifiedCells },
+          };
+        }
+
+        let count = 1;
+        let newSheetName = `${sourceName} (Copy)`;
+        while (currentWb.sheetNames.includes(newSheetName)) {
+          count++;
+          newSheetName = `${sourceName} (Copy ${count})`;
+        }
+
+        const clonedCells: Record<string, any> = {};
+        for (const [addr, cell] of Object.entries(sourceSheet.cells)) {
+          clonedCells[addr] = {
+            ...cell,
+            s: cell.s ? { ...cell.s } : undefined,
+          };
+        }
+
+        const newSheet: SheetModel = {
+          name: newSheetName,
+          cells: clonedCells,
+          rowCount: sourceSheet.rowCount,
+          colCount: sourceSheet.colCount,
+          columnWidths: { ...(sourceSheet.columnWidths || {}) },
+          rowHeights: { ...(sourceSheet.rowHeights || {}) },
+        };
+
+        const sourceIndex = currentWb.sheetNames.indexOf(sourceName);
+        const nextSheetNames = [...currentWb.sheetNames];
+        nextSheetNames.splice(sourceIndex + 1, 0, newSheetName);
+
+        currentWb = {
+          ...currentWb,
+          sheetNames: nextSheetNames,
+          sheets: {
+            ...currentWb.sheets,
+            [newSheetName]: newSheet,
+          },
+          activeSheet: newSheetName,
+        };
+        modifiedSheets.push(newSheetName);
+        break;
+      }
+
       case 'RENAME_SHEET': {
         const oldName = command.oldName;
         const newName = command.newName?.trim();

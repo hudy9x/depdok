@@ -2,16 +2,20 @@
 
 ✨ Features
 
-- Add visual focus state to editor pane headers when inactive ([d7d1e6c](../../commit/d7d1e6c))
+- Sheets (#57) ([4122e0a](../../commit/4122e0a))
+- Add responsive combined dropdown for editor actions in narrow views ([a580f7a](../../commit/a580f7a))
+
+🐛 Bug Fixes
+
+- Extend task list styles to support taskItem data type elements ([5b08e6d](../../commit/5b08e6d))
 
 ♻️ Refactoring
 
-- Extract EditorPane close button into a new EditorPaneHeader component with breadcrumb support ([9a549d7](../../commit/9a549d7))
-- Simplify titlebar layout logic and platform detection with a custom hook ([423b84d](../../commit/423b84d))
+- Remove MarkdownDragHandle and decrease padding in EditorViewMode container ([1ebeef0](../../commit/1ebeef0))
 
 🔨 Other Changes
 
-- Upgrade version 0.61.0 ([33ec0fe](../../commit/33ec0fe))
+- Upgrade version 0.62.0 ([7718457](../../commit/7718457))
 
 
-📋 Full Changelog: [33ec0fe...d7d1e6c](../../compare/33ec0fe...d7d1e6c)
+📋 Full Changelog: [7718457...4122e0a](../../compare/7718457...4122e0a)

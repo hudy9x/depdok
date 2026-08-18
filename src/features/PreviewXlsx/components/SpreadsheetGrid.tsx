@@ -59,6 +59,7 @@ interface SpreadsheetGridProps {
   onApplyStyle?: (style: Partial<CellStyle>) => void;
   onClearSelection?: () => void;
   onCopy?: () => void;
+  onCut?: () => void;
   onPaste?: () => void;
 }
 
@@ -127,6 +128,7 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
   onApplyStyle,
   onClearSelection,
   onCopy,
+  onCut,
   onPaste,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -513,10 +515,15 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
         e.preventDefault();
         onClearSelection();
       }
-    } else if ((e.metaKey || e.ctrlKey) && e.key === 'c') {
+    } else if ((e.metaKey || e.ctrlKey) && (e.key === 'c' || e.key === 'C')) {
+      e.preventDefault();
       if (onCopy) onCopy();
-    } else if ((e.metaKey || e.ctrlKey) && e.key === 'v') {
+    } else if ((e.metaKey || e.ctrlKey) && (e.key === 'v' || e.key === 'V')) {
+      e.preventDefault();
       if (onPaste) onPaste();
+    } else if ((e.metaKey || e.ctrlKey) && (e.key === 'x' || e.key === 'X')) {
+      e.preventDefault();
+      if (onCut) onCut();
     } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
       // Direct typing starts edit immediately on active cell
       e.preventDefault();

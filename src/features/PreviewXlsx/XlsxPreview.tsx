@@ -418,27 +418,46 @@ export const XlsxPreview: React.FC<XlsxPreviewProps> = ({
     await handlePasteRange({ start: norm.start, end: norm.end });
   }, [selection, handlePasteRange]);
 
-  // Global Keyboard Shortcuts (Undo, Redo, Formatting)
+  const handleCut = useCallback(async () => {
+    await handleCopy();
+    handleClearSelection();
+  }, [handleCopy, handleClearSelection]);
+
+  // Global Keyboard Shortcuts (Undo, Redo, Formatting, Copy, Paste, Cut)
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && !isEditing) {
-        if (e.key === 'z') {
+      const target = e.target as HTMLElement | null;
+      const isInputFocused = target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA';
+      if (isEditing || isInputFocused) return;
+
+      if (e.metaKey || e.ctrlKey) {
+        const key = e.key.toLowerCase();
+        if (key === 'c') {
+          e.preventDefault();
+          handleCopy();
+        } else if (key === 'v') {
+          e.preventDefault();
+          handlePaste();
+        } else if (key === 'x') {
+          e.preventDefault();
+          handleCut();
+        } else if (key === 'z') {
           e.preventDefault();
           if (e.shiftKey) {
             handleRedo();
           } else {
             handleUndo();
           }
-        } else if (e.key === 'y') {
+        } else if (key === 'y') {
           e.preventDefault();
           handleRedo();
-        } else if (e.key === 'b') {
+        } else if (key === 'b') {
           e.preventDefault();
           handleApplyStyle({ bold: !activeCellModel?.s?.bold });
-        } else if (e.key === 'i') {
+        } else if (key === 'i') {
           e.preventDefault();
           handleApplyStyle({ italic: !activeCellModel?.s?.italic });
-        } else if (e.key === 'u') {
+        } else if (key === 'u') {
           e.preventDefault();
           handleApplyStyle({ underline: !activeCellModel?.s?.underline });
         }
@@ -447,7 +466,7 @@ export const XlsxPreview: React.FC<XlsxPreviewProps> = ({
 
     window.addEventListener('keydown', handleGlobalKeyDown);
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
-  }, [isEditing, handleUndo, handleRedo, handleApplyStyle, activeCellModel]);
+  }, [isEditing, handleUndo, handleRedo, handleApplyStyle, activeCellModel, handleCopy, handlePaste, handleCut]);
 
   if (!activeSheetModel) {
     return (
@@ -514,6 +533,7 @@ export const XlsxPreview: React.FC<XlsxPreviewProps> = ({
           onApplyStyle={handleApplyStyle}
           onClearSelection={() => handleClearSelection(false)}
           onCopy={handleCopy}
+          onCut={handleCut}
           onPaste={handlePaste}
         />
       </div>

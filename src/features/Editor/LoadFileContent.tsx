@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 // import { Loader2 } from "lucide-react";
 import { draftService } from "@/lib/indexeddb";
-import { readFileContent } from "@/lib/fileOperations";
+import { readFileContent, readBinaryFile } from "@/lib/fileOperations";
 import { liveFilesContentAtom, liveFilesWriterPaneAtom } from "@/stores/EditorStore";
 import { markFileAsDirtyAtom } from "@/stores/DirtyStore";
 
@@ -93,13 +93,24 @@ export function LoadFileContent({
 
         const imageExtensions = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'ico', 'bmp'];
         const isImage = imageExtensions.includes(extension);
+        const isSpreadsheet = ['xlsx', 'xls'].includes(extension);
 
         let readFailed = false;
 
         if (!isUntitled && !isImage) {
           // 1. Load real file from disk (deduplicated across concurrent panels)
           try {
-            loadedFileContent = await getOrReadFileContent(filePath);
+            if (isSpreadsheet) {
+              const bytes = await readBinaryFile(filePath);
+              let binary = '';
+              const len = bytes.byteLength;
+              for (let i = 0; i < len; i++) {
+                binary += String.fromCharCode(bytes[i]);
+              }
+              loadedFileContent = btoa(binary);
+            } else {
+              loadedFileContent = await getOrReadFileContent(filePath);
+            }
           } catch (err) {
             readFailed = true;
             console.log("[LoadFileContent] Could not read file from disk (might be deleted):", err);

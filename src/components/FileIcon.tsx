@@ -38,7 +38,14 @@ const TodoIcon = ({ className, primary = "#737373", secondary = "#A4A4A4" }: Cus
   </svg>
 );
 
-
+const XlsxIcon = ({ className, primary = "#107c41", secondary = "#185a37" }: CustomIconProps) => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
+    <path d="M14 2H6C4.89543 2 4 2.89543 4 4V20C4 21.1046 4.89543 22 6 22H18C19.1046 22 20 21.1046 20 20V8L14 2Z" stroke={primary} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M14 2V8H20" stroke={primary} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M8 13L12 17M12 13L8 17" stroke={secondary} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M14 13H16M14 17H16" stroke={secondary} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
 
 export const MarkdownIcon = ({ className, primary = "currentColor" }: CustomIconProps) => (
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
@@ -59,6 +66,9 @@ export function FileIcon({ filename, className, variant = 'colorful' }: FileIcon
     const isImage = isImageFile(filename);
     if (isImage) return <ImageIcon className={cn("w-4 h-4 text-muted-foreground", className)} />;
 
+    if (filename.endsWith('.xlsx') || filename.endsWith('.xls') || filename.endsWith('.csv')) {
+      return <XlsxIcon className={cn("w-4 h-4", className)} primary={isColorful ? "#107c41" : undefined} secondary={isColorful ? "#185a37" : undefined} />;
+    }
     if (filename.endsWith('.todo')) return <TodoIcon className={cn("w-4 h-4", className)} primary={isColorful ? "#3b82f6" : undefined} secondary={isColorful ? "#93c5fd" : undefined} />;
     if (filename.endsWith('.excalidraw')) return <SwatchBook className={cn("w-4 h-4", className)} style={isColorful ? { color: '#f97316' } : undefined} />;
     if (filename.endsWith('.md')) return <MarkdownIcon className={cn("w-4 h-4 text-foreground", className)} />;

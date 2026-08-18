@@ -70,10 +70,13 @@
 
 .depdok-selection-box {
   position: absolute;
+  top: 0;
+  left: 0;
   border: 2px solid var(--selection-border);
   background-color: var(--selection-bg);
   pointer-events: none;
-  z-index: 10;
+  z-index: 15;
+  box-sizing: border-box;
 }
 
 .depdok-fill-handle {

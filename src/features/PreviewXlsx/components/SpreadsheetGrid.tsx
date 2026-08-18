@@ -1,5 +1,32 @@
 import React, { useCallback, useEffect, useMemo, useRef } from 'react';
-import { CellCoordinate, RangeSelection, SheetModel } from '../core/types';
+import {
+  Scissors,
+  Copy,
+  Clipboard,
+  ClipboardCheck,
+  Plus,
+  Trash2,
+  X,
+  EyeOff,
+  Link as LinkIcon,
+  Calendar,
+  Type,
+  Hash,
+  DollarSign,
+  Percent,
+} from 'lucide-react';
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuShortcut,
+  ContextMenuSub,
+  ContextMenuSubContent,
+  ContextMenuSubTrigger,
+  ContextMenuTrigger,
+} from '@/components/ui/context-menu';
+import { CellCoordinate, CellStyle, RangeSelection, SheetModel } from '../core/types';
 import {
   coordinateToAddress,
   indexToColumn,
@@ -21,6 +48,14 @@ interface SpreadsheetGridProps {
   onCancelEdit: () => void;
   onResizeCol?: (colIndex: number, width: number) => void;
   onResizeRow?: (rowIndex: number, height: number) => void;
+  onInsertCol?: (colIndex: number) => void;
+  onDeleteCol?: (colIndex: number) => void;
+  onInsertRow?: (rowIndex: number) => void;
+  onDeleteRow?: (rowIndex: number) => void;
+  onClearRange?: (rangeStr: string) => void;
+  onPasteRange?: (startCoord: CellCoordinate, options?: { valuesOnly?: boolean }) => void;
+  onApplyFormat?: (numFmt: string) => void;
+  onApplyStyle?: (style: Partial<CellStyle>) => void;
   onClearSelection?: () => void;
   onCopy?: () => void;
   onPaste?: () => void;
@@ -44,6 +79,14 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
   onCancelEdit,
   onResizeCol,
   onResizeRow,
+  onInsertCol,
+  onDeleteCol,
+  onInsertRow,
+  onDeleteRow,
+  onClearRange,
+  onPasteRange,
+  onApplyFormat,
+  onApplyStyle,
   onClearSelection,
   onCopy,
   onPaste,
@@ -69,7 +112,7 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
     return heights;
   }, [sheet.rowCount, sheet.rowHeights]);
 
-  // Cumulative positions for fast coordinate calculation
+  // Positions prefix sums
   const colPositions = useMemo(() => {
     const pos = [0];
     for (let i = 0; i < colWidths.length; i++) {
@@ -86,9 +129,10 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
     return pos;
   }, [rowHeights]);
 
+  // Active range normalized
   const normalizedSelection = useMemo(() => normalizeRange(selection), [selection]);
 
-  // Active column & row sets for header highlight (Excel / Google Sheets style)
+  // Active row/col indices for header highlight
   const activeCols = useMemo(() => {
     const set = new Set<number>();
     for (let c = normalizedSelection.start.c; c <= normalizedSelection.end.c; c++) {
@@ -107,36 +151,38 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
 
   // Selection box pixel bounds
   const selectionBoxStyle = useMemo(() => {
-    const left = colPositions[normalizedSelection.start.c];
-    const top = rowPositions[normalizedSelection.start.r];
-    const right = colPositions[normalizedSelection.end.c + 1];
-    const bottom = rowPositions[normalizedSelection.end.r + 1];
+    const minR = normalizedSelection.start.r;
+    const maxR = normalizedSelection.end.r;
+    const minC = normalizedSelection.start.c;
+    const maxC = normalizedSelection.end.c;
+
+    const left = colPositions[minC] + HEADER_COL_WIDTH;
+    const top = rowPositions[minR] + HEADER_ROW_HEIGHT;
+    const width = colPositions[maxC + 1] - colPositions[minC];
+    const height = rowPositions[maxR + 1] - rowPositions[minR];
 
     return {
-      left: `${left + HEADER_COL_WIDTH}px`,
-      top: `${top + HEADER_ROW_HEIGHT}px`,
-      width: `${right - left}px`,
-      height: `${bottom - top}px`,
+      transform: `translate3d(${left}px, ${top}px, 0px)`,
+      width: `${width}px`,
+      height: `${height}px`,
     };
-  }, [colPositions, rowPositions, normalizedSelection]);
+  }, [normalizedSelection, colPositions, rowPositions]);
 
-  // Active cell editor pixel bounds
+  // Active editor pixel position
   const activeEditorPosition = useMemo(() => {
     const left = colPositions[activeCell.c] + HEADER_COL_WIDTH;
     const top = rowPositions[activeCell.r] + HEADER_ROW_HEIGHT;
     const width = colWidths[activeCell.c] || DEFAULT_COL_WIDTH;
     const height = rowHeights[activeCell.r] || DEFAULT_ROW_HEIGHT;
-
     return { top, left, width, height };
-  }, [colPositions, rowPositions, colWidths, rowHeights, activeCell]);
+  }, [activeCell, colPositions, rowPositions, colWidths, rowHeights]);
 
-  // Mouse handlers for cell selection
+  // Mouse selection handling
   const handleCellMouseDown = (r: number, c: number, e: React.MouseEvent) => {
     if (e.button !== 0) return; // Only left click
     containerRef.current?.focus({ preventScroll: true });
 
     if (e.shiftKey) {
-      // Expand selection
       onSelectRange({ start: selection.start, end: { r, c } }, activeCell);
       return;
     }
@@ -148,18 +194,163 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
 
   const handleCellMouseEnter = (r: number, c: number) => {
     if (!isDragging.current || !dragStartCoord.current) return;
-    onSelectRange({ start: dragStartCoord.current, end: { r, c } }, dragStartCoord.current);
+    onSelectRange({ start: dragStartCoord.current, end: { r, c } }, activeCell);
   };
 
   const handleMouseUp = useCallback(() => {
     isDragging.current = false;
-    dragStartCoord.current = null;
   }, []);
 
   useEffect(() => {
     window.addEventListener('mouseup', handleMouseUp);
     return () => window.removeEventListener('mouseup', handleMouseUp);
   }, [handleMouseUp]);
+
+  // Column context menu actions
+  const handleCopyColumn = async (colIndex: number) => {
+    onSelectRange(
+      { start: { r: 0, c: colIndex }, end: { r: sheet.rowCount - 1, c: colIndex } },
+      { r: 0, c: colIndex }
+    );
+    let maxPopulatedRow = 0;
+    for (let r = 0; r < sheet.rowCount; r++) {
+      const addr = coordinateToAddress({ r, c: colIndex });
+      if (sheet.cells[addr] && (sheet.cells[addr].v !== null || sheet.cells[addr].f)) {
+        maxPopulatedRow = r;
+      }
+    }
+    const rows: string[] = [];
+    for (let r = 0; r <= maxPopulatedRow; r++) {
+      const addr = coordinateToAddress({ r, c: colIndex });
+      const cell = sheet.cells[addr];
+      const val = cell?.f ? `=${cell.f}` : cell?.v !== null && cell?.v !== undefined ? String(cell.v) : '';
+      rows.push(val);
+    }
+    await navigator.clipboard.writeText(rows.join('\n'));
+  };
+
+  const handleCutColumn = async (colIndex: number) => {
+    await handleCopyColumn(colIndex);
+    const colLetter = indexToColumn(colIndex);
+    const rangeStr = `${colLetter}1:${colLetter}${sheet.rowCount}`;
+    if (onClearRange) {
+      onClearRange(rangeStr);
+    }
+  };
+
+  const handlePasteColumn = (colIndex: number, options?: { valuesOnly?: boolean }) => {
+    if (onPasteRange) {
+      onPasteRange({ r: 0, c: colIndex }, options);
+    }
+  };
+
+  const handleClearCol = (colIndex: number) => {
+    const colLetter = indexToColumn(colIndex);
+    const rangeStr = `${colLetter}1:${colLetter}${sheet.rowCount}`;
+    if (onClearRange) {
+      onClearRange(rangeStr);
+    }
+  };
+
+  // Row context menu actions
+  const handleCopyRow = async (rowIndex: number) => {
+    onSelectRange(
+      { start: { r: rowIndex, c: 0 }, end: { r: rowIndex, c: sheet.colCount - 1 } },
+      { r: rowIndex, c: 0 }
+    );
+    let maxPopulatedCol = 0;
+    for (let c = 0; c < sheet.colCount; c++) {
+      const addr = coordinateToAddress({ r: rowIndex, c });
+      if (sheet.cells[addr] && (sheet.cells[addr].v !== null || sheet.cells[addr].f)) {
+        maxPopulatedCol = c;
+      }
+    }
+    const cols: string[] = [];
+    for (let c = 0; c <= maxPopulatedCol; c++) {
+      const addr = coordinateToAddress({ r: rowIndex, c });
+      const cell = sheet.cells[addr];
+      const val = cell?.f ? `=${cell.f}` : cell?.v !== null && cell?.v !== undefined ? String(cell.v) : '';
+      cols.push(val);
+    }
+    await navigator.clipboard.writeText(cols.join('\t'));
+  };
+
+  const handleCutRow = async (rowIndex: number) => {
+    await handleCopyRow(rowIndex);
+    const rangeStr = `A${rowIndex + 1}:${indexToColumn(sheet.colCount - 1)}${rowIndex + 1}`;
+    if (onClearRange) {
+      onClearRange(rangeStr);
+    }
+  };
+
+  const handlePasteRow = (rowIndex: number, options?: { valuesOnly?: boolean }) => {
+    if (onPasteRange) {
+      onPasteRange({ r: rowIndex, c: 0 }, options);
+    }
+  };
+
+  const handleClearRow = (rowIndex: number) => {
+    const rangeStr = `A${rowIndex + 1}:${indexToColumn(sheet.colCount - 1)}${rowIndex + 1}`;
+    if (onClearRange) {
+      onClearRange(rangeStr);
+    }
+  };
+
+  // Cell selection context menu actions
+  const handleCellContextMenu = (r: number, c: number) => {
+    const norm = normalizeRange(selection);
+    const isInSelection =
+      r >= norm.start.r && r <= norm.end.r && c >= norm.start.c && c <= norm.end.c;
+    if (!isInSelection) {
+      onSelectRange({ start: { r, c }, end: { r, c } }, { r, c });
+    }
+  };
+
+  const handleCopySelectedCells = async () => {
+    const norm = normalizeRange(selection);
+    const rows: string[] = [];
+    for (let r = norm.start.r; r <= norm.end.r; r++) {
+      const rowVals: string[] = [];
+      for (let c = norm.start.c; c <= norm.end.c; c++) {
+        const addr = coordinateToAddress({ r, c });
+        const cell = sheet.cells[addr];
+        const val = cell?.f ? `=${cell.f}` : cell?.v !== null && cell?.v !== undefined ? String(cell.v) : '';
+        rowVals.push(val);
+      }
+      rows.push(rowVals.join('\t'));
+    }
+    await navigator.clipboard.writeText(rows.join('\n'));
+  };
+
+  const handleCutSelectedCells = async () => {
+    await handleCopySelectedCells();
+    if (onClearSelection) {
+      onClearSelection();
+    }
+  };
+
+  const handlePasteSelectedCells = (options?: { valuesOnly?: boolean }) => {
+    const norm = normalizeRange(selection);
+    if (onPasteRange) {
+      onPasteRange(norm.start, options);
+    }
+  };
+
+  const handleApplyCellFormat = (formatKey: 'number' | 'text' | 'date' | 'link' | 'currency' | 'percent') => {
+    if (formatKey === 'number') {
+      onApplyFormat?.('0.00');
+    } else if (formatKey === 'text') {
+      onApplyFormat?.('@');
+    } else if (formatKey === 'date') {
+      onApplyFormat?.('YYYY-MM-DD');
+    } else if (formatKey === 'currency') {
+      onApplyFormat?.('$#,##0.00');
+    } else if (formatKey === 'percent') {
+      onApplyFormat?.('0.0%');
+    } else if (formatKey === 'link') {
+      onApplyStyle?.({ color: '#2563eb', underline: true });
+    }
+  };
 
   // Column Header click -> select entire column
   const handleColHeaderClick = (colIndex: number) => {
@@ -194,12 +385,12 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
     );
   };
 
-  // Maintain focus on the spreadsheet grid whenever activeCell changes or editing finishes
+  // Maintain focus on the spreadsheet grid only when editing state changes
   useEffect(() => {
     if (!isEditing) {
       containerRef.current?.focus({ preventScroll: true });
     }
-  }, [isEditing, activeCell]);
+  }, [isEditing]);
 
   // Smoothly auto-scroll the active cell into view
   useEffect(() => {
@@ -364,85 +555,269 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
             title="Select all"
           />
 
-          {/* Column Headers */}
+          {/* Column Headers with Context Menu */}
           {colWidths.map((width, c) => (
-            <div
-              key={`col-${c}`}
-              onClick={() => handleColHeaderClick(c)}
-              style={{ width: `${width}px`, height: `${HEADER_ROW_HEIGHT}px` }}
-              className={cn(
-                'depdok-header-cell cursor-pointer shrink-0 transition-colors',
-                activeCols.has(c) && 'active'
-              )}
-            >
-              <span>{indexToColumn(c)}</span>
-              <div
-                onMouseDown={(e) => startColResize(c, e)}
-                className="depdok-resize-col-handle"
-              />
-            </div>
-          ))}
-        </div>
-
-        {/* Grid Body with Sticky Row Headers */}
-        <div className="relative">
-          {rowHeights.map((height, r) => (
-            <div key={`row-${r}`} className="flex" style={{ height: `${height}px` }}>
-              {/* Sticky Row Header */}
-              <div
-                onClick={() => handleRowHeaderClick(r)}
-                style={{
-                  width: `${HEADER_COL_WIDTH}px`,
-                  height: `${height}px`,
-                }}
-                className={cn(
-                  'sticky left-0 z-10 depdok-header-cell cursor-pointer shrink-0 transition-colors',
-                  activeRows.has(r) && 'active'
-                )}
-              >
-                <span>{r + 1}</span>
+            <ContextMenu key={`col-${c}`}>
+              <ContextMenuTrigger asChild>
                 <div
-                  onMouseDown={(e) => startRowResize(r, e)}
-                  className="depdok-resize-row-handle"
-                />
-              </div>
-
-              {/* Row Cells */}
-              {colWidths.map((width, c) => {
-                const addr = coordinateToAddress({ r, c });
-                const cell = sheet.cells[addr];
-                const displayVal = cell?.w !== undefined ? cell.w : cell?.calculatedValue !== undefined ? String(cell.calculatedValue) : cell?.v !== null && cell?.v !== undefined ? String(cell.v) : '';
-                const style = cell?.s || {};
-
-                return (
+                  onClick={() => handleColHeaderClick(c)}
+                  onContextMenu={() => handleColHeaderClick(c)}
+                  style={{ width: `${width}px`, height: `${HEADER_ROW_HEIGHT}px` }}
+                  className={cn(
+                    'depdok-header-cell cursor-pointer shrink-0 transition-colors',
+                    activeCols.has(c) && 'active'
+                  )}
+                >
+                  <span>{indexToColumn(c)}</span>
                   <div
-                    key={addr}
-                    onMouseDown={(e) => handleCellMouseDown(r, c, e)}
-                    onMouseEnter={() => handleCellMouseEnter(r, c)}
-                    onDoubleClick={() => onStartEdit()}
-                    style={{
-                      width: `${width}px`,
-                      height: `${height}px`,
-                      fontWeight: style.bold ? 'bold' : 'normal',
-                      fontStyle: style.italic ? 'italic' : 'normal',
-                      textDecoration: style.underline ? 'underline' : style.strike ? 'line-through' : 'none',
-                      textAlign: style.align || 'left',
-                      backgroundColor: style.bgColor || 'var(--cell-bg)',
-                      color: style.color || 'inherit',
-                      fontSize: style.fontSize ? `${style.fontSize}px` : '12px',
-                    }}
-                    className={cn(
-                      'depdok-grid-cell flex items-center shrink-0 cursor-cell',
-                      cell?.error && 'text-red-500 font-semibold'
-                    )}
-                  >
-                    <span className="truncate w-full">{displayVal}</span>
-                  </div>
-                );
-              })}
-            </div>
+                    onMouseDown={(e) => startColResize(c, e)}
+                    className="depdok-resize-col-handle"
+                  />
+                </div>
+              </ContextMenuTrigger>
+              <ContextMenuContent className="w-56 text-xs">
+                <ContextMenuItem onClick={() => handleCutColumn(c)} className="gap-2">
+                  <Scissors className="w-3.5 h-3.5" />
+                  <span className="flex-1">Cut</span>
+                  <ContextMenuShortcut>⌘X</ContextMenuShortcut>
+                </ContextMenuItem>
+                <ContextMenuItem onClick={() => handleCopyColumn(c)} className="gap-2">
+                  <Copy className="w-3.5 h-3.5" />
+                  <span className="flex-1">Copy</span>
+                  <ContextMenuShortcut>⌘C</ContextMenuShortcut>
+                </ContextMenuItem>
+                <ContextMenuItem onClick={() => handlePasteColumn(c)} className="gap-2">
+                  <Clipboard className="w-3.5 h-3.5" />
+                  <span className="flex-1">Paste</span>
+                  <ContextMenuShortcut>⌘V</ContextMenuShortcut>
+                </ContextMenuItem>
+                <ContextMenuSub>
+                  <ContextMenuSubTrigger className="gap-2">
+                    <ClipboardCheck className="w-3.5 h-3.5" />
+                    <span>Paste special</span>
+                  </ContextMenuSubTrigger>
+                  <ContextMenuSubContent className="w-40 text-xs">
+                    <ContextMenuItem onClick={() => handlePasteColumn(c, { valuesOnly: true })}>
+                      <span>Values only</span>
+                    </ContextMenuItem>
+                  </ContextMenuSubContent>
+                </ContextMenuSub>
+
+                <ContextMenuSeparator />
+
+                <ContextMenuItem onClick={() => onInsertCol?.(c)} className="gap-2">
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Insert 1 column left</span>
+                </ContextMenuItem>
+                <ContextMenuItem onClick={() => onInsertCol?.(c + 1)} className="gap-2">
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Insert 1 column right</span>
+                </ContextMenuItem>
+                <ContextMenuItem onClick={() => onDeleteCol?.(c)} className="gap-2 text-destructive focus:text-destructive">
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Delete column</span>
+                </ContextMenuItem>
+                <ContextMenuItem onClick={() => handleClearCol(c)} className="gap-2">
+                  <X className="w-3.5 h-3.5" />
+                  <span>Clear column</span>
+                </ContextMenuItem>
+                <ContextMenuItem onClick={() => onResizeCol?.(c, 0)} className="gap-2">
+                  <EyeOff className="w-3.5 h-3.5" />
+                  <span>Hide column</span>
+                </ContextMenuItem>
+              </ContextMenuContent>
+            </ContextMenu>
           ))}
         </div>
+
+        {/* Grid Body with Sticky Row Headers and Single Cell Context Menu */}
+        <ContextMenu>
+          <ContextMenuTrigger asChild>
+            <div className="relative">
+              {rowHeights.map((height, r) => (
+                <div key={`row-${r}`} className="flex" style={{ height: `${height}px` }}>
+                  {/* Sticky Row Header with Context Menu */}
+                  <ContextMenu>
+                    <ContextMenuTrigger asChild>
+                      <div
+                        onClick={() => handleRowHeaderClick(r)}
+                        style={{
+                          width: `${HEADER_COL_WIDTH}px`,
+                          height: `${height}px`,
+                        }}
+                        className={cn(
+                          'sticky left-0 z-10 depdok-header-cell cursor-pointer shrink-0 transition-colors',
+                          activeRows.has(r) && 'active'
+                        )}
+                      >
+                        <span>{r + 1}</span>
+                        <div
+                          onMouseDown={(e) => startRowResize(r, e)}
+                          className="depdok-resize-row-handle"
+                        />
+                      </div>
+                    </ContextMenuTrigger>
+                    <ContextMenuContent className="w-56 text-xs">
+                      <ContextMenuItem onClick={() => handleCutRow(r)} className="gap-2">
+                        <Scissors className="w-3.5 h-3.5" />
+                        <span className="flex-1">Cut</span>
+                        <ContextMenuShortcut>⌘X</ContextMenuShortcut>
+                      </ContextMenuItem>
+                      <ContextMenuItem onClick={() => handleCopyRow(r)} className="gap-2">
+                        <Copy className="w-3.5 h-3.5" />
+                        <span className="flex-1">Copy</span>
+                        <ContextMenuShortcut>⌘C</ContextMenuShortcut>
+                      </ContextMenuItem>
+                      <ContextMenuItem onClick={() => handlePasteRow(r)} className="gap-2">
+                        <Clipboard className="w-3.5 h-3.5" />
+                        <span className="flex-1">Paste</span>
+                        <ContextMenuShortcut>⌘V</ContextMenuShortcut>
+                      </ContextMenuItem>
+                      <ContextMenuSub>
+                        <ContextMenuSubTrigger className="gap-2">
+                          <ClipboardCheck className="w-3.5 h-3.5" />
+                          <span>Paste special</span>
+                        </ContextMenuSubTrigger>
+                        <ContextMenuSubContent className="w-40 text-xs">
+                          <ContextMenuItem onClick={() => handlePasteRow(r, { valuesOnly: true })}>
+                            <span>Values only</span>
+                          </ContextMenuItem>
+                        </ContextMenuSubContent>
+                      </ContextMenuSub>
+
+                      <ContextMenuSeparator />
+
+                      <ContextMenuItem onClick={() => onInsertRow?.(r)} className="gap-2">
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Insert 1 row above</span>
+                      </ContextMenuItem>
+                      <ContextMenuItem onClick={() => onInsertRow?.(r + 1)} className="gap-2">
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Insert 1 row below</span>
+                      </ContextMenuItem>
+                      <ContextMenuItem onClick={() => onDeleteRow?.(r)} className="gap-2 text-destructive focus:text-destructive">
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Delete row</span>
+                      </ContextMenuItem>
+                      <ContextMenuItem onClick={() => handleClearRow(r)} className="gap-2">
+                        <X className="w-3.5 h-3.5" />
+                        <span>Clear row</span>
+                      </ContextMenuItem>
+                    </ContextMenuContent>
+                  </ContextMenu>
+
+                  {/* Row Cells */}
+                  {colWidths.map((width, c) => {
+                    const addr = coordinateToAddress({ r, c });
+                    const cell = sheet.cells[addr];
+                    const displayVal = cell?.w !== undefined ? cell.w : cell?.calculatedValue !== undefined ? String(cell.calculatedValue) : cell?.v !== null && cell?.v !== undefined ? String(cell.v) : '';
+                    const style = cell?.s || {};
+
+                    return (
+                      <div
+                        key={addr}
+                        onMouseDown={(e) => handleCellMouseDown(r, c, e)}
+                        onMouseEnter={() => handleCellMouseEnter(r, c)}
+                        onContextMenu={() => handleCellContextMenu(r, c)}
+                        onDoubleClick={() => onStartEdit()}
+                        style={{
+                          width: `${width}px`,
+                          height: `${height}px`,
+                          fontWeight: style.bold ? 'bold' : 'normal',
+                          fontStyle: style.italic ? 'italic' : 'normal',
+                          textDecoration: style.underline ? 'underline' : style.strike ? 'line-through' : 'none',
+                          textAlign: style.align || 'left',
+                          backgroundColor: style.bgColor || 'var(--cell-bg)',
+                          color: style.color || 'inherit',
+                          fontSize: style.fontSize ? `${style.fontSize}px` : '12px',
+                        }}
+                        className={cn(
+                          'depdok-grid-cell flex items-center shrink-0 cursor-cell',
+                          cell?.error && 'text-red-500 font-semibold'
+                        )}
+                      >
+                        <span className="truncate w-full">{displayVal}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          </ContextMenuTrigger>
+
+          {/* Cell / Selection Context Menu Content */}
+          <ContextMenuContent className="w-56 text-xs">
+            <ContextMenuItem onClick={handleCutSelectedCells} className="gap-2">
+              <Scissors className="w-3.5 h-3.5" />
+              <span className="flex-1">Cut</span>
+              <ContextMenuShortcut>⌘X</ContextMenuShortcut>
+            </ContextMenuItem>
+            <ContextMenuItem onClick={handleCopySelectedCells} className="gap-2">
+              <Copy className="w-3.5 h-3.5" />
+              <span className="flex-1">Copy</span>
+              <ContextMenuShortcut>⌘C</ContextMenuShortcut>
+            </ContextMenuItem>
+            <ContextMenuItem onClick={() => handlePasteSelectedCells()} className="gap-2">
+              <Clipboard className="w-3.5 h-3.5" />
+              <span className="flex-1">Paste</span>
+              <ContextMenuShortcut>⌘V</ContextMenuShortcut>
+            </ContextMenuItem>
+            <ContextMenuSub>
+              <ContextMenuSubTrigger className="gap-2">
+                <ClipboardCheck className="w-3.5 h-3.5" />
+                <span>Paste special</span>
+              </ContextMenuSubTrigger>
+              <ContextMenuSubContent className="w-40 text-xs">
+                <ContextMenuItem onClick={() => handlePasteSelectedCells({ valuesOnly: true })}>
+                  <span>Values only</span>
+                </ContextMenuItem>
+              </ContextMenuSubContent>
+            </ContextMenuSub>
+
+            <ContextMenuSeparator />
+
+            <ContextMenuSub>
+              <ContextMenuSubTrigger className="gap-2">
+                <Type className="w-3.5 h-3.5" />
+                <span>Format cells</span>
+              </ContextMenuSubTrigger>
+              <ContextMenuSubContent className="w-44 text-xs">
+                <ContextMenuItem onClick={() => handleApplyCellFormat('number')} className="gap-2">
+                  <Hash className="w-3.5 h-3.5" />
+                  <span>Number (0.00)</span>
+                </ContextMenuItem>
+                <ContextMenuItem onClick={() => handleApplyCellFormat('text')} className="gap-2">
+                  <Type className="w-3.5 h-3.5" />
+                  <span>Text (Plain)</span>
+                </ContextMenuItem>
+                <ContextMenuItem onClick={() => handleApplyCellFormat('date')} className="gap-2">
+                  <Calendar className="w-3.5 h-3.5" />
+                  <span>Date (YYYY-MM-DD)</span>
+                </ContextMenuItem>
+                <ContextMenuItem onClick={() => handleApplyCellFormat('link')} className="gap-2">
+                  <LinkIcon className="w-3.5 h-3.5" />
+                  <span>Link (Hyperlink)</span>
+                </ContextMenuItem>
+                <ContextMenuSeparator />
+                <ContextMenuItem onClick={() => handleApplyCellFormat('currency')} className="gap-2">
+                  <DollarSign className="w-3.5 h-3.5" />
+                  <span>Currency ($#,##0.00)</span>
+                </ContextMenuItem>
+                <ContextMenuItem onClick={() => handleApplyCellFormat('percent')} className="gap-2">
+                  <Percent className="w-3.5 h-3.5" />
+                  <span>Percentage (0.0%)</span>
+                </ContextMenuItem>
+              </ContextMenuSubContent>
+            </ContextMenuSub>
+
+            <ContextMenuSeparator />
+
+            <ContextMenuItem onClick={() => onClearSelection?.()} className="gap-2">
+              <X className="w-3.5 h-3.5" />
+              <span>Clear contents</span>
+            </ContextMenuItem>
+          </ContextMenuContent>
+        </ContextMenu>
 
         {/* Selection Rectangle Overlay */}
         <div

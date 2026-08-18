@@ -244,21 +244,52 @@ export const XlsxPreview: React.FC<XlsxPreviewProps> = ({
   );
 
   // Row / Col manipulation
-  const handleInsertRow = useCallback(() => {
-    runCommand({ type: 'INSERT_ROW', rowIndex: activeCell.r });
+  const handleInsertRow = useCallback((rowIndex?: number) => {
+    runCommand({ type: 'INSERT_ROW', rowIndex: rowIndex !== undefined ? rowIndex : activeCell.r });
   }, [runCommand, activeCell.r]);
 
-  const handleDeleteRow = useCallback(() => {
-    runCommand({ type: 'DELETE_ROW', rowIndex: activeCell.r });
+  const handleDeleteRow = useCallback((rowIndex?: number) => {
+    runCommand({ type: 'DELETE_ROW', rowIndex: rowIndex !== undefined ? rowIndex : activeCell.r });
   }, [runCommand, activeCell.r]);
 
-  const handleInsertCol = useCallback(() => {
-    runCommand({ type: 'INSERT_COL', colIndex: activeCell.c });
+  const handleInsertCol = useCallback((colIndex?: number) => {
+    runCommand({ type: 'INSERT_COL', colIndex: colIndex !== undefined ? colIndex : activeCell.c });
   }, [runCommand, activeCell.c]);
 
-  const handleDeleteCol = useCallback(() => {
-    runCommand({ type: 'DELETE_COL', colIndex: activeCell.c });
+  const handleDeleteCol = useCallback((colIndex?: number) => {
+    runCommand({ type: 'DELETE_COL', colIndex: colIndex !== undefined ? colIndex : activeCell.c });
   }, [runCommand, activeCell.c]);
+
+  const handleClearRangeStr = useCallback((rangeStr: string) => {
+    runCommand({ type: 'CLEAR_RANGE', range: rangeStr });
+  }, [runCommand]);
+
+  const handlePasteRange = useCallback(async (startCoord: CellCoordinate, options?: { valuesOnly?: boolean }) => {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (!text) return;
+
+      const lines = text.split(/\r?\n/).filter((l, idx, arr) => idx < arr.length - 1 || l.length > 0);
+      const data2D = lines.map((line) => line.split('\t'));
+
+      if (options?.valuesOnly) {
+        const valuesOnlyData = data2D.map(row => row.map(val => val.startsWith('=') ? `'${val}` : val));
+        runCommand({
+          type: 'SET_RANGE_DATA',
+          startCell: coordinateToAddress(startCoord),
+          data: valuesOnlyData,
+        });
+      } else {
+        runCommand({
+          type: 'SET_RANGE_DATA',
+          startCell: coordinateToAddress(startCoord),
+          data: data2D,
+        });
+      }
+    } catch (err) {
+      console.error('Paste error:', err);
+    }
+  }, [runCommand]);
 
   const handleResizeCol = useCallback(
     (colIndex: number, width: number) => {
@@ -426,6 +457,14 @@ export const XlsxPreview: React.FC<XlsxPreviewProps> = ({
           onCancelEdit={handleCancelEdit}
           onResizeCol={handleResizeCol}
           onResizeRow={handleResizeRow}
+          onInsertCol={handleInsertCol}
+          onDeleteCol={handleDeleteCol}
+          onInsertRow={handleInsertRow}
+          onDeleteRow={handleDeleteRow}
+          onClearRange={handleClearRangeStr}
+          onPasteRange={handlePasteRange}
+          onApplyFormat={handleApplyFormat}
+          onApplyStyle={handleApplyStyle}
           onClearSelection={() => handleClearSelection(false)}
           onCopy={handleCopy}
           onPaste={handlePaste}

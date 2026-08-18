@@ -1,5 +1,5 @@
 import { CellValue, SheetModel, WorkbookModel } from './types';
-import { addressToCoordinate, parseRangeAddress, formatCellValue } from './numberFormatter';
+import { addressToCoordinate, parseRangeAddress, formatCellValue, indexToColumn } from './numberFormatter';
 
 type FunctionHandler = (args: any[], context: EvaluationContext) => any;
 
@@ -255,6 +255,63 @@ export class FormulaEngine {
         }
       }
       return '#N/A';
+    },
+    ROW: (args, context) => {
+      if (!args || args.length === 0 || args[0] === undefined) {
+        const coord = addressToCoordinate(context.currentCell);
+        return coord ? coord.r + 1 : 1;
+      }
+      if (typeof args[0] === 'string') {
+        const clean = args[0].includes('!') ? args[0].split('!')[1] : args[0];
+        const range = parseRangeAddress(clean);
+        if (range) return range.start.r + 1;
+        const coord = addressToCoordinate(clean);
+        if (coord) return coord.r + 1;
+      }
+      const coord = addressToCoordinate(context.currentCell);
+      return coord ? coord.r + 1 : 1;
+    },
+    COLUMN: (args, context) => {
+      if (!args || args.length === 0 || args[0] === undefined) {
+        const coord = addressToCoordinate(context.currentCell);
+        return coord ? coord.c + 1 : 1;
+      }
+      if (typeof args[0] === 'string') {
+        const clean = args[0].includes('!') ? args[0].split('!')[1] : args[0];
+        const range = parseRangeAddress(clean);
+        if (range) return range.start.c + 1;
+        const coord = addressToCoordinate(clean);
+        if (coord) return coord.c + 1;
+      }
+      const coord = addressToCoordinate(context.currentCell);
+      return coord ? coord.c + 1 : 1;
+    },
+    ROWS: (args) => {
+      if (!args || args.length === 0) return '#VALUE!';
+      const array = args[0];
+      if (Array.isArray(array)) {
+        return array.length;
+      }
+      return 1;
+    },
+    COLUMNS: (args) => {
+      if (!args || args.length === 0) return '#VALUE!';
+      const array = args[0];
+      if (Array.isArray(array)) {
+        return Array.isArray(array[0]) ? array[0].length : 1;
+      }
+      return 1;
+    },
+    ADDRESS: (args) => {
+      const row = toNumber(args[0]);
+      const col = toNumber(args[1]);
+      const absNum = args[2] !== undefined ? toNumber(args[2]) : 1;
+      if (row < 1 || col < 1) return '#VALUE!';
+      const colLetter = indexToColumn(col - 1);
+      if (absNum === 1) return `$${colLetter}$${row}`;
+      if (absNum === 2) return `${colLetter}$${row}`;
+      if (absNum === 3) return `$${colLetter}${row}`;
+      return `${colLetter}${row}`;
     },
   };
 
@@ -591,10 +648,18 @@ function evaluateTokens(tokens: Token[], context: EvaluationContext): any {
       // Check if it's a function call (next token is '(')
       if (peek()?.type === 'LPAREN') {
         consume(); // '('
+        const fnName = tok.value.toUpperCase();
         const args: any[] = [];
         if (peek()?.type !== 'RPAREN') {
           while (pos < tokens.length) {
-            args.push(parseExpression());
+            // For ROW and COLUMN, if argument is a reference token (e.g. B12, $A$1, A1:B5), pass raw string reference
+            if (['ROW', 'COLUMN'].includes(fnName) && (peek()?.type === 'IDENTIFIER' || peek()?.type === 'RANGE')) {
+              const refTok = consume();
+              args.push(refTok.value);
+            } else {
+              args.push(parseExpression());
+            }
+
             if (peek()?.type === 'COMMA') {
               consume();
             } else {
@@ -604,7 +669,6 @@ function evaluateTokens(tokens: Token[], context: EvaluationContext): any {
         }
         if (peek()?.type === 'RPAREN') consume();
 
-        const fnName = tok.value.toUpperCase();
         const fn = (FormulaEngine as any).functions[fnName];
         if (fn) {
           return fn(args, context);

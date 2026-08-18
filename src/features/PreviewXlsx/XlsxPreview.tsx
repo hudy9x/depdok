@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BorderLineStyle, BorderType, CellCoordinate, CellStyle, RangeSelection, SpreadsheetCommand, WorkbookModel } from './core/types';
 import { SpreadsheetSDK } from './core/spreadsheetSdk';
-import { coordinateToAddress, parseRangeAddress, rangeToAddress } from './core/numberFormatter';
+import { coordinateToAddress, normalizeRange, parseRangeAddress, rangeToAddress } from './core/numberFormatter';
 import { Toolbar } from './components/Toolbar';
 import { FormulaBar } from './components/FormulaBar';
 import { SpreadsheetGrid } from './components/SpreadsheetGrid';
@@ -296,32 +296,55 @@ export const XlsxPreview: React.FC<XlsxPreviewProps> = ({
     runCommand({ type: 'CLEAR_RANGE', range: rangeStr });
   }, [runCommand]);
 
-  const handlePasteRange = useCallback(async (startCoord: CellCoordinate, options?: { valuesOnly?: boolean }) => {
-    try {
-      const text = await navigator.clipboard.readText();
-      if (!text) return;
+  const handlePasteRange = useCallback(
+    async (
+      target: { start: CellCoordinate; end?: CellCoordinate },
+      options?: { valuesOnly?: boolean }
+    ) => {
+      try {
+        const text = await navigator.clipboard.readText();
+        if (!text) return;
 
-      const lines = text.split(/\r?\n/).filter((l, idx, arr) => idx < arr.length - 1 || l.length > 0);
-      const data2D = lines.map((line) => line.split('\t'));
+        const lines = text.split(/\r?\n/).filter((l, idx, arr) => idx < arr.length - 1 || l.length > 0);
+        if (lines.length === 0) return;
+        const data2D = lines.map((line) => line.split('\t'));
 
-      if (options?.valuesOnly) {
-        const valuesOnlyData = data2D.map(row => row.map(val => val.startsWith('=') ? `'${val}` : val));
+        const startCoord = target.start;
+        const endCoord = target.end || target.start;
+        const isMultiCell = startCoord.r !== endCoord.r || startCoord.c !== endCoord.c;
+
+        let finalData = data2D;
+        if (isMultiCell) {
+          const targetRowCount = endCoord.r - startCoord.r + 1;
+          const targetColCount = endCoord.c - startCoord.c + 1;
+          finalData = [];
+          for (let r = 0; r < targetRowCount; r++) {
+            const row: string[] = [];
+            const srcRow = data2D[r % data2D.length];
+            for (let c = 0; c < targetColCount; c++) {
+              row.push(srcRow[c % srcRow.length]);
+            }
+            finalData.push(row);
+          }
+        }
+
+        if (options?.valuesOnly) {
+          finalData = finalData.map((row) =>
+            row.map((val) => (val.startsWith('=') ? `'${val}` : val))
+          );
+        }
+
         runCommand({
           type: 'SET_RANGE_DATA',
           startCell: coordinateToAddress(startCoord),
-          data: valuesOnlyData,
+          data: finalData,
         });
-      } else {
-        runCommand({
-          type: 'SET_RANGE_DATA',
-          startCell: coordinateToAddress(startCoord),
-          data: data2D,
-        });
+      } catch (err) {
+        console.error('[XlsxPreview] Paste error:', err);
       }
-    } catch (err) {
-      console.error('Paste error:', err);
-    }
-  }, [runCommand]);
+    },
+    [runCommand]
+  );
 
   const handleResizeCol = useCallback(
     (colIndex: number, width: number) => {
@@ -374,38 +397,26 @@ export const XlsxPreview: React.FC<XlsxPreviewProps> = ({
   );
 
   // Copy / Paste
-  const handleCopy = useCallback(() => {
-    if (!activeCellModel) return;
-    const val = activeCellModel.f ? `=${activeCellModel.f}` : activeCellModel.v !== null && activeCellModel.v !== undefined ? String(activeCellModel.v) : '';
-    navigator.clipboard.writeText(val).catch(console.error);
-  }, [activeCellModel]);
+  const handleCopy = useCallback(async () => {
+    const norm = normalizeRange(selection);
+    const rows: string[] = [];
+    for (let r = norm.start.r; r <= norm.end.r; r++) {
+      const rowVals: string[] = [];
+      for (let c = norm.start.c; c <= norm.end.c; c++) {
+        const addr = coordinateToAddress({ r, c });
+        const cell = activeSheetModel?.cells[addr];
+        const val = cell?.f ? `=${cell.f}` : cell?.v !== null && cell?.v !== undefined ? String(cell.v) : '';
+        rowVals.push(val);
+      }
+      rows.push(rowVals.join('\t'));
+    }
+    await navigator.clipboard.writeText(rows.join('\n')).catch(console.error);
+  }, [selection, activeSheetModel]);
 
   const handlePaste = useCallback(async () => {
-    try {
-      const text = await navigator.clipboard.readText();
-      if (!text) return;
-
-      const lines = text.split(/\r?\n/).filter((l) => l.length > 0);
-      if (lines.length === 1 && !lines[0].includes('\t')) {
-        // Single cell paste
-        runCommand({
-          type: 'SET_CELL_VALUE',
-          cell: activeCellAddress,
-          value: lines[0],
-        });
-      } else {
-        // Tab-delimited 2D grid paste
-        const grid = lines.map((line) => line.split('\t'));
-        runCommand({
-          type: 'SET_RANGE_DATA',
-          startCell: activeCellAddress,
-          data: grid,
-        });
-      }
-    } catch (err) {
-      console.error('[XlsxPreview] Paste failed:', err);
-    }
-  }, [activeCellAddress, runCommand]);
+    const norm = normalizeRange(selection);
+    await handlePasteRange({ start: norm.start, end: norm.end });
+  }, [selection, handlePasteRange]);
 
   // Global Keyboard Shortcuts (Undo, Redo, Formatting)
   useEffect(() => {

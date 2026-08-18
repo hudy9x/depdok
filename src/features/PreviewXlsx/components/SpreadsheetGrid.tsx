@@ -54,7 +54,7 @@ interface SpreadsheetGridProps {
   onInsertRow?: (rowIndex: number) => void;
   onDeleteRow?: (rowIndex: number) => void;
   onClearRange?: (rangeStr: string) => void;
-  onPasteRange?: (startCoord: CellCoordinate, options?: { valuesOnly?: boolean }) => void;
+  onPasteRange?: (target: { start: CellCoordinate; end?: CellCoordinate }, options?: { valuesOnly?: boolean }) => void;
   onApplyFormat?: (numFmt: string) => void;
   onApplyStyle?: (style: Partial<CellStyle>) => void;
   onClearSelection?: () => void;
@@ -279,7 +279,7 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
 
   const handlePasteColumn = (colIndex: number, options?: { valuesOnly?: boolean }) => {
     if (onPasteRange) {
-      onPasteRange({ r: 0, c: colIndex }, options);
+      onPasteRange({ start: { r: 0, c: colIndex }, end: { r: sheet.rowCount - 1, c: colIndex } }, options);
     }
   };
 
@@ -324,7 +324,7 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
 
   const handlePasteRow = (rowIndex: number, options?: { valuesOnly?: boolean }) => {
     if (onPasteRange) {
-      onPasteRange({ r: rowIndex, c: 0 }, options);
+      onPasteRange({ start: { r: rowIndex, c: 0 }, end: { r: rowIndex, c: sheet.colCount - 1 } }, options);
     }
   };
 
@@ -371,7 +371,7 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
   const handlePasteSelectedCells = (options?: { valuesOnly?: boolean }) => {
     const norm = normalizeRange(selection);
     if (onPasteRange) {
-      onPasteRange(norm.start, options);
+      onPasteRange({ start: norm.start, end: norm.end }, options);
     }
   };
 

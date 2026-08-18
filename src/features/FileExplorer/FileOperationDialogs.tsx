@@ -26,6 +26,8 @@ import {
   deleteNode,
   writeFileContent,
 } from './api';
+import { writeBinaryFile } from '@/lib/fileOperations';
+import { SpreadsheetSDK } from '@/features/PreviewXlsx';
 import { tabsAtom, closeTabAtom, createTabAtom } from '@/stores/TabStore';
 
 export function FileOperationDialogs() {
@@ -72,6 +74,10 @@ export function FileOperationDialogs() {
             files: {},
           }, null, 2);
           await writeFileContent(newPath, emptyScene);
+        } else if (nameInput.endsWith('.xlsx') || nameInput.endsWith('.xls')) {
+          const emptyWorkbook = SpreadsheetSDK.createWorkbook();
+          const bytes = SpreadsheetSDK.toBinary(emptyWorkbook);
+          await writeBinaryFile(newPath, bytes);
         }
 
         toast.success(`File created: ${nameInput}`);

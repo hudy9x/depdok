@@ -5,6 +5,7 @@ import { PlantUMLBrowserPreview } from "../PreviewPlantUML/PlantUMLBrowserPrevie
 import { PlantUMLNativePreview } from "../PreviewPlantUML/PlantUMLNativePreview";
 import { TodoPreview } from "../PreviewTodo/TodoPreview";
 import { ExcalidrawPreview } from "../PreviewExcalidraw";
+import { XlsxPreview } from "../PreviewXlsx";
 import { KnowledgeGraphPreview } from "../KnowledgeGraph/KnowledgeGraphPreview";
 import { isKnowledgeGraphFile } from "@/lib/knowledgeGraph";
 import { isImageFile } from "@/lib/fileSupport";
@@ -84,6 +85,10 @@ export function PreviewPanel({
 
   if (fileExtension === "excalidraw") {
     return <ExcalidrawPreview content={content} filePath={filePath} onContentChange={onContentChange} />;
+  }
+
+  if (["xlsx", "xls", "csv"].includes(fileExtension)) {
+    return <XlsxPreview content={content} filePath={filePath} editable={editable} onContentChange={onContentChange} />;
   }
 
 

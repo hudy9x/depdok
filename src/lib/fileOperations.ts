@@ -27,6 +27,16 @@ export async function writeBinaryFile(path: string, data: Uint8Array): Promise<v
 }
 
 /**
+ * Read binary data from a file
+ * @param path - Path of the file to read
+ * @returns The file content as a Uint8Array
+ */
+export async function readBinaryFile(path: string): Promise<Uint8Array> {
+  const data = await invoke<number[]>('read_binary_file', { path });
+  return new Uint8Array(data);
+}
+
+/**
  * Delete a file or directory
  * @param path - Path of the file/directory to delete
  */

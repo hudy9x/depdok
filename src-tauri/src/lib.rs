@@ -995,6 +995,7 @@ pub fn run() {
             close_devtools,
             commands::files::list_dir,
             commands::files::read_file_content,
+            commands::files::read_binary_file,
             commands::files::write_file_content,
             commands::files::write_binary_file,
             commands::files::create_directory,

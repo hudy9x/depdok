@@ -1,0 +1,224 @@
+/* Excel & Google Sheets-like styling for XLSX preview */
+
+.depdok-spreadsheet {
+  --cell-bg: #ffffff;
+  --cell-border-color: #e2e8f0;
+  --header-bg: #f8fafc;
+  --header-border: #cbd5e1;
+  --header-active-bg: #e0e7ff;
+  --header-active-text: #2563eb;
+  --selection-border: #2563eb;
+  --selection-bg: rgba(37, 99, 235, 0.08);
+}
+
+.dark .depdok-spreadsheet {
+  --cell-bg: #090d16;
+  --cell-border-color: #1e293b;
+  --header-bg: #0f172a;
+  --header-border: #334155;
+  --header-active-bg: #1e293b;
+  --header-active-text: #60a5fa;
+  --selection-border: #3b82f6;
+  --selection-bg: rgba(59, 130, 246, 0.14);
+}
+
+.depdok-spreadsheet-grid {
+  user-select: none;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: 13px;
+  background-color: var(--cell-bg);
+}
+
+.depdok-header-cell {
+  background-color: var(--header-bg);
+  border-right: 1px solid var(--header-border);
+  border-bottom: 1px solid var(--header-border);
+  color: #64748b;
+  font-weight: 500;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  transition: background-color 0.1s ease, color 0.1s ease;
+}
+
+.dark .depdok-header-cell {
+  color: #94a3b8;
+}
+
+.depdok-header-cell.active {
+  background-color: var(--header-active-bg);
+  color: var(--header-active-text);
+  font-weight: 700;
+}
+
+.depdok-grid-cell {
+  background-color: var(--cell-bg);
+  border-right: 1px solid var(--cell-border-color);
+  border-bottom: 1px solid var(--cell-border-color);
+  padding: 0 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  outline: none;
+}
+
+.depdok-cell-selected {
+  position: relative;
+}
+
+.depdok-selection-box {
+  position: absolute;
+  top: 0;
+  left: 0;
+  border: 2px solid var(--selection-border);
+  background-color: var(--selection-bg);
+  pointer-events: none;
+  z-index: 15;
+  box-sizing: border-box;
+}
+
+.depdok-fill-handle {
+  position: absolute;
+  bottom: -4px;
+  right: -4px;
+  width: 7px;
+  height: 7px;
+  background-color: var(--selection-border);
+  border: 1px solid #fff;
+  cursor: crosshair;
+  z-index: 12;
+  pointer-events: auto;
+}
+
+.depdok-resize-col-handle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 5px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 20;
+}
+
+.depdok-resize-col-handle:hover {
+  background-color: var(--selection-border);
+}
+
+.depdok-resize-row-handle {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 5px;
+  cursor: row-resize;
+  z-index: 20;
+}
+
+.depdok-resize-row-handle:hover {
+  background-color: var(--selection-border);
+}
+
+.depdok-formula-bar-input {
+  font-family: inherit;
+  font-size: 13px;
+  border: none;
+  outline: none;
+  background: transparent;
+  width: 100%;
+}
+
+/* ── Spreadsheet Toolbar Container Query Responsive Grouping ────────────────────── */
+.depdok-spreadsheet-toolbar-container {
+  container-type: inline-size;
+  container-name: spreadsheetToolbar;
+  width: 100%;
+}
+
+/* Default state: Expanded items visible, Collapsed dropdowns hidden */
+.format-expanded {
+  display: flex;
+}
+.format-collapsed {
+  display: none;
+}
+
+.text-styles-expanded {
+  display: flex;
+}
+.text-styles-collapsed {
+  display: none;
+}
+
+.colors-expanded {
+  display: flex;
+}
+.colors-collapsed {
+  display: none;
+}
+
+.alignments-expanded {
+  display: flex;
+}
+.alignments-collapsed {
+  display: none;
+}
+
+.toolbar-combined-dropdown {
+  display: none;
+}
+
+/* Breakpoint 1: < 760px -> group Alignments and Text Styles */
+@container spreadsheetToolbar (max-width: 759px) {
+  .text-styles-expanded {
+    display: none !important;
+  }
+  .text-styles-collapsed {
+    display: flex !important;
+  }
+
+  .alignments-expanded {
+    display: none !important;
+  }
+  .alignments-collapsed {
+    display: flex !important;
+  }
+}
+
+/* Breakpoint 2: < 560px -> group Colors and hide quick format shortcuts */
+@container spreadsheetToolbar (max-width: 559px) {
+  .format-expanded {
+    display: none !important;
+  }
+  .format-collapsed {
+    display: flex !important;
+  }
+
+  .colors-expanded {
+    display: none !important;
+  }
+  .colors-collapsed {
+    display: flex !important;
+  }
+}
+
+/* Breakpoint 3: < 350px -> All grouped into combined dropdown */
+@container spreadsheetToolbar (max-width: 349px) {
+  .text-styles-collapsed,
+  .colors-collapsed,
+  .alignments-collapsed {
+    display: none !important;
+  }
+
+  .toolbar-combined-dropdown {
+    display: flex !important;
+  }
+
+  .toolbar-divider-align,
+  .toolbar-divider-colors,
+  .toolbar-divider-styles {
+    display: none !important;
+  }
+}
+

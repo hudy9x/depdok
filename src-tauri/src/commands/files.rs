@@ -216,6 +216,11 @@ pub fn write_binary_file(path: &str, data: Vec<u8>) -> Result<(), String> {
 }
 
 #[tauri::command]
+pub fn read_binary_file(path: &str) -> Result<Vec<u8>, String> {
+    fs::read(path).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 pub fn create_directory(path: &str) -> Result<(), String> {
     fs::create_dir_all(path).map_err(|e| e.to_string())
 }

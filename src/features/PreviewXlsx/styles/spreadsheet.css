@@ -27,6 +27,7 @@
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   font-size: 13px;
   background-color: var(--cell-bg);
+  contain: layout style;
 }
 
 .depdok-header-cell {

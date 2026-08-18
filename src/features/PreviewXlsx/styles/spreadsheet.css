@@ -1,8 +1,7 @@
-/* Excel & Google Sheets-like styling for XLSX preview */
-
 .depdok-spreadsheet {
   --cell-bg: #ffffff;
   --cell-border-color: #e2e8f0;
+  --cell-border-solid: #0f172a;
   --header-bg: #f8fafc;
   --header-border: #cbd5e1;
   --header-active-bg: #e0e7ff;
@@ -14,6 +13,7 @@
 .dark .depdok-spreadsheet {
   --cell-bg: #090d16;
   --cell-border-color: #1e293b;
+  --cell-border-solid: #cbd5e1;
   --header-bg: #0f172a;
   --header-border: #334155;
   --header-active-bg: #1e293b;
@@ -54,6 +54,8 @@
 }
 
 .depdok-grid-cell {
+  box-sizing: border-box;
+  position: relative;
   background-color: var(--cell-bg);
   border-right: 1px solid var(--cell-border-color);
   border-bottom: 1px solid var(--cell-border-color);

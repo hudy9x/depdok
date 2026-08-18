@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { CellCoordinate, CellStyle, RangeSelection, SpreadsheetCommand, WorkbookModel } from './core/types';
+import { BorderLineStyle, BorderType, CellCoordinate, CellStyle, RangeSelection, SpreadsheetCommand, WorkbookModel } from './core/types';
 import { SpreadsheetSDK } from './core/spreadsheetSdk';
 import { coordinateToAddress, parseRangeAddress, rangeToAddress } from './core/numberFormatter';
 import { Toolbar } from './components/Toolbar';
@@ -221,6 +221,19 @@ export const XlsxPreview: React.FC<XlsxPreviewProps> = ({
     [runCommand, selectedRangeStr]
   );
 
+  const handleApplyBorder = useCallback(
+    (borderType: BorderType, color?: string, style?: BorderLineStyle) => {
+      runCommand({
+        type: 'APPLY_BORDER',
+        range: selectedRangeStr,
+        borderType,
+        color,
+        style,
+      });
+    },
+    [runCommand, selectedRangeStr]
+  );
+
   const handleApplyFormat = useCallback(
     (numFmt: string) => {
       runCommand({
@@ -421,6 +434,7 @@ export const XlsxPreview: React.FC<XlsxPreviewProps> = ({
         activeNumFmt={activeCellModel?.numFmt}
         onApplyStyle={handleApplyStyle}
         onApplyFormat={handleApplyFormat}
+        onApplyBorder={handleApplyBorder}
       />
 
       {/* Excel Formula Bar */}

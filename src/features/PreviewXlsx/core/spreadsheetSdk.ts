@@ -1,4 +1,5 @@
 import {
+  CellBorder,
   CellCoordinate,
   CellModel,
   CellStyle,
@@ -177,14 +178,137 @@ export class SpreadsheetSDK {
 
         for (const addr of addrs) {
           const existing = updatedCells[addr] || { v: null };
+          const nextStyle: Record<string, any> = {
+            ...(existing.s || {}),
+            ...command.style,
+          };
+          for (const [k, v] of Object.entries(command.style)) {
+            if (v === '' || v === null || v === undefined) {
+              delete nextStyle[k];
+            }
+          }
           updatedCells[addr] = {
             ...existing,
-            s: {
-              ...(existing.s || {}),
-              ...command.style,
-            },
+            s: Object.keys(nextStyle).length > 0 ? (nextStyle as CellStyle) : undefined,
           };
           modifiedCells.push(addr);
+        }
+
+        currentWb.sheets[targetSheetName] = {
+          ...sheet,
+          cells: updatedCells,
+        };
+        modifiedSheets.push(targetSheetName);
+        break;
+      }
+
+      case 'APPLY_BORDER': {
+        const sheet = currentWb.sheets[targetSheetName];
+        if (!sheet) {
+          return {
+            workbook: currentWb,
+            result: { success: false, message: `Sheet '${targetSheetName}' not found`, modifiedSheets, modifiedCells },
+          };
+        }
+
+        const range = parseRangeAddress(command.range);
+        if (!range) {
+          return {
+            workbook: currentWb,
+            result: { success: false, message: `Invalid range: ${command.range}`, modifiedSheets, modifiedCells },
+          };
+        }
+
+        const minR = Math.min(range.start.r, range.end.r);
+        const maxR = Math.max(range.start.r, range.end.r);
+        const minC = Math.min(range.start.c, range.end.c);
+        const maxC = Math.max(range.start.c, range.end.c);
+
+        const color = command.color || '#000000';
+        const style = command.style || 'thin';
+        const edge = { color, style };
+
+        const updatedCells = { ...sheet.cells };
+
+        for (let r = minR; r <= maxR; r++) {
+          for (let c = minC; c <= maxC; c++) {
+            const addr = coordinateToAddress({ r, c });
+            const existing = updatedCells[addr] || { v: null };
+            const existingStyle = existing.s || {};
+            const existingBorder = existingStyle.border ? { ...existingStyle.border } : {};
+
+            let newBorder: CellBorder | undefined;
+
+            if (command.borderType === 'none') {
+              newBorder = undefined;
+            } else if (command.borderType === 'all') {
+              newBorder = {
+                bottom: edge,
+                right: edge,
+                color,
+                style,
+              };
+              if (r === minR) newBorder.top = edge;
+              if (c === minC) newBorder.left = edge;
+            } else {
+              newBorder = { ...existingBorder, color, style };
+
+              if (command.borderType === 'inner') {
+                if (r < maxR) {
+                  newBorder.bottom = edge;
+                }
+                if (r > minR) {
+                  delete newBorder.top;
+                }
+                if (c < maxC) {
+                  newBorder.right = edge;
+                }
+                if (c > minC) {
+                  delete newBorder.left;
+                }
+              } else if (command.borderType === 'horizontal') {
+                if (r < maxR) {
+                  newBorder.bottom = edge;
+                }
+                if (r > minR) {
+                  delete newBorder.top;
+                }
+              } else if (command.borderType === 'vertical') {
+                if (c < maxC) {
+                  newBorder.right = edge;
+                }
+                if (c > minC) {
+                  delete newBorder.left;
+                }
+              } else if (command.borderType === 'outer') {
+                if (r === minR) newBorder.top = edge;
+                if (r === maxR) newBorder.bottom = edge;
+                if (c === minC) newBorder.left = edge;
+                if (c === maxC) newBorder.right = edge;
+              } else if (command.borderType === 'left') {
+                if (c === minC) newBorder.left = edge;
+              } else if (command.borderType === 'top') {
+                if (r === minR) newBorder.top = edge;
+              } else if (command.borderType === 'right') {
+                if (c === maxC) newBorder.right = edge;
+              } else if (command.borderType === 'bottom') {
+                if (r === maxR) newBorder.bottom = edge;
+              }
+            }
+
+            const nextStyle = { ...existingStyle };
+            if (newBorder === undefined) {
+              delete nextStyle.border;
+            } else {
+              nextStyle.border = newBorder;
+            }
+
+            updatedCells[addr] = {
+              ...existing,
+              s: nextStyle,
+            };
+            modifiedCells.push(addr);
+          }
         }
 
         currentWb.sheets[targetSheetName] = {

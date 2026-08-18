@@ -6,14 +6,33 @@ export type CellValue = string | number | boolean | Date | null;
 
 export type CellType = 's' | 'n' | 'b' | 'd' | 'e' | 'z'; // string, number, boolean, date, error, blank
 
-export interface CellBorder {
-  top?: boolean;
-  bottom?: boolean;
-  left?: boolean;
-  right?: boolean;
+export type BorderLineStyle = 'thin' | 'medium' | 'thick' | 'double' | 'dashed' | 'dotted';
+
+export interface BorderSide {
+  style?: BorderLineStyle;
   color?: string;
-  style?: 'thin' | 'medium' | 'thick' | 'double' | 'dashed';
 }
+
+export interface CellBorder {
+  top?: BorderSide | boolean;
+  bottom?: BorderSide | boolean;
+  left?: BorderSide | boolean;
+  right?: BorderSide | boolean;
+  color?: string;
+  style?: BorderLineStyle;
+}
+
+export type BorderType =
+  | 'all'
+  | 'inner'
+  | 'horizontal'
+  | 'vertical'
+  | 'outer'
+  | 'left'
+  | 'top'
+  | 'right'
+  | 'bottom'
+  | 'none';
 
 export interface CellStyle {
   bold?: boolean;
@@ -94,6 +113,7 @@ export type SpreadsheetCommand =
   | { type: 'SET_CELL_VALUE'; sheet?: string; cell: string; value: CellValue }
   | { type: 'SET_CELL_FORMULA'; sheet?: string; cell: string; formula: string }
   | { type: 'SET_CELL_STYLE'; sheet?: string; range: string; style: Partial<CellStyle> }
+  | { type: 'APPLY_BORDER'; sheet?: string; range: string; borderType: BorderType; color?: string; style?: BorderLineStyle }
   | { type: 'SET_CELL_FORMAT'; sheet?: string; range: string; numFmt: string }
   | { type: 'SET_RANGE_DATA'; sheet?: string; startCell: string; data: CellValue[][] }
   | { type: 'CLEAR_RANGE'; sheet?: string; range: string; clearStyles?: boolean }

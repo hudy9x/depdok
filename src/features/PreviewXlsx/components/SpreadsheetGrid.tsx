@@ -67,6 +67,38 @@ const DEFAULT_ROW_HEIGHT = 24;
 const HEADER_COL_WIDTH = 46;
 const HEADER_ROW_HEIGHT = 24;
 
+const getBorderCss = (
+  side?: boolean | { style?: string; color?: string },
+  defaultColor?: string,
+  defaultStyle = 'thin'
+): string | undefined => {
+  if (!side) return undefined;
+  const styleType = (typeof side === 'object' ? side.style : undefined) || defaultStyle || 'thin';
+  let color = (typeof side === 'object' ? side.color : undefined) || defaultColor;
+
+  if (!color || color === '#000000' || color === '#000' || color.toLowerCase() === 'black') {
+    color = 'var(--cell-border-solid, currentColor)';
+  }
+
+  let width = '1px';
+  let lineStyle = 'solid';
+  if (styleType === 'medium') {
+    width = '2px';
+  } else if (styleType === 'thick') {
+    width = '3px';
+  } else if (styleType === 'double') {
+    width = '3px';
+    lineStyle = 'double';
+  } else if (styleType === 'dashed') {
+    width = '1px';
+    lineStyle = 'dashed';
+  } else if (styleType === 'dotted') {
+    width = '1px';
+    lineStyle = 'dotted';
+  }
+  return `${width} ${lineStyle} ${color}`;
+};
+
 export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
   sheet,
   selection,
@@ -717,6 +749,14 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
                     const cell = sheet.cells[addr];
                     const displayVal = cell?.w !== undefined ? cell.w : cell?.calculatedValue !== undefined ? String(cell.calculatedValue) : cell?.v !== null && cell?.v !== undefined ? String(cell.v) : '';
                     const style = cell?.s || {};
+                    const border = style.border;
+                    const borderTop = border?.top ? getBorderCss(border.top, border.color, border.style) : undefined;
+                    const borderBottom = border?.bottom ? getBorderCss(border.bottom, border.color, border.style) : undefined;
+                    const borderLeft = border?.left ? getBorderCss(border.left, border.color, border.style) : undefined;
+                    const borderRight = border?.right ? getBorderCss(border.right, border.color, border.style) : undefined;
+                    const hasCustomBorder = Boolean(borderTop || borderBottom || borderLeft || borderRight);
+                    const hasBgColor = Boolean(style.bgColor && style.bgColor !== 'transparent');
+                    const cellTextColor = style.color ? style.color : hasBgColor ? '#000000' : 'inherit';
 
                     return (
                       <div
@@ -733,8 +773,13 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
                           textDecoration: style.underline ? 'underline' : style.strike ? 'line-through' : 'none',
                           textAlign: style.align || 'left',
                           backgroundColor: style.bgColor || 'var(--cell-bg)',
-                          color: style.color || 'inherit',
+                          color: cellTextColor,
                           fontSize: style.fontSize ? `${style.fontSize}px` : '12px',
+                          borderTop,
+                          borderBottom,
+                          borderLeft,
+                          borderRight,
+                          zIndex: hasCustomBorder ? 1 : undefined,
                         }}
                         className={cn(
                           'depdok-grid-cell flex items-center shrink-0 cursor-cell',

@@ -11,15 +11,16 @@ import {
   Redo2,
   DollarSign,
   Percent,
-  Sparkles,
   Palette,
   Check,
   ChevronDown,
   MoreHorizontal,
   Type,
 } from 'lucide-react';
-import { CellStyle } from '../core/types';
+import { CellStyle, BorderLineStyle, BorderType } from '../core/types';
 import { cn } from '@/lib/utils';
+import { BorderPicker } from './BorderPicker';
+import { FillColorPicker } from './FillColorPicker';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -39,6 +40,7 @@ interface ToolbarProps {
   activeNumFmt?: string;
   onApplyStyle: (style: Partial<CellStyle>) => void;
   onApplyFormat: (numFmt: string) => void;
+  onApplyBorder?: (type: BorderType, color?: string, style?: BorderLineStyle) => void;
 }
 
 const COLOR_PALETTE = [
@@ -57,6 +59,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   activeNumFmt = 'General',
   onApplyStyle,
   onApplyFormat,
+  onApplyBorder,
 }) => {
   const currentAlignIcon = () => {
     if (activeStyle.align === 'center') return <AlignCenter className="w-3.5 h-3.5" />;
@@ -292,28 +295,38 @@ export const Toolbar: React.FC<ToolbarProps> = ({
           </DropdownMenu>
 
           {/* Background / Fill Color Picker */}
+          <FillColorPicker
+            currentColor={activeStyle.bgColor}
+            onApplyBgColor={(bgColor) => onApplyStyle({ bgColor })}
+          />
+
+          {/* Border Picker */}
+          {onApplyBorder && (
+            <BorderPicker onApplyBorder={onApplyBorder} />
+          )}
+        </div>
+
+        {/* Colors - Collapsed View (< 600px) */}
+        <div className="colors-collapsed items-center gap-0.5 shrink-0">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
                 type="button"
-                title="Fill Color"
-                className="flex items-center justify-center p-1.5 rounded hover:bg-muted/70 relative cursor-pointer"
+                title="Text Color"
+                className="flex items-center gap-0.5 p-1.5 rounded hover:bg-muted/70 relative cursor-pointer"
               >
-                <Sparkles className="w-3.5 h-3.5" />
-                <span
-                  className="absolute bottom-1 left-1.5 right-1.5 h-0.5"
-                  style={{ backgroundColor: activeStyle.bgColor || '#ffffff' }}
-                />
+                <Palette className="w-3.5 h-3.5 text-primary" />
+                <ChevronDown className="w-2.5 h-2.5 opacity-60" />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="p-2 w-44 z-[9999]">
-              <div className="text-[11px] font-semibold text-muted-foreground mb-1">Fill Color</div>
+            <DropdownMenuContent className="w-48 p-2 text-xs z-[9999]">
+              <div className="text-[11px] font-semibold text-muted-foreground mb-1">Text Color</div>
               <div className="grid grid-cols-5 gap-1">
                 {COLOR_PALETTE.map((c) => (
                   <button
                     key={c}
                     type="button"
-                    onClick={() => onApplyStyle({ bgColor: c })}
+                    onClick={() => onApplyStyle({ color: c })}
                     className="w-6 h-6 rounded border border-border/80 hover:scale-110 transition-transform"
                     style={{ backgroundColor: c }}
                   />
@@ -321,63 +334,17 @@ export const Toolbar: React.FC<ToolbarProps> = ({
               </div>
             </DropdownMenuContent>
           </DropdownMenu>
-        </div>
 
-        {/* Colors - Collapsed View (< 600px) */}
-        <div className="colors-collapsed items-center shrink-0">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                type="button"
-                title="Text & Fill Colors"
-                className="flex items-center gap-0.5 p-1.5 rounded hover:bg-muted/70 relative cursor-pointer"
-              >
-                <Palette className="w-3.5 h-3.5 text-primary" />
-                <ChevronDown className="w-2.5 h-2.5 opacity-60" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-48 p-1 text-xs z-[9999]">
-              <DropdownMenuSub>
-                <DropdownMenuSubTrigger className="gap-2">
-                  <span className="font-bold text-xs" style={{ color: activeStyle.color || 'currentColor' }}>A</span>
-                  <span>Text Color</span>
-                </DropdownMenuSubTrigger>
-                <DropdownMenuSubContent className="p-2 w-44 z-[9999]">
-                  <div className="grid grid-cols-5 gap-1">
-                    {COLOR_PALETTE.map((c) => (
-                      <button
-                        key={c}
-                        type="button"
-                        onClick={() => onApplyStyle({ color: c })}
-                        className="w-6 h-6 rounded border border-border/80 hover:scale-110 transition-transform"
-                        style={{ backgroundColor: c }}
-                      />
-                    ))}
-                  </div>
-                </DropdownMenuSubContent>
-              </DropdownMenuSub>
+          {/* Background / Fill Color Picker */}
+          <FillColorPicker
+            currentColor={activeStyle.bgColor}
+            onApplyBgColor={(bgColor) => onApplyStyle({ bgColor })}
+          />
 
-              <DropdownMenuSub>
-                <DropdownMenuSubTrigger className="gap-2">
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>Fill Color</span>
-                </DropdownMenuSubTrigger>
-                <DropdownMenuSubContent className="p-2 w-44 z-[9999]">
-                  <div className="grid grid-cols-5 gap-1">
-                    {COLOR_PALETTE.map((c) => (
-                      <button
-                        key={c}
-                        type="button"
-                        onClick={() => onApplyStyle({ bgColor: c })}
-                        className="w-6 h-6 rounded border border-border/80 hover:scale-110 transition-transform"
-                        style={{ backgroundColor: c }}
-                      />
-                    ))}
-                  </div>
-                </DropdownMenuSubContent>
-              </DropdownMenuSub>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {/* Border Picker */}
+          {onApplyBorder && (
+            <BorderPicker onApplyBorder={onApplyBorder} />
+          )}
         </div>
 
         <div className="h-4 w-px bg-border/80 mx-0.5 shrink-0 toolbar-divider-align" />

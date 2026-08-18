@@ -151,13 +151,17 @@ export const CellEditor: React.FC<CellEditorProps> = ({
             onCommit();
           }
         }}
-        className="w-full h-full px-1.5 py-0 border-none outline-none bg-background text-foreground text-xs leading-none"
+        className={cn(
+          'w-full h-full px-1.5 py-0 border-none outline-none text-xs leading-none',
+          style.bgColor && style.bgColor !== 'transparent' ? '' : 'bg-background text-foreground'
+        )}
         style={{
           fontWeight: style.bold ? 'bold' : 'normal',
           fontStyle: style.italic ? 'italic' : 'normal',
           textDecoration: style.underline ? 'underline' : style.strike ? 'line-through' : 'none',
           textAlign: style.align || 'left',
-          color: style.color || 'inherit',
+          backgroundColor: style.bgColor || 'var(--background)',
+          color: style.color ? style.color : (style.bgColor && style.bgColor !== 'transparent') ? '#000000' : 'inherit',
           fontSize: style.fontSize ? `${style.fontSize}px` : '12px',
           fontFamily: style.fontFamily || 'inherit',
         }}

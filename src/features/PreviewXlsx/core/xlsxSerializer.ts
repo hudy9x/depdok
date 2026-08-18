@@ -331,6 +331,25 @@ function parseSheetJsStyle(s: any): CellStyle | undefined {
     if (s.alignment.wrapText) style.wrapText = true;
   }
 
+  if (s.border) {
+    const parseSide = (side: any) => {
+      if (!side) return undefined;
+      const color = side.color?.rgb ? `#${side.color.rgb}` : undefined;
+      const borderStyle = side.style || 'thin';
+      return { style: borderStyle, color };
+    };
+
+    const border: any = {};
+    if (s.border.top) border.top = parseSide(s.border.top);
+    if (s.border.bottom) border.bottom = parseSide(s.border.bottom);
+    if (s.border.left) border.left = parseSide(s.border.left);
+    if (s.border.right) border.right = parseSide(s.border.right);
+
+    if (Object.keys(border).length > 0) {
+      style.border = border;
+    }
+  }
+
   return Object.keys(style).length > 0 ? style : undefined;
 }
 
@@ -361,6 +380,24 @@ function serializeSheetJsStyle(style: CellStyle): any {
     if (style.align) s.alignment.horizontal = style.align;
     if (style.valign) s.alignment.vertical = style.valign;
     if (style.wrapText) s.alignment.wrapText = true;
+  }
+
+  if (style.border) {
+    const serializeSide = (side: any) => {
+      if (!side) return undefined;
+      const styleVal = (typeof side === 'object' ? side.style : undefined) || style.border?.style || 'thin';
+      const colorVal = (typeof side === 'object' ? side.color : undefined) || style.border?.color || '#000000';
+      return {
+        style: styleVal,
+        color: { rgb: colorVal.replace(/^#/, '') },
+      };
+    };
+
+    s.border = {};
+    if (style.border.top) s.border.top = serializeSide(style.border.top);
+    if (style.border.bottom) s.border.bottom = serializeSide(style.border.bottom);
+    if (style.border.left) s.border.left = serializeSide(style.border.left);
+    if (style.border.right) s.border.right = serializeSide(style.border.right);
   }
 
   return s;

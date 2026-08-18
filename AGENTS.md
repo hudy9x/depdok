@@ -105,6 +105,10 @@ Depdok supports inline Markdown comments using custom Tiptap mark extensions and
 Depdok supports a Microsoft Word-like paginated view mode using a custom, open-source ProseMirror decoration plugin:
 - **Markdown Pagination Architecture & Guide**: Details on the decoration-based plugin (`PaginationExtension`), A4 sheet calculation, page break spacers, adjacent sibling top-margin rules (`.page-break-spacer + *`), gray canvas backdrop, page size modes (`"page"`), and zero-recreation runtime toggling are documented in [docs/markdown-pagination.md](file:///Users/hudy/ws/depdok/docs/markdown-pagination.md).
 
+## Spreadsheet (.xlsx & .csv) Extension
+Depdok features a fully-featured, Excel-like spreadsheet viewer and editor with a reactive UI, formula engine, and headless SDK:
+- **Spreadsheet Architecture & Feature Guide**: Details on binary XLSX / CSV parsing and serialization, formula engine (`formulaEngine.ts`), number formatting (`numberFormatter.ts`), command-driven `SpreadsheetSDK`, interactive virtualized grid (`SpreadsheetGrid.tsx`), column/row/cell context menus, and disk persistence are documented in [docs/spreadsheet-xlsx-csv.md](file:///Users/hudy/ws/depdok/docs/spreadsheet-xlsx-csv.md).
+
 ## Tooling rules
 - Cursor / Copilot rules: no `.cursor` or `.cursorrules` and no `.github/copilot-instructions.md` were found in repo — none to enforce.
 

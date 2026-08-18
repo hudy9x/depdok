@@ -10,6 +10,7 @@ import {
   EyeOff,
   Link as LinkIcon,
   Calendar,
+  Clock,
   Type,
   Hash,
   DollarSign,
@@ -336,13 +337,17 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
     }
   };
 
-  const handleApplyCellFormat = (formatKey: 'number' | 'text' | 'date' | 'link' | 'currency' | 'percent') => {
+  const handleApplyCellFormat = (formatKey: 'number' | 'text' | 'date' | 'datetime' | 'time' | 'link' | 'currency' | 'percent') => {
     if (formatKey === 'number') {
       onApplyFormat?.('0.00');
     } else if (formatKey === 'text') {
       onApplyFormat?.('@');
     } else if (formatKey === 'date') {
       onApplyFormat?.('YYYY-MM-DD');
+    } else if (formatKey === 'datetime') {
+      onApplyFormat?.('YYYY-MM-DD HH:mm:ss');
+    } else if (formatKey === 'time') {
+      onApplyFormat?.('HH:mm:ss');
     } else if (formatKey === 'currency') {
       onApplyFormat?.('$#,##0.00');
     } else if (formatKey === 'percent') {
@@ -781,7 +786,7 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
                 <Type className="w-3.5 h-3.5" />
                 <span>Format cells</span>
               </ContextMenuSubTrigger>
-              <ContextMenuSubContent className="w-44 text-xs">
+              <ContextMenuSubContent className="w-52 text-xs">
                 <ContextMenuItem onClick={() => handleApplyCellFormat('number')} className="gap-2">
                   <Hash className="w-3.5 h-3.5" />
                   <span>Number (0.00)</span>
@@ -793,6 +798,14 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
                 <ContextMenuItem onClick={() => handleApplyCellFormat('date')} className="gap-2">
                   <Calendar className="w-3.5 h-3.5" />
                   <span>Date (YYYY-MM-DD)</span>
+                </ContextMenuItem>
+                <ContextMenuItem onClick={() => handleApplyCellFormat('datetime')} className="gap-2">
+                  <Calendar className="w-3.5 h-3.5" />
+                  <span>Date Time (YYYY-MM-DD HH:mm:ss)</span>
+                </ContextMenuItem>
+                <ContextMenuItem onClick={() => handleApplyCellFormat('time')} className="gap-2">
+                  <Clock className="w-3.5 h-3.5" />
+                  <span>Time (HH:mm:ss)</span>
                 </ContextMenuItem>
                 <ContextMenuItem onClick={() => handleApplyCellFormat('link')} className="gap-2">
                   <LinkIcon className="w-3.5 h-3.5" />
@@ -834,6 +847,7 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
             initialValue={editValue}
             position={activeEditorPosition}
             style={activeCellModel?.s}
+            numFmt={activeCellModel?.numFmt}
             onChange={onEditChange}
             onCommit={onCommitEdit}
             onCancel={onCancelEdit}

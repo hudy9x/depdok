@@ -421,11 +421,6 @@ export const XlsxPreview: React.FC<XlsxPreviewProps> = ({
         activeNumFmt={activeCellModel?.numFmt}
         onApplyStyle={handleApplyStyle}
         onApplyFormat={handleApplyFormat}
-        onClear={handleClearSelection}
-        onInsertRow={handleInsertRow}
-        onDeleteRow={handleDeleteRow}
-        onInsertCol={handleInsertCol}
-        onDeleteCol={handleDeleteCol}
       />
 
       {/* Excel Formula Bar */}

@@ -8,6 +8,7 @@ interface CustomScrollerProps extends React.HTMLAttributes<HTMLDivElement> {
   contentClassName?: string;
   children: React.ReactNode;
   'data-tauri-drag-region'?: boolean | string;
+  viewportRef?: React.Ref<HTMLDivElement>;
 }
 
 /**
@@ -32,11 +33,24 @@ export function CustomScroller({
   contentClassName,
   children,
   'data-tauri-drag-region': dataTauriDragRegion,
+  viewportRef,
   ...rest
 }: CustomScrollerProps) {
-  const contentRef = useRef<HTMLDivElement>(null);
-  const thumbRef = useRef<HTMLDivElement>(null);
-  const trackRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement | null>(null);
+  const thumbRef = useRef<HTMLDivElement | null>(null);
+  const trackRef = useRef<HTMLDivElement | null>(null);
+
+  const setContentRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      contentRef.current = node;
+      if (typeof viewportRef === 'function') {
+        viewportRef(node);
+      } else if (viewportRef && 'current' in viewportRef) {
+        (viewportRef as { current: HTMLDivElement | null }).current = node;
+      }
+    },
+    [viewportRef],
+  );
 
   const isDragging = useRef(false);
   const dragStartPos = useRef(0);
@@ -197,7 +211,7 @@ export function CustomScroller({
     >
       {/* ── Content child ─────────────────────────────────────────────── */}
       <div
-        ref={contentRef}
+        ref={setContentRef}
         data-custom-scroller-content
         data-tauri-drag-region={dataTauriDragRegion}
         className={cn(

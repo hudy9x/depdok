@@ -27,14 +27,15 @@ import {
   ContextMenuSubTrigger,
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
-import { CellCoordinate, CellStyle, RangeSelection, SheetModel } from '../core/types';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { cn } from '@/lib/utils';
 import {
   coordinateToAddress,
   indexToColumn,
   normalizeRange,
 } from '../core/numberFormatter';
+import { CellCoordinate, CellStyle, RangeSelection, SheetModel } from '../core/types';
 import { CellEditor } from './CellEditor';
-import { cn } from '@/lib/utils';
 
 interface SpreadsheetGridProps {
   sheet: SheetModel;
@@ -577,11 +578,11 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
   const activeCellModel = sheet.cells[activeCellAddr];
 
   return (
-    <div
-      ref={containerRef}
+    <ScrollArea
+      viewportRef={containerRef}
       tabIndex={0}
       onKeyDown={handleKeyDown}
-      className="relative flex-1 w-full h-full overflow-auto outline-none bg-background select-none depdok-spreadsheet depdok-spreadsheet-grid"
+      className="relative flex-1 w-full h-full outline-none bg-background select-none depdok-spreadsheet depdok-spreadsheet-grid"
     >
       <ContextMenu>
         <ContextMenuTrigger asChild>
@@ -925,6 +926,6 @@ export const SpreadsheetGrid: React.FC<SpreadsheetGridProps> = ({
           )}
         </ContextMenuContent>
       </ContextMenu>
-    </div>
+    </ScrollArea>
   );
 };

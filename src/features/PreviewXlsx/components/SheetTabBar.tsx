@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Plus, MoreVertical, Copy, Trash2, Edit3 } from 'lucide-react';
+import { CustomScroller } from '@/components/CustomScroller';
 import { cn } from '@/lib/utils';
 import {
   DropdownMenu,
@@ -57,7 +58,7 @@ export const SheetTabBar: React.FC<SheetTabBarProps> = ({
   };
 
   return (
-    <div className="flex items-center h-8 bg-muted/30 border-t border-border/70 px-2 gap-1 select-none overflow-x-auto text-xs">
+    <div className="flex items-center h-8 bg-muted/30 border-t border-border/70 px-2 gap-1 select-none text-xs">
       {/* Add Sheet Button */}
       <button
         type="button"
@@ -71,7 +72,8 @@ export const SheetTabBar: React.FC<SheetTabBarProps> = ({
       <div className="h-4 w-px bg-border/80 mx-1 shrink-0" />
 
       {/* Sheet Tabs List */}
-      <div className="flex items-center gap-1 overflow-x-auto py-0.5">
+      <CustomScroller orientation="horizontal" className="h-full flex-1 min-w-0">
+        <div className="flex items-center gap-1 h-full min-w-full w-max py-0.5">
         {sheetNames.map((name) => {
           const isActive = name === activeSheet;
           const isRenaming = renamingSheet === name;
@@ -180,7 +182,8 @@ export const SheetTabBar: React.FC<SheetTabBarProps> = ({
             </ContextMenu>
           );
         })}
-      </div>
+        </div>
+      </CustomScroller>
     </div>
   );
 };

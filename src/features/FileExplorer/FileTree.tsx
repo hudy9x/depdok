@@ -12,9 +12,10 @@ import { activeTabAtom } from '@/stores/TabStore';
 
 interface FileTreeProps {
   onFileOpen: (filePath: string, options?: { isPreview?: boolean; isAltClick?: boolean }) => void;
+  customScrollParent?: HTMLElement;
 }
 
-export function FileTree({ onFileOpen }: FileTreeProps) {
+export function FileTree({ onFileOpen, customScrollParent }: FileTreeProps) {
   const flatTree = useAtomValue(flattenedTreeAtom);
   const selectedPaths = useAtomValue(selectedPathsAtom);
   const virtuosoRef = useRef<VirtuosoHandle>(null);
@@ -81,6 +82,7 @@ export function FileTree({ onFileOpen }: FileTreeProps) {
   return (
     <Virtuoso
       ref={virtuosoRef}
+      customScrollParent={customScrollParent}
       style={{ height: '100%' }}
       totalCount={flatTree.length}
       itemContent={(index) => {

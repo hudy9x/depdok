@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { useAtomValue, useSetAtom } from 'jotai';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { CustomScroller } from '@/components/CustomScroller';
 import { createTabAtom } from '@/stores/TabStore';
 import { splitPaneAtom, activePaneIdAtom } from '@/stores/PaneStore';
 import { FileTree } from './FileTree';
@@ -17,6 +19,7 @@ export function ExplorerView() {
   const splitPane = useSetAtom(splitPaneAtom);
   const activePaneId = useAtomValue(activePaneIdAtom);
   const navigate = useNavigate();
+  const [scrollParent, setScrollParent] = useState<HTMLElement | null>(null);
 
   const handleFileOpen = (filePath: string, options?: { isPreview?: boolean; isAltClick?: boolean }) => {
     const fileName = filePath.split(/[/\\]/).pop() || 'Untitled';
@@ -39,9 +42,16 @@ export function ExplorerView() {
   return (
     <div className="flex-1 flex flex-col min-h-0">
       <ExplorerHeader />
-      <div className="flex-1 min-h-0">
-        <FileTree onFileOpen={handleFileOpen} />
-      </div>
+      <CustomScroller
+        orientation="vertical"
+        className="flex-1 min-h-0"
+        viewportRef={setScrollParent}
+      >
+        <FileTree
+          onFileOpen={handleFileOpen}
+          customScrollParent={scrollParent || undefined}
+        />
+      </CustomScroller>
       <ExplorerFooter />
     </div>
   );

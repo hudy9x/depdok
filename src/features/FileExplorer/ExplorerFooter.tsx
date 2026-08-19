@@ -16,7 +16,7 @@ export function ExplorerFooter() {
   const [showSettings, setShowSettings] = useState(false);
 
   return (
-    <div className="flex items-center justify-between px-2 py-1.5 border-t border-border/40 bg-layout-chrome flex-shrink-0 select-none">
+    <div className="flex items-center justify-between px-2 pt-1.5 pb-2.5 border-t border-border/40 bg-layout-chrome flex-shrink-0 select-none">
       <div className="flex items-center gap-1">
         {/* Upgrade to Pro (icon) */}
         <Button
@@ -35,11 +35,10 @@ export function ExplorerFooter() {
           data-tauri-drag-region="false"
           variant="ghost"
           size="icon"
-          className={`h-7 w-7 cursor-pointer transition-colors ${
-            isTerminalOpen
-              ? 'text-primary hover:text-primary'
-              : 'text-muted-foreground hover:text-foreground'
-          }`}
+          className={`h-7 w-7 cursor-pointer transition-colors ${isTerminalOpen
+            ? 'text-primary hover:text-primary'
+            : 'text-muted-foreground hover:text-foreground'
+            }`}
           onClick={() => setIsTerminalOpen(!isTerminalOpen)}
           title={`${isTerminalOpen ? 'Hide' : 'Show'} Terminal (Ctrl+\`)`}
         >

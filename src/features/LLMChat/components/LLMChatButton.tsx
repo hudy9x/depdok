@@ -1,5 +1,4 @@
 import { useAtom } from "jotai";
-import { VscChatSparkle } from "react-icons/vsc";
 import { HiOutlineChatBubbleBottomCenterText } from "react-icons/hi2";
 
 import { Button } from "@/components/ui/button";

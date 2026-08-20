@@ -20,6 +20,7 @@ import { refreshLicenseStatusAtom } from './stores/license';
 import { useSyncRecentFoldersToDock } from './hooks/useSyncRecentFoldersToDock';
 import { useProjectStateSync } from './hooks/useProjectStateSync';
 import { LLMChatPanel } from './features/LLMChat';
+import { LLMChat2Panel } from './features/LLMChat2';
 
 function LayoutRoute() {
   return (
@@ -60,6 +61,7 @@ function App() {
             <Toaster position="bottom-right" richColors />
             <LicensePopover />
             <LLMChatPanel />
+            <LLMChat2Panel />
             <Routes>
               <Route path="/home" element={<Home />} />
               <Route path="/onboarding" element={<Onboarding />} />

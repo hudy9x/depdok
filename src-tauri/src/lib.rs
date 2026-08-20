@@ -483,6 +483,7 @@ mod keychain;
 mod knowledge_base;
 pub mod mcp_server;
 mod llm;
+mod llm2;
 #[cfg(target_os = "macos")]
 mod dock;
 
@@ -856,6 +857,9 @@ pub fn run() {
             // Initialize LLM state
             app.manage(llm::LlmState::new());
 
+            // Initialize LLM2 PendingRequests
+            app.manage(llm2::PendingRequests::new());
+
             // Initialize knowledge base (SQLite + embedding model)
             match knowledge_base::init_knowledge_base(app.handle()) {
                 Ok((kb_state, embedder_state)) => {
@@ -1070,6 +1074,8 @@ pub fn run() {
             llm::settings::get_llm_models_dir,
             llm::commands::grammar_correct_text,
             llm::commands::edit_text_with_ai,
+            llm2::commands::llm2_send_message,
+            llm2::commands::llm2_tool_result,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

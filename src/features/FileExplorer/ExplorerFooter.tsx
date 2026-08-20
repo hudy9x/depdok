@@ -9,6 +9,7 @@ import { licensePopoverOpenAtom } from '@/stores/license-popover';
 import { isLicensedAtom } from '@/stores/license';
 import { isTerminalOpenAtom, setIsTerminalOpenAtom } from '@/stores/TerminalStore';
 import { LLMChatButton } from '@/features/LLMChat';
+import { LLMChat2Button } from '@/features/LLMChat2';
 import { SettingsDialog } from '@/features/SettingsDialog';
 
 export function ExplorerFooter() {
@@ -56,9 +57,14 @@ export function ExplorerFooter() {
           )}
         </Button>
 
-        {/* AI Chat */}
+        {/* AI Chat v1 */}
         <div data-tauri-drag-region="false">
           <LLMChatButton />
+        </div>
+
+        {/* AI Chat v2 (Rig Tool Calling) */}
+        <div data-tauri-drag-region="false">
+          <LLMChat2Button />
         </div>
       </div>
 

@@ -10,7 +10,8 @@ use super::tools::{
   CreateFolderArgs, CreateFolderTool, DeleteFileOrFolderArgs, DeleteFileOrFolderTool,
   GenerateContentArgs, GenerateContentTool, GetUserAgeArgs, GetUserAgeTool,
   GetUserCountryArgs, GetUserCountryTool, GetUserDobArgs, GetUserDobTool,
-  GetUserNameArgs, GetUserNameTool, ReadMarkdownArgs, ReadMarkdownTool,
+  GetUserNameArgs, GetUserNameTool, ListFilesArgs, ListFilesTool,
+  MoveFilesOrFoldersArgs, MoveFilesOrFoldersTool, ReadMarkdownArgs, ReadMarkdownTool,
   RenameFileArgs, RenameFileTool, RenameFolderArgs, RenameFolderTool,
   SumFourDigitsArgs, SumFourDigitsTool, UpsertMarkdownArgs,
   UpsertMarkdownSectionArgs, UpsertMarkdownSectionTool, UpsertMarkdownTool,
@@ -25,29 +26,15 @@ You operate in a Dual-Model Specialization architecture:
 - You (qwen2.5:7b) are the Tool & Orchestration Specialist: fast intent recognition, accurate tool calls, and structured workflow management.
 - You have access to 'generate_content', which delegates long-form Markdown prose, creative writing, in-depth reports, tutorials, and editorial review to the Content Specialist (gemma2:9b).
 
-Available tools:
-- 'read_markdown': Read the content of a markdown file or active open document (returns content, headings outline, word count, and comments).
-- 'upsert_markdown': Create, overwrite, or update the full content of a markdown file.
-- 'upsert_markdown_section': Surgically update an existing section or append a new section by heading name (e.g. 'Conclusion') or target text snippet without affecting the rest of the document.
-- 'add_markdown_comment': Add an inline review comment on a specific text excerpt in a markdown file.
-- 'generate_content': Delegate rich, creative, or long-form Markdown generation to the Content Specialist model (gemma2:9b).
-- 'create_file': Create a new file with optional content (e.g. 'notes.md', 'plan.txt').
-- 'create_folder': Create a new folder (e.g. 'docs', 'src/components').
-- 'rename_file': Rename an existing file (e.g. old_path: 'old.md', new_name: 'new.md').
-- 'rename_folder': Rename an existing folder (e.g. old_path: 'old_folder', new_name: 'new_folder').
-- 'delete_file_or_folder': Delete a file or folder from the workspace.
-- 'get_user_name': Look up user name by ID.
-- 'get_user_age': Get user's age by name.
-- 'get_user_country': Get user's country by name.
-- 'get_user_dob': Get user's date of birth by name.
-- 'sum_four_digits': Sum 4 numbers.
-
 IMPORTANT RULES:
 - When asked to draft, write, or expand rich markdown articles, tutorials, or deep reviews, invoke 'generate_content' to leverage gemma2:9b.
 - When asked to review, inspect, or summarize an active markdown file, call 'read_markdown' first.
 - When asked to add or update a section (e.g. 'Add Conclusion in test.md'), call 'upsert_markdown_section'.
+- When asked what files exist or to inspect folder structure, invoke 'list_files'.
+- When asked to move, relocate, or cut/paste files, invoke 'move_files_or_folders'.
 - When a user mentions a file using '@' (e.g. '@notes.md' or '@docs/guide.md'), use that path in your tool calls.
 - Once all tool results are provided, synthesize a clear, helpful final response.";
+
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OllamaToolCall {
@@ -93,8 +80,11 @@ pub async fn prompt_agent(
   let rename_file_tool = RenameFileTool { app: app.clone(), pending: pending.clone() };
   let rename_folder_tool = RenameFolderTool { app: app.clone(), pending: pending.clone() };
   let delete_tool = DeleteFileOrFolderTool { app: app.clone(), pending: pending.clone() };
+  let move_tool = MoveFilesOrFoldersTool { app: app.clone(), pending: pending.clone() };
+  let list_files_tool = ListFilesTool { app: app.clone(), pending: pending.clone() };
 
   let read_markdown_tool = ReadMarkdownTool { app: app.clone(), pending: pending.clone() };
+
   let upsert_markdown_tool = UpsertMarkdownTool { app: app.clone(), pending: pending.clone() };
   let upsert_markdown_section_tool = UpsertMarkdownSectionTool { app: app.clone(), pending: pending.clone() };
   let add_markdown_comment_tool = AddMarkdownCommentTool { app: app.clone(), pending: pending.clone() };
@@ -267,7 +257,58 @@ pub async fn prompt_agent(
     {
       "type": "function",
       "function": {
+        "name": "move_files_or_folders",
+        "description": "Move or cut one or more files and/or folders to a destination folder in the workspace.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "paths": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "List of file or folder paths to move"
+            },
+            "destination_folder": {
+              "type": "string",
+              "description": "Target destination folder path (e.g. 'archive' or 'src/components')"
+            }
+          },
+          "required": ["paths", "destination_folder"]
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "list_files",
+        "description": "List or recursively traverse files and directories in the workspace or a specific folder. Returns file tree and relative paths.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "type": "string",
+              "description": "Optional folder path to inspect (defaults to active workspace root if omitted)"
+            },
+            "recursive": {
+              "type": "boolean",
+              "description": "Whether to recursively list all subfolders (default false)"
+            },
+            "max_depth": {
+              "type": "integer",
+              "description": "Maximum depth for recursive traversal (default 4)"
+            },
+            "include_hidden": {
+              "type": "boolean",
+              "description": "Whether to include hidden or system files/folders (default false)"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
         "name": "read_markdown",
+
         "description": "Read the content of a Markdown file (or active open document if path omitted or set to 'active'). Returns document text, heading outline (# H1, ## H2), word count, and existing comments.",
         "parameters": {
           "type": "object",
@@ -343,6 +384,17 @@ pub async fn prompt_agent(
 
   let mut accumulated_final_text = String::new();
 
+  let tool_names: Vec<String> = tools_schema
+    .as_array()
+    .map(|arr| {
+      arr
+        .iter()
+        .filter_map(|t| t.get("function").and_then(|f| f.get("name")).and_then(|n| n.as_str()))
+        .map(|s| s.to_string())
+        .collect()
+    })
+    .unwrap_or_default();
+
   // Multi-turn streaming resolution loop
   for turn in 0..6 {
     let request_body = json!({
@@ -350,16 +402,22 @@ pub async fn prompt_agent(
       "messages": history,
       "tools": tools_schema,
       "stream": true,
+      "options": {
+        "num_ctx": 16384,
+        "temperature": 0.2
+      }
     });
 
     println!("\n════════════════════ [llm2][turn {}] REQUEST TO OLLAMA ════════════════════", turn);
-    println!("Model: {}", model_to_use);
-    if let Ok(pretty_req) = serde_json::to_string_pretty(&request_body) {
-      println!("Payload:\n{}", pretty_req);
+    println!("1. Model: {}", model_to_use);
+    println!("2. Tools ({}): {}", tool_names.len(), tool_names.join(", "));
+    if let Ok(pretty_messages) = serde_json::to_string_pretty(&history) {
+      println!("3. Messages:\n{}", pretty_messages);
     } else {
-      println!("Payload: {:?}", request_body);
+      println!("3. Messages: {:?}", history);
     }
     println!("────────────────────────────────────────────────────────────────────────────");
+
 
     let response = client
       .post("http://localhost:11434/api/chat")
@@ -553,7 +611,18 @@ pub async fn prompt_agent(
               .map_err(|e| e.to_string())?;
             delete_tool.call(args).await.map_err(|e| e.to_string())?
           }
+          "move_files_or_folders" | "move_file_or_folder" | "move_files" | "cut_and_move" => {
+            let args: MoveFilesOrFoldersArgs = serde_json::from_value(call_args)
+              .map_err(|e| e.to_string())?;
+            move_tool.call(args).await.map_err(|e| e.to_string())?
+          }
+          "list_files" | "list_directory" | "traverse_directory" => {
+            let args: ListFilesArgs = serde_json::from_value(call_args)
+              .map_err(|e| e.to_string())?;
+            list_files_tool.call(args).await.map_err(|e| e.to_string())?
+          }
           "read_markdown" => {
+
             let args: ReadMarkdownArgs = serde_json::from_value(call_args)
               .map_err(|e| e.to_string())?;
             read_markdown_tool.call(args).await.map_err(|e| e.to_string())?

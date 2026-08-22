@@ -13,6 +13,8 @@ import {
   renameFileTool,
   renameFolderTool,
   deleteFileOrFolderTool,
+  moveFilesOrFoldersTool,
+  listFilesTool,
   readMarkdownTool,
   upsertMarkdownTool,
   upsertMarkdownSectionTool,
@@ -22,11 +24,14 @@ import {
   RenameFileArgs,
   RenameFolderArgs,
   DeleteFileOrFolderArgs,
+  MoveFilesOrFoldersArgs,
+  ListFilesArgs,
   ReadMarkdownArgs,
   UpsertMarkdownArgs,
   UpsertMarkdownSectionArgs,
   AddMarkdownCommentArgs,
 } from "../tools";
+
 import {
   chat2LogsAtom,
   chat2MessagesAtom,
@@ -172,7 +177,19 @@ export function useToolListener() {
           case "delete_node":
             toolOutput = await deleteFileOrFolderTool(args as unknown as DeleteFileOrFolderArgs);
             break;
+          case "move_files_or_folders":
+          case "move_file_or_folder":
+          case "move_files":
+          case "cut_and_move":
+            toolOutput = await moveFilesOrFoldersTool(args as unknown as MoveFilesOrFoldersArgs);
+            break;
+          case "list_files":
+          case "list_directory":
+          case "traverse_directory":
+            toolOutput = await listFilesTool(args as unknown as ListFilesArgs);
+            break;
           case "read_markdown":
+
             toolOutput = await readMarkdownTool(args as unknown as ReadMarkdownArgs);
             break;
           case "upsert_markdown":

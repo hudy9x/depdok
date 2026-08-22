@@ -276,7 +276,10 @@ Always return JSON-serializable plain objects or primitives (`string`, `number`,
 | `rename_file` | `tools/fileSystem/renameFile.ts` | `tools/file_system.rs:RenameFileTool` | `{ old_path, new_name }` | Renames file, updates active tabs, refreshes tree. |
 | `rename_folder` | `tools/fileSystem/renameFolder.ts` | `tools/file_system.rs:RenameFolderTool` | `{ old_path, new_name }` | Renames folder, updates active tab paths, refreshes tree. |
 | `delete_file_or_folder` | `tools/fileSystem/deleteFileOrFolder.ts` | `tools/file_system.rs:DeleteFileOrFolderTool` | `{ path }` | Deletes file/folder, closes open tabs, refreshes tree. |
+| `move_files_or_folders` | `tools/fileSystem/moveFilesOrFolders.ts` | `tools/file_system.rs:MoveFilesOrFoldersTool` | `{ paths, destination_folder }` | Moves/cuts multiple files & folders, updates tab paths, refreshes tree. |
+| `list_files` | `tools/fileSystem/listFiles.ts` | `tools/file_system.rs:ListFilesTool` | `{ path?, recursive?, max_depth?, include_hidden? }` | Lists or recursively traverses files and directories in workspace. |
 | `get_user_name` | `tools/database/getUserName.ts` | `tools/database.rs:GetUserNameTool` | `{ id }` | Retrieves user name by ID from database. |
+
 | `get_user_age` | `tools/database/getUserAge.ts` | `tools/database.rs:GetUserAgeTool` | `{ name }` | Retrieves user age by name from database. |
 | `get_user_country` | `tools/database/getUserCountry.ts` | `tools/database.rs:GetUserCountryTool` | `{ name }` | Retrieves user country by name from database. |
 | `get_user_dob` | `tools/database/getUserDob.ts` | `tools/database.rs:GetUserDobTool` | `{ name }` | Retrieves user date of birth by name from database. |

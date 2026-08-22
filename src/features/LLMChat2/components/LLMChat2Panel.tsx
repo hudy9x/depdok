@@ -19,6 +19,9 @@ import {
 import { useToolListener } from "../hooks/useToolListener";
 import { FileMentionPopup, MentionItem } from "./FileMentionPopup";
 import { ToolCallCard } from "./ToolCallCard";
+import { QuickPromptChips } from "./QuickPromptChips";
+
+
 
 export function LLMChat2Panel() {
   const [isChatOpen, setIsChatOpen] = useAtom(isChat2OpenAtom);
@@ -228,6 +231,11 @@ export function LLMChat2Panel() {
     }
   };
 
+  const handleSelectPrompt = (promptText: string) => {
+    setInputVal(promptText);
+    inputRef.current?.focus();
+  };
+
   const handleClear = () => {
     setMessages([]);
     clearLogs();
@@ -265,66 +273,63 @@ export function LLMChat2Panel() {
         </div>
 
         <div className="flex items-center gap-1">
-          {/* Tool Monitor Toggle */}
           <Button
             variant="ghost"
             size="icon"
-            className={`h-6 w-6 cursor-pointer transition-colors relative ${
-              showToolDrawer ? "text-sky-500 bg-sky-500/10" : "text-muted-foreground hover:text-foreground"
+            className={`h-7 w-7 rounded-lg text-muted-foreground hover:text-foreground relative ${
+              showToolDrawer ? "bg-muted text-sky-400" : ""
             }`}
-            onClick={() => setShowToolDrawer(!showToolDrawer)}
-            title="Toggle Live Tool Execution Monitor"
+            onClick={() => setShowToolDrawer((prev) => !prev)}
+            title="Toggle tool execution monitor"
           >
-            <Activity className="h-3.5 w-3.5" />
+            <Activity className="h-4 w-4" />
             {logs.length > 0 && (
-              <span className="absolute -top-1 -right-1 text-[8px] font-bold px-1 rounded-full bg-sky-500 text-white leading-tight">
-                {logs.length}
-              </span>
+              <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-sky-500 ring-2 ring-background" />
             )}
           </Button>
 
           <Button
             variant="ghost"
             size="icon"
-            className="h-6 w-6 text-muted-foreground hover:text-foreground cursor-pointer"
+            className="h-7 w-7 rounded-lg text-muted-foreground hover:text-foreground"
             onClick={handleClear}
-            title="Clear conversation and tool logs"
+            title="Clear chat history"
           >
-            <Trash2 className="h-3.5 w-3.5" />
+            <Trash2 className="h-4 w-4" />
           </Button>
 
           <Button
             variant="ghost"
             size="icon"
-            className="h-6 w-6 text-muted-foreground hover:text-foreground cursor-pointer"
+            className="h-7 w-7 rounded-lg text-muted-foreground hover:text-foreground"
             onClick={() => setIsChatOpen(false)}
-            title="Close AI v2 chat"
+            title="Close chat"
           >
-            <X className="h-3.5 w-3.5" />
+            <X className="h-4 w-4" />
           </Button>
         </div>
       </div>
 
-      {/* Tool Execution Monitor Drawer (Collapsible) */}
+      {/* Real-time Tool Execution Drawer (Collapsible) */}
       {showToolDrawer && (
-        <div className="border-b border-border/60 bg-muted/40 max-h-48 overflow-y-auto px-3 py-2 text-xs">
-          <div className="flex items-center justify-between pb-1.5 border-b border-border/30 mb-2">
-            <span className="font-semibold text-muted-foreground flex items-center gap-1 text-[11px]">
-              <Activity className="h-3 w-3 text-sky-500" /> Tool Execution Monitor ({logs.length})
-            </span>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-5 px-1.5 text-[10px] text-muted-foreground hover:text-foreground"
-              onClick={clearLogs}
-            >
-              Clear Logs
-            </Button>
+        <div className="border-b border-border/60 bg-muted/10 p-3 max-h-56 overflow-y-auto space-y-2">
+          <div className="flex items-center justify-between">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+              Tool Monitor ({logs.length})
+            </p>
+            {logs.length > 0 && (
+              <button
+                onClick={clearLogs}
+                className="text-[10px] text-muted-foreground hover:text-destructive transition-colors cursor-pointer"
+              >
+                Clear logs
+              </button>
+            )}
           </div>
 
           {logs.length === 0 ? (
-            <p className="text-[11px] text-muted-foreground py-2 text-center">
-              No tools executed yet. Ask questions that read, update, or create files!
+            <p className="text-xs text-muted-foreground/70 italic py-2 text-center">
+              No tool executions yet. Mention actions like creating files, reading markdown, or asking database queries.
             </p>
           ) : (
             <div className="space-y-1.5">
@@ -352,50 +357,7 @@ export function LLMChat2Panel() {
             </div>
 
             {/* Quick Test Prompt Chips */}
-            <div className="w-full space-y-2 pt-2">
-              <p className="text-[11px] font-medium text-muted-foreground text-left">Try example actions:</p>
-              <div className="flex flex-col gap-1.5">
-                <button
-                  onClick={() => handleSend("Read active markdown and review its structure, grammar, and outline")}
-                  className="text-left px-3 py-2 rounded-lg border border-border/50 bg-muted/20 hover:bg-muted/50 hover:border-sky-500/30 text-xs text-foreground transition-all cursor-pointer flex items-center justify-between group"
-                >
-                  <span>Review active document structure &amp; outline</span>
-                  <span className="text-[10px] text-sky-500 opacity-0 group-hover:opacity-100 transition-opacity">
-                    read_markdown 🔍
-                  </span>
-                </button>
-
-                <button
-                  onClick={() => handleSend("Add the Conclusion section in active markdown with 3 key takeaways")}
-                  className="text-left px-3 py-2 rounded-lg border border-border/50 bg-muted/20 hover:bg-muted/50 hover:border-sky-500/30 text-xs text-foreground transition-all cursor-pointer flex items-center justify-between group"
-                >
-                  <span>Add or update Conclusion section</span>
-                  <span className="text-[10px] text-sky-500 opacity-0 group-hover:opacity-100 transition-opacity">
-                    update_markdown_section ✏️
-                  </span>
-                </button>
-
-                <button
-                  onClick={() => handleSend("Create a file named demo_notes.md with a detailed guide on PlantUML diagrams")}
-                  className="text-left px-3 py-2 rounded-lg border border-border/50 bg-muted/20 hover:bg-muted/50 hover:border-sky-500/30 text-xs text-foreground transition-all cursor-pointer flex items-center justify-between group"
-                >
-                  <span>Create file &apos;demo_notes.md&apos;</span>
-                  <span className="text-[10px] text-sky-500 opacity-0 group-hover:opacity-100 transition-opacity">
-                    create_file 📄
-                  </span>
-                </button>
-
-                <button
-                  onClick={() => handleSend("What is the age, country, and DOB of Alice Smith?")}
-                  className="text-left px-3 py-2 rounded-lg border border-border/50 bg-muted/20 hover:bg-muted/50 hover:border-sky-500/30 text-xs text-foreground transition-all cursor-pointer flex items-center justify-between group"
-                >
-                  <span>Lookup user details for Alice Smith</span>
-                  <span className="text-[10px] text-sky-500 opacity-0 group-hover:opacity-100 transition-opacity">
-                    Parallel tools ⚡
-                  </span>
-                </button>
-              </div>
-            </div>
+            <QuickPromptChips onSelectPrompt={handleSelectPrompt} />
           </div>
         ) : (
           <>

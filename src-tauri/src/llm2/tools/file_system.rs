@@ -197,3 +197,108 @@ impl PortableTool for DeleteFileOrFolderTool {
     call_frontend_tool(&self.app, &self.pending, Self::NAME, args).await
   }
 }
+
+// 11. MoveFilesOrFoldersTool
+#[derive(Clone)]
+pub struct MoveFilesOrFoldersTool {
+  pub app: AppHandle,
+  pub pending: PendingRequests,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct MoveFilesOrFoldersArgs {
+  pub paths: Vec<String>,
+  pub destination_folder: String,
+}
+
+impl PortableTool for MoveFilesOrFoldersTool {
+  const NAME: &'static str = "move_files_or_folders";
+  type Error = ToolBridgeError;
+  type Args = MoveFilesOrFoldersArgs;
+  type Output = serde_json::Value;
+
+  fn description(&self) -> String {
+    "Move or cut one or more files and/or folders to a destination folder in the workspace.".to_string()
+  }
+
+  fn parameters(&self) -> serde_json::Value {
+    json!({
+      "type": "object",
+      "properties": {
+        "paths": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "List of file or directory paths to move"
+        },
+        "destination_folder": {
+          "type": "string",
+          "description": "Target destination folder path (e.g. 'archive' or 'src/components')"
+        }
+      },
+      "required": ["paths", "destination_folder"]
+    })
+  }
+
+  async fn call(&self, args: Self::Args) -> Result<Self::Output, Self::Error> {
+    call_frontend_tool(&self.app, &self.pending, Self::NAME, args).await
+  }
+}
+
+// 12. ListFilesTool
+#[derive(Clone)]
+pub struct ListFilesTool {
+  pub app: AppHandle,
+  pub pending: PendingRequests,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct ListFilesArgs {
+  #[serde(default)]
+  pub path: Option<String>,
+  #[serde(default)]
+  pub recursive: Option<bool>,
+  #[serde(default)]
+  pub max_depth: Option<u32>,
+  #[serde(default)]
+  pub include_hidden: Option<bool>,
+}
+
+impl PortableTool for ListFilesTool {
+  const NAME: &'static str = "list_files";
+  type Error = ToolBridgeError;
+  type Args = ListFilesArgs;
+  type Output = serde_json::Value;
+
+  fn description(&self) -> String {
+    "List or recursively traverse files and directories in the workspace or a specific folder. Returns file tree and relative paths.".to_string()
+  }
+
+  fn parameters(&self) -> serde_json::Value {
+    json!({
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "Optional folder path to inspect (defaults to active workspace root if omitted)"
+        },
+        "recursive": {
+          "type": "boolean",
+          "description": "Whether to recursively list all subfolders (default false)"
+        },
+        "max_depth": {
+          "type": "integer",
+          "description": "Maximum depth for recursive traversal (default 4)"
+        },
+        "include_hidden": {
+          "type": "boolean",
+          "description": "Whether to include hidden or system files/folders (default false)"
+        }
+      }
+    })
+  }
+
+  async fn call(&self, args: Self::Args) -> Result<Self::Output, Self::Error> {
+    call_frontend_tool(&self.app, &self.pending, Self::NAME, args).await
+  }
+}
+

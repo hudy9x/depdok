@@ -82,6 +82,10 @@ impl PortableTool for GenerateContentTool {
         { "role": "user", "content": user_prompt }
       ],
       "stream": false,
+      "options": {
+        "num_ctx": 8192,
+        "temperature": 0.7
+      }
     });
 
     println!("\n════════════════════ [llm2][content_model] REQUEST TO OLLAMA ════════════════════");

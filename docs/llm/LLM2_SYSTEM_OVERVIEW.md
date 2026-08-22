@@ -67,7 +67,9 @@ src/features/LLMChat2/                  # ⚛️ Frontend React & Tools
     │   ├── createFolder.ts             # Creates new directory
     │   ├── renameFile.ts               # Renames file & updates open editor tabs
     │   ├── renameFolder.ts             # Renames folder & updates open editor tabs
-    │   └── deleteFileOrFolder.ts       # Deletes file or folder & closes tabs
+    │   ├── deleteFileOrFolder.ts       # Deletes file or folder & closes tabs
+    │   ├── moveFilesOrFolders.ts       # Moves/cuts one or more files & folders
+    │   └── listFiles.ts                # Lists or traverses files and subdirectories
     ├── database/
     │   ├── getUserName.ts              # Database user lookup by ID
     │   ├── getUserAge.ts               # User age by name
@@ -86,7 +88,7 @@ src-tauri/src/llm2/                     # 🦀 Rust Backend Orchestrator
     ├── bridge.rs                       # Tauri IPC channel bridge & timeout safeguards
     ├── content.rs                      # Direct backend execution (Gemma 2:9b)
     ├── database.rs                     # Database user lookup tools
-    ├── file_system.rs                  # File and directory manipulation tools
+    ├── file_system.rs                  # File, directory, move & traversal manipulation tools
     ├── markdown.rs                     # Markdown reading, writing, and inline commenting tools
     └── math.rs                         # Arithmetic calculation tools
 ```
@@ -113,6 +115,9 @@ src-tauri/src/llm2/                     # 🦀 Rust Backend Orchestrator
 | `rename_file` | `{ old_path: string, new_name: string }` | Renames file, automatically syncs open tab titles and active file references. |
 | `rename_folder` | `{ old_path: string, new_name: string }` | Renames directory and updates paths of any open child document tabs. |
 | `delete_file_or_folder` | `{ path: string }` | Deletes file or directory and automatically closes associated editor tabs. |
+| `move_files_or_folders` | `{ paths: string[], destination_folder: string }` | Moves or cuts one or more files and/or folders into a destination folder, updates open tabs, and refreshes directory trees. |
+| `list_files` | `{ path?: string, recursive?: boolean, max_depth?: number, include_hidden?: boolean }` | Lists or recursively traverses files and subfolders within the workspace or a specified folder, returning both hierarchy and flattened relative paths. |
+
 
 ### C. Content Generation (Secondary Model)
 

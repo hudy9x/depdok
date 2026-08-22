@@ -25,6 +25,7 @@ import { ToolCallCard } from "./ToolCallCard";
 import { QuickPromptChips } from "./QuickPromptChips";
 import { ContextUsageGauge } from "./ContextUsageGauge";
 import { LLMChat2HeaderActions } from "./LLMChat2HeaderActions";
+import { ModelSelector } from "./ModelSelector";
 
 interface OllamaMessagePayload {
   role: string;
@@ -79,7 +80,7 @@ export function LLMChat2Panel() {
   const isChatOpen = useAtomValue(isChat2OpenAtom);
   const [messages, setMessages] = useAtom(chat2MessagesAtom);
   const [isGenerating, setIsGenerating] = useAtom(isGeneratingAtom);
-  const [model, setModel] = useAtom(chat2ModelAtom);
+  const model = useAtomValue(chat2ModelAtom);
   const isStateful = useAtomValue(chat2IsStatefulAtom);
   const numCtx = useAtomValue(chat2NumCtxAtom);
   const setMetrics = useSetAtom(chat2MetricsAtom);
@@ -348,15 +349,8 @@ export function LLMChat2Panel() {
               Live Stream
             </span>
           </div>
-          <div className="flex items-center gap-1.5 mt-0.5">
-            <span className="text-[10px] text-muted-foreground">Model:</span>
-            <input
-              type="text"
-              value={model}
-              onChange={(e) => setModel(e.target.value)}
-              className="text-[10px] bg-transparent hover:bg-muted/40 px-1 py-0.5 rounded border border-transparent hover:border-border/40 text-foreground font-mono w-28 focus:outline-none focus:border-sky-500/50"
-              title="Click to edit Ollama model name"
-            />
+          <div className="mt-0.5">
+            <ModelSelector />
           </div>
         </div>
 

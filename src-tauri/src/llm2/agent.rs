@@ -7,16 +7,23 @@ use tauri::AppHandle;
 
 use super::pending::PendingRequests;
 use super::tools::{
-    CreateFileArgs, CreateFileTool, CreateFolderArgs, CreateFolderTool,
-    DeleteFileOrFolderArgs, DeleteFileOrFolderTool, GetUserAgeArgs, GetUserAgeTool,
-    GetUserCountryArgs, GetUserCountryTool, GetUserDobArgs, GetUserDobTool,
-    GetUserNameArgs, GetUserNameTool, RenameFileArgs, RenameFileTool,
+    AddMarkdownCommentArgs, AddMarkdownCommentTool, CreateFileArgs, CreateFileTool,
+    CreateFolderArgs, CreateFolderTool, DeleteFileOrFolderArgs, DeleteFileOrFolderTool,
+    GetUserAgeArgs, GetUserAgeTool, GetUserCountryArgs, GetUserCountryTool,
+    GetUserDobArgs, GetUserDobTool, GetUserNameArgs, GetUserNameTool,
+    ReadMarkdownArgs, ReadMarkdownTool, RenameFileArgs, RenameFileTool,
     RenameFolderArgs, RenameFolderTool, SumFourDigitsArgs, SumFourDigitsTool,
+    UpdateMarkdownArgs, UpdateMarkdownSectionArgs, UpdateMarkdownSectionTool,
+    UpdateMarkdownTool,
 };
 
 const SYSTEM_PROMPT: &str = "\
 You are a helpful and precise AI desktop assistant for the Depdok document editor.
-You have access to file management and utility tools:
+You have access to file management, markdown inspection/editing, and utility tools:
+- 'read_markdown': Read the content of a markdown file or active open document (returns content, headings outline, word count, and comments).
+- 'update_markdown': Overwrite or update the full content of a markdown file.
+- 'update_markdown_section': Surgically update a specific section by heading name (e.g. 'Conclusion') or target text snippet without affecting the rest of the document.
+- 'add_markdown_comment': Add an inline review comment on a specific text excerpt in a markdown file.
 - 'create_file': Create a new file with optional content (e.g. 'notes.md', 'plan.txt').
 - 'create_folder': Create a new folder (e.g. 'docs', 'src/components').
 - 'rename_file': Rename an existing file (e.g. old_path: 'old.md', new_name: 'new.md').
@@ -29,9 +36,11 @@ You have access to file management and utility tools:
 - 'sum_four_digits': Sum 4 numbers.
 
 IMPORTANT RULES:
-- When a user asks you to create, rename, or delete a file or folder, call the appropriate tool.
-- If multiple operations are requested (e.g. 'create folder docs and create file docs/readme.md'), execute the tools in the proper order.
-- Once all tool results are provided, synthesize a clear summary of the actions performed.";
+- When a user asks you to review, analyze, summarize, or critique a markdown file or active document, call 'read_markdown' first to inspect its contents and outline.
+- When a user asks you to update a specific section (e.g. 'Update Conclusion in test.md'), call 'update_markdown_section' with the heading or target text.
+- When a user asks to add review comments or feedback on a phrase in a document, call 'add_markdown_comment'.
+- When a user mentions a file using '@' (e.g. '@notes.md' or '@docs/guide.md'), use that path in your tool calls.
+- Once all tool results are provided, synthesize a clear, helpful summary of the review or actions performed.";
 
 pub async fn prompt_agent(
     app: AppHandle,
@@ -55,6 +64,11 @@ pub async fn prompt_agent(
     let rename_folder_tool = RenameFolderTool { app: app.clone(), pending: pending.clone() };
     let delete_tool = DeleteFileOrFolderTool { app: app.clone(), pending: pending.clone() };
 
+    let read_markdown_tool = ReadMarkdownTool { app: app.clone(), pending: pending.clone() };
+    let update_markdown_tool = UpdateMarkdownTool { app: app.clone(), pending: pending.clone() };
+    let update_markdown_section_tool = UpdateMarkdownSectionTool { app: app.clone(), pending: pending.clone() };
+    let add_markdown_comment_tool = AddMarkdownCommentTool { app: app.clone(), pending: pending.clone() };
+
     let tool_defs = vec![
         portable_tool_definition(&sum_tool),
         portable_tool_definition(&user_name_tool),
@@ -66,6 +80,10 @@ pub async fn prompt_agent(
         portable_tool_definition(&rename_file_tool),
         portable_tool_definition(&rename_folder_tool),
         portable_tool_definition(&delete_tool),
+        portable_tool_definition(&read_markdown_tool),
+        portable_tool_definition(&update_markdown_tool),
+        portable_tool_definition(&update_markdown_section_tool),
+        portable_tool_definition(&add_markdown_comment_tool),
     ];
 
     // Seed history with initial user prompt so multi-turn loop retains full context
@@ -155,6 +173,26 @@ pub async fn prompt_agent(
                             let args: DeleteFileOrFolderArgs = serde_json::from_value(tool_call.function.arguments.clone())
                                 .map_err(|e| e.to_string())?;
                             delete_tool.call(args).await.map_err(|e| e.to_string())?
+                        }
+                        "read_markdown" => {
+                            let args: ReadMarkdownArgs = serde_json::from_value(tool_call.function.arguments.clone())
+                                .map_err(|e| e.to_string())?;
+                            read_markdown_tool.call(args).await.map_err(|e| e.to_string())?
+                        }
+                        "update_markdown" => {
+                            let args: UpdateMarkdownArgs = serde_json::from_value(tool_call.function.arguments.clone())
+                                .map_err(|e| e.to_string())?;
+                            update_markdown_tool.call(args).await.map_err(|e| e.to_string())?
+                        }
+                        "update_markdown_section" => {
+                            let args: UpdateMarkdownSectionArgs = serde_json::from_value(tool_call.function.arguments.clone())
+                                .map_err(|e| e.to_string())?;
+                            update_markdown_section_tool.call(args).await.map_err(|e| e.to_string())?
+                        }
+                        "add_markdown_comment" => {
+                            let args: AddMarkdownCommentArgs = serde_json::from_value(tool_call.function.arguments.clone())
+                                .map_err(|e| e.to_string())?;
+                            add_markdown_comment_tool.call(args).await.map_err(|e| e.to_string())?
                         }
                         unknown => return Err(format!("Unknown tool: {}", unknown)),
                     };

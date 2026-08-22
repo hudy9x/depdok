@@ -16,6 +16,7 @@ import {
   ChatMessage,
 } from "../store/LLMChat2Store";
 import { useToolListener } from "../hooks/useToolListener";
+import { FileMentionPopup, MentionItem } from "./FileMentionPopup";
 
 export function LLMChat2Panel() {
   const [isChatOpen, setIsChatOpen] = useAtom(isChat2OpenAtom);
@@ -28,6 +29,14 @@ export function LLMChat2Panel() {
   const [inputVal, setInputVal] = useState("");
   const [showToolDrawer, setShowToolDrawer] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Mention state
+  const [isMentionOpen, setIsMentionOpen] = useState(false);
+  const [mentionQuery, setMentionQuery] = useState("");
+  const [mentionStartIndex, setMentionStartIndex] = useState<number | null>(null);
+  const [mentionItems, setMentionItems] = useState<MentionItem[]>([]);
+  const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
 
   // Mount tool listener hook
   const { clearLogs } = useToolListener();
@@ -39,6 +48,58 @@ export function LLMChat2Panel() {
   useEffect(() => {
     scrollToBottom();
   }, [messages, isGenerating, scrollToBottom]);
+
+  // Check for '@' trigger in input text
+  const checkMentionTrigger = (text: string, cursorPosition: number) => {
+    const textBeforeCursor = text.slice(0, cursorPosition);
+    const lastAtIndex = textBeforeCursor.lastIndexOf("@");
+
+    if (lastAtIndex !== -1) {
+      // Check that there is no space between @ and cursor
+      const query = textBeforeCursor.slice(lastAtIndex + 1);
+      if (!/\s/.test(query)) {
+        setIsMentionOpen(true);
+        setMentionQuery(query);
+        setMentionStartIndex(lastAtIndex);
+        setSelectedMentionIndex(0);
+        return;
+      }
+    }
+
+    setIsMentionOpen(false);
+    setMentionQuery("");
+    setMentionStartIndex(null);
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    const cursor = e.target.selectionStart ?? val.length;
+    setInputVal(val);
+    checkMentionTrigger(val, cursor);
+  };
+
+  const handleSelectMention = (item: MentionItem) => {
+    if (mentionStartIndex === null) return;
+
+    const before = inputVal.slice(0, mentionStartIndex);
+    const after = inputVal.slice(mentionStartIndex + 1 + mentionQuery.length);
+    const replacement = `@${item.relativePath} `;
+    const newVal = `${before}${replacement}${after}`;
+
+    setInputVal(newVal);
+    setIsMentionOpen(false);
+    setMentionQuery("");
+    setMentionStartIndex(null);
+
+    // Focus input and set cursor position after inserted mention
+    setTimeout(() => {
+      if (inputRef.current) {
+        inputRef.current.focus();
+        const nextPos = before.length + replacement.length;
+        inputRef.current.setSelectionRange(nextPos, nextPos);
+      }
+    }, 10);
+  };
 
   const handleSend = async (customPrompt?: string) => {
     const textToSend = (customPrompt || inputVal).trim();
@@ -54,6 +115,7 @@ export function LLMChat2Panel() {
     const newMessages = [...messages, userMsg];
     setMessages(newMessages);
     setInputVal("");
+    setIsMentionOpen(false);
     setIsGenerating(true);
 
     try {
@@ -86,6 +148,32 @@ export function LLMChat2Panel() {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (isMentionOpen && mentionItems.length > 0) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setSelectedMentionIndex((prev) => (prev + 1) % mentionItems.length);
+        return;
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setSelectedMentionIndex((prev) => (prev - 1 + mentionItems.length) % mentionItems.length);
+        return;
+      }
+      if (e.key === "Enter" || e.key === "Tab") {
+        e.preventDefault();
+        const selected = mentionItems[selectedMentionIndex] || mentionItems[0];
+        if (selected) {
+          handleSelectMention(selected);
+        }
+        return;
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setIsMentionOpen(false);
+        return;
+      }
+    }
+
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();
@@ -188,7 +276,7 @@ export function LLMChat2Panel() {
 
           {logs.length === 0 ? (
             <p className="text-[11px] text-muted-foreground py-2 text-center">
-              No tools executed yet. Ask questions that invoke user data or math!
+              No tools executed yet. Ask questions that read, update, or create files!
             </p>
           ) : (
             <div className="space-y-1.5">
@@ -242,31 +330,41 @@ export function LLMChat2Panel() {
               <p className="text-sm font-semibold text-foreground">Frontend Tool-Calling v2</p>
               <p className="text-xs text-muted-foreground max-w-sm leading-relaxed">
                 Powered by Rust <code className="text-sky-400 font-mono">rig-core</code> and local Ollama.
-                Tools are orchestrated in Rust and executed live on React frontend.
+                Type <code className="text-sky-400 font-semibold">@</code> to mention files, review &amp; update markdown live.
               </p>
             </div>
 
             {/* Quick Test Prompt Chips */}
             <div className="w-full space-y-2 pt-2">
-              <p className="text-[11px] font-medium text-muted-foreground text-left">Try example prompts:</p>
+              <p className="text-[11px] font-medium text-muted-foreground text-left">Try example actions:</p>
               <div className="flex flex-col gap-1.5">
                 <button
-                  onClick={() => handleSend("Create a file named test_notes.md with content '# Hello from LLM v2!'")}
+                  onClick={() => handleSend("Read active markdown and review its structure, grammar, and outline")}
                   className="text-left px-3 py-2 rounded-lg border border-border/50 bg-muted/20 hover:bg-muted/50 hover:border-sky-500/30 text-xs text-foreground transition-all cursor-pointer flex items-center justify-between group"
                 >
-                  <span>Create file &apos;test_notes.md&apos;</span>
+                  <span>Review active document structure &amp; outline</span>
                   <span className="text-[10px] text-sky-500 opacity-0 group-hover:opacity-100 transition-opacity">
-                    File tool 📄
+                    read_markdown 🔍
                   </span>
                 </button>
 
                 <button
-                  onClick={() => handleSend("Create a folder named my_docs, then create my_docs/readme.md inside it")}
+                  onClick={() => handleSend("Update the Conclusion section in active markdown with 3 key takeaways")}
                   className="text-left px-3 py-2 rounded-lg border border-border/50 bg-muted/20 hover:bg-muted/50 hover:border-sky-500/30 text-xs text-foreground transition-all cursor-pointer flex items-center justify-between group"
                 >
-                  <span>Create folder &amp; subfile</span>
+                  <span>Update Conclusion section</span>
                   <span className="text-[10px] text-sky-500 opacity-0 group-hover:opacity-100 transition-opacity">
-                    Multi-tool 📁
+                    update_markdown_section ✏️
+                  </span>
+                </button>
+
+                <button
+                  onClick={() => handleSend("Create a file named demo_notes.md with a detailed guide on PlantUML diagrams")}
+                  className="text-left px-3 py-2 rounded-lg border border-border/50 bg-muted/20 hover:bg-muted/50 hover:border-sky-500/30 text-xs text-foreground transition-all cursor-pointer flex items-center justify-between group"
+                >
+                  <span>Create file &apos;demo_notes.md&apos;</span>
+                  <span className="text-[10px] text-sky-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                    create_file 📄
                   </span>
                 </button>
 
@@ -274,19 +372,9 @@ export function LLMChat2Panel() {
                   onClick={() => handleSend("What is the age, country, and DOB of Alice Smith?")}
                   className="text-left px-3 py-2 rounded-lg border border-border/50 bg-muted/20 hover:bg-muted/50 hover:border-sky-500/30 text-xs text-foreground transition-all cursor-pointer flex items-center justify-between group"
                 >
-                  <span>What is the age, country, and DOB of Alice Smith?</span>
+                  <span>Lookup user details for Alice Smith</span>
                   <span className="text-[10px] text-sky-500 opacity-0 group-hover:opacity-100 transition-opacity">
-                    Parallel 3 tools ⚡
-                  </span>
-                </button>
-
-                <button
-                  onClick={() => handleSend("Calculate the sum of 12, 34, 56, and 78")}
-                  className="text-left px-3 py-2 rounded-lg border border-border/50 bg-muted/20 hover:bg-muted/50 hover:border-sky-500/30 text-xs text-foreground transition-all cursor-pointer flex items-center justify-between group"
-                >
-                  <span>Calculate the sum of 12, 34, 56, and 78</span>
-                  <span className="text-[10px] text-sky-500 opacity-0 group-hover:opacity-100 transition-opacity">
-                    Math tool 🧮
+                    Parallel tools ⚡
                   </span>
                 </button>
               </div>
@@ -343,8 +431,17 @@ export function LLMChat2Panel() {
         </div>
       )}
 
-      {/* Input Form */}
-      <div className="p-3 border-t border-border/60 bg-muted/20 shrink-0">
+      {/* Input Form with @ Mention Popup */}
+      <div className="p-3 border-t border-border/60 bg-muted/20 shrink-0 relative">
+        <FileMentionPopup
+          isOpen={isMentionOpen}
+          query={mentionQuery}
+          selectedIndex={selectedMentionIndex}
+          onSelect={handleSelectMention}
+          onClose={() => setIsMentionOpen(false)}
+          onItemsChange={setMentionItems}
+        />
+
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -353,10 +450,11 @@ export function LLMChat2Panel() {
           className="flex items-center gap-2"
         >
           <Input
+            ref={inputRef}
             value={inputVal}
-            onChange={(e) => setInputVal(e.target.value)}
+            onChange={handleInputChange}
             onKeyDown={handleKeyDown}
-            placeholder={isGenerating ? "Processing query..." : "Ask a query or execute tools..."}
+            placeholder={isGenerating ? "Processing query..." : "Ask a query, edit markdown, or type @ to mention files..."}
             disabled={isGenerating}
             className="text-xs h-9 bg-background/80 border-border/60 focus-visible:ring-sky-500/50"
           />

@@ -13,11 +13,19 @@ import {
   renameFileTool,
   renameFolderTool,
   deleteFileOrFolderTool,
+  readMarkdownTool,
+  updateMarkdownTool,
+  updateMarkdownSectionTool,
+  addMarkdownCommentTool,
   CreateFileArgs,
   CreateFolderArgs,
   RenameFileArgs,
   RenameFolderArgs,
   DeleteFileOrFolderArgs,
+  ReadMarkdownArgs,
+  UpdateMarkdownArgs,
+  UpdateMarkdownSectionArgs,
+  AddMarkdownCommentArgs,
 } from "../tools";
 import {
   chat2LogsAtom,
@@ -94,6 +102,18 @@ export function useToolListener() {
           case "delete_file_or_folder":
           case "delete_node":
             toolOutput = await deleteFileOrFolderTool(args as unknown as DeleteFileOrFolderArgs);
+            break;
+          case "read_markdown":
+            toolOutput = await readMarkdownTool(args as unknown as ReadMarkdownArgs);
+            break;
+          case "update_markdown":
+            toolOutput = await updateMarkdownTool(args as unknown as UpdateMarkdownArgs);
+            break;
+          case "update_markdown_section":
+            toolOutput = await updateMarkdownSectionTool(args as unknown as UpdateMarkdownSectionArgs);
+            break;
+          case "add_markdown_comment":
+            toolOutput = await addMarkdownCommentTool(args as unknown as AddMarkdownCommentArgs);
             break;
           default:
             throw new Error(`Unknown tool: ${tool_name}`);

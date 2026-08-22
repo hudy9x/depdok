@@ -1,4 +1,4 @@
-import { findUser } from "../data/users";
+import { findUser } from "../../data/users";
 
 export interface GetUserNameArgs {
   id: number;

@@ -6,5 +6,5 @@ export interface SumFourDigitsArgs {
 }
 
 export function sumFourDigits(args: SumFourDigitsArgs): number {
-  return Number(args.a) + Number(args.b) + Number(args.c) + Number(args.d);
+  return args.a + args.b + args.c + args.d;
 }

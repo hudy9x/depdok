@@ -2,7 +2,7 @@ import { getDefaultStore } from "jotai";
 import { toast } from "sonner";
 import { createDirectory } from "@/features/FileExplorer/api";
 import { refreshDirectoryAtom } from "@/features/FileExplorer/store";
-import { resolvePath, getParentDir } from "./pathHelper";
+import { resolvePath, getParentDir } from "../common/pathHelper";
 
 export interface CreateFolderArgs {
   path: string;

@@ -36,7 +36,7 @@ Desktop apps require tools that directly interact with:
 Adding a tool requires **4 simple steps**:
 
 ```
-[1] Create TS Function      -->  src/features/LLMChat2/tools/<toolName>.ts
+[1] Create TS Function      -->  src/features/LLMChat2/tools/<category>/<toolName>.ts
 [2] Register in Listener    -->  src/features/LLMChat2/hooks/useToolListener.ts
 [3] Define Rust Tool Struct -->  src-tauri/src/llm2/tools.rs
 [4] Register in Rust Agent  -->  src-tauri/src/llm2/agent.rs
@@ -46,14 +46,14 @@ Adding a tool requires **4 simple steps**:
 
 ### Step 1: Implement the Frontend Tool Logic
 
-Create your TypeScript tool file in `src/features/LLMChat2/tools/<toolName>.ts`.
+Create your TypeScript tool file inside the appropriate category subfolder in `src/features/LLMChat2/tools/` (e.g. `markdown/`, `fileSystem/`, `database/`, `math/`, or `common/`).
 
 ```typescript
-// src/features/LLMChat2/tools/getWordCount.ts
+// src/features/LLMChat2/tools/markdown/getWordCount.ts
 import { getDefaultStore } from "jotai";
 import { toast } from "sonner";
 import { readFileContent } from "@/features/FileExplorer/api";
-import { resolvePath } from "./pathHelper";
+import { resolvePath } from "../common/pathHelper";
 
 export interface GetWordCountArgs {
   path: string;
@@ -88,9 +88,13 @@ export async function getWordCountTool(args: GetWordCountArgs): Promise<GetWordC
 }
 ```
 
-Export the tool in `src/features/LLMChat2/tools/index.ts`:
+Export the tool in its category `index.ts` and in `src/features/LLMChat2/tools/index.ts`:
 ```typescript
-export * from "./getWordCount";
+export * from "./markdown";
+export * from "./fileSystem";
+export * from "./database";
+export * from "./math";
+export * from "./common";
 ```
 
 ---
@@ -215,12 +219,12 @@ In `src-tauri/src/llm2/agent.rs`:
 ## 3. Tool Development Conventions & Best Practices
 
 ### A. Path Resolution
-Tools operating on files or directories should use `resolvePath()` from `pathHelper.ts`. If the user/LLM passes a relative path (e.g. `"notes.md"`), it is automatically resolved against `workspaceRootAtom`.
+Tools operating on files or directories should use `resolvePath()` or `resolveTargetFilePath()` from `tools/common/pathHelper.ts`. If the user/LLM passes a relative path (e.g. `"notes.md"` or `"@notes.md"`), it is automatically normalized and resolved against `workspaceRootAtom`.
 
 ```typescript
-import { resolvePath, getParentDir } from "./pathHelper";
+import { resolveTargetFilePath, getParentDir } from "../common/pathHelper";
 
-const fullPath = resolvePath(args.path);
+const fullPath = resolveTargetFilePath(args.path);
 const parentDir = getParentDir(fullPath);
 ```
 
@@ -253,16 +257,20 @@ Always return JSON-serializable plain objects or primitives (`string`, `number`,
 
 | Tool Name | Frontend Source | Backend Source | Parameters | Purpose |
 |---|---|---|---|---|
-| `create_file` | `tools/createFile.ts` | `tools.rs:CreateFileTool` | `{ path, content? }` | Creates file, seeds templates (.excalidraw/.xlsx), refreshes tree. |
-| `create_folder` | `tools/createFolder.ts` | `tools.rs:CreateFolderTool` | `{ path }` | Creates directory, refreshes file tree. |
-| `rename_file` | `tools/renameFile.ts` | `tools.rs:RenameFileTool` | `{ old_path, new_name }` | Renames file, updates active tabs, refreshes tree. |
-| `rename_folder` | `tools/renameFolder.ts` | `tools.rs:RenameFolderTool` | `{ old_path, new_name }` | Renames folder, updates active tab paths, refreshes tree. |
-| `delete_file_or_folder` | `tools/deleteFileOrFolder.ts` | `tools.rs:DeleteFileOrFolderTool` | `{ path }` | Deletes file/folder, closes open tabs, refreshes tree. |
-| `get_user_name` | `tools/getUserName.ts` | `tools.rs:GetUserNameTool` | `{ id }` | Retrieves user name by ID from database. |
-| `get_user_age` | `tools/getUserAge.ts` | `tools.rs:GetUserAgeTool` | `{ name }` | Retrieves user age by name from database. |
-| `get_user_country` | `tools/getUserCountry.ts` | `tools.rs:GetUserCountryTool` | `{ name }` | Retrieves user country by name from database. |
-| `get_user_dob` | `tools/getUserDob.ts` | `tools.rs:GetUserDobTool` | `{ name }` | Retrieves user date of birth by name from database. |
-| `sum_four_digits` | `tools/sumFourDigits.ts` | `tools.rs:SumFourDigitsTool` | `{ a, b, c, d }` | Performs addition of 4 numbers. |
+| `read_markdown` | `tools/markdown/readMarkdown.ts` | `tools.rs:ReadMarkdownTool` | `{ path? }` | Reads file/active tab, extracts headings & comments. |
+| `update_markdown` | `tools/markdown/updateMarkdown.ts` | `tools.rs:UpdateMarkdownTool` | `{ path?, content }` | Overwrites/updates full markdown file. |
+| `update_markdown_section` | `tools/markdown/updateMarkdownSection.ts` | `tools.rs:UpdateMarkdownSectionTool` | `{ path?, heading?, target_text?, replacement_content }` | Surgical section or text replacement. |
+| `add_markdown_comment` | `tools/markdown/addMarkdownComment.ts` | `tools.rs:AddMarkdownCommentTool` | `{ path?, target_text, comment, author? }` | Inserts native inline comments & thread. |
+| `create_file` | `tools/fileSystem/createFile.ts` | `tools.rs:CreateFileTool` | `{ path, content? }` | Creates file, seeds templates (.excalidraw/.xlsx), refreshes tree. |
+| `create_folder` | `tools/fileSystem/createFolder.ts` | `tools.rs:CreateFolderTool` | `{ path }` | Creates directory, refreshes file tree. |
+| `rename_file` | `tools/fileSystem/renameFile.ts` | `tools.rs:RenameFileTool` | `{ old_path, new_name }` | Renames file, updates active tabs, refreshes tree. |
+| `rename_folder` | `tools/fileSystem/renameFolder.ts` | `tools.rs:RenameFolderTool` | `{ old_path, new_name }` | Renames folder, updates active tab paths, refreshes tree. |
+| `delete_file_or_folder` | `tools/fileSystem/deleteFileOrFolder.ts` | `tools.rs:DeleteFileOrFolderTool` | `{ path }` | Deletes file/folder, closes open tabs, refreshes tree. |
+| `get_user_name` | `tools/database/getUserName.ts` | `tools.rs:GetUserNameTool` | `{ id }` | Retrieves user name by ID from database. |
+| `get_user_age` | `tools/database/getUserAge.ts` | `tools.rs:GetUserAgeTool` | `{ name }` | Retrieves user age by name from database. |
+| `get_user_country` | `tools/database/getUserCountry.ts` | `tools.rs:GetUserCountryTool` | `{ name }` | Retrieves user country by name from database. |
+| `get_user_dob` | `tools/database/getUserDob.ts` | `tools.rs:GetUserDobTool` | `{ name }` | Retrieves user date of birth by name from database. |
+| `sum_four_digits` | `tools/math/sumFourDigits.ts` | `tools.rs:SumFourDigitsTool` | `{ a, b, c, d }` | Performs addition of 4 numbers. |
 
 ---
 
@@ -273,3 +281,4 @@ When adding a new tool, always verify:
 2. `pnpm tsc --noEmit` in root completes with 0 errors.
 3. Open the LLM v2 chat panel (Sparkles button in footer) and prompt the LLM to use the new tool.
 4. Verify the **Tool Execution Monitor** drawer in LLM v2 panel displays the tool name, arguments, and return result in real time.
+

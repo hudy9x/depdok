@@ -1,4 +1,4 @@
-import { findUser } from "../data/users";
+import { findUser } from "../../data/users";
 
 export interface GetUserCountryArgs {
   name: string;
@@ -7,7 +7,7 @@ export interface GetUserCountryArgs {
 export function getUserCountry(args: GetUserCountryArgs): string {
   const user = findUser(args.name);
   if (!user) {
-    throw new Error(`User "${args.name}" not found in database.`);
+    throw new Error(`User '${args.name}' not found.`);
   }
   return user.country;
 }

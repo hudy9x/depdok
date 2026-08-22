@@ -4,7 +4,7 @@ import { createFile, writeFileContent } from "@/features/FileExplorer/api";
 import { refreshDirectoryAtom } from "@/features/FileExplorer/store";
 import { writeBinaryFile } from "@/lib/fileOperations";
 import { SpreadsheetSDK } from "@/features/PreviewXlsx";
-import { resolvePath, getParentDir } from "./pathHelper";
+import { resolvePath, getParentDir } from "../common/pathHelper";
 
 export interface CreateFileArgs {
   path: string;

@@ -38,8 +38,9 @@ Adding a tool requires **4 simple steps**:
 ```
 [1] Create TS Function      -->  src/features/LLMChat2/tools/<category>/<toolName>.ts
 [2] Register in Listener    -->  src/features/LLMChat2/hooks/useToolListener.ts
-[3] Define Rust Tool Struct -->  src-tauri/src/llm2/tools.rs
+[3] Define Rust Tool Struct -->  src-tauri/src/llm2/tools/<category>.rs
 [4] Register in Rust Agent  -->  src-tauri/src/llm2/agent.rs
+
 ```
 
 ---
@@ -126,16 +127,24 @@ switch (tool_name) {
 
 ### Step 3: Define Backend Tool Struct & JSON Schema
 
-In `src-tauri/src/llm2/tools.rs`, implement `rig::tool::PortableTool`:
+In the appropriate category file under `src-tauri/src/llm2/tools/` (e.g. `markdown.rs`, `file_system.rs`, `database.rs`, `math.rs`, or a new module re-exported in `src-tauri/src/llm2/tools/mod.rs`), implement `rig::tool::PortableTool`:
 
 ```rust
-// src-tauri/src/llm2/tools.rs
+// src-tauri/src/llm2/tools/markdown.rs
+use rig::tool::PortableTool;
+use serde::{Deserialize, Serialize};
+use serde_json::json;
+use tauri::AppHandle;
+
+use super::bridge::{call_frontend_tool, ToolBridgeError};
+use crate::llm2::pending::PendingRequests;
 
 // 1. Define arguments struct
 #[derive(Debug, Deserialize, Serialize)]
 pub struct GetWordCountArgs {
     pub path: String,
 }
+
 
 // 2. Define tool struct
 #[derive(Clone)]
@@ -257,21 +266,22 @@ Always return JSON-serializable plain objects or primitives (`string`, `number`,
 
 | Tool Name | Frontend Source | Backend Source | Parameters | Purpose |
 |---|---|---|---|---|
-| `read_markdown` | `tools/markdown/readMarkdown.ts` | `tools.rs:ReadMarkdownTool` | `{ path? }` | Reads file/active tab, extracts headings & comments. |
-| `upsert_markdown` | `tools/markdown/upsertMarkdown.ts` | `tools.rs:UpsertMarkdownTool` | `{ path?, content }` | Overwrites or creates markdown file. |
-| `upsert_markdown_section` | `tools/markdown/upsertMarkdownSection.ts` | `tools.rs:UpsertMarkdownSectionTool` | `{ path?, heading?, target_text?, replacement_content }` | Surgical section replacement or auto-append. |
-| `add_markdown_comment` | `tools/markdown/addMarkdownComment.ts` | `tools.rs:AddMarkdownCommentTool` | `{ path?, target_text, comment, author? }` | Inserts native inline comments & thread. |
-| `generate_content` | Direct Rust Backend | `tools.rs:GenerateContentTool` | `{ topic, style?, language?, content_model? }` | Delegates rich Markdown writing to `gemma2:9b` (180s timeout). |
-| `create_file` | `tools/fileSystem/createFile.ts` | `tools.rs:CreateFileTool` | `{ path, content? }` | Creates file, seeds templates (.excalidraw/.xlsx), refreshes tree. |
-| `create_folder` | `tools/fileSystem/createFolder.ts` | `tools.rs:CreateFolderTool` | `{ path }` | Creates directory, refreshes file tree. |
-| `rename_file` | `tools/fileSystem/renameFile.ts` | `tools.rs:RenameFileTool` | `{ old_path, new_name }` | Renames file, updates active tabs, refreshes tree. |
-| `rename_folder` | `tools/fileSystem/renameFolder.ts` | `tools.rs:RenameFolderTool` | `{ old_path, new_name }` | Renames folder, updates active tab paths, refreshes tree. |
-| `delete_file_or_folder` | `tools/fileSystem/deleteFileOrFolder.ts` | `tools.rs:DeleteFileOrFolderTool` | `{ path }` | Deletes file/folder, closes open tabs, refreshes tree. |
-| `get_user_name` | `tools/database/getUserName.ts` | `tools.rs:GetUserNameTool` | `{ id }` | Retrieves user name by ID from database. |
-| `get_user_age` | `tools/database/getUserAge.ts` | `tools.rs:GetUserAgeTool` | `{ name }` | Retrieves user age by name from database. |
-| `get_user_country` | `tools/database/getUserCountry.ts` | `tools.rs:GetUserCountryTool` | `{ name }` | Retrieves user country by name from database. |
-| `get_user_dob` | `tools/database/getUserDob.ts` | `tools.rs:GetUserDobTool` | `{ name }` | Retrieves user date of birth by name from database. |
-| `sum_four_digits` | `tools/math/sumFourDigits.ts` | `tools.rs:SumFourDigitsTool` | `{ a, b, c, d }` | Performs addition of 4 numbers. |
+| `read_markdown` | `tools/markdown/readMarkdown.ts` | `tools/markdown.rs:ReadMarkdownTool` | `{ path? }` | Reads file/active tab, extracts headings & comments. |
+| `upsert_markdown` | `tools/markdown/upsertMarkdown.ts` | `tools/markdown.rs:UpsertMarkdownTool` | `{ path?, content }` | Overwrites or creates markdown file. |
+| `upsert_markdown_section` | `tools/markdown/upsertMarkdownSection.ts` | `tools/markdown.rs:UpsertMarkdownSectionTool` | `{ path?, heading?, target_text?, replacement_content }` | Surgical section replacement or auto-append. |
+| `add_markdown_comment` | `tools/markdown/addMarkdownComment.ts` | `tools/markdown.rs:AddMarkdownCommentTool` | `{ path?, target_text, comment, author? }` | Inserts native inline comments & thread. |
+| `generate_content` | Direct Rust Backend | `tools/content.rs:GenerateContentTool` | `{ topic, style?, language?, content_model? }` | Delegates rich Markdown writing to `gemma2:9b` (180s timeout). |
+| `create_file` | `tools/fileSystem/createFile.ts` | `tools/file_system.rs:CreateFileTool` | `{ path, content? }` | Creates file, seeds templates (.excalidraw/.xlsx), refreshes tree. |
+| `create_folder` | `tools/fileSystem/createFolder.ts` | `tools/file_system.rs:CreateFolderTool` | `{ path }` | Creates directory, refreshes file tree. |
+| `rename_file` | `tools/fileSystem/renameFile.ts` | `tools/file_system.rs:RenameFileTool` | `{ old_path, new_name }` | Renames file, updates active tabs, refreshes tree. |
+| `rename_folder` | `tools/fileSystem/renameFolder.ts` | `tools/file_system.rs:RenameFolderTool` | `{ old_path, new_name }` | Renames folder, updates active tab paths, refreshes tree. |
+| `delete_file_or_folder` | `tools/fileSystem/deleteFileOrFolder.ts` | `tools/file_system.rs:DeleteFileOrFolderTool` | `{ path }` | Deletes file/folder, closes open tabs, refreshes tree. |
+| `get_user_name` | `tools/database/getUserName.ts` | `tools/database.rs:GetUserNameTool` | `{ id }` | Retrieves user name by ID from database. |
+| `get_user_age` | `tools/database/getUserAge.ts` | `tools/database.rs:GetUserAgeTool` | `{ name }` | Retrieves user age by name from database. |
+| `get_user_country` | `tools/database/getUserCountry.ts` | `tools/database.rs:GetUserCountryTool` | `{ name }` | Retrieves user country by name from database. |
+| `get_user_dob` | `tools/database/getUserDob.ts` | `tools/database.rs:GetUserDobTool` | `{ name }` | Retrieves user date of birth by name from database. |
+| `sum_four_digits` | `tools/math/sumFourDigits.ts` | `tools/math.rs:SumFourDigitsTool` | `{ a, b, c, d }` | Performs addition of 4 numbers. |
+
 
 ---
 

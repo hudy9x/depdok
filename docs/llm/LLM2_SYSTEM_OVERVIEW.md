@@ -18,26 +18,26 @@ The **LLM v2 subsystem** in Depdok provides an agentic AI assistant capable of m
                            Tauri IPC ("llm2_send_message")  ▲  "llm2_token" (Streaming)
                                                        │    │  "tool_log_event" (Live UI Sync)
                                                        ▼    │
-                                  ┌─────────────────────────────────────────┐
-                                  │           Rust Backend (llm2)           │
-                                  │  • agent.rs (Multi-turn loop & prompts) │
-                                  │  • tools.rs (PortableTool declarations) │
-                                  │  • pending.rs (Oneshot channel bridge)  │
-                                  │  • commands.rs (Tauri IPC endpoints)    │
-                                  └────────────────────┬────────────────────┘
-                                                       │
-                         ┌─────────────────────────────┴─────────────────────────────┐
-                         │                                                           │
-                         ▼                                                           ▼
-         ┌───────────────────────────────┐                           ┌───────────────────────────────┐
-         │     Ollama Local Server       │                           │      Ollama Local Server      │
-         │   ⚙️ Tool Specialist Model    │                           │   ✍️ Content Specialist Model │
-         │         (qwen2.5:7b)          │                           │          (gemma2:9b)          │
-         │                               │                           │                               │
-         │ • Fast JSON tool extraction   │                           │ • Deep Markdown prose & blogs │
-         │ • Multi-tool orchestration    │                           │ • Comprehensive tutorials     │
-         │ • Workspace action routing    │                           │ • Direct backend execution    │
-         └───────────────────────────────┘                           └───────────────────────────────┘
+                                   ┌─────────────────────────────────────────┐
+                                   │           Rust Backend (llm2)           │
+                                   │  • agent.rs (Multi-turn loop & prompts) │
+                                   │  • tools/ (Decoupled tool modules)      │
+                                   │  • pending.rs (Oneshot channel bridge)  │
+                                   │  • commands.rs (Tauri IPC endpoints)    │
+                                   └────────────────────┬────────────────────┘
+                                                        │
+                          ┌─────────────────────────────┴─────────────────────────────┐
+                          │                                                           │
+                          ▼                                                           ▼
+          ┌───────────────────────────────┐                           ┌───────────────────────────────┐
+          │     Ollama Local Server       │                           │      Ollama Local Server      │
+          │   ⚙️ Tool Specialist Model    │                           │   ✍️ Content Specialist Model │
+          │         (qwen2.5:7b)          │                           │          (gemma2:9b)          │
+          │                               │                           │                               │
+          │ • Fast JSON tool extraction   │                           │ • Deep Markdown prose & blogs │
+          │ • Multi-tool orchestration    │                           │ • Comprehensive tutorials     │
+          │ • Workspace action routing    │                           │ • Direct backend execution    │
+          └───────────────────────────────┘                           └───────────────────────────────┘
 ```
 
 ---
@@ -79,9 +79,16 @@ src/features/LLMChat2/                  # ⚛️ Frontend React & Tools
 src-tauri/src/llm2/                     # 🦀 Rust Backend Orchestrator
 ├── mod.rs                              # Subsystem module root
 ├── agent.rs                            # Multi-turn resolution loop, streaming engine & prompt
-├── tools.rs                            # PortableTool traits, timeout safeguards & backend tools
 ├── pending.rs                          # Thread-safe Oneshot channel registry
-└── commands.rs                         # Tauri IPC commands (llm2_send_message, llm2_tool_result)
+├── commands.rs                         # Tauri IPC commands (llm2_send_message, llm2_tool_result)
+└── tools/                              # Decoupled PortableTool modules & bridge
+    ├── mod.rs                          # Central exports and module definitions
+    ├── bridge.rs                       # Tauri IPC channel bridge & timeout safeguards
+    ├── content.rs                      # Direct backend execution (Gemma 2:9b)
+    ├── database.rs                     # Database user lookup tools
+    ├── file_system.rs                  # File and directory manipulation tools
+    ├── markdown.rs                     # Markdown reading, writing, and inline commenting tools
+    └── math.rs                         # Arithmetic calculation tools
 ```
 
 ---

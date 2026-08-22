@@ -76,8 +76,9 @@ Tools in Depdok are categorized by where their execution logic lives:
 | **UI & Workspace Tools** | **Frontend (React)** | `read_markdown`, `upsert_markdown`, `upsert_markdown_section`, `add_markdown_comment`, `create_file`, `rename_file`, `delete_file_or_folder` | Direct access to Jotai atoms (`activeTab`, `workspaceRoot`), UI toasts, editor DOM, and immediate file tree refreshing. |
 | **Model-to-Model Tools** | **Backend (Rust)** | `generate_content` | Direct HTTP POST to Ollama via `reqwest` in Rust. **Zero IPC roundtrip latency**, no large string serialization over Tauri channels, and managed directly by Tokio async runtime. |
 
-### Direct Rust Execution in `GenerateContentTool` (`src-tauri/src/llm2/tools.rs`):
+### Direct Rust Execution in `GenerateContentTool` (`src-tauri/src/llm2/tools/content.rs`):
 ```rust
+
 impl PortableTool for GenerateContentTool {
     const NAME: &'static str = "generate_content";
     type Error = ToolBridgeError;

@@ -1,4 +1,3 @@
-import { toast } from "sonner";
 import { readFileContent } from "@/features/FileExplorer/api";
 import { extractComments } from "@/features/PreviewMarkdown/extensions/comment/commentParser";
 import { resolveTargetFilePath } from "../common/pathHelper";
@@ -54,8 +53,6 @@ export async function readMarkdownTool(args: ReadMarkdownArgs): Promise<ReadMark
     const lines = cleanMarkdown.split("\n").length;
     const words = cleanMarkdown.trim().split(/\s+/).filter(Boolean).length;
 
-    toast.info(`Read markdown: ${fileName} (${words} words)`);
-
     return {
       path: fullPath,
       fileName,
@@ -73,7 +70,6 @@ export async function readMarkdownTool(args: ReadMarkdownArgs): Promise<ReadMark
     };
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : String(err);
-    toast.error(`Failed to read markdown: ${errorMsg}`);
     throw new Error(`Failed to read markdown file '${fullPath}': ${errorMsg}`);
   }
 }

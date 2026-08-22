@@ -1,4 +1,4 @@
 export * from "./readMarkdown";
-export * from "./updateMarkdown";
-export * from "./updateMarkdownSection";
+export * from "./upsertMarkdown";
+export * from "./upsertMarkdownSection";
 export * from "./addMarkdownComment";

@@ -1,5 +1,4 @@
 import { getDefaultStore } from "jotai";
-import { toast } from "sonner";
 import { readFileContent, writeFileContent } from "@/features/FileExplorer/api";
 import {
   extractComments,
@@ -82,8 +81,6 @@ export async function addMarkdownCommentTool(
     const store = getDefaultStore();
     store.set(addCommentThreadAtom, { filePath: fullPath, thread: newThread });
 
-    toast.info(`Added review comment in ${fileName}`);
-
     return {
       success: true,
       path: fullPath,
@@ -96,7 +93,6 @@ export async function addMarkdownCommentTool(
     };
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : String(err);
-    toast.error(`Failed to add comment: ${errorMsg}`);
     throw new Error(`Failed to add comment to '${fullPath}': ${errorMsg}`);
   }
 }

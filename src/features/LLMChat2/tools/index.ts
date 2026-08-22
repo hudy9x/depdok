@@ -1,5 +1,6 @@
 export * from "./common";
 export * from "./markdown";
+export * from "./content";
 export * from "./fileSystem";
 export * from "./database";
 export * from "./math";

@@ -29,13 +29,23 @@ export function resolvePath(inputPath: string): string {
 export function resolveTargetFilePath(inputPath?: string): string {
   const store = getDefaultStore();
   const cleanInput = inputPath ? inputPath.trim() : "";
+  const lower = cleanInput.toLowerCase();
 
   // If no path specified, or explicit "active"/"current" keyword, fall back to active tab
   if (
     !cleanInput ||
-    cleanInput.toLowerCase() === "active" ||
-    cleanInput.toLowerCase() === "current" ||
-    cleanInput.toLowerCase() === "this"
+    lower === "active" ||
+    lower === "current" ||
+    lower === "this" ||
+    lower === "open" ||
+    lower.startsWith("active") ||
+    lower.startsWith("current") ||
+    lower.includes("active document") ||
+    lower.includes("active markdown") ||
+    lower.includes("active file") ||
+    lower.includes("current document") ||
+    lower.includes("current file") ||
+    lower.includes("current tab")
   ) {
     const activeTab = store.get(activeTabAtom);
     if (activeTab && activeTab.filePath && !isDummyPath(activeTab.filePath)) {

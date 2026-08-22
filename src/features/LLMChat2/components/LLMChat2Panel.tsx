@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useAtom, useAtomValue } from "jotai";
-import { Sparkles, X, Trash2, Send, Activity, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
+import { Sparkles, X, Trash2, Send, Activity, Loader2 } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
+import { listen, UnlistenFn } from "@tauri-apps/api/event";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -17,6 +18,7 @@ import {
 } from "../store/LLMChat2Store";
 import { useToolListener } from "../hooks/useToolListener";
 import { FileMentionPopup, MentionItem } from "./FileMentionPopup";
+import { ToolCallCard } from "./ToolCallCard";
 
 export function LLMChat2Panel() {
   const [isChatOpen, setIsChatOpen] = useAtom(isChat2OpenAtom);
@@ -48,6 +50,39 @@ export function LLMChat2Panel() {
   useEffect(() => {
     scrollToBottom();
   }, [messages, isGenerating, scrollToBottom]);
+
+  // Real-time token streaming listener
+  useEffect(() => {
+    let unlistenToken: UnlistenFn | null = null;
+    let unlistenDone: UnlistenFn | null = null;
+
+    listen<{ message_id: string; chunk: string }>("llm2_token", (event) => {
+      const { message_id, chunk } = event.payload;
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === message_id ? { ...msg, content: msg.content + chunk } : msg
+        )
+      );
+    }).then((unlisten) => {
+      unlistenToken = unlisten;
+    });
+
+    listen<{ message_id: string; content: string }>("llm2_done", (event) => {
+      const { message_id, content } = event.payload;
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === message_id ? { ...msg, content: content || msg.content } : msg
+        )
+      );
+    }).then((unlisten) => {
+      unlistenDone = unlisten;
+    });
+
+    return () => {
+      unlistenToken?.();
+      unlistenDone?.();
+    };
+  }, [setMessages]);
 
   // Check for '@' trigger in input text
   const checkMentionTrigger = (text: string, cursorPosition: number) => {
@@ -105,6 +140,7 @@ export function LLMChat2Panel() {
     const textToSend = (customPrompt || inputVal).trim();
     if (!textToSend || isGenerating) return;
 
+    const assistantMsgId = crypto.randomUUID();
     const userMsg: ChatMessage = {
       id: crypto.randomUUID(),
       role: "user",
@@ -112,8 +148,15 @@ export function LLMChat2Panel() {
       timestamp: new Date(),
     };
 
-    const newMessages = [...messages, userMsg];
-    setMessages(newMessages);
+    const placeholderAssistantMsg: ChatMessage = {
+      id: assistantMsgId,
+      role: "assistant",
+      content: "",
+      toolCalls: [],
+      timestamp: new Date(),
+    };
+
+    setMessages((prev) => [...prev, userMsg, placeholderAssistantMsg]);
     setInputVal("");
     setIsMentionOpen(false);
     setIsGenerating(true);
@@ -122,26 +165,31 @@ export function LLMChat2Panel() {
       const response = await invoke<string>("llm2_send_message", {
         prompt: textToSend,
         model: model.trim() || undefined,
+        messageId: assistantMsgId,
+        message_id: assistantMsgId,
       });
 
-      const assistantMsg: ChatMessage = {
-        id: crypto.randomUUID(),
-        role: "assistant",
-        content: response,
-        timestamp: new Date(),
-      };
-
-      setMessages((prev) => [...prev, assistantMsg]);
+      // Ensure final assistant message has full content if stream was missed or buffered
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === assistantMsgId
+            ? { ...msg, content: msg.content.trim() ? msg.content : response }
+            : msg
+        )
+      );
     } catch (err: unknown) {
       const errorMsg = err instanceof Error ? err.message : String(err);
       toast.error(`LLM error: ${errorMsg}`);
-      const errorAssistantMsg: ChatMessage = {
-        id: crypto.randomUUID(),
-        role: "assistant",
-        content: `⚠️ **Error executing request:** ${errorMsg}\n\n*Make sure Ollama is running locally (\`ollama run ${model}\`)*`,
-        timestamp: new Date(),
-      };
-      setMessages((prev) => [...prev, errorAssistantMsg]);
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === assistantMsgId
+            ? {
+                ...msg,
+                content: `⚠️ **Error executing request:** ${errorMsg}\n\n*Make sure Ollama is running locally (\`ollama run ${model}\`)*`,
+              }
+            : msg
+        )
+      );
     } finally {
       setIsGenerating(false);
     }
@@ -200,8 +248,8 @@ export function LLMChat2Panel() {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <p className="text-sm font-semibold text-foreground leading-tight">AI Chat v2</p>
-            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-sky-500/15 text-sky-500 font-medium">
-              Rig + Ollama
+            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-500 font-medium">
+              Live Stream
             </span>
           </div>
           <div className="flex items-center gap-1.5 mt-0.5">
@@ -281,38 +329,7 @@ export function LLMChat2Panel() {
           ) : (
             <div className="space-y-1.5">
               {logs.map((log) => (
-                <div
-                  key={log.id}
-                  className="p-2 rounded-lg border border-border/40 bg-background/80 flex flex-col gap-1"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-mono font-medium text-sky-400 text-[11px] flex items-center gap-1">
-                      {log.status === "executing" && <Loader2 className="h-3 w-3 animate-spin text-amber-400" />}
-                      {log.status === "success" && <CheckCircle2 className="h-3 w-3 text-emerald-500" />}
-                      {log.status === "error" && <AlertCircle className="h-3 w-3 text-red-500" />}
-                      {log.toolName}
-                    </span>
-                    <span className="text-[10px] text-muted-foreground font-mono">
-                      {new Date(log.timestamp).toLocaleTimeString()}
-                    </span>
-                  </div>
-
-                  <div className="text-[10px] font-mono text-muted-foreground bg-muted/30 px-1.5 py-0.5 rounded overflow-x-auto">
-                    args: {JSON.stringify(log.args)}
-                  </div>
-
-                  {log.status === "success" && (
-                    <div className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded overflow-x-auto">
-                      result: {JSON.stringify(log.result)}
-                    </div>
-                  )}
-
-                  {log.status === "error" && (
-                    <div className="text-[10px] font-mono text-red-400 bg-red-500/10 px-1.5 py-0.5 rounded overflow-x-auto">
-                      error: {log.error}
-                    </div>
-                  )}
-                </div>
+                <ToolCallCard key={log.id} log={log} />
               ))}
             </div>
           )}
@@ -329,7 +346,7 @@ export function LLMChat2Panel() {
             <div className="space-y-1">
               <p className="text-sm font-semibold text-foreground">Frontend Tool-Calling v2</p>
               <p className="text-xs text-muted-foreground max-w-sm leading-relaxed">
-                Powered by Rust <code className="text-sky-400 font-mono">rig-core</code> and local Ollama.
+                Live streaming tokens from local Ollama.
                 Type <code className="text-sky-400 font-semibold">@</code> to mention files, review &amp; update markdown live.
               </p>
             </div>
@@ -349,10 +366,10 @@ export function LLMChat2Panel() {
                 </button>
 
                 <button
-                  onClick={() => handleSend("Update the Conclusion section in active markdown with 3 key takeaways")}
+                  onClick={() => handleSend("Add the Conclusion section in active markdown with 3 key takeaways")}
                   className="text-left px-3 py-2 rounded-lg border border-border/50 bg-muted/20 hover:bg-muted/50 hover:border-sky-500/30 text-xs text-foreground transition-all cursor-pointer flex items-center justify-between group"
                 >
-                  <span>Update Conclusion section</span>
+                  <span>Add or update Conclusion section</span>
                   <span className="text-[10px] text-sky-500 opacity-0 group-hover:opacity-100 transition-opacity">
                     update_markdown_section ✏️
                   </span>
@@ -382,38 +399,55 @@ export function LLMChat2Panel() {
           </div>
         ) : (
           <>
-            {messages.map((msg) => (
-              <div
-                key={msg.id}
-                className={`flex flex-col ${msg.role === "user" ? "items-end" : "items-start"}`}
-              >
-                <div
-                  className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-xs leading-relaxed ${
-                    msg.role === "user"
-                      ? "bg-primary text-primary-foreground rounded-br-none"
-                      : "bg-muted/60 border border-border/50 text-foreground rounded-bl-none"
-                  }`}
-                >
-                  <p className="whitespace-pre-wrap">{msg.content}</p>
-                </div>
-                <span className="text-[9px] text-muted-foreground px-1 mt-1 font-mono">
-                  {new Date(msg.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                </span>
-              </div>
-            ))}
+            {messages.map((msg) => {
+              const isAssistant = msg.role === "assistant";
+              const hasToolCalls = Boolean(msg.toolCalls && msg.toolCalls.length > 0);
+              const isEmptyAndGenerating = isAssistant && isGenerating && !msg.content;
 
-            {isGenerating && (
-              <div className="flex flex-col items-start gap-1">
-                <div className="flex items-center gap-2 px-3.5 py-2.5 rounded-2xl rounded-bl-none bg-muted/60 border border-border/50 text-xs text-muted-foreground">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin text-sky-500" />
-                  <span>
-                    {activeToolCall
-                      ? `Executing tool: ${activeToolCall.toolName}...`
-                      : "Synthesizing response from Ollama..."}
+              return (
+                <div
+                  key={msg.id}
+                  className={`flex flex-col ${msg.role === "user" ? "items-end" : "items-start"}`}
+                >
+                  <div
+                    className={`max-w-[88%] rounded-2xl px-3.5 py-2.5 text-xs leading-relaxed ${
+                      msg.role === "user"
+                        ? "bg-primary text-primary-foreground rounded-br-none"
+                        : "bg-muted/60 border border-border/50 text-foreground rounded-bl-none"
+                    }`}
+                  >
+                    {/* Inline Tool Call Cards */}
+                    {hasToolCalls && (
+                      <div className="mb-2 space-y-1">
+                        {msg.toolCalls!.map((tc) => (
+                          <ToolCallCard key={tc.id} log={tc} />
+                        ))}
+                      </div>
+                    )}
+
+                    {isEmptyAndGenerating ? (
+                      <div className="flex items-center gap-2 text-muted-foreground py-0.5">
+                        <Loader2 className="h-3 w-3 animate-spin text-sky-500" />
+                        <span>
+                          {activeToolCall
+                            ? `Executing ${activeToolCall.toolName}...`
+                            : "Synthesizing response from Ollama..."}
+                        </span>
+                      </div>
+                    ) : msg.content ? (
+                      <p className="whitespace-pre-wrap">{msg.content}</p>
+                    ) : hasToolCalls ? null : (
+                      <p className="whitespace-pre-wrap italic text-muted-foreground">
+                        (No response generated)
+                      </p>
+                    )}
+                  </div>
+                  <span className="text-[9px] text-muted-foreground px-1 mt-1 font-mono">
+                    {new Date(msg.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                   </span>
                 </div>
-              </div>
-            )}
+              );
+            })}
 
             <div ref={messagesEndRef} />
           </>
@@ -454,7 +488,7 @@ export function LLMChat2Panel() {
             value={inputVal}
             onChange={handleInputChange}
             onKeyDown={handleKeyDown}
-            placeholder={isGenerating ? "Processing query..." : "Ask a query, edit markdown, or type @ to mention files..."}
+            placeholder={isGenerating ? "Streaming response..." : "Ask a query, edit markdown, or type @ to mention files..."}
             disabled={isGenerating}
             className="text-xs h-9 bg-background/80 border-border/60 focus-visible:ring-sky-500/50"
           />

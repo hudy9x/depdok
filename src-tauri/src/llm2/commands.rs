@@ -6,11 +6,12 @@ use super::pending::{PendingRequests, ToolResultResponse};
 pub async fn llm2_send_message(
     prompt: String,
     model: Option<String>,
+    message_id: Option<String>,
     state: State<'_, PendingRequests>,
     app: AppHandle,
 ) -> Result<String, String> {
     let pending = (*state).clone();
-    prompt_agent(app, pending, &prompt, model).await
+    prompt_agent(app, pending, &prompt, model, message_id).await
 }
 
 #[tauri::command]

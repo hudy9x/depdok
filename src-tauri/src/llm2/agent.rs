@@ -19,6 +19,7 @@ use super::tools::{
 
 pub const TOOL_MODEL: &str = "qwen2.5:7b";
 pub const CONTENT_MODEL: &str = "gemma2:9b";
+pub const NUM_CTX: usize = 16384;
 
 const SYSTEM_PROMPT: &str = "\
 You are a helpful, precise, and capable AI desktop assistant for the Depdok document editor.
@@ -30,6 +31,7 @@ IMPORTANT RULES:
 - When asked to draft, write, or expand rich markdown articles, tutorials, or deep reviews, invoke 'generate_content' to leverage gemma2:9b.
 - When asked to review, inspect, or summarize an active markdown file, call 'read_markdown' first.
 - When asked to add or update a section (e.g. 'Add Conclusion in test.md'), call 'upsert_markdown_section'.
+- When asked to save, write, or record generated content, summaries, notes, or reviews to a file, always supply the complete markdown text in the 'content' parameter of 'create_file' or 'upsert_markdown'.
 - When asked what files exist or to inspect folder structure, invoke 'list_files'.
 - When asked to move, relocate, or cut/paste files, invoke 'move_files_or_folders'.
 - When a user mentions a file using '@' (e.g. '@notes.md' or '@docs/guide.md'), use that path in your tool calls.
@@ -61,6 +63,7 @@ pub async fn prompt_agent(
   prompt: &str,
   model_name: Option<String>,
   message_id: Option<String>,
+  initial_history: Option<Vec<OllamaMessage>>,
 ) -> Result<String, String> {
   let model_to_use = model_name
     .filter(|s| !s.trim().is_empty())
@@ -375,12 +378,21 @@ pub async fn prompt_agent(
       content: SYSTEM_PROMPT.to_string(),
       tool_calls: None,
     },
-    OllamaMessage {
-      role: "user".to_string(),
-      content: prompt.to_string(),
-      tool_calls: None,
-    },
   ];
+
+  if let Some(prev_messages) = initial_history {
+    for msg in prev_messages {
+      if msg.role != "system" {
+        history.push(msg);
+      }
+    }
+  }
+
+  history.push(OllamaMessage {
+    role: "user".to_string(),
+    content: prompt.to_string(),
+    tool_calls: None,
+  });
 
   let mut accumulated_final_text = String::new();
 
@@ -451,6 +463,27 @@ pub async fn prompt_agent(
         }
 
         if let Ok(val) = serde_json::from_str::<serde_json::Value>(&line) {
+          // Parse token metrics when stream chunk reports done
+          if val.get("done").and_then(|d| d.as_bool()).unwrap_or(false) {
+            let prompt_eval = val.get("prompt_eval_count").and_then(|v| v.as_u64()).unwrap_or(0);
+            let eval = val.get("eval_count").and_then(|v| v.as_u64()).unwrap_or(0);
+            if prompt_eval > 0 || eval > 0 {
+              let total = prompt_eval + eval;
+              let percent = (total as f64 / NUM_CTX as f64) * 100.0;
+              if let Some(msg_id) = &message_id {
+                let _ = app.emit("llm2_metrics", json!({
+                  "message_id": msg_id,
+                  "prompt_tokens": prompt_eval,
+                  "completion_tokens": eval,
+                  "total_tokens": total,
+                  "num_ctx": NUM_CTX,
+                  "percent_consumed": (percent * 10.0).round() / 10.0,
+                  "remaining_tokens": NUM_CTX.saturating_sub(total as usize),
+                }));
+              }
+            }
+          }
+
           if let Some(msg) = val.get("message") {
             // Regular content delta
             if let Some(content) = msg.get("content").and_then(|c| c.as_str()) {
@@ -495,6 +528,26 @@ pub async fn prompt_agent(
     let remaining_line = buffer.trim();
     if !remaining_line.is_empty() {
       if let Ok(val) = serde_json::from_str::<serde_json::Value>(remaining_line) {
+        if val.get("done").and_then(|d| d.as_bool()).unwrap_or(false) {
+          let prompt_eval = val.get("prompt_eval_count").and_then(|v| v.as_u64()).unwrap_or(0);
+          let eval = val.get("eval_count").and_then(|v| v.as_u64()).unwrap_or(0);
+          if prompt_eval > 0 || eval > 0 {
+            let total = prompt_eval + eval;
+            let percent = (total as f64 / NUM_CTX as f64) * 100.0;
+            if let Some(msg_id) = &message_id {
+              let _ = app.emit("llm2_metrics", json!({
+                "message_id": msg_id,
+                "prompt_tokens": prompt_eval,
+                "completion_tokens": eval,
+                "total_tokens": total,
+                "num_ctx": NUM_CTX,
+                "percent_consumed": (percent * 10.0).round() / 10.0,
+                "remaining_tokens": NUM_CTX.saturating_sub(total as usize),
+              }));
+            }
+          }
+        }
+
         if let Some(msg) = val.get("message") {
           if let Some(content) = msg.get("content").and_then(|c| c.as_str()) {
             if !content.is_empty() {

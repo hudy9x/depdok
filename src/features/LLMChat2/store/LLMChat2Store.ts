@@ -1,4 +1,6 @@
 import { atom } from "jotai";
+import { atomWithStorage } from "jotai/utils";
+import { localStorageDriver } from "@/lib/storage";
 
 export interface ToolExecutionLog {
   id: string;
@@ -19,9 +21,22 @@ export interface ChatMessage {
   timestamp: Date;
 }
 
+export interface ContextMetrics {
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+  numCtx: number;
+  percentConsumed: number;
+  remainingTokens: number;
+}
+
 export const isChat2OpenAtom = atom<boolean>(false);
 export const chat2MessagesAtom = atom<ChatMessage[]>([]);
 export const chat2LogsAtom = atom<ToolExecutionLog[]>([]);
 export const activeToolCallAtom = atom<ToolExecutionLog | null>(null);
 export const isGeneratingAtom = atom<boolean>(false);
 export const chat2ModelAtom = atom<string>("qwen2.5:7b");
+export const chat2IsStatefulAtom = atomWithStorage<boolean>("llm2_stateful_history", true, localStorageDriver);
+export const chat2MetricsAtom = atom<ContextMetrics | null>(null);
+
+

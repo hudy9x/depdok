@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { useAtom, useAtomValue } from "jotai";
-import { Sparkles, X, Trash2, Send, Activity, Loader2 } from "lucide-react";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
+import { Sparkles, Send, Loader2 } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
 import { toast } from "sonner";
@@ -14,20 +14,73 @@ import {
   activeToolCallAtom,
   isGeneratingAtom,
   chat2ModelAtom,
+  chat2IsStatefulAtom,
+  chat2MetricsAtom,
   ChatMessage,
 } from "../store/LLMChat2Store";
 import { useToolListener } from "../hooks/useToolListener";
 import { FileMentionPopup, MentionItem } from "./FileMentionPopup";
 import { ToolCallCard } from "./ToolCallCard";
 import { QuickPromptChips } from "./QuickPromptChips";
+import { ContextUsageGauge } from "./ContextUsageGauge";
+import { LLMChat2HeaderActions } from "./LLMChat2HeaderActions";
 
+interface OllamaMessagePayload {
+  role: string;
+  content: string;
+  tool_calls?: Array<{
+    function: {
+      name: string;
+      arguments: unknown;
+    };
+  }>;
+}
 
+function formatHistoryForBackend(messages: ChatMessage[]): OllamaMessagePayload[] {
+  const result: OllamaMessagePayload[] = [];
+
+  for (const msg of messages) {
+    if (msg.role === "user") {
+      if (msg.content.trim()) {
+        result.push({ role: "user", content: msg.content.trim() });
+      }
+    } else if (msg.role === "assistant") {
+      if (msg.toolCalls && msg.toolCalls.length > 0) {
+        result.push({
+          role: "assistant",
+          content: msg.content || "",
+          tool_calls: msg.toolCalls.map((tc) => ({
+            function: {
+              name: tc.toolName,
+              arguments: tc.args,
+            },
+          })),
+        });
+
+        for (const tc of msg.toolCalls) {
+          if (tc.status === "success" && tc.result !== undefined) {
+            result.push({
+              role: "tool",
+              content: typeof tc.result === "string" ? tc.result : JSON.stringify(tc.result),
+            });
+          }
+        }
+      } else if (msg.content.trim()) {
+        result.push({ role: "assistant", content: msg.content.trim() });
+      }
+    }
+  }
+
+  return result;
+}
 
 export function LLMChat2Panel() {
-  const [isChatOpen, setIsChatOpen] = useAtom(isChat2OpenAtom);
+  const isChatOpen = useAtomValue(isChat2OpenAtom);
   const [messages, setMessages] = useAtom(chat2MessagesAtom);
   const [isGenerating, setIsGenerating] = useAtom(isGeneratingAtom);
   const [model, setModel] = useAtom(chat2ModelAtom);
+  const isStateful = useAtomValue(chat2IsStatefulAtom);
+  const setMetrics = useSetAtom(chat2MetricsAtom);
   const logs = useAtomValue(chat2LogsAtom);
   const activeToolCall = useAtomValue(activeToolCallAtom);
 
@@ -46,18 +99,24 @@ export function LLMChat2Panel() {
   // Mount tool listener hook
   const { clearLogs } = useToolListener();
 
-  const scrollToBottom = useCallback(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
+    messagesEndRef.current?.scrollIntoView({ behavior });
   }, []);
 
+  // Scroll to bottom once when chat panel opens
   useEffect(() => {
-    scrollToBottom();
-  }, [messages, isGenerating, scrollToBottom]);
+    if (isChatOpen) {
+      setTimeout(() => {
+        scrollToBottom("auto");
+      }, 50);
+    }
+  }, [isChatOpen, scrollToBottom]);
 
-  // Real-time token streaming listener
+  // Real-time token streaming and metrics listener
   useEffect(() => {
     let unlistenToken: UnlistenFn | null = null;
     let unlistenDone: UnlistenFn | null = null;
+    let unlistenMetrics: UnlistenFn | null = null;
 
     listen<{ message_id: string; chunk: string }>("llm2_token", (event) => {
       const { message_id, chunk } = event.payload;
@@ -81,11 +140,33 @@ export function LLMChat2Panel() {
       unlistenDone = unlisten;
     });
 
+    listen<{
+      message_id: string;
+      prompt_tokens: number;
+      completion_tokens: number;
+      total_tokens: number;
+      num_ctx: number;
+      percent_consumed: number;
+      remaining_tokens: number;
+    }>("llm2_metrics", (event) => {
+      setMetrics({
+        promptTokens: event.payload.prompt_tokens,
+        completionTokens: event.payload.completion_tokens,
+        totalTokens: event.payload.total_tokens,
+        numCtx: event.payload.num_ctx,
+        percentConsumed: event.payload.percent_consumed,
+        remainingTokens: event.payload.remaining_tokens,
+      });
+    }).then((unlisten) => {
+      unlistenMetrics = unlisten;
+    });
+
     return () => {
       unlistenToken?.();
       unlistenDone?.();
+      unlistenMetrics?.();
     };
-  }, [setMessages]);
+  }, [setMessages, setMetrics]);
 
   // Check for '@' trigger in input text
   const checkMentionTrigger = (text: string, cursorPosition: number) => {
@@ -143,6 +224,8 @@ export function LLMChat2Panel() {
     const textToSend = (customPrompt || inputVal).trim();
     if (!textToSend || isGenerating) return;
 
+    const historyPayload = isStateful ? formatHistoryForBackend(messages) : undefined;
+
     const assistantMsgId = crypto.randomUUID();
     const userMsg: ChatMessage = {
       id: crypto.randomUUID(),
@@ -164,12 +247,18 @@ export function LLMChat2Panel() {
     setIsMentionOpen(false);
     setIsGenerating(true);
 
+    // Scroll to bottom when user sends a message
+    setTimeout(() => {
+      scrollToBottom("smooth");
+    }, 50);
+
     try {
       const response = await invoke<string>("llm2_send_message", {
         prompt: textToSend,
         model: model.trim() || undefined,
         messageId: assistantMsgId,
         message_id: assistantMsgId,
+        history: historyPayload,
       });
 
       // Ensure final assistant message has full content if stream was missed or buffered
@@ -236,11 +325,6 @@ export function LLMChat2Panel() {
     inputRef.current?.focus();
   };
 
-  const handleClear = () => {
-    setMessages([]);
-    clearLogs();
-  };
-
   if (!isChatOpen) return null;
 
   return (
@@ -272,43 +356,16 @@ export function LLMChat2Panel() {
           </div>
         </div>
 
-        <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="icon"
-            className={`h-7 w-7 rounded-lg text-muted-foreground hover:text-foreground relative ${
-              showToolDrawer ? "bg-muted text-sky-400" : ""
-            }`}
-            onClick={() => setShowToolDrawer((prev) => !prev)}
-            title="Toggle tool execution monitor"
-          >
-            <Activity className="h-4 w-4" />
-            {logs.length > 0 && (
-              <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-sky-500 ring-2 ring-background" />
-            )}
-          </Button>
-
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 rounded-lg text-muted-foreground hover:text-foreground"
-            onClick={handleClear}
-            title="Clear chat history"
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
-
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 rounded-lg text-muted-foreground hover:text-foreground"
-            onClick={() => setIsChatOpen(false)}
-            title="Close chat"
-          >
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
+        {/* Header Action Buttons & History Switch */}
+        <LLMChat2HeaderActions
+          showToolDrawer={showToolDrawer}
+          onToggleToolDrawer={() => setShowToolDrawer((prev) => !prev)}
+          onClearLogs={clearLogs}
+        />
       </div>
+
+      {/* Context Window Usage Gauge (Always Visible) */}
+      <ContextUsageGauge />
 
       {/* Real-time Tool Execution Drawer (Collapsible) */}
       {showToolDrawer && (

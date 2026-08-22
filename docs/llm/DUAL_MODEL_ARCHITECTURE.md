@@ -1,6 +1,6 @@
 # Dual-Model Specialization & Per-Tool Timeout Architecture
 
-This document describes the **Dual-Model Specialization Architecture** and **Per-Tool Timeout Safeguard System** implemented in Tauri 2, `rig-core`, and Ollama.
+This document describes the **Dual-Model Specialization Architecture**, **Direct Backend Delegation**, and **Per-Tool Timeout Safeguard System** implemented in Tauri 2, `rig-core`, Tokio, and Ollama.
 
 ---
 
@@ -11,14 +11,15 @@ Instead of relying on a single LLM to handle both fast deterministic tool callin
 ```
                                   ┌────────────────────────────────┐
                                   │      React User Interface      │
+                                  │   (LLMChat2Panel & Tool Cards) │
                                   └───────────────┬────────────────┘
                                                   │
-                                 Tauri IPC ("send_message")
+                                 Tauri IPC ("llm2_send_message")
                                                   │
                                                   ▼
                                   ┌────────────────────────────────┐
                                   │      Rust Agent Controller     │
-                                  │           (rig-core)           │
+                                  │  (src-tauri/src/llm2/agent.rs) │
                                   └───────────────┬────────────────┘
                                                   │
                   ┌───────────────────────────────┴───────────────────────────────┐
@@ -27,68 +28,123 @@ Instead of relying on a single LLM to handle both fast deterministic tool callin
     ⚙️ Tool Specialist: qwen2.5:7b                                 ✍️ Content Specialist: gemma2:9b
  ─────────────────────────────────────                           ─────────────────────────────────────
  • Fast intent classification                                    • Deep creative Markdown writing
- • JSON argument extraction                                      • Long-form articles & tutorials
+ • JSON argument extraction & tool routing                       • Long-form articles & multi-section guides
  • Multi-tool calling orchestration                              • Editorial critique & review
- • PlantUML / Mermaid / Excel logic                              • Natural tone & nuances
- • Vietnamese & Japanese translations
+ • Workspace file system operations                              • Natural tone & nuances
+ • Markdown reading, upserting & comments                        • Direct Rust backend invocation (0 IPC hops)
 ```
 
 ---
 
 ## 2. The `generate_content` Tool Workflow
 
-When an in-depth article, report, or biography is requested, `qwen2.5:7b` gathers the required information (via database lookups or calculations) and invokes the **`generate_content`** tool, delegating the writing task to `gemma2:9b`.
+When an in-depth article, report, or tutorial is requested, `qwen2.5:7b` recognizes the intent, gathers context (e.g. via `read_markdown` or database queries), and invokes the **`generate_content`** tool, delegating the writing task directly to `gemma2:9b`.
 
 ```
-User: "Look up Alice Smith and write an engaging professional Markdown biography for her."
+User: "Read @notes.md and write a comprehensive tutorial on Rust Tokio async tasks."
   │
   ▼
 [Turn 0: qwen2.5:7b (Tool Model)]
-  ├── ToolCall 1: get_user_age("Alice Smith")      ──> React returns: 28
-  ├── ToolCall 2: get_user_country("Alice Smith")  ──> React returns: "United States"
-  └── ToolCall 3: get_user_dob("Alice Smith")      ──> React returns: "1998-04-12"
+  └── ToolCall: read_markdown({ path: "notes.md" })  ──> React returns document text & headings outline
   │
   ▼
 [Turn 1: qwen2.5:7b (Tool Model)]
   └── ToolCall: generate_content({
-        topic: "Alice Smith, 28 years old, from United States, born 1998-04-12",
-        style: "professional biography",
+        topic: "Comprehensive tutorial on Rust Tokio async tasks with code examples and best practices based on notes.md",
+        style: "professional tutorial with code blocks",
         language: "English"
       })
       │
-      ▼ (Delegated to Content Model)
+      ▼ (Executed directly in Rust backend via reqwest to Ollama)
 [gemma2:9b (Content Model)]
-  └── Writes a rich, polished 3KB Markdown biography with headers, quotes, and styling.
+  └── Generates rich, polished 3KB Markdown prose with headers, syntax highlighting, and explanations.
   │
   ▼
 [Turn 2: qwen2.5:7b (Tool Model)]
-  └── Final Synthesized Answer presented in the chat timeline.
+  ├── Optional ToolCall: upsert_markdown_section({ heading: "Tokio Async Tutorial", replacement_content: ... })
+  └── Streams final synthesized answer & tool execution cards to the UI.
 ```
 
 ---
 
-## 3. Per-Tool Timeout Safeguard System
+## 3. Direct Backend Execution vs. Frontend Bridge
+
+Tools in Depdok are categorized by where their execution logic lives:
+
+| Tool Type | Execution Location | Examples | Why? |
+|---|---|---|---|
+| **UI & Workspace Tools** | **Frontend (React)** | `read_markdown`, `upsert_markdown`, `upsert_markdown_section`, `add_markdown_comment`, `create_file`, `rename_file`, `delete_file_or_folder` | Direct access to Jotai atoms (`activeTab`, `workspaceRoot`), UI toasts, editor DOM, and immediate file tree refreshing. |
+| **Model-to-Model Tools** | **Backend (Rust)** | `generate_content` | Direct HTTP POST to Ollama via `reqwest` in Rust. **Zero IPC roundtrip latency**, no large string serialization over Tauri channels, and managed directly by Tokio async runtime. |
+
+### Direct Rust Execution in `GenerateContentTool` (`src-tauri/src/llm2/tools.rs`):
+```rust
+impl PortableTool for GenerateContentTool {
+    const NAME: &'static str = "generate_content";
+    type Error = ToolBridgeError;
+    type Args = GenerateContentArgs;
+    type Output = serde_json::Value;
+
+    async fn call(&self, args: Self::Args) -> Result<Self::Output, Self::Error> {
+        let content_model = args.content_model.as_deref().unwrap_or("gemma2:9b");
+        let style = args.style.as_deref().unwrap_or("informative and engaging markdown");
+        let language = args.language.as_deref().unwrap_or("English");
+
+        // 1. Emit live start event to Frontend Tool Monitor
+        let _ = self.app.emit("tool_log_event", json!({
+            "id": Uuid::new_v4().to_string(),
+            "requestId": Uuid::new_v4().to_string(),
+            "toolName": Self::NAME,
+            "args": { "topic": args.topic, "style": style, "language": language },
+            "status": "executing",
+            "timestamp": chrono::Utc::now().to_rfc3339()
+        }));
+
+        // 2. Direct HTTP call to Ollama targeting gemma2:9b
+        let client = reqwest::Client::new();
+        let res = client.post("http://localhost:11434/api/chat")
+            .json(&json!({
+                "model": content_model,
+                "messages": [
+                    { "role": "system", "content": system_prompt },
+                    { "role": "user", "content": user_prompt }
+                ],
+                "stream": false,
+            }))
+            .send()
+            .await?;
+
+        // 3. Emit success event & return prose
+        let body: serde_json::Value = res.json().await?;
+        let text = body.get("message").and_then(|m| m.get("content")).and_then(|c| c.as_str()).unwrap_or_default();
+
+        Ok(json!({ "modelUsed": content_model, "content": text }))
+    }
+}
+```
+
+---
+
+## 4. Per-Tool Timeout Safeguard System
 
 ### Problem
-Instant tools like `sum_four_digits` or `get_user_age` finish in under **5ms**. However, when generating a multi-page Markdown tutorial using `gemma2:9b` on a **CPU-only 16GB RAM PC**, generation takes **20–30 seconds**. A global 15-second timeout caused `generate_content` to fail prematurely.
+Fast deterministic tools (`read_markdown`, `sum_four_digits`, `create_file`) finish in **5–50ms**. However, generating a multi-page Markdown tutorial using `gemma2:9b` on a local CPU/GPU machine can take **20–60 seconds**. A short global timeout would abort generation prematurely.
 
-### Solution: `call_frontend_tool_with_timeout`
-We decoupled timeouts so each tool has an appropriate safeguard duration:
-- **Standard Tools** (`sum_four_digits`, `get_user_age`, `get_week_of_month`): **60 seconds**.
-- **LLM Content Generation Tools** (`generate_content`): **180 seconds (3 minutes)**.
+### Solution: Decoupled Adaptive Timeouts
+- **Standard Tools**: **60 seconds** (`call_frontend_tool_with_timeout`).
+- **Content Generation Tools**: **180 seconds (3 minutes)** (`tokio::time::timeout`).
 
 ```rust
-// src-tauri/src/llm/tools.rs
+// Standard frontend tools: 60s
 pub async fn call_frontend_tool<Args: Serialize>(
     app: &AppHandle,
     pending: &PendingRequests,
     tool_name: &str,
     args: Args,
 ) -> Result<serde_json::Value, ToolBridgeError> {
-    // Default 60s timeout for regular tools
     call_frontend_tool_with_timeout(app, pending, tool_name, args, Duration::from_secs(60)).await
 }
 
+// Timeout helper with explicit cancellation cleanup
 pub async fn call_frontend_tool_with_timeout<Args: Serialize>(
     app: &AppHandle,
     pending: &PendingRequests,
@@ -98,146 +154,56 @@ pub async fn call_frontend_tool_with_timeout<Args: Serialize>(
 ) -> Result<serde_json::Value, ToolBridgeError> {
     let request_id = Uuid::new_v4().to_string();
     let (tx, rx) = tokio::sync::oneshot::channel();
-
     pending.insert(request_id.clone(), tx);
 
-    let args_val = serde_json::to_value(args)
-        .map_err(|e| ToolBridgeError(format!("Failed to serialize tool args: {}", e)))?;
-
-    let payload = ToolRequestPayload {
-        request_id: request_id.clone(),
-        tool_name: tool_name.to_string(),
-        args: args_val,
-    };
-
-    if let Err(e) = app.emit("tool_request", &payload) {
-        pending.remove(&request_id);
-        return Err(ToolBridgeError(format!("Failed to emit event to frontend: {}", e)));
-    }
+    let payload = ToolRequestPayload { request_id: request_id.clone(), tool_name: tool_name.to_string(), args: serde_json::to_value(args)? };
+    app.emit("tool_request", &payload)?;
 
     match tokio::time::timeout(timeout_duration, rx).await {
         Ok(Ok(Ok(val))) => Ok(val),
-        Ok(Ok(Err(err_msg))) => Err(ToolBridgeError(format!("Frontend error: {}", err_msg))),
+        Ok(Ok(Err(err_msg))) => Err(ToolBridgeError(err_msg)),
         Ok(Err(_)) => Err(ToolBridgeError("Channel closed unexpectedly".to_string())),
         Err(_) => {
             pending.remove(&request_id);
-            Err(ToolBridgeError(format!(
-                "Tool execution timed out after {} seconds",
-                timeout_duration.as_secs()
-            )))
+            Err(ToolBridgeError(format!("Tool execution timed out after {}s", timeout_duration.as_secs())))
         }
     }
 }
-
-// GenerateContentTool uses 180s timeout
-impl PortableTool for GenerateContentTool {
-    const NAME: &'static str = "generate_content";
-    // ...
-    async fn call(&self, args: Self::Args) -> Result<Self::Output, Self::Error> {
-        call_frontend_tool_with_timeout(
-            &self.app,
-            &self.pending,
-            Self::NAME,
-            args,
-            Duration::from_secs(180), // 3 minutes timeout for CPU LLM generation
-        )
-        .await
-    }
-}
 ```
 
 ---
 
-## 4. Code Implementation Summary
+## 5. Backend Structured Debug Logging
 
-### A. Frontend Tool (`src/tools/generateContent.ts`)
-```typescript
-import { invoke } from "@tauri-apps/api/core";
+The backend outputs clear formatted debug blocks for every Ollama turn and secondary model call in the terminal:
 
-export interface GenerateContentArgs {
-  topic: string;
-  style?: string;
-  language?: string;
-  contentModel?: string;
-}
+```text
+════════════════════ [llm2][turn 0] REQUEST TO OLLAMA ════════════════════
+Model: qwen2.5:7b
+Payload: { "messages": [ ... ], "tools": [ ... ], "stream": true }
+────────────────────────────────────────────────────────────────────────────
 
-export async function generateContent(
-  args: GenerateContentArgs,
-  activeContentModel: string = "gemma2:9b"
-) {
-  const modelToUse = args.contentModel || activeContentModel;
-  const style = args.style || "informative and engaging markdown";
-  const language = args.language || "English";
+════════════════════ [llm2][turn 0] RESPONSE FROM OLLAMA ════════════════════
+Text delta (len 0): <empty>
+Tool Calls (count 1): [ { "function": { "name": "generate_content", "arguments": { ... } } } ]
+────────────────────────────────────────────────────────────────────────────
 
-  const systemPrompt = `You are an expert content creator, technical writer, and editor specializing in high-quality Markdown content.
-Target Style: ${style}
-Target Language: ${language}
-Provide rich, well-formatted, beautiful Markdown with appropriate headers, bullet points, and clear explanations.`;
+════════════════════ [llm2][content_model] REQUEST TO OLLAMA ════════════════════
+Model: gemma2:9b
+Payload: { "messages": [ ... ], "stream": false }
+────────────────────────────────────────────────────────────────────────────
 
-  const userPrompt = `Topic / Request:\n${args.topic}\n\nPlease generate complete, high-quality content now.`;
-
-  const generatedMarkdown = await invoke<string>("generate_content", {
-    prompt: userPrompt,
-    model: modelToUse,
-    systemPrompt: systemPrompt,
-  });
-
-  return {
-    topic: args.topic,
-    style,
-    language,
-    modelUsed: modelToUse,
-    content: generatedMarkdown,
-  };
-}
-```
-
-### B. Rust Direct Content Generation (`src-tauri/src/llm/agent.rs`)
-```rust
-pub async fn generate_content_direct(
-    prompt: &str,
-    model_name: Option<&str>,
-    system_prompt: Option<&str>,
-) -> Result<String, String> {
-    let client = ollama::Client::new(Nothing).map_err(|e| format!("Ollama client error: {}", e))?;
-    let active_model = model_name.unwrap_or("gemma2:9b");
-
-    let model = client.completion_model(active_model);
-    let preamble = system_prompt.unwrap_or(
-        "You are an expert creative writer, editor, and content specialist. Write rich, engaging, well-structured markdown content."
-    );
-
-    let request = model
-        .completion_request(prompt)
-        .preamble(preamble.to_string())
-        .build();
-
-    let response = model
-        .completion(request)
-        .await
-        .map_err(|e| format!("Content generation error (model '{}'): {}", active_model, e))?;
-
-    let output = response
-        .choice
-        .into_iter()
-        .filter_map(|c| {
-            if let AssistantContent::Text(t) = c {
-                Some(t.text)
-            } else {
-                None
-            }
-        })
-        .collect::<Vec<_>>()
-        .join("\n");
-
-    Ok(output)
-}
+════════════════════ [llm2][content_model] RESPONSE FROM OLLAMA ════════════════════
+Generated prose (len 2410):
+# Complete Guide to Rust Tokio Tasks ...
+────────────────────────────────────────────────────────────────────────────
 ```
 
 ---
 
-## 5. Summary of Best Practices for Multi-Model Desktop Apps
+## 6. Summary of Best Practices
 
-1. **Role Division**: Use smaller, faster models (`qwen2.5:7b` / `qwen3.5:4b`) for UI orchestration & tool calling, and larger models (`gemma2:9b` / `llama3.1:8b`) for writing & reviewing.
-2. **On-Demand Loading**: Ollama manages model swapping in RAM automatically, keeping total memory footprint under 6GB on a 16GB PC.
-3. **Adaptive Timeouts**: Always use extended timeouts (180s+) for tool calls that perform secondary LLM generation.
+1. **Role Division**: Use `qwen2.5:7b` for fast multi-tool intent classification and orchestration; delegate creative writing to `gemma2:9b`.
+2. **Execution Colocation**: Keep tools that manipulate React state on the frontend; execute pure LLM-to-LLM secondary tools on the Rust backend.
+3. **Adaptive Timeouts**: Assign 180s timeout safeguards for secondary model calls.
+4. **Transparent UI Monitoring**: Emit `tool_log_event` so users see live cards inside chat messages while tools execute.

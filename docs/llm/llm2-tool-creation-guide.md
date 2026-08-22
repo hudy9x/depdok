@@ -258,9 +258,10 @@ Always return JSON-serializable plain objects or primitives (`string`, `number`,
 | Tool Name | Frontend Source | Backend Source | Parameters | Purpose |
 |---|---|---|---|---|
 | `read_markdown` | `tools/markdown/readMarkdown.ts` | `tools.rs:ReadMarkdownTool` | `{ path? }` | Reads file/active tab, extracts headings & comments. |
-| `update_markdown` | `tools/markdown/updateMarkdown.ts` | `tools.rs:UpdateMarkdownTool` | `{ path?, content }` | Overwrites/updates full markdown file. |
-| `update_markdown_section` | `tools/markdown/updateMarkdownSection.ts` | `tools.rs:UpdateMarkdownSectionTool` | `{ path?, heading?, target_text?, replacement_content }` | Surgical section or text replacement. |
+| `upsert_markdown` | `tools/markdown/upsertMarkdown.ts` | `tools.rs:UpsertMarkdownTool` | `{ path?, content }` | Overwrites or creates markdown file. |
+| `upsert_markdown_section` | `tools/markdown/upsertMarkdownSection.ts` | `tools.rs:UpsertMarkdownSectionTool` | `{ path?, heading?, target_text?, replacement_content }` | Surgical section replacement or auto-append. |
 | `add_markdown_comment` | `tools/markdown/addMarkdownComment.ts` | `tools.rs:AddMarkdownCommentTool` | `{ path?, target_text, comment, author? }` | Inserts native inline comments & thread. |
+| `generate_content` | Direct Rust Backend | `tools.rs:GenerateContentTool` | `{ topic, style?, language?, content_model? }` | Delegates rich Markdown writing to `gemma2:9b` (180s timeout). |
 | `create_file` | `tools/fileSystem/createFile.ts` | `tools.rs:CreateFileTool` | `{ path, content? }` | Creates file, seeds templates (.excalidraw/.xlsx), refreshes tree. |
 | `create_folder` | `tools/fileSystem/createFolder.ts` | `tools.rs:CreateFolderTool` | `{ path }` | Creates directory, refreshes file tree. |
 | `rename_file` | `tools/fileSystem/renameFile.ts` | `tools.rs:RenameFileTool` | `{ old_path, new_name }` | Renames file, updates active tabs, refreshes tree. |

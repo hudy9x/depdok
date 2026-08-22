@@ -15,6 +15,7 @@ import {
   isGeneratingAtom,
   chat2ModelAtom,
   chat2IsStatefulAtom,
+  chat2NumCtxAtom,
   chat2MetricsAtom,
   ChatMessage,
 } from "../store/LLMChat2Store";
@@ -80,6 +81,7 @@ export function LLMChat2Panel() {
   const [isGenerating, setIsGenerating] = useAtom(isGeneratingAtom);
   const [model, setModel] = useAtom(chat2ModelAtom);
   const isStateful = useAtomValue(chat2IsStatefulAtom);
+  const numCtx = useAtomValue(chat2NumCtxAtom);
   const setMetrics = useSetAtom(chat2MetricsAtom);
   const logs = useAtomValue(chat2LogsAtom);
   const activeToolCall = useAtomValue(activeToolCallAtom);
@@ -259,6 +261,8 @@ export function LLMChat2Panel() {
         messageId: assistantMsgId,
         message_id: assistantMsgId,
         history: historyPayload,
+        numCtx: numCtx,
+        num_ctx: numCtx,
       });
 
       // Ensure final assistant message has full content if stream was missed or buffered
@@ -363,9 +367,6 @@ export function LLMChat2Panel() {
           onClearLogs={clearLogs}
         />
       </div>
-
-      {/* Context Window Usage Gauge (Always Visible) */}
-      <ContextUsageGauge />
 
       {/* Real-time Tool Execution Drawer (Collapsible) */}
       {showToolDrawer && (
@@ -483,6 +484,9 @@ export function LLMChat2Panel() {
           <span className="text-[10px] text-sky-500/80">Awaiting React bridge...</span>
         </div>
       )}
+
+      {/* Context Window Usage Gauge & Settings (Bottom, Above Chat Input) */}
+      <ContextUsageGauge />
 
       {/* Input Form with @ Mention Popup */}
       <div className="p-3 border-t border-border/60 bg-muted/20 shrink-0 relative">

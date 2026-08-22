@@ -37,6 +37,8 @@ export const activeToolCallAtom = atom<ToolExecutionLog | null>(null);
 export const isGeneratingAtom = atom<boolean>(false);
 export const chat2ModelAtom = atom<string>("qwen2.5:7b");
 export const chat2IsStatefulAtom = atomWithStorage<boolean>("llm2_stateful_history", true, localStorageDriver);
+export const chat2NumCtxAtom = atomWithStorage<number>("llm2_num_ctx", 16384, localStorageDriver);
 export const chat2MetricsAtom = atom<ContextMetrics | null>(null);
+
 
 

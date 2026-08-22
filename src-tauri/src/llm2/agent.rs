@@ -64,11 +64,13 @@ pub async fn prompt_agent(
   model_name: Option<String>,
   message_id: Option<String>,
   initial_history: Option<Vec<OllamaMessage>>,
+  num_ctx: Option<usize>,
 ) -> Result<String, String> {
   let model_to_use = model_name
     .filter(|s| !s.trim().is_empty())
     .unwrap_or_else(|| TOOL_MODEL.to_string());
-  println!("[llm2][agent] Starting prompt with tool model '{}' (content model '{}'): {:?}", model_to_use, CONTENT_MODEL, prompt);
+  let num_ctx_to_use = num_ctx.unwrap_or(NUM_CTX);
+  println!("[llm2][agent] Starting prompt with tool model '{}' (content model '{}', num_ctx {}): {:?}", model_to_use, CONTENT_MODEL, num_ctx_to_use, prompt);
 
   let client = reqwest::Client::new();
 
@@ -415,7 +417,7 @@ pub async fn prompt_agent(
       "tools": tools_schema,
       "stream": true,
       "options": {
-        "num_ctx": 16384,
+        "num_ctx": num_ctx_to_use,
         "temperature": 0.2
       }
     });
@@ -469,16 +471,16 @@ pub async fn prompt_agent(
             let eval = val.get("eval_count").and_then(|v| v.as_u64()).unwrap_or(0);
             if prompt_eval > 0 || eval > 0 {
               let total = prompt_eval + eval;
-              let percent = (total as f64 / NUM_CTX as f64) * 100.0;
+              let percent = (total as f64 / num_ctx_to_use as f64) * 100.0;
               if let Some(msg_id) = &message_id {
                 let _ = app.emit("llm2_metrics", json!({
                   "message_id": msg_id,
                   "prompt_tokens": prompt_eval,
                   "completion_tokens": eval,
                   "total_tokens": total,
-                  "num_ctx": NUM_CTX,
+                  "num_ctx": num_ctx_to_use,
                   "percent_consumed": (percent * 10.0).round() / 10.0,
-                  "remaining_tokens": NUM_CTX.saturating_sub(total as usize),
+                  "remaining_tokens": num_ctx_to_use.saturating_sub(total as usize),
                 }));
               }
             }
@@ -533,16 +535,16 @@ pub async fn prompt_agent(
           let eval = val.get("eval_count").and_then(|v| v.as_u64()).unwrap_or(0);
           if prompt_eval > 0 || eval > 0 {
             let total = prompt_eval + eval;
-            let percent = (total as f64 / NUM_CTX as f64) * 100.0;
+            let percent = (total as f64 / num_ctx_to_use as f64) * 100.0;
             if let Some(msg_id) = &message_id {
               let _ = app.emit("llm2_metrics", json!({
                 "message_id": msg_id,
                 "prompt_tokens": prompt_eval,
                 "completion_tokens": eval,
                 "total_tokens": total,
-                "num_ctx": NUM_CTX,
+                "num_ctx": num_ctx_to_use,
                 "percent_consumed": (percent * 10.0).round() / 10.0,
-                "remaining_tokens": NUM_CTX.saturating_sub(total as usize),
+                "remaining_tokens": num_ctx_to_use.saturating_sub(total as usize),
               }));
             }
           }

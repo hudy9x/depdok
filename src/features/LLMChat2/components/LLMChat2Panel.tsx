@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
-import { Sparkles, Send, Loader2 } from "lucide-react";
+import { Send, Loader2 } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
 import { toast } from "sonner";
+import { LiquidOrb } from "@/components/LiquidOrb";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -281,9 +282,9 @@ export function LLMChat2Panel() {
         prev.map((msg) =>
           msg.id === assistantMsgId
             ? {
-                ...msg,
-                content: `⚠️ **Error executing request:** ${errorMsg}\n\n*Make sure Ollama is running locally (\`ollama run ${model}\`)*`,
-              }
+              ...msg,
+              content: `⚠️ **Error executing request:** ${errorMsg}\n\n*Make sure Ollama is running locally (\`ollama run ${model}\`)*`,
+            }
             : msg
         )
       );
@@ -338,20 +339,12 @@ export function LLMChat2Panel() {
       style={{ boxShadow: "0 24px 64px rgba(0,0,0,0.4)" }}
     >
       {/* Header */}
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-border/60 shrink-0 bg-muted/20">
-        <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-sky-500/10 border border-sky-500/20">
-          <Sparkles className="h-4 w-4 text-sky-500" />
+      <div className="flex items-center gap-2 px-3.5 py-2.5 border-b border-border/60 shrink-0 bg-muted/20">
+        <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-sky-500/10 border border-sky-500/20 shrink-0">
+          <LiquidOrb size={18} />
         </div>
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <p className="text-sm font-semibold text-foreground leading-tight">AI Chat v2</p>
-            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-500 font-medium">
-              Live Stream
-            </span>
-          </div>
-          <div className="mt-0.5">
-            <ModelSelector />
-          </div>
+          <ModelSelector />
         </div>
 
         {/* Header Action Buttons & History Switch */}
@@ -398,7 +391,7 @@ export function LLMChat2Panel() {
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full gap-4 text-center px-4">
             <div className="w-12 h-12 rounded-2xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center">
-              <Sparkles className="h-6 w-6 text-sky-500" />
+              <LiquidOrb size={28} />
             </div>
             <div className="space-y-1">
               <p className="text-sm font-semibold text-foreground">Frontend Tool-Calling v2</p>
@@ -424,11 +417,10 @@ export function LLMChat2Panel() {
                   className={`flex flex-col ${msg.role === "user" ? "items-end" : "items-start"}`}
                 >
                   <div
-                    className={`max-w-[88%] rounded-2xl px-3.5 py-2.5 text-xs leading-relaxed ${
-                      msg.role === "user"
-                        ? "bg-primary text-primary-foreground rounded-br-none"
-                        : "bg-muted/60 border border-border/50 text-foreground rounded-bl-none"
-                    }`}
+                    className={`max-w-[88%] rounded-2xl px-3.5 py-2.5 text-xs leading-relaxed ${msg.role === "user"
+                      ? "bg-primary text-primary-foreground rounded-br-none"
+                      : "bg-muted/60 border border-border/50 text-foreground rounded-bl-none"
+                      }`}
                   >
                     {/* Inline Tool Call Cards */}
                     {hasToolCalls && (
@@ -439,9 +431,10 @@ export function LLMChat2Panel() {
                       </div>
                     )}
 
+
                     {isEmptyAndGenerating ? (
                       <div className="flex items-center gap-2 text-muted-foreground py-0.5">
-                        <Loader2 className="h-3 w-3 animate-spin text-sky-500" />
+                        <LiquidOrb size={20} speed={1.3} />
                         <span>
                           {activeToolCall
                             ? `Executing ${activeToolCall.toolName}...`

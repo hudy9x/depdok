@@ -1,7 +1,18 @@
 import { useEffect, useState, useCallback } from "react";
 import { useAtom } from "jotai";
 import { invoke } from "@tauri-apps/api/core";
-import { Sparkles, Cpu, Bot, RefreshCw, Layers, ChevronDown, Check } from "lucide-react";
+import { Sparkles, RefreshCw, Layers, ChevronDown, Check } from "lucide-react";
+import {
+  Qwen,
+  Gemma,
+  Meta,
+  DeepSeek,
+  Mistral,
+  OpenAI,
+  Claude,
+  Gemini,
+  Ollama,
+} from "@lobehub/icons";
 
 import {
   Popover,
@@ -24,7 +35,6 @@ interface FeaturedModel {
   badgeColor: string;
   summary: string;
   details: string;
-  icon: typeof Sparkles;
 }
 
 const FEATURED_MODELS: FeaturedModel[] = [
@@ -35,7 +45,6 @@ const FEATURED_MODELS: FeaturedModel[] = [
     badgeColor: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
     summary: "Top reasoning (thinking mode), Vietnamese/Japanese, vision & 256K ctx",
     details: "~6.6GB RAM • High tool precision",
-    icon: Sparkles,
   },
   {
     id: "qwen3.5:4b",
@@ -44,7 +53,6 @@ const FEATURED_MODELS: FeaturedModel[] = [
     badgeColor: "bg-sky-500/15 text-sky-400 border-sky-500/30",
     summary: "Ultra fast generation on CPU, lightweight, great tools & multilingual",
     details: "~3.4GB RAM • Outperforms 2.5:7B",
-    icon: Cpu,
   },
   {
     id: "qwen2.5:7b",
@@ -53,9 +61,37 @@ const FEATURED_MODELS: FeaturedModel[] = [
     badgeColor: "bg-amber-500/15 text-amber-400 border-amber-500/30",
     summary: "Standard text & tool model (shorter context, no thinking mode)",
     details: "~4.7GB RAM • Text only",
-    icon: Bot,
   },
 ];
+
+function renderModelAvatar(name: string, size = 14) {
+  const lower = name.toLowerCase();
+  if (lower.includes("qwen")) {
+    return <Qwen.Avatar size={size} className="shrink-0" />;
+  }
+  if (lower.includes("gemma")) {
+    return <Gemma.Avatar size={size} className="shrink-0" />;
+  }
+  if (lower.includes("llama") || lower.includes("meta")) {
+    return <Meta.Avatar size={size} className="shrink-0" />;
+  }
+  if (lower.includes("deepseek")) {
+    return <DeepSeek.Avatar size={size} className="shrink-0" />;
+  }
+  if (lower.includes("mistral") || lower.includes("mixtral") || lower.includes("codestral")) {
+    return <Mistral.Avatar size={size} className="shrink-0" />;
+  }
+  if (lower.includes("gpt") || lower.includes("openai") || lower.includes("o1") || lower.includes("o3") || lower.includes("o4")) {
+    return <OpenAI.Avatar size={size} className="shrink-0" />;
+  }
+  if (lower.includes("claude") || lower.includes("anthropic")) {
+    return <Claude.Avatar size={size} className="shrink-0" />;
+  }
+  if (lower.includes("gemini")) {
+    return <Gemini.Avatar size={size} className="shrink-0" />;
+  }
+  return <Ollama.Avatar size={size} className="shrink-0" />;
+}
 
 export function ModelSelector() {
   const [model, setModel] = useAtom(chat2ModelAtom);
@@ -90,7 +126,6 @@ export function ModelSelector() {
   const currentFeatured = FEATURED_MODELS.find(
     (m) => m.id.toLowerCase() === model.toLowerCase()
   );
-  const CurrentIcon = currentFeatured?.icon || Bot;
   const currentDisplayName = currentFeatured?.displayName || model;
 
   const handleSelectModel = (selectedModelId: string) => {
@@ -106,7 +141,7 @@ export function ModelSelector() {
           className="h-6 w-auto flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-muted/40 hover:bg-muted/70 border border-border/50 text-[11px] font-mono text-foreground transition-colors cursor-pointer select-none"
           title="Select active Ollama AI model"
         >
-          <CurrentIcon className="h-3.5 w-3.5 text-sky-400 shrink-0" />
+          {renderModelAvatar(model, 14)}
           <span className="font-medium truncate max-w-[130px]">{currentDisplayName}</span>
           <ChevronDown className="h-3 w-3 opacity-60 shrink-0" />
         </button>
@@ -150,7 +185,6 @@ export function ModelSelector() {
                 installedNames.has(fm.id.toLowerCase()) ||
                 installedNames.has(`${fm.id}:latest`.toLowerCase()) ||
                 installedNames.has(fm.id.split(":")[0]);
-              const Icon = fm.icon;
 
               return (
                 <div
@@ -165,7 +199,7 @@ export function ModelSelector() {
                   <div className="flex flex-col gap-1 w-full text-left">
                     <div className="flex items-center justify-between gap-1.5">
                       <div className="flex items-center gap-1.5 min-w-0">
-                        <Icon className={`h-3.5 w-3.5 shrink-0 ${isSelected ? "text-sky-400" : "text-muted-foreground"}`} />
+                        {renderModelAvatar(fm.id, 16)}
                         <span className="font-semibold text-foreground truncate font-mono text-[11px]">
                           {fm.displayName}
                         </span>
@@ -222,7 +256,7 @@ export function ModelSelector() {
                     }`}
                   >
                     <div className="flex items-center gap-1.5 truncate">
-                      <Bot className="h-3 w-3 text-muted-foreground shrink-0" />
+                      {renderModelAvatar(m.name, 14)}
                       <span className="truncate">{m.name}</span>
                     </div>
 

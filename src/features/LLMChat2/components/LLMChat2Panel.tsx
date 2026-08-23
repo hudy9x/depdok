@@ -17,6 +17,7 @@ import {
   chat2ModelAtom,
   chat2IsStatefulAtom,
   chat2NumCtxAtom,
+  chat2PanelWidthAtom,
   chat2MetricsAtom,
   ChatMessage,
 } from "../store/LLMChat2Store";
@@ -326,6 +327,35 @@ export function LLMChat2Panel() {
     }
   };
 
+  const [panelWidth, setPanelWidth] = useAtom(chat2PanelWidthAtom);
+
+  const handleDragStart = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      const startX = e.clientX;
+      const startWidth = panelWidth;
+
+      const onMouseMove = (moveEvent: MouseEvent) => {
+        const delta = startX - moveEvent.clientX;
+        const nextWidth = Math.max(300, Math.min(800, startWidth + delta));
+        setPanelWidth(nextWidth);
+      };
+
+      const onMouseUp = () => {
+        window.removeEventListener("mousemove", onMouseMove);
+        window.removeEventListener("mouseup", onMouseUp);
+        document.body.style.cursor = "";
+        document.body.style.userSelect = "";
+      };
+
+      document.body.style.cursor = "ew-resize";
+      document.body.style.userSelect = "none";
+      window.addEventListener("mousemove", onMouseMove);
+      window.addEventListener("mouseup", onMouseUp);
+    },
+    [panelWidth, setPanelWidth]
+  );
+
   const handleSelectPrompt = (promptText: string) => {
     setInputVal(promptText);
     inputRef.current?.focus();
@@ -335,11 +365,18 @@ export function LLMChat2Panel() {
 
   return (
     <div
-      className="fixed bottom-4 right-4 z-50 flex flex-col w-[520px] h-[720px] max-h-[calc(100vh-32px)] rounded-2xl border border-border/60 bg-background/95 backdrop-blur-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200"
-      style={{ boxShadow: "0 24px 64px rgba(0,0,0,0.4)" }}
+      className="h-full flex flex-col shrink-0 relative bg-layout-chrome border-l border-border select-none overflow-hidden pt-[38px]"
+      style={{ width: panelWidth }}
     >
+      {/* Drag handle on left border */}
+      <div
+        className="absolute top-0 bottom-0 left-0 w-1.5 z-20 cursor-ew-resize hover:bg-primary/40 transition-colors"
+        style={{ background: "transparent" }}
+        onMouseDown={handleDragStart}
+      />
+
       {/* Header */}
-      <div className="flex items-center gap-2 px-3.5 py-2.5 border-b border-border/60 shrink-0 bg-muted/20">
+      <div className="flex items-center gap-2 px-3 py-2 border-b border-border/60 shrink-0 bg-muted/20">
         <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-sky-500/10 border border-sky-500/20 shrink-0">
           <LiquidOrb size={18} />
         </div>

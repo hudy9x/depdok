@@ -15,6 +15,7 @@ import {
   AlertCircle,
   Wrench,
   PenTool,
+  BookOpen,
 } from "lucide-react";
 import { ToolExecutionLog } from "../store/LLMChat2Store";
 
@@ -24,6 +25,10 @@ interface ToolCallCardProps {
 
 function getToolIcon(name: string) {
   switch (name) {
+    case "search_knowledge_base":
+    case "semantic_search":
+    case "search_knowledge":
+      return <BookOpen className="h-3.5 w-3.5 text-amber-300" />;
     case "generate_content":
       return <PenTool className="h-3.5 w-3.5 text-amber-400" />;
     case "read_markdown":
@@ -62,6 +67,13 @@ function formatToolSummary(name: string, args: unknown, result: unknown): string
   const parsedResult = typeof result === "object" && result !== null ? (result as Record<string, unknown>) : {};
 
   switch (name) {
+    case "search_knowledge_base":
+    case "semantic_search":
+    case "search_knowledge": {
+      const query = parsedArgs.query ? `"${parsedArgs.query}"` : "query";
+      const total = typeof parsedResult.totalFound === "number" ? ` (${parsedResult.totalFound} found)` : "";
+      return `Searched knowledge base for ${query}${total}`;
+    }
     case "generate_content": {
       const topic = parsedArgs.topic ? `"${parsedArgs.topic}"` : "requested topic";
       const model = parsedResult.modelUsed || "gemma2:9b";
@@ -178,9 +190,55 @@ export function ToolCallCard({ log }: ToolCallCardProps) {
               <span className="text-[10px] uppercase font-mono tracking-wider text-emerald-500 block mb-0.5">
                 Output
               </span>
-              <pre className="font-mono text-[10px] p-2 rounded-lg bg-emerald-500/5 border border-emerald-500/20 text-emerald-400 overflow-x-auto max-h-40">
-                {JSON.stringify(log.result, null, 2)}
-              </pre>
+              {typeof log.result === "object" &&
+              log.result !== null &&
+              Array.isArray((log.result as Record<string, unknown>).results) ? (
+                <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                  {((log.result as Record<string, unknown>).results as Array<{
+                    title?: string;
+                    relativePath?: string;
+                    score?: number;
+                    content?: string;
+                  }>).map((match, idx) => (
+                    <div
+                      key={idx}
+                      className="p-2 rounded-lg bg-background/80 border border-border/40 space-y-1"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-semibold text-foreground/90 truncate">
+                          {match.title || match.relativePath}
+                        </span>
+                        {typeof match.score === "number" && (
+                          <span className="font-mono text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 shrink-0">
+                            score: {match.score}
+                          </span>
+                        )}
+                      </div>
+                      {match.relativePath && (
+                        <div className="text-[10px] text-muted-foreground font-mono truncate">
+                          {match.relativePath}
+                        </div>
+                      )}
+                      {match.content && (
+                        <p className="text-[10px] text-foreground/70 line-clamp-2 italic">
+                          {match.content}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                  {((log.result as Record<string, unknown>).results as unknown[]).length === 0 && (
+                    <div className="p-2 rounded-lg bg-background/80 border border-border/40 text-muted-foreground italic text-[10px]">
+                      {String(
+                        (log.result as Record<string, unknown>).message || "No matches found."
+                      )}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <pre className="font-mono text-[10px] p-2 rounded-lg bg-emerald-500/5 border border-emerald-500/20 text-emerald-400 overflow-x-auto max-h-40">
+                  {JSON.stringify(log.result, null, 2)}
+                </pre>
+              )}
             </div>
           )}
 

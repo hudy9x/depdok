@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import {
   FileText,
   FolderTree,
@@ -6,6 +6,7 @@ import {
   Sparkles,
   Database,
   ArrowRight,
+  BookOpen,
 } from "lucide-react";
 
 export interface QuickPromptChipsProps {
@@ -14,13 +15,28 @@ export interface QuickPromptChipsProps {
 
 interface ExamplePrompt {
   id: string;
-  category: "markdown" | "content" | "fileSystem" | "database";
+  category: "knowledgeBase" | "markdown" | "content" | "fileSystem" | "database";
   label: string;
   prompt: string;
   badge: string;
 }
 
 const EXAMPLE_PROMPTS: ExamplePrompt[] = [
+  // Knowledge Base Suite
+  {
+    id: "search_docs",
+    category: "knowledgeBase",
+    label: "Search notes on markdown pagination",
+    prompt: "Search our knowledge base for information about markdown pagination and layout rules",
+    badge: "search_knowledge_base 🔍",
+  },
+  {
+    id: "search_embeddings",
+    category: "knowledgeBase",
+    label: "Search notes on vector embeddings & sqlite-vec",
+    prompt: "Search the knowledge base for how vector embeddings and sqlite-vec work in this project",
+    badge: "search_knowledge_base 🧠",
+  },
   // Markdown Suite
   {
     id: "read_markdown",
@@ -109,6 +125,7 @@ const EXAMPLE_PROMPTS: ExamplePrompt[] = [
 
 const CATEGORIES: { id: ExamplePrompt["category"] | "all"; label: string; icon: React.ReactNode }[] = [
   { id: "all", label: "All", icon: <Sparkles className="h-3 w-3" /> },
+  { id: "knowledgeBase", label: "Knowledge Base", icon: <BookOpen className="h-3 w-3" /> },
   { id: "markdown", label: "Markdown", icon: <FileText className="h-3 w-3" /> },
   { id: "content", label: "Writer (Gemma)", icon: <PenTool className="h-3 w-3" /> },
   { id: "fileSystem", label: "File System", icon: <FolderTree className="h-3 w-3" /> },

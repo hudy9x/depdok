@@ -24,7 +24,9 @@ import {
 import { useToolListener } from "../hooks/useToolListener";
 import { FileMentionPopup, MentionItem } from "./FileMentionPopup";
 import { ToolCallCard } from "./ToolCallCard";
-import { QuickPromptChips } from "./QuickPromptChips";
+import { EmptyChatGuide } from "./EmptyChatGuide";
+import { UserChatMessage } from "./UserChatMessage";
+import { AssistantChatMessage } from "./AssistantChatMessage";
 import { ContextUsageGauge } from "./ContextUsageGauge";
 import { LLMChat2HeaderActions } from "./LLMChat2HeaderActions";
 import { ModelSelector } from "./ModelSelector";
@@ -426,72 +428,21 @@ export function LLMChat2Panel() {
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full gap-4 text-center px-4">
-            <div className="w-12 h-12 rounded-2xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center">
-              <LiquidOrb size={28} />
-            </div>
-            <div className="space-y-1">
-              <p className="text-sm font-semibold text-foreground">Frontend Tool-Calling v2</p>
-              <p className="text-xs text-muted-foreground max-w-sm leading-relaxed">
-                Live streaming tokens from local Ollama.
-                Type <code className="text-sky-400 font-semibold">@</code> to mention files, review &amp; update markdown live.
-              </p>
-            </div>
-
-            {/* Quick Test Prompt Chips */}
-            <QuickPromptChips onSelectPrompt={handleSelectPrompt} />
-          </div>
+          <EmptyChatGuide onSelectPrompt={handleSelectPrompt} />
         ) : (
           <>
-            {messages.map((msg) => {
-              const isAssistant = msg.role === "assistant";
-              const hasToolCalls = Boolean(msg.toolCalls && msg.toolCalls.length > 0);
-              const isEmptyAndGenerating = isAssistant && isGenerating && !msg.content;
-
-              return (
-                <div
+            {messages.map((msg) =>
+              msg.role === "user" ? (
+                <UserChatMessage key={msg.id} message={msg} />
+              ) : (
+                <AssistantChatMessage
                   key={msg.id}
-                  className={`flex flex-col ${msg.role === "user" ? "items-end" : "items-start"}`}
-                >
-                  <div
-                    className={`max-w-[88%] rounded-2xl px-3.5 py-2.5 text-xs leading-relaxed ${msg.role === "user"
-                      ? "bg-primary text-primary-foreground rounded-br-none"
-                      : "bg-muted/60 border border-border/50 text-foreground rounded-bl-none"
-                      }`}
-                  >
-                    {/* Inline Tool Call Cards */}
-                    {hasToolCalls && (
-                      <div className="mb-2 space-y-1">
-                        {msg.toolCalls!.map((tc) => (
-                          <ToolCallCard key={tc.id} log={tc} />
-                        ))}
-                      </div>
-                    )}
-
-
-                    {isEmptyAndGenerating ? (
-                      <div className="flex items-center gap-2 text-muted-foreground py-0.5">
-                        <LiquidOrb size={20} speed={1.3} />
-                        <span>
-                          {activeToolCall
-                            ? `Executing ${activeToolCall.toolName}...`
-                            : "Synthesizing response from Ollama..."}
-                        </span>
-                      </div>
-                    ) : msg.content ? (
-                      <p className="whitespace-pre-wrap">{msg.content}</p>
-                    ) : hasToolCalls ? null : (
-                      <p className="whitespace-pre-wrap italic text-muted-foreground">
-                        (No response generated)
-                      </p>
-                    )}
-                  </div>
-                  <span className="text-[9px] text-muted-foreground px-1 mt-1 font-mono">
-                    {new Date(msg.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                  </span>
-                </div>
-              );
-            })}
+                  message={msg}
+                  isGenerating={isGenerating}
+                  activeToolCall={activeToolCall}
+                />
+              )
+            )}
 
             <div ref={messagesEndRef} />
           </>

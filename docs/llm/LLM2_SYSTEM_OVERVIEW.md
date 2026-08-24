@@ -125,6 +125,13 @@ src-tauri/src/llm2/                     # 🦀 Rust Backend Orchestrator
 |---|---|---|
 | `generate_content` | `{ topic: string, style?: string, language?: string, content_model?: string }` | Directly invokes **`gemma2:9b`** in the Rust backend to generate rich, creative, or long-form prose with a 180s timeout. |
 
+### D. Knowledge Base & Semantic Search Suite
+
+| Tool Name | Parameters | Behavior |
+|---|---|---|
+| `search_knowledge_base` | `{ query: string, limit?: number }` | Searches workspace documentation, guides, and notes using hybrid vector retrieval (`sqlite-vec` KNN + `FTS5` full-text search with RRF). |
+
+
 ---
 
 ## 4. Real-Time Token Streaming & UI Synchronization

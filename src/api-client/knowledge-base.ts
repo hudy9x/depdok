@@ -85,8 +85,20 @@ export async function deleteConnection(sourceId: string, targetId: string): Prom
   await invoke('delete_connection', { sourceId, targetId });
 }
 
+export interface HybridSearchResult {
+  documentId: string;
+  title: string;
+  content: string;
+  score: number;
+  matchedChunks: string[];
+}
+
 export async function searchSimilar(query: string, limit = 20): Promise<KnowledgeSearchResult[]> {
   return await invoke<KnowledgeSearchResult[]>('search_similar', { query, limit });
+}
+
+export async function searchHybrid(query: string, limit = 10): Promise<HybridSearchResult[]> {
+  return await invoke<HybridSearchResult[]>('search_hybrid', { query, limit });
 }
 
 export async function rebuildAllEdges(): Promise<void> {

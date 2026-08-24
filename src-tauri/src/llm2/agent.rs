@@ -13,8 +13,9 @@ use super::tools::{
   GetUserNameArgs, GetUserNameTool, ListFilesArgs, ListFilesTool,
   MoveFilesOrFoldersArgs, MoveFilesOrFoldersTool, ReadMarkdownArgs, ReadMarkdownTool,
   RenameFileArgs, RenameFileTool, RenameFolderArgs, RenameFolderTool,
-  SumFourDigitsArgs, SumFourDigitsTool, UpsertMarkdownArgs,
-  UpsertMarkdownSectionArgs, UpsertMarkdownSectionTool, UpsertMarkdownTool,
+  SearchKnowledgeBaseArgs, SearchKnowledgeBaseTool, SumFourDigitsArgs,
+  SumFourDigitsTool, UpsertMarkdownArgs, UpsertMarkdownSectionArgs,
+  UpsertMarkdownSectionTool, UpsertMarkdownTool,
 };
 
 pub const TOOL_MODEL: &str = "qwen2.5:7b";
@@ -28,6 +29,7 @@ You operate in a Dual-Model Specialization architecture:
 - You have access to 'generate_content', which delegates long-form Markdown prose, creative writing, in-depth reports, tutorials, and editorial review to the Content Specialist (gemma2:9b).
 
 IMPORTANT RULES:
+- When asked questions about workspace documentation, project architecture, guides, previous notes, or concepts, invoke 'search_knowledge_base' to retrieve relevant sections and notes from the vector knowledge base before answering.
 - When asked to draft, write, or expand rich markdown articles, tutorials, or deep reviews, invoke 'generate_content' to leverage gemma2:9b.
 - When asked to review, inspect, or summarize an active markdown file, call 'read_markdown' first.
 - When asked to add or update a section (e.g. 'Add Conclusion in test.md'), call 'upsert_markdown_section'.
@@ -35,7 +37,8 @@ IMPORTANT RULES:
 - When asked what files exist or to inspect folder structure, invoke 'list_files'.
 - When asked to move, relocate, or cut/paste files, invoke 'move_files_or_folders'.
 - When a user mentions a file using '@' (e.g. '@notes.md' or '@docs/guide.md'), use that path in your tool calls.
-- Once all tool results are provided, synthesize a clear, helpful final response.";
+- Once all tool results are provided, synthesize a clear, helpful final response with references or citations to source files/sections.";
+
 
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -93,9 +96,25 @@ pub async fn prompt_agent(
   let upsert_markdown_tool = UpsertMarkdownTool { app: app.clone(), pending: pending.clone() };
   let upsert_markdown_section_tool = UpsertMarkdownSectionTool { app: app.clone(), pending: pending.clone() };
   let add_markdown_comment_tool = AddMarkdownCommentTool { app: app.clone(), pending: pending.clone() };
+  let search_knowledge_base_tool = SearchKnowledgeBaseTool { app: app.clone(), pending: pending.clone() };
   let generate_content_tool = GenerateContentTool { app: app.clone() };
 
   let tools_schema = json!([
+    {
+      "type": "function",
+      "function": {
+        "name": "search_knowledge_base",
+        "description": "Search the local workspace knowledge base and indexed documentation using semantic vector and keyword retrieval to find relevant notes, specifications, guides, and section contents.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "query": { "type": "string", "description": "The search query, topic, or concept to look up across workspace notes and documents (e.g. 'authentication flow', 'markdown pagination', 'database schema')" },
+            "limit": { "type": "integer", "description": "Maximum number of relevant sections to retrieve (default: 6)" }
+          },
+          "required": ["query"]
+        }
+      }
+    },
     {
       "type": "function",
       "function": {
@@ -696,6 +715,11 @@ pub async fn prompt_agent(
             let args: AddMarkdownCommentArgs = serde_json::from_value(call_args)
               .map_err(|e| e.to_string())?;
             add_markdown_comment_tool.call(args).await.map_err(|e| e.to_string())?
+          }
+          "search_knowledge_base" | "semantic_search" | "search_knowledge" => {
+            let args: SearchKnowledgeBaseArgs = serde_json::from_value(call_args)
+              .map_err(|e| e.to_string())?;
+            search_knowledge_base_tool.call(args).await.map_err(|e| e.to_string())?
           }
           unknown => return Err(format!("Unknown tool: {}", unknown)),
         };

@@ -284,6 +284,8 @@ Always return JSON-serializable plain objects or primitives (`string`, `number`,
 | `get_user_country` | `tools/database/getUserCountry.ts` | `tools/database.rs:GetUserCountryTool` | `{ name }` | Retrieves user country by name from database. |
 | `get_user_dob` | `tools/database/getUserDob.ts` | `tools/database.rs:GetUserDobTool` | `{ name }` | Retrieves user date of birth by name from database. |
 | `sum_four_digits` | `tools/math/sumFourDigits.ts` | `tools/math.rs:SumFourDigitsTool` | `{ a, b, c, d }` | Performs addition of 4 numbers. |
+| `search_knowledge_base` | `tools/knowledgeBase/searchKnowledgeBase.ts` | `tools/knowledge_base.rs:SearchKnowledgeBaseTool` | `{ query, limit? }` | Searches workspace documentation and notes using hybrid vector (sqlite-vec) and full-text (FTS5) retrieval. |
+
 
 
 ---

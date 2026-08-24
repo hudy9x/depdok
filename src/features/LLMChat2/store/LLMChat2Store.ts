@@ -13,11 +13,26 @@ export interface ToolExecutionLog {
   timestamp: Date;
 }
 
+export interface MessagePartText {
+  type: "text";
+  id: string;
+  content: string;
+}
+
+export interface MessagePartTool {
+  type: "tool";
+  id: string;
+  toolCall: ToolExecutionLog;
+}
+
+export type MessagePart = MessagePartText | MessagePartTool;
+
 export interface ChatMessage {
   id: string;
   role: "user" | "assistant" | "system";
   content: string;
   toolCalls?: ToolExecutionLog[];
+  parts?: MessagePart[];
   timestamp: Date;
 }
 

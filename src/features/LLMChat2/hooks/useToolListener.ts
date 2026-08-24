@@ -76,8 +76,21 @@ export function useToolListener() {
             const nextTools = currentTools.some((tc) => tc.requestId === log.requestId)
               ? currentTools.map((tc) => (tc.requestId === log.requestId ? log : tc))
               : [...currentTools, log];
+
+            const currentParts = lastMsg.parts ? [...lastMsg.parts] : [];
+            const hasPart = currentParts.some(
+              (p) => p.type === "tool" && p.toolCall.requestId === log.requestId
+            );
+            const nextParts = hasPart
+              ? currentParts.map((p) =>
+                  p.type === "tool" && p.toolCall.requestId === log.requestId
+                    ? { ...p, toolCall: log }
+                    : p
+                )
+              : [...currentParts, { type: "tool" as const, id: log.id, toolCall: log }];
+
             const next = [...prev];
-            next[lastIdx] = { ...lastMsg, toolCalls: nextTools };
+            next[lastIdx] = { ...lastMsg, toolCalls: nextTools, parts: nextParts };
             return next;
           }
           return prev;
@@ -91,12 +104,23 @@ export function useToolListener() {
 
         setMessages((prev) =>
           prev.map((msg) => {
-            if (msg.role !== "assistant" || !msg.toolCalls) return msg;
+            if (msg.role !== "assistant") return msg;
+            const nextTools = msg.toolCalls?.map((tc) =>
+              tc.requestId === log.requestId ? { ...tc, ...log } : tc
+            );
+            const nextParts = msg.parts?.map((p) => {
+              if (p.type === "tool" && p.toolCall.requestId === log.requestId) {
+                return {
+                  ...p,
+                  toolCall: { ...p.toolCall, ...log },
+                };
+              }
+              return p;
+            });
             return {
               ...msg,
-              toolCalls: msg.toolCalls.map((tc) =>
-                tc.requestId === log.requestId ? { ...tc, ...log } : tc
-              ),
+              toolCalls: nextTools,
+              parts: nextParts,
             };
           })
         );
@@ -134,9 +158,18 @@ export function useToolListener() {
         const lastMsg = prev[lastIdx];
         if (lastMsg.role === "assistant") {
           const currentTools = lastMsg.toolCalls || [];
+          const currentParts = lastMsg.parts ? [...lastMsg.parts] : [];
           const updatedMsg = {
             ...lastMsg,
             toolCalls: [...currentTools, logEntry],
+            parts: [
+              ...currentParts,
+              {
+                type: "tool" as const,
+                id: logEntry.id,
+                toolCall: logEntry,
+              },
+            ],
           };
           const next = [...prev];
           next[lastIdx] = updatedMsg;
@@ -224,14 +257,29 @@ export function useToolListener() {
         // Update tool call in chat message
         setMessages((prev) =>
           prev.map((msg) => {
-            if (msg.role !== "assistant" || !msg.toolCalls) return msg;
+            if (msg.role !== "assistant") return msg;
+            const updatedTools = msg.toolCalls?.map((tc) =>
+              tc.requestId === request_id
+                ? { ...tc, result: toolOutput, status: "success" as const }
+                : tc
+            );
+            const updatedParts = msg.parts?.map((p) => {
+              if (p.type === "tool" && p.toolCall.requestId === request_id) {
+                return {
+                  ...p,
+                  toolCall: {
+                    ...p.toolCall,
+                    result: toolOutput,
+                    status: "success" as const,
+                  },
+                };
+              }
+              return p;
+            });
             return {
               ...msg,
-              toolCalls: msg.toolCalls.map((tc) =>
-                tc.requestId === request_id
-                  ? { ...tc, result: toolOutput, status: "success" }
-                  : tc
-              ),
+              toolCalls: updatedTools,
+              parts: updatedParts,
             };
           })
         );
@@ -253,14 +301,29 @@ export function useToolListener() {
 
         setMessages((prev) =>
           prev.map((msg) => {
-            if (msg.role !== "assistant" || !msg.toolCalls) return msg;
+            if (msg.role !== "assistant") return msg;
+            const updatedTools = msg.toolCalls?.map((tc) =>
+              tc.requestId === request_id
+                ? { ...tc, error: errorMsg, status: "error" as const }
+                : tc
+            );
+            const updatedParts = msg.parts?.map((p) => {
+              if (p.type === "tool" && p.toolCall.requestId === request_id) {
+                return {
+                  ...p,
+                  toolCall: {
+                    ...p.toolCall,
+                    error: errorMsg,
+                    status: "error" as const,
+                  },
+                };
+              }
+              return p;
+            });
             return {
               ...msg,
-              toolCalls: msg.toolCalls.map((tc) =>
-                tc.requestId === request_id
-                  ? { ...tc, error: errorMsg, status: "error" }
-                  : tc
-              ),
+              toolCalls: updatedTools,
+              parts: updatedParts,
             };
           })
         );

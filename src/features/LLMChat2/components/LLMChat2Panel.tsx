@@ -20,6 +20,7 @@ import {
   chat2PanelWidthAtom,
   chat2MetricsAtom,
   ChatMessage,
+  ToolExecutionLog,
 } from "../store/LLMChat2Store";
 import { useToolListener } from "../hooks/useToolListener";
 import { FileMentionPopup, MentionItem } from "./FileMentionPopup";
@@ -51,7 +52,66 @@ function formatHistoryForBackend(messages: ChatMessage[]): OllamaMessagePayload[
         result.push({ role: "user", content: msg.content.trim() });
       }
     } else if (msg.role === "assistant") {
-      if (msg.toolCalls && msg.toolCalls.length > 0) {
+      if (msg.parts && msg.parts.length > 0) {
+        let currentAssistantText = "";
+        const pendingToolCalls: ToolExecutionLog[] = [];
+
+        for (const part of msg.parts) {
+          if (part.type === "text") {
+            if (pendingToolCalls.length > 0) {
+              result.push({
+                role: "assistant",
+                content: currentAssistantText,
+                tool_calls: pendingToolCalls.map((tc) => ({
+                  function: {
+                    name: tc.toolName,
+                    arguments: tc.args,
+                  },
+                })),
+              });
+              for (const tc of pendingToolCalls) {
+                if (tc.status === "success" && tc.result !== undefined) {
+                  result.push({
+                    role: "tool",
+                    content: typeof tc.result === "string" ? tc.result : JSON.stringify(tc.result),
+                  });
+                }
+              }
+              currentAssistantText = "";
+              pendingToolCalls.length = 0;
+            }
+            currentAssistantText += (currentAssistantText ? "\n\n" : "") + part.content;
+          } else if (part.type === "tool") {
+            pendingToolCalls.push(part.toolCall);
+          }
+        }
+
+        if (pendingToolCalls.length > 0) {
+          result.push({
+            role: "assistant",
+            content: currentAssistantText,
+            tool_calls: pendingToolCalls.map((tc) => ({
+              function: {
+                name: tc.toolName,
+                arguments: tc.args,
+              },
+            })),
+          });
+          for (const tc of pendingToolCalls) {
+            if (tc.status === "success" && tc.result !== undefined) {
+              result.push({
+                role: "tool",
+                content: typeof tc.result === "string" ? tc.result : JSON.stringify(tc.result),
+              });
+            }
+          }
+        } else if (currentAssistantText.trim()) {
+          result.push({
+            role: "assistant",
+            content: currentAssistantText.trim(),
+          });
+        }
+      } else if (msg.toolCalls && msg.toolCalls.length > 0) {
         result.push({
           role: "assistant",
           content: msg.content || "",
@@ -128,9 +188,32 @@ export function LLMChat2Panel() {
     listen<{ message_id: string; chunk: string }>("llm2_token", (event) => {
       const { message_id, chunk } = event.payload;
       setMessages((prev) =>
-        prev.map((msg) =>
-          msg.id === message_id ? { ...msg, content: msg.content + chunk } : msg
-        )
+        prev.map((msg) => {
+          if (msg.id !== message_id) return msg;
+
+          const currentParts = msg.parts ? [...msg.parts] : [];
+          const lastPartIndex = currentParts.length - 1;
+          const lastPart = currentParts[lastPartIndex];
+
+          if (lastPart && lastPart.type === "text") {
+            currentParts[lastPartIndex] = {
+              ...lastPart,
+              content: lastPart.content + chunk,
+            };
+          } else {
+            currentParts.push({
+              type: "text",
+              id: crypto.randomUUID(),
+              content: chunk,
+            });
+          }
+
+          return {
+            ...msg,
+            content: msg.content + chunk,
+            parts: currentParts,
+          };
+        })
       );
     }).then((unlisten) => {
       unlistenToken = unlisten;
@@ -139,9 +222,13 @@ export function LLMChat2Panel() {
     listen<{ message_id: string; content: string }>("llm2_done", (event) => {
       const { message_id, content } = event.payload;
       setMessages((prev) =>
-        prev.map((msg) =>
-          msg.id === message_id ? { ...msg, content: content || msg.content } : msg
-        )
+        prev.map((msg) => {
+          if (msg.id !== message_id) return msg;
+          return {
+            ...msg,
+            content: msg.content || content,
+          };
+        })
       );
     }).then((unlisten) => {
       unlistenDone = unlisten;
@@ -246,6 +333,7 @@ export function LLMChat2Panel() {
       role: "assistant",
       content: "",
       toolCalls: [],
+      parts: [],
       timestamp: new Date(),
     };
 

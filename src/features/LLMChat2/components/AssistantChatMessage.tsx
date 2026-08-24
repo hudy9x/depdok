@@ -19,14 +19,14 @@ export const AssistantChatMessage: React.FC<AssistantChatMessageProps> = ({
   const hasContent = Boolean(message.content && message.content.trim().length > 0);
 
   return (
-    <div className="flex flex-col items-start w-full">
-      <div className="w-full max-w-[92%] text-xs leading-relaxed text-foreground space-y-2.5">
+    <div className="flex flex-col items-start w-full select-text">
+      <div className="w-full max-w-[92%] text-xs leading-relaxed text-foreground space-y-2.5 select-text">
         {hasParts ? (
           message.parts!.map((part) => {
             if (part.type === "text") {
               if (!part.content.trim()) return null;
               return (
-                <p key={part.id} className="whitespace-pre-wrap">
+                <p key={part.id} className="whitespace-pre-wrap select-text">
                   {part.content}
                 </p>
               );
@@ -39,13 +39,13 @@ export const AssistantChatMessage: React.FC<AssistantChatMessageProps> = ({
           <>
             {/* Fallback for legacy messages without chronological parts */}
             {hasToolCalls && (
-              <div className="space-y-1">
+              <div className="space-y-1 select-none">
                 {message.toolCalls!.map((tc) => (
                   <ToolCallCard key={tc.id} log={tc} />
                 ))}
               </div>
             )}
-            {hasContent && <p className="whitespace-pre-wrap">{message.content}</p>}
+            {hasContent && <p className="whitespace-pre-wrap select-text">{message.content}</p>}
           </>
         )}
 

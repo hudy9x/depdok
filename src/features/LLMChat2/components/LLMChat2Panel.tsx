@@ -1,13 +1,10 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
-import { Send, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
 import { toast } from "sonner";
 import { LiquidOrb } from "@/components/LiquidOrb";
-
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   isChat2OpenAtom,
   chat2MessagesAtom,
@@ -28,9 +25,9 @@ import { ToolCallCard } from "./ToolCallCard";
 import { EmptyChatGuide } from "./EmptyChatGuide";
 import { UserChatMessage } from "./UserChatMessage";
 import { AssistantChatMessage } from "./AssistantChatMessage";
+import { LLMChat2Input } from "./LLMChat2Input";
 import { ContextUsageGauge } from "./ContextUsageGauge";
 import { LLMChat2HeaderActions } from "./LLMChat2HeaderActions";
-import { ModelSelector } from "./ModelSelector";
 
 interface OllamaMessagePayload {
   role: string;
@@ -154,7 +151,7 @@ export function LLMChat2Panel() {
   const [inputVal, setInputVal] = useState("");
   const [showToolDrawer, setShowToolDrawer] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   // Mention state
   const [isMentionOpen, setIsMentionOpen] = useState(false);
@@ -284,7 +281,7 @@ export function LLMChat2Panel() {
     setMentionStartIndex(null);
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const val = e.target.value;
     const cursor = e.target.selectionStart ?? val.length;
     setInputVal(val);
@@ -384,7 +381,7 @@ export function LLMChat2Panel() {
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (isMentionOpen && mentionItems.length > 0) {
       if (e.key === "ArrowDown") {
         e.preventDefault();
@@ -455,7 +452,7 @@ export function LLMChat2Panel() {
 
   return (
     <div
-      className="h-full flex flex-col shrink-0 relative bg-layout-chrome border-l border-border select-none overflow-hidden pt-[38px]"
+      className="h-full flex flex-col shrink-0 relative bg-layout-chrome border-l border-border select-none overflow-hidden"
       style={{ width: panelWidth }}
     >
       {/* Drag handle on left border */}
@@ -467,11 +464,11 @@ export function LLMChat2Panel() {
 
       {/* Header */}
       <div className="flex items-center gap-2 px-3 py-2 border-b border-border/60 shrink-0 bg-muted/20">
-        <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-sky-500/10 border border-sky-500/20 shrink-0">
+        <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-primary/10 border border-primary/20 shrink-0">
           <LiquidOrb size={18} />
         </div>
         <div className="flex-1 min-w-0">
-          <ModelSelector />
+          <span className="text-xs font-semibold text-foreground">AI Chat</span>
         </div>
 
         {/* Header Action Buttons & History Switch */}
@@ -539,20 +536,17 @@ export function LLMChat2Panel() {
 
       {/* Active tool activity footer banner */}
       {activeToolCall && (
-        <div className="px-4 py-1.5 bg-sky-500/10 border-t border-sky-500/20 flex items-center justify-between text-[11px] text-sky-400 shrink-0">
+        <div className="px-4 py-1.5 bg-primary/10 border-t border-primary/20 flex items-center justify-between text-[11px] text-primary shrink-0">
           <div className="flex items-center gap-1.5 font-mono">
             <Loader2 className="h-3 w-3 animate-spin" />
             <span>Frontend executing: {activeToolCall.toolName}</span>
           </div>
-          <span className="text-[10px] text-sky-500/80">Awaiting React bridge...</span>
+          <span className="text-[10px] text-primary/80">Awaiting React bridge...</span>
         </div>
       )}
 
-      {/* Context Window Usage Gauge & Settings (Bottom, Above Chat Input) */}
-      <ContextUsageGauge />
-
-      {/* Input Form with @ Mention Popup */}
-      <div className="p-3 border-t border-border/60 bg-muted/20 shrink-0 relative">
+      {/* Input Section with Unified Outer Wrapper (Usage on Top + Input Card right below) */}
+      <div className="p-3 pt-0 shrink-0 relative">
         <FileMentionPopup
           isOpen={isMentionOpen}
           query={mentionQuery}
@@ -562,35 +556,22 @@ export function LLMChat2Panel() {
           onItemsChange={setMentionItems}
         />
 
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            handleSend();
-          }}
-          className="flex items-center gap-2"
-        >
-          <Input
-            ref={inputRef}
-            value={inputVal}
-            onChange={handleInputChange}
+        {/* Gray/Muted Wrapper enclosing Usage at top and Input Card directly behind it */}
+        <div className="bg-muted/40 border border-border/60 rounded-3xl p-1.5 space-y-1 shadow-xs">
+          {/* Top Usage Section */}
+          <ContextUsageGauge className="px-2 py-0.5" />
+
+          {/* Chat Input Card */}
+          <LLMChat2Input
+            inputVal={inputVal}
+            setInputVal={setInputVal}
+            isGenerating={isGenerating}
+            onSend={handleSend}
+            inputRef={inputRef}
+            onInputChange={handleInputChange}
             onKeyDown={handleKeyDown}
-            placeholder={isGenerating ? "Streaming response..." : "Ask a query, edit markdown, or type @ to mention files..."}
-            disabled={isGenerating}
-            className="text-xs h-9 bg-background/80 border-border/60 focus-visible:ring-sky-500/50"
           />
-          <Button
-            type="submit"
-            size="icon"
-            disabled={!inputVal.trim() || isGenerating}
-            className="h-9 w-9 shrink-0 bg-sky-500 hover:bg-sky-600 text-white cursor-pointer"
-          >
-            {isGenerating ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Send className="h-4 w-4" />
-            )}
-          </Button>
-        </form>
+        </div>
       </div>
     </div>
   );

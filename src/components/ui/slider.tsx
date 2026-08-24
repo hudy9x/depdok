@@ -30,12 +30,12 @@ function Slider({
       >
         <SliderPrimitive.Range
           data-slot="slider-range"
-          className="bg-sky-500 absolute h-full"
+          className="bg-primary absolute h-full"
         />
       </SliderPrimitive.Track>
       <SliderPrimitive.Thumb
         data-slot="slider-thumb"
-        className="border-sky-500 bg-background ring-sky-500/20 block h-3.5 w-3.5 rounded-full border-2 transition-[color,box-shadow] hover:ring-4 focus-visible:ring-4 focus-visible:outline-hidden disabled:pointer-events-none disabled:opacity-50 cursor-pointer"
+        className="border-primary bg-background ring-primary/20 block h-3.5 w-3.5 rounded-full border-2 transition-[color,box-shadow] hover:ring-4 focus-visible:ring-4 focus-visible:outline-hidden disabled:pointer-events-none disabled:opacity-50 cursor-pointer"
       />
     </SliderPrimitive.Root>
   )

@@ -1,6 +1,5 @@
 import { getDefaultStore } from "jotai";
 import { invoke } from "@tauri-apps/api/core";
-import { toast } from "sonner";
 import { workspaceRootAtom, refreshDirectoryAtom } from "@/features/FileExplorer/store";
 import { availableSkillsAtom, Skill } from "../../store/LLMChat2Store";
 
@@ -41,8 +40,6 @@ export async function writeSkillTool(args: WriteSkillArgs): Promise<WriteSkillRe
     // Refresh FileExplorer file tree so .depdok is immediately visible
     store.set(refreshDirectoryAtom, workspaceRoot).catch(console.error);
 
-    toast.success(`Skill saved: ${createdSkill.name}`);
-
     return {
       success: true,
       skill: createdSkill,
@@ -50,7 +47,6 @@ export async function writeSkillTool(args: WriteSkillArgs): Promise<WriteSkillRe
     };
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : String(err);
-    toast.error(`Failed to write skill: ${errorMsg}`);
     throw new Error(`Failed to write skill: ${errorMsg}`);
   }
 }

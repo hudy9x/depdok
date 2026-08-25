@@ -1,5 +1,4 @@
 import { getDefaultStore } from "jotai";
-import { toast } from "sonner";
 import { deleteNode } from "@/features/FileExplorer/api";
 import { refreshDirectoryAtom } from "@/features/FileExplorer/store";
 import { markTabsDeletedByPrefixAtom } from "@/stores/TabStore";
@@ -35,8 +34,6 @@ export async function deleteFileOrFolderTool(
       await store.set(refreshDirectoryAtom, parentDir);
     }
 
-    toast.success(`Deleted: ${name}`);
-
     return {
       success: true,
       path: fullPath,
@@ -44,7 +41,6 @@ export async function deleteFileOrFolderTool(
     };
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : String(err);
-    toast.error(`Failed to delete: ${errorMsg}`);
     throw new Error(`Failed to delete '${fullPath}': ${errorMsg}`);
   }
 }

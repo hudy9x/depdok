@@ -1,5 +1,4 @@
 import { getDefaultStore } from "jotai";
-import { toast } from "sonner";
 import { renameNode } from "@/features/FileExplorer/api";
 import { refreshDirectoryAtom } from "@/features/FileExplorer/store";
 import { updateTabsPathByPrefixAtom } from "@/stores/TabStore";
@@ -43,8 +42,6 @@ export async function renameFolderTool(args: RenameFolderArgs): Promise<RenameFo
       await store.set(refreshDirectoryAtom, parentDir);
     }
 
-    toast.success(`Renamed folder: ${oldFolderName} -> ${newFolderName}`);
-
     return {
       success: true,
       oldPath: fullOldPath,
@@ -53,7 +50,6 @@ export async function renameFolderTool(args: RenameFolderArgs): Promise<RenameFo
     };
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : String(err);
-    toast.error(`Failed to rename folder: ${errorMsg}`);
     throw new Error(`Failed to rename folder '${fullOldPath}': ${errorMsg}`);
   }
 }

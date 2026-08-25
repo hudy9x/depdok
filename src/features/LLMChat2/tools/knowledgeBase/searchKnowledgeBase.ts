@@ -1,5 +1,4 @@
 import { getDefaultStore } from "jotai";
-import { toast } from "sonner";
 
 import { searchHybrid, HybridSearchResult } from "@/api-client/knowledge-base";
 import { workspaceRootAtom } from "@/features/FileExplorer/store";
@@ -65,7 +64,6 @@ export async function searchKnowledgeBaseTool(
     const rawResults: HybridSearchResult[] = await searchHybrid(query, limit);
 
     if (!rawResults || rawResults.length === 0) {
-      toast.info(`No knowledge base matches found for "${query}"`);
       return {
         query,
         totalFound: 0,
@@ -93,8 +91,6 @@ export async function searchKnowledgeBaseTool(
         matchedChunks: (r.matchedChunks || []).slice(0, 3),
       };
     });
-
-    toast.info(`Found ${formattedMatches.length} knowledge base matches for "${query}"`);
 
     return {
       query,

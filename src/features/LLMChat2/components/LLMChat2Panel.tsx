@@ -3,7 +3,6 @@ import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { Loader2 } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
-import { toast } from "sonner";
 import { LiquidOrb } from "@/components/LiquidOrb";
 import {
   isChat2OpenAtom,
@@ -24,12 +23,14 @@ import {
 } from "../store/LLMChat2Store";
 import { workspaceRootAtom, refreshDirectoryAtom } from "@/features/FileExplorer/store";
 import { useToolListener } from "../hooks/useToolListener";
+import { useTokenSmoother } from "../hooks/useTokenSmoother";
 import { FileMentionPopup, MentionItem } from "./FileMentionPopup";
 import { SlashCommandPopup, SlashItem } from "./SlashCommandPopup";
 import { ToolCallCard } from "./ToolCallCard";
 import { EmptyChatGuide } from "./EmptyChatGuide";
 import { UserChatMessage } from "./UserChatMessage";
 import { AssistantChatMessage } from "./AssistantChatMessage";
+import { SystemChatMessage } from "./SystemChatMessage";
 import { LLMChat2Input } from "./LLMChat2Input";
 import { ContextUsageGauge } from "./ContextUsageGauge";
 import { LLMChat2HeaderActions } from "./LLMChat2HeaderActions";
@@ -180,6 +181,9 @@ export function LLMChat2Panel() {
   // Mount tool listener hook
   const { clearLogs } = useToolListener();
 
+  // Mount token smoother hook for buttery smooth streaming
+  const { enqueueToken, flush: flushTokens, clearAll: clearTokens } = useTokenSmoother();
+
   const getEffectiveWorkspaceRoot = useCallback(() => {
     return workspaceRoot && workspaceRoot.trim() ? workspaceRoot.trim() : "";
   }, [workspaceRoot]);
@@ -218,40 +222,14 @@ export function LLMChat2Panel() {
 
     listen<{ message_id: string; chunk: string }>("llm2_token", (event) => {
       const { message_id, chunk } = event.payload;
-      setMessages((prev) =>
-        prev.map((msg) => {
-          if (msg.id !== message_id) return msg;
-
-          const currentParts = msg.parts ? [...msg.parts] : [];
-          const lastPartIndex = currentParts.length - 1;
-          const lastPart = currentParts[lastPartIndex];
-
-          if (lastPart && lastPart.type === "text") {
-            currentParts[lastPartIndex] = {
-              ...lastPart,
-              content: lastPart.content + chunk,
-            };
-          } else {
-            currentParts.push({
-              type: "text",
-              id: crypto.randomUUID(),
-              content: chunk,
-            });
-          }
-
-          return {
-            ...msg,
-            content: msg.content + chunk,
-            parts: currentParts,
-          };
-        })
-      );
+      enqueueToken(message_id, chunk);
     }).then((unlisten) => {
       unlistenToken = unlisten;
     });
 
     listen<{ message_id: string; content: string }>("llm2_done", (event) => {
       const { message_id, content } = event.payload;
+      flushTokens(message_id);
       setMessages((prev) =>
         prev.map((msg) => {
           if (msg.id !== message_id) return msg;
@@ -383,20 +361,27 @@ export function LLMChat2Panel() {
       if (root) {
         refreshDirectory(root).catch(console.error);
       }
-      toast.success(`Skills initialized (${skills.length} skills found)`);
 
       setMessages((prev) => [
         ...prev,
         {
           id: crypto.randomUUID(),
-          role: "assistant",
-          content: `✨ **Skills System Initialized!**\n\nCreated \`.depdok/skills/\` directory with default \`skill-creator.md\` template (**${skills.length}** skills loaded).\n\nType \`/skill-creator\` to start interviewing and creating your first customized skill.`,
+          role: "system",
+          content: `✨ **Skills System Initialized (${skills.length} loaded)**\n\nCreated \`.depdok/skills/\` directory with default \`skill-creator.md\` template.\n\nType \`/skill-creator\` to start interviewing and creating your first customized skill.`,
           timestamp: new Date(),
         },
       ]);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      toast.error(`Skill setup failed: ${msg}`);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: crypto.randomUUID(),
+          role: "system",
+          content: `❌ **Skill setup failed:** ${msg}`,
+          timestamp: new Date(),
+        },
+      ]);
     }
   };
 
@@ -413,25 +398,32 @@ export function LLMChat2Panel() {
       if (root) {
         refreshDirectory(root).catch(console.error);
       }
-      toast.success(`Reloaded — ${skills.length} skill${skills.length === 1 ? "" : "s"} found`);
 
       setMessages((prev) => [
         ...prev,
         {
           id: crypto.randomUUID(),
-          role: "assistant",
+          role: "system",
           content:
             skills.length === 0
               ? `🔄 **Reloaded — 0 skills found in \`.depdok/skills/\`.**\n\nRun \`/skill-setup\` to initialize project skill templates.`
               : `🔄 **Reloaded — ${skills.length} skill${skills.length === 1 ? "" : "s"} found:**\n\n${skills
-                  .map((s) => `- \`/${s.name}\` — *${s.description}* (${s.tools.length === 0 ? "no tools" : s.tools.join(", ")})`)
-                  .join("\n")}`,
+                .map((s) => `- \`/${s.name}\` — *${s.description}* (${s.tools.length === 0 ? "no tools" : s.tools.join(", ")})`)
+                .join("\n")}`,
           timestamp: new Date(),
         },
       ]);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      toast.error(`Skill reload failed: ${msg}`);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: crypto.randomUUID(),
+          role: "system",
+          content: `❌ **Skill reload failed:** ${msg}`,
+          timestamp: new Date(),
+        },
+      ]);
     }
   };
 
@@ -575,7 +567,6 @@ export function LLMChat2Panel() {
       );
     } catch (err: unknown) {
       const errorMsg = err instanceof Error ? err.message : String(err);
-      toast.error(`LLM error: ${errorMsg}`);
       setMessages((prev) =>
         prev.map((msg) =>
           msg.id === assistantMsgId
@@ -587,6 +578,7 @@ export function LLMChat2Panel() {
         )
       );
     } finally {
+      flushTokens(assistantMsgId);
       setIsGenerating(false);
     }
   };
@@ -717,7 +709,10 @@ export function LLMChat2Panel() {
         <LLMChat2HeaderActions
           showToolDrawer={showToolDrawer}
           onToggleToolDrawer={() => setShowToolDrawer((prev) => !prev)}
-          onClearLogs={clearLogs}
+          onClearLogs={() => {
+            clearLogs();
+            clearTokens();
+          }}
         />
       </div>
 
@@ -761,6 +756,8 @@ export function LLMChat2Panel() {
             {messages.map((msg) =>
               msg.role === "user" ? (
                 <UserChatMessage key={msg.id} message={msg} />
+              ) : msg.role === "system" ? (
+                <SystemChatMessage key={msg.id} message={msg} />
               ) : (
                 <AssistantChatMessage
                   key={msg.id}

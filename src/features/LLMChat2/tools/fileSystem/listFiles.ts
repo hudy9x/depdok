@@ -1,5 +1,4 @@
 import { getDefaultStore } from "jotai";
-import { toast } from "sonner";
 import { listDirectory, FileEntry } from "@/features/FileExplorer/api";
 import { workspaceRootAtom } from "@/features/FileExplorer/store";
 import { resolveTargetFilePath } from "../common/pathHelper";
@@ -85,8 +84,6 @@ export async function listFilesTool(args: ListFilesArgs): Promise<ListFilesResul
     await traverse(targetDir, 1);
     const dirName = targetDir.split(/[/\\]/).pop() || targetDir || "workspace";
 
-    toast.info(`Found ${fileList.length} file(s) and ${folderList.length} folder(s) in '${dirName}'`);
-
     return {
       success: true,
       targetFolder: dirName,
@@ -98,7 +95,6 @@ export async function listFilesTool(args: ListFilesArgs): Promise<ListFilesResul
     };
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : String(err);
-    toast.error(`Failed to list files: ${errorMsg}`);
     throw new Error(`Failed to list files in '${targetDir}': ${errorMsg}`);
   }
 }

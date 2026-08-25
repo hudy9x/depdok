@@ -1,5 +1,4 @@
 import { getDefaultStore } from "jotai";
-import { toast } from "sonner";
 import { renameNode } from "@/features/FileExplorer/api";
 import { refreshDirectoryAtom } from "@/features/FileExplorer/store";
 import { updateTabsPathByPrefixAtom } from "@/stores/TabStore";
@@ -106,7 +105,6 @@ export async function moveFilesOrFoldersTool(
   const destFolderName = destFolder.split(/[/\\]/).pop() || destFolder;
 
   if (successCount === paths.length) {
-    toast.success(`Moved ${successCount} item(s) to ${destFolderName}`);
     return {
       success: true,
       movedCount: successCount,
@@ -116,7 +114,6 @@ export async function moveFilesOrFoldersTool(
       message: `Successfully moved ${successCount} item(s) to '${destFolderName}'.`,
     };
   } else if (successCount > 0) {
-    toast.warning(`Moved ${successCount}/${paths.length} item(s) to ${destFolderName}`);
     return {
       success: false,
       movedCount: successCount,
@@ -127,7 +124,6 @@ export async function moveFilesOrFoldersTool(
     };
   } else {
     const firstError = movedItems.find((i) => i.error)?.error || "Unknown error";
-    toast.error(`Failed to move items: ${firstError}`);
     throw new Error(`Failed to move items to '${destFolder}': ${firstError}`);
   }
 }

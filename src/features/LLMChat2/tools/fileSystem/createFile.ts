@@ -1,5 +1,4 @@
 import { getDefaultStore } from "jotai";
-import { toast } from "sonner";
 import { createFile, writeFileContent } from "@/features/FileExplorer/api";
 import { refreshDirectoryAtom } from "@/features/FileExplorer/store";
 import { writeBinaryFile } from "@/lib/fileOperations";
@@ -48,8 +47,6 @@ export async function createFileTool(args: CreateFileArgs): Promise<CreateFileRe
       await store.set(refreshDirectoryAtom, parentDir);
     }
 
-    toast.success(`Created file: ${fileName}`);
-
     return {
       success: true,
       path: fullPath,
@@ -57,7 +54,6 @@ export async function createFileTool(args: CreateFileArgs): Promise<CreateFileRe
     };
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : String(err);
-    toast.error(`Failed to create file: ${errorMsg}`);
     throw new Error(`Failed to create file '${fullPath}': ${errorMsg}`);
   }
 }

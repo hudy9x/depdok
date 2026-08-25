@@ -1,5 +1,4 @@
 import { getDefaultStore } from "jotai";
-import { toast } from "sonner";
 import { createDirectory } from "@/features/FileExplorer/api";
 import { refreshDirectoryAtom } from "@/features/FileExplorer/store";
 import { resolvePath, getParentDir } from "../common/pathHelper";
@@ -16,7 +15,6 @@ export interface CreateFolderResult {
 
 export async function createFolderTool(args: CreateFolderArgs): Promise<CreateFolderResult> {
   const fullPath = resolvePath(args.path);
-  const folderName = fullPath.split(/[/\\]/).pop() || fullPath;
   const parentDir = getParentDir(fullPath);
 
   try {
@@ -27,8 +25,6 @@ export async function createFolderTool(args: CreateFolderArgs): Promise<CreateFo
       await store.set(refreshDirectoryAtom, parentDir);
     }
 
-    toast.success(`Created folder: ${folderName}`);
-
     return {
       success: true,
       path: fullPath,
@@ -36,7 +32,6 @@ export async function createFolderTool(args: CreateFolderArgs): Promise<CreateFo
     };
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : String(err);
-    toast.error(`Failed to create folder: ${errorMsg}`);
     throw new Error(`Failed to create folder '${fullPath}': ${errorMsg}`);
   }
 }

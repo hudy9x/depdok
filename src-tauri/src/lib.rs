@@ -1077,6 +1077,10 @@ pub fn run() {
             llm2::commands::llm2_send_message,
             llm2::commands::llm2_tool_result,
             llm2::commands::llm2_list_models,
+            llm2::commands::llm2_skill_setup,
+            llm2::commands::llm2_skill_reload,
+            llm2::commands::llm2_skill_list,
+            llm2::commands::llm2_write_skill,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

@@ -20,6 +20,7 @@ import {
   upsertMarkdownSectionTool,
   addMarkdownCommentTool,
   searchKnowledgeBaseTool,
+  writeSkillTool,
   CreateFileArgs,
   CreateFolderArgs,
   RenameFileArgs,
@@ -32,6 +33,7 @@ import {
   UpsertMarkdownSectionArgs,
   AddMarkdownCommentArgs,
   SearchKnowledgeBaseArgs,
+  WriteSkillArgs,
 } from "../tools";
 
 import {
@@ -242,6 +244,9 @@ export function useToolListener() {
           case "semantic_search":
           case "search_knowledge":
             toolOutput = await searchKnowledgeBaseTool(args as unknown as SearchKnowledgeBaseArgs);
+            break;
+          case "write_skill":
+            toolOutput = await writeSkillTool(args as unknown as WriteSkillArgs);
             break;
           default:
             throw new Error(`Unknown tool: ${tool_name}`);

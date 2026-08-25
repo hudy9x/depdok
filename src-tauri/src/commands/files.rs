@@ -164,8 +164,8 @@ pub fn list_dir(path: &str) -> Result<Vec<FileEntry>, String> {
             .to_string();
         let is_dir = entry_path.is_dir();
 
-        // Skip hidden files/dirs (starting with .)
-        if name.starts_with('.') {
+        // Skip hidden files/dirs (starting with .), but allow .depdok
+        if name.starts_with('.') && name != ".depdok" {
             continue;
         }
 

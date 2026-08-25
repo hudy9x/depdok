@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, State};
 use super::agent::{prompt_agent, OllamaMessage};
 use super::pending::{PendingRequests, ToolResultResponse};
+use super::skills::{get_cached_skills, reload_skills, setup_skills, write_skill_file, Skill};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OllamaModelInfo {
@@ -18,11 +19,24 @@ pub async fn llm2_send_message(
     message_id: Option<String>,
     history: Option<Vec<OllamaMessage>>,
     num_ctx: Option<usize>,
+    system_prompt_addendum: Option<String>,
+    allowed_tools: Option<Vec<String>>,
     state: State<'_, PendingRequests>,
     app: AppHandle,
 ) -> Result<String, String> {
     let pending = (*state).clone();
-    prompt_agent(app, pending, &prompt, model, message_id, history, num_ctx).await
+    prompt_agent(
+        app,
+        pending,
+        &prompt,
+        model,
+        message_id,
+        history,
+        num_ctx,
+        system_prompt_addendum,
+        allowed_tools,
+    )
+    .await
 }
 
 #[tauri::command]
@@ -75,4 +89,30 @@ pub async fn llm2_list_models() -> Result<Vec<OllamaModelInfo>, String> {
     }
     Ok(models)
 }
+
+#[tauri::command]
+pub async fn llm2_skill_setup(workspace_root: String, app: AppHandle) -> Result<Vec<Skill>, String> {
+    setup_skills(&workspace_root, &app)
+}
+
+#[tauri::command]
+pub async fn llm2_skill_reload(workspace_root: String, app: AppHandle) -> Result<Vec<Skill>, String> {
+    reload_skills(&workspace_root, &app)
+}
+
+#[tauri::command]
+pub async fn llm2_skill_list(workspace_root: String, app: AppHandle) -> Result<Vec<Skill>, String> {
+    get_cached_skills(&workspace_root, &app)
+}
+
+#[tauri::command]
+pub async fn llm2_write_skill(
+    workspace_root: String,
+    name: String,
+    content: String,
+    app: AppHandle,
+) -> Result<Skill, String> {
+    write_skill_file(&workspace_root, &name, &content, &app)
+}
+
 

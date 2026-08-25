@@ -5,4 +5,6 @@ export * from "./fileSystem";
 export * from "./database";
 export * from "./math";
 export * from "./knowledgeBase";
+export * from "./skills";
+
 

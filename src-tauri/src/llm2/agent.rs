@@ -15,7 +15,7 @@ use super::tools::{
   RenameFileArgs, RenameFileTool, RenameFolderArgs, RenameFolderTool,
   SearchKnowledgeBaseArgs, SearchKnowledgeBaseTool, SumFourDigitsArgs,
   SumFourDigitsTool, UpsertMarkdownArgs, UpsertMarkdownSectionArgs,
-  UpsertMarkdownSectionTool, UpsertMarkdownTool,
+  UpsertMarkdownSectionTool, UpsertMarkdownTool, WriteSkillArgs, WriteSkillTool,
 };
 
 pub const TOOL_MODEL: &str = "qwen2.5:7b";
@@ -68,6 +68,8 @@ pub async fn prompt_agent(
   message_id: Option<String>,
   initial_history: Option<Vec<OllamaMessage>>,
   num_ctx: Option<usize>,
+  system_prompt_addendum: Option<String>,
+  allowed_tools: Option<Vec<String>>,
 ) -> Result<String, String> {
   let model_to_use = model_name
     .filter(|s| !s.trim().is_empty())
@@ -98,6 +100,7 @@ pub async fn prompt_agent(
   let add_markdown_comment_tool = AddMarkdownCommentTool { app: app.clone(), pending: pending.clone() };
   let search_knowledge_base_tool = SearchKnowledgeBaseTool { app: app.clone(), pending: pending.clone() };
   let generate_content_tool = GenerateContentTool { app: app.clone() };
+  let write_skill_tool = WriteSkillTool { app: app.clone(), pending: pending.clone() };
 
   let tools_schema = json!([
     {
@@ -390,13 +393,63 @@ pub async fn prompt_agent(
           "required": ["target_text", "comment"]
         }
       }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "write_skill",
+        "description": "Write or update a project skill Markdown file in .depdok/skills/<name>.md. Content must include YAML frontmatter (name, description, tools) and markdown body instructions.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "Optional skill name (must match ^[a-z0-9-]+$). If omitted, extracted from YAML frontmatter 'name' field."
+            },
+            "content": {
+              "type": "string",
+              "description": "The complete Markdown text of the skill, starting with '---' YAML frontmatter containing 'name', 'description', and optional 'tools' array, followed by '---' and the markdown body instructions."
+            }
+          },
+          "required": ["content"]
+        }
+      }
     }
   ]);
+
+  // Filter tools schema if allowed_tools is explicitly specified
+  let effective_tools_schema: serde_json::Value = if let Some(allowed) = &allowed_tools {
+    let filtered_list: Vec<serde_json::Value> = tools_schema
+      .as_array()
+      .unwrap_or(&vec![])
+      .iter()
+      .filter(|tool_obj| {
+        let fn_name = tool_obj
+          .get("function")
+          .and_then(|f| f.get("name"))
+          .and_then(|n| n.as_str())
+          .unwrap_or("");
+        allowed.iter().any(|a| a == fn_name)
+      })
+      .cloned()
+      .collect();
+    json!(filtered_list)
+  } else {
+    tools_schema
+  };
+
+  let mut system_content = SYSTEM_PROMPT.to_string();
+  if let Some(addendum) = system_prompt_addendum {
+    if !addendum.trim().is_empty() {
+      system_content.push_str("\n\n---\n## Active Skill Instructions\n");
+      system_content.push_str(addendum.trim());
+    }
+  }
 
   let mut history: Vec<OllamaMessage> = vec![
     OllamaMessage {
       role: "system".to_string(),
-      content: SYSTEM_PROMPT.to_string(),
+      content: system_content,
       tool_calls: None,
     },
   ];
@@ -417,29 +470,43 @@ pub async fn prompt_agent(
 
   let mut accumulated_final_text = String::new();
 
-  let tool_names: Vec<String> = tools_schema
+  let has_tools = effective_tools_schema
     .as_array()
-    .map(|arr| {
-      arr
-        .iter()
-        .filter_map(|t| t.get("function").and_then(|f| f.get("name")).and_then(|n| n.as_str()))
-        .map(|s| s.to_string())
-        .collect()
-    })
-    .unwrap_or_default();
+    .map(|arr| !arr.is_empty())
+    .unwrap_or(false);
+
+  let tool_names: Vec<String> = if has_tools {
+    effective_tools_schema
+      .as_array()
+      .map(|arr| {
+        arr
+          .iter()
+          .filter_map(|t| t.get("function").and_then(|f| f.get("name")).and_then(|n| n.as_str()))
+          .map(|s| s.to_string())
+          .collect()
+      })
+      .unwrap_or_default()
+  } else {
+    Vec::new()
+  };
 
   // Multi-turn streaming resolution loop
   for turn in 0..6 {
-    let request_body = json!({
-      "model": model_to_use,
-      "messages": history,
-      "tools": tools_schema,
-      "stream": true,
-      "options": {
+    let mut request_map = serde_json::Map::new();
+    request_map.insert("model".to_string(), json!(model_to_use));
+    request_map.insert("messages".to_string(), json!(history));
+    if has_tools {
+      request_map.insert("tools".to_string(), effective_tools_schema.clone());
+    }
+    request_map.insert("stream".to_string(), json!(true));
+    request_map.insert(
+      "options".to_string(),
+      json!({
         "num_ctx": num_ctx_to_use,
         "temperature": 0.2
-      }
-    });
+      }),
+    );
+    let request_body = serde_json::Value::Object(request_map);
 
     println!("\n════════════════════ [llm2][turn {}] REQUEST TO OLLAMA ════════════════════", turn);
     println!("1. Model: {}", model_to_use);
@@ -720,6 +787,11 @@ pub async fn prompt_agent(
             let args: SearchKnowledgeBaseArgs = serde_json::from_value(call_args)
               .map_err(|e| e.to_string())?;
             search_knowledge_base_tool.call(args).await.map_err(|e| e.to_string())?
+          }
+          "write_skill" => {
+            let args: WriteSkillArgs = serde_json::from_value(call_args)
+              .map_err(|e| e.to_string())?;
+            write_skill_tool.call(args).await.map_err(|e| e.to_string())?
           }
           unknown => return Err(format!("Unknown tool: {}", unknown)),
         };

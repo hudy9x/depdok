@@ -121,6 +121,19 @@ export const LLMChat2Input: React.FC<LLMChat2InputProps> = ({
     }, 10);
   };
 
+  const handleInsertSlashTrigger = () => {
+    const current = inputVal;
+    const nextVal = current ? (current.endsWith(" ") ? `${current}/` : `${current} /`) : "/";
+    setInputVal(nextVal);
+    setTimeout(() => {
+      if (textareaRef.current) {
+        textareaRef.current.focus();
+        const endPos = nextVal.length;
+        textareaRef.current.setSelectionRange(endPos, endPos);
+      }
+    }, 10);
+  };
+
   return (
     <div className="relative flex flex-col bg-background/95 border border-border/80 rounded-2xl p-2.5 shadow-xs focus-within:border-ring/70 focus-within:ring-1 focus-within:ring-ring/20 transition-all">
       {/* Top Input Area */}
@@ -133,7 +146,7 @@ export const LLMChat2Input: React.FC<LLMChat2InputProps> = ({
         placeholder={
           isGenerating
             ? "Streaming response from Ollama..."
-            : "Ask a query, edit markdown, or type @ to mention files..."
+            : "Ask a query, type / for skills/commands, or @ for files..."
         }
         disabled={isGenerating}
         className="w-full bg-transparent border-0 outline-none text-xs text-foreground placeholder:text-muted-foreground/60 resize-none min-h-[38px] max-h-[160px] p-1 focus:outline-none focus:ring-0 leading-relaxed disabled:opacity-50 select-text"
@@ -158,6 +171,13 @@ export const LLMChat2Input: React.FC<LLMChat2InputProps> = ({
               <DropdownMenuLabel className="text-[10px] text-muted-foreground uppercase font-semibold px-2 py-1">
                 Attach &amp; Actions
               </DropdownMenuLabel>
+              <DropdownMenuItem
+                onClick={handleInsertSlashTrigger}
+                className="text-xs flex items-center gap-2 cursor-pointer rounded-lg px-2 py-1.5"
+              >
+                <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+                <span>Commands &amp; Skills (/)</span>
+              </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={handleInsertMentionTrigger}
                 className="text-xs flex items-center gap-2 cursor-pointer rounded-lg px-2 py-1.5"

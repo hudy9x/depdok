@@ -16,11 +16,16 @@ import {
   chat2NumCtxAtom,
   chat2PanelWidthAtom,
   chat2MetricsAtom,
+  availableSkillsAtom,
+  activeSkillAtom,
   ChatMessage,
   ToolExecutionLog,
+  Skill,
 } from "../store/LLMChat2Store";
+import { workspaceRootAtom, refreshDirectoryAtom } from "@/features/FileExplorer/store";
 import { useToolListener } from "../hooks/useToolListener";
 import { FileMentionPopup, MentionItem } from "./FileMentionPopup";
+import { SlashCommandPopup, SlashItem } from "./SlashCommandPopup";
 import { ToolCallCard } from "./ToolCallCard";
 import { EmptyChatGuide } from "./EmptyChatGuide";
 import { UserChatMessage } from "./UserChatMessage";
@@ -148,20 +153,49 @@ export function LLMChat2Panel() {
   const logs = useAtomValue(chat2LogsAtom);
   const activeToolCall = useAtomValue(activeToolCallAtom);
 
+  const [availableSkills, setAvailableSkills] = useAtom(availableSkillsAtom);
+  const [activeSkill, setActiveSkill] = useAtom(activeSkillAtom);
+  const workspaceRoot = useAtomValue(workspaceRootAtom);
+  const refreshDirectory = useSetAtom(refreshDirectoryAtom);
+
   const [inputVal, setInputVal] = useState("");
   const [showToolDrawer, setShowToolDrawer] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  // Mention state
+  // Mention (@) state
   const [isMentionOpen, setIsMentionOpen] = useState(false);
   const [mentionQuery, setMentionQuery] = useState("");
   const [mentionStartIndex, setMentionStartIndex] = useState<number | null>(null);
   const [mentionItems, setMentionItems] = useState<MentionItem[]>([]);
   const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
 
+  // Slash (/) state
+  const [isSlashOpen, setIsSlashOpen] = useState(false);
+  const [slashQuery, setSlashQuery] = useState("");
+  const [slashStartIndex, setSlashStartIndex] = useState<number | null>(null);
+  const [slashItems, setSlashItems] = useState<SlashItem[]>([]);
+  const [selectedSlashIndex, setSelectedSlashIndex] = useState(0);
+
   // Mount tool listener hook
   const { clearLogs } = useToolListener();
+
+  const getEffectiveWorkspaceRoot = useCallback(() => {
+    return workspaceRoot && workspaceRoot.trim() ? workspaceRoot.trim() : "";
+  }, [workspaceRoot]);
+
+  // Load project skills from store cache on mount or workspaceRoot change
+  useEffect(() => {
+    const root = getEffectiveWorkspaceRoot();
+    invoke<Skill[]>("llm2_skill_list", {
+      workspaceRoot: root,
+      workspace_root: root,
+    })
+      .then((skills) => setAvailableSkills(skills))
+      .catch((err) => {
+        console.error("Failed to load skills:", err);
+      });
+  }, [getEffectiveWorkspaceRoot, setAvailableSkills]);
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
     messagesEndRef.current?.scrollIntoView({ behavior });
@@ -281,11 +315,36 @@ export function LLMChat2Panel() {
     setMentionStartIndex(null);
   };
 
+  // Check for '/' trigger in input text
+  const checkSlashTrigger = (text: string, cursorPosition: number) => {
+    const textBeforeCursor = text.slice(0, cursorPosition);
+    const lastSlashIndex = textBeforeCursor.lastIndexOf("/");
+
+    if (lastSlashIndex !== -1) {
+      const isAtTokenStart = lastSlashIndex === 0 || /\s/.test(textBeforeCursor[lastSlashIndex - 1]);
+      if (isAtTokenStart) {
+        const query = textBeforeCursor.slice(lastSlashIndex + 1);
+        if (!/\s/.test(query)) {
+          setIsSlashOpen(true);
+          setSlashQuery(query);
+          setSlashStartIndex(lastSlashIndex);
+          setSelectedSlashIndex(0);
+          return;
+        }
+      }
+    }
+
+    setIsSlashOpen(false);
+    setSlashQuery("");
+    setSlashStartIndex(null);
+  };
+
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const val = e.target.value;
     const cursor = e.target.selectionStart ?? val.length;
     setInputVal(val);
     checkMentionTrigger(val, cursor);
+    checkSlashTrigger(val, cursor);
   };
 
   const handleSelectMention = (item: MentionItem) => {
@@ -311,9 +370,154 @@ export function LLMChat2Panel() {
     }, 10);
   };
 
+  // Execute hardcoded command /skill-setup
+  const handleExecuteSkillSetup = async () => {
+    const root = getEffectiveWorkspaceRoot();
+
+    try {
+      const skills = await invoke<Skill[]>("llm2_skill_setup", {
+        workspaceRoot: root,
+        workspace_root: root,
+      });
+      setAvailableSkills(skills);
+      if (root) {
+        refreshDirectory(root).catch(console.error);
+      }
+      toast.success(`Skills initialized (${skills.length} skills found)`);
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: crypto.randomUUID(),
+          role: "assistant",
+          content: `✨ **Skills System Initialized!**\n\nCreated \`.depdok/skills/\` directory with default \`skill-creator.md\` template (**${skills.length}** skills loaded).\n\nType \`/skill-creator\` to start interviewing and creating your first customized skill.`,
+          timestamp: new Date(),
+        },
+      ]);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error(`Skill setup failed: ${msg}`);
+    }
+  };
+
+  // Execute hardcoded command /skill-reload
+  const handleExecuteSkillReload = async () => {
+    const root = getEffectiveWorkspaceRoot();
+
+    try {
+      const skills = await invoke<Skill[]>("llm2_skill_reload", {
+        workspaceRoot: root,
+        workspace_root: root,
+      });
+      setAvailableSkills(skills);
+      if (root) {
+        refreshDirectory(root).catch(console.error);
+      }
+      toast.success(`Reloaded — ${skills.length} skill${skills.length === 1 ? "" : "s"} found`);
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: crypto.randomUUID(),
+          role: "assistant",
+          content:
+            skills.length === 0
+              ? `🔄 **Reloaded — 0 skills found in \`.depdok/skills/\`.**\n\nRun \`/skill-setup\` to initialize project skill templates.`
+              : `🔄 **Reloaded — ${skills.length} skill${skills.length === 1 ? "" : "s"} found:**\n\n${skills
+                  .map((s) => `- \`/${s.name}\` — *${s.description}* (${s.tools.length === 0 ? "no tools" : s.tools.join(", ")})`)
+                  .join("\n")}`,
+          timestamp: new Date(),
+        },
+      ]);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error(`Skill reload failed: ${msg}`);
+    }
+  };
+
+  const handleSelectSlash = async (item: SlashItem) => {
+    if (item.type === "command") {
+      // Remove the slash query token from inputVal
+      if (slashStartIndex !== null) {
+        const before = inputVal.slice(0, slashStartIndex);
+        const after = inputVal.slice(slashStartIndex + 1 + slashQuery.length);
+        setInputVal(`${before}${after}`.trim());
+      }
+
+      setIsSlashOpen(false);
+      setSlashQuery("");
+      setSlashStartIndex(null);
+
+      if (item.name === "skill-setup") {
+        await handleExecuteSkillSetup();
+      } else if (item.name === "skill-reload") {
+        await handleExecuteSkillReload();
+      }
+    } else if (item.type === "skill") {
+      // Insert /skill-name into inputVal, keeping it visible inline
+      if (slashStartIndex === null) return;
+      const before = inputVal.slice(0, slashStartIndex);
+      const after = inputVal.slice(slashStartIndex + 1 + slashQuery.length);
+      const replacement = `/${item.name} `;
+      const newVal = `${before}${replacement}${after}`;
+
+      setInputVal(newVal);
+      setIsSlashOpen(false);
+      setSlashQuery("");
+      setSlashStartIndex(null);
+
+      setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.focus();
+          const nextPos = before.length + replacement.length;
+          inputRef.current.setSelectionRange(nextPos, nextPos);
+        }
+      }, 10);
+    }
+  };
+
   const handleSend = async (customPrompt?: string) => {
     const textToSend = (customPrompt || inputVal).trim();
     if (!textToSend || isGenerating) return;
+
+    // Handle direct commands sent in chat
+    if (textToSend === "/skill-setup") {
+      setInputVal("");
+      setIsSlashOpen(false);
+      await handleExecuteSkillSetup();
+      return;
+    }
+    if (textToSend === "/skill-reload") {
+      setInputVal("");
+      setIsSlashOpen(false);
+      await handleExecuteSkillReload();
+      return;
+    }
+
+    // Parse all /<skill-name> tokens from textToSend (e.g. "/kb /meeting-summarizer please analyze @doc.md")
+    const skillMatches = Array.from(
+      textToSend.matchAll(/(?:^|\s)\/([a-z0-9-]+)(?=\s|$)/g)
+    ).map((m) => m[1]);
+
+    const uniqueSkillNames = Array.from(new Set(skillMatches));
+    const matchedSkills = uniqueSkillNames
+      .map((name) => availableSkills.find((s) => s.name.toLowerCase() === name.toLowerCase()))
+      .filter((s): s is Skill => Boolean(s));
+
+    // Assemble system prompt addendum from all matched skills
+    let systemPromptAddendum: string | undefined = undefined;
+    if (matchedSkills.length > 0) {
+      systemPromptAddendum = matchedSkills
+        .map((s) => `### Active Skill: /${s.name}\n${s.body.trim()}`)
+        .join("\n\n---\n\n");
+    }
+
+    // Combine allowed tools from all matched skills
+    let allowedTools: string[] | undefined = undefined;
+    if (matchedSkills.length > 0) {
+      const combinedTools = Array.from(new Set(matchedSkills.flatMap((s) => s.tools)));
+      allowedTools = combinedTools;
+    }
 
     const historyPayload = isStateful ? formatHistoryForBackend(messages) : undefined;
 
@@ -336,7 +540,9 @@ export function LLMChat2Panel() {
 
     setMessages((prev) => [...prev, userMsg, placeholderAssistantMsg]);
     setInputVal("");
+    setActiveSkill(null);
     setIsMentionOpen(false);
+    setIsSlashOpen(false);
     setIsGenerating(true);
 
     // Scroll to bottom when user sends a message
@@ -353,6 +559,10 @@ export function LLMChat2Panel() {
         history: historyPayload,
         numCtx: numCtx,
         num_ctx: numCtx,
+        systemPromptAddendum: systemPromptAddendum,
+        system_prompt_addendum: systemPromptAddendum,
+        allowedTools: allowedTools,
+        allowed_tools: allowedTools,
       });
 
       // Ensure final assistant message has full content if stream was missed or buffered
@@ -382,6 +592,32 @@ export function LLMChat2Panel() {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (isSlashOpen && slashItems.length > 0) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setSelectedSlashIndex((prev) => (prev + 1) % slashItems.length);
+        return;
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setSelectedSlashIndex((prev) => (prev - 1 + slashItems.length) % slashItems.length);
+        return;
+      }
+      if (e.key === "Enter" || e.key === "Tab") {
+        e.preventDefault();
+        const selected = slashItems[selectedSlashIndex] || slashItems[0];
+        if (selected) {
+          handleSelectSlash(selected);
+        }
+        return;
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setIsSlashOpen(false);
+        return;
+      }
+    }
+
     if (isMentionOpen && mentionItems.length > 0) {
       if (e.key === "ArrowDown") {
         e.preventDefault();
@@ -406,6 +642,12 @@ export function LLMChat2Panel() {
         setIsMentionOpen(false);
         return;
       }
+    }
+
+    if (e.key === "Escape" && activeSkill) {
+      e.preventDefault();
+      setActiveSkill(null);
+      return;
     }
 
     if (e.key === "Enter" && !e.shiftKey) {
@@ -547,6 +789,16 @@ export function LLMChat2Panel() {
 
       {/* Input Section with Unified Outer Wrapper (Usage on Top + Input Card right below) */}
       <div className="p-3 pt-0 shrink-0 relative">
+        <SlashCommandPopup
+          isOpen={isSlashOpen}
+          query={slashQuery}
+          selectedIndex={selectedSlashIndex}
+          availableSkills={availableSkills}
+          onSelect={handleSelectSlash}
+          onClose={() => setIsSlashOpen(false)}
+          onItemsChange={setSlashItems}
+        />
+
         <FileMentionPopup
           isOpen={isMentionOpen}
           query={mentionQuery}

@@ -45,6 +45,14 @@ export interface ContextMetrics {
   remainingTokens: number;
 }
 
+export interface Skill {
+  name: string;
+  description: string;
+  tools: string[];
+  body: string;
+  filePath?: string;
+}
+
 export const isChat2OpenAtom = atom<boolean>(false);
 export const chat2MessagesAtom = atom<ChatMessage[]>([]);
 export const chat2LogsAtom = atom<ToolExecutionLog[]>([]);
@@ -55,6 +63,11 @@ export const chat2IsStatefulAtom = atomWithStorage<boolean>("llm2_stateful_histo
 export const chat2NumCtxAtom = atomWithStorage<number>("llm2_num_ctx", 16384, localStorageDriver);
 export const chat2PanelWidthAtom = atomWithStorage<number>("llm2_panel_width", 420, localStorageDriver);
 export const chat2MetricsAtom = atom<ContextMetrics | null>(null);
+
+// Skill state
+export const availableSkillsAtom = atom<Skill[]>([]);
+export const activeSkillAtom = atom<Skill | null>(null);
+
 
 
 

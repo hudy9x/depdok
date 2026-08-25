@@ -5,6 +5,17 @@ use tauri::AppHandle;
 use tauri_plugin_store::StoreExt;
 
 pub const SKILL_CREATOR_TEMPLATE: &str = include_str!("../../templates/skills/skill-creator.md");
+pub const SPEC_ANALYZER_TEMPLATE: &str = include_str!("../../templates/skills/spec-analyzer.md");
+pub const QA_GENERATOR_TEMPLATE: &str = include_str!("../../templates/skills/qa-generator.md");
+pub const WBS_AND_LOC_ESTIMATOR_TEMPLATE: &str =
+    include_str!("../../templates/skills/wbs-and-loc-estimator.md");
+
+pub const BUILTIN_SKILLS: &[(&str, &str)] = &[
+    ("skill-creator.md", SKILL_CREATOR_TEMPLATE),
+    ("spec-analyzer.md", SPEC_ANALYZER_TEMPLATE),
+    ("qa-generator.md", QA_GENERATOR_TEMPLATE),
+    ("wbs-and-loc-estimator.md", WBS_AND_LOC_ESTIMATOR_TEMPLATE),
+];
 
 pub const KNOWN_TOOLS: &[&str] = &[
     "search_knowledge_base",
@@ -211,12 +222,14 @@ pub fn setup_skills(workspace_root: &str, app: &AppHandle) -> Result<Vec<Skill>,
     fs::create_dir_all(&skills_dir)
         .map_err(|e| format!("Failed to create skills directory {:?}: {}", skills_dir, e))?;
 
-    // Write built-in template idempotently
-    let skill_creator_file = skills_dir.join("skill-creator.md");
-    if !skill_creator_file.exists() {
-        fs::write(&skill_creator_file, SKILL_CREATOR_TEMPLATE)
-            .map_err(|e| format!("Failed to write built-in skill-creator.md: {}", e))?;
-        println!("[skills] Wrote template skill-creator.md to {:?}", skill_creator_file);
+    // Write built-in templates idempotently
+    for (filename, template_content) in BUILTIN_SKILLS {
+        let skill_file = skills_dir.join(filename);
+        if !skill_file.exists() {
+            fs::write(&skill_file, template_content)
+                .map_err(|e| format!("Failed to write built-in {}: {}", filename, e))?;
+            println!("[skills] Wrote template {} to {:?}", filename, skill_file);
+        }
     }
 
     reload_skills(workspace_root, app)
@@ -304,4 +317,32 @@ pub fn get_cached_skills(workspace_root: &str, app: &AppHandle) -> Result<Vec<Sk
         return Ok(cached);
     }
     reload_skills(workspace_root, app)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_builtin_skills_parse_successfully() {
+        for (filename, template) in BUILTIN_SKILLS {
+            let parsed = parse_skill_markdown(template, Some(filename.to_string()));
+            assert!(
+                parsed.is_ok(),
+                "Built-in skill {} failed to parse: {:?}",
+                filename,
+                parsed.err()
+            );
+            let skill = parsed.unwrap();
+            assert!(!skill.name.is_empty(), "Skill name cannot be empty: {}", filename);
+            assert!(
+                is_valid_skill_name(&skill.name),
+                "Skill name '{}' in {} is invalid",
+                skill.name,
+                filename
+            );
+            assert!(!skill.description.is_empty(), "Skill description cannot be empty: {}", filename);
+            assert!(!skill.body.is_empty(), "Skill body cannot be empty: {}", filename);
+        }
+    }
 }

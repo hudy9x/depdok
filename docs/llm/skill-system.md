@@ -102,9 +102,11 @@ flowchart TD
 * **Purpose**: Synchronize in-memory and persistent caches with changes made on disk outside Depdok (e.g. `git pull`, teammate edits, manual file edits).
 * **Actions**: Re-parses all `.md` files in `.depdok/skills/` and refreshes the cache.
 
-### 3. `/skill-creator` (Project Skill)
-* **Template**: [`src-tauri/templates/skills/skill-creator.md`](file:///Users/hudy/ws/depdok/src-tauri/templates/skills/skill-creator.md)
-* **Behavior**: An interactive AI assistant specialized in interviewing the user or transforming upfront instructions into a structured skill file, validating YAML frontmatter, and calling `write_skill`.
+### 3. Built-in Project Skills
+* **`/skill-creator`**: ([`src-tauri/templates/skills/skill-creator.md`](file:///Users/hudy/ws/depdok/src-tauri/templates/skills/skill-creator.md)) An interactive AI assistant specialized in interviewing the user or transforming upfront instructions into a structured skill file, validating YAML frontmatter, and calling `write_skill`.
+* **`/spec-analyzer`**: ([`src-tauri/templates/skills/spec-analyzer.md`](file:///Users/hudy/ws/depdok/src-tauri/templates/skills/spec-analyzer.md)) Senior Business Analyst & Solution Architect persona to parse requirements, map core system modules, and detect logical gaps, vague constraints, or missing edge cases in a structured Markdown table.
+* **`/qa-generator`**: ([`src-tauri/templates/skills/qa-generator.md`](file:///Users/hudy/ws/depdok/src-tauri/templates/skills/qa-generator.md)) Lead Project Coordinator & Technical Auditor persona to transform identified spec ambiguities into structured, actionable clarification questions for PMs and clients.
+* **`/wbs-and-loc-estimator`**: ([`src-tauri/templates/skills/wbs-and-loc-estimator.md`](file:///Users/hudy/ws/depdok/src-tauri/templates/skills/wbs-and-loc-estimator.md)) Technical Lead & Estimation Specialist persona to deconstruct clarified requirements into a structured WBS (Feature -> Task -> Subtask) with technical descriptions, complexity, and estimated Lines of Code (LOC).
 
 ---
 

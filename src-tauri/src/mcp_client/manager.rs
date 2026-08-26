@@ -11,7 +11,7 @@ use super::config::McpConfigFile;
 pub struct McpServerSummary {
     pub name: String,
     pub transport_type: String,
-    pub status: String,
+    pub status: String, // "connected", "error", "disconnected"
     pub tools_count: usize,
     pub tools: Vec<String>,
     pub error: Option<String>,
@@ -49,14 +49,8 @@ impl McpClientManager {
     pub async fn reload_for_workspace(&self, workspace_root: &str) -> Result<Vec<McpServerSummary>, String> {
         println!("[mcp_client] Reloading MCP servers for workspace: {}", workspace_root);
         
-        // 1. Close existing connections
-        {
-            let mut clients_guard = self.clients.write().await;
-            for (name, client) in clients_guard.drain() {
-                println!("[mcp_client] Closing existing client '{}'", name);
-                let _ = client.close().await;
-            }
-        }
+        // 1. Close and terminate all existing connections
+        self.shutdown().await;
 
         // 2. Load configuration file
         let config_file = McpConfigFile::load_for_workspace(workspace_root);
@@ -80,14 +74,12 @@ impl McpClientManager {
                             println!("[mcp_client] Discovered {} tools from '{}': {:?}", tools.len(), server_name, tool_names);
 
                             for tool in tools {
-                                // Expose as scoped name: `server__tool_name`
                                 let scoped_name = format!("{}__{}", server_name, tool.name);
                                 new_tool_routing.insert(
                                     scoped_name.clone(),
                                     (server_name.clone(), tool.name.clone(), Arc::clone(&client_arc)),
                                 );
 
-                                // Also expose under direct name if no conflict
                                 if !new_tool_routing.contains_key(&tool.name) {
                                     new_tool_routing.insert(
                                         tool.name.clone(),
@@ -95,7 +87,6 @@ impl McpClientManager {
                                     );
                                 }
 
-                                // Construct Ollama tool schema
                                 let desc = tool.description.unwrap_or_else(|| format!("MCP tool from {}", server_name));
                                 new_ollama_tools.push(json!({
                                     "type": "function",
@@ -163,6 +154,158 @@ impl McpClientManager {
         Ok(new_summaries)
     }
 
+    /// Disconnect a single MCP server.
+    pub async fn disconnect_server(&self, server_name: &str) -> Result<Vec<McpServerSummary>, String> {
+        println!("[mcp_client] Disconnecting MCP server '{}'", server_name);
+
+        // 1. Close the client process/connection
+        {
+            let mut clients_guard = self.clients.write().await;
+            if let Some(client) = clients_guard.remove(server_name) {
+                let _ = client.close().await;
+            }
+        }
+
+        // 2. Remove all its tools from routing
+        {
+            let mut routing_guard = self.tool_routing.write().await;
+            routing_guard.retain(|_, (srv, _, _)| srv != server_name);
+        }
+
+        // 3. Remove its tools from Ollama schema
+        {
+            let mut schema_guard = self.ollama_tools_schema.write().await;
+            schema_guard.retain(|tool_obj| {
+                let fn_name = tool_obj
+                    .get("function")
+                    .and_then(|f| f.get("name"))
+                    .and_then(|n| n.as_str())
+                    .unwrap_or("");
+                !fn_name.starts_with(&format!("{}_", server_name))
+            });
+        }
+
+        // 4. Update summary status to disconnected
+        {
+            let mut sum_guard = self.summaries.write().await;
+            for s in sum_guard.iter_mut() {
+                if s.name == server_name {
+                    s.status = "disconnected".to_string();
+                    s.error = None;
+                }
+            }
+            Ok(sum_guard.clone())
+        }
+    }
+
+    /// Connect or reconnect a single MCP server.
+    pub async fn connect_server(&self, workspace_root: &str, server_name: &str) -> Result<Vec<McpServerSummary>, String> {
+        println!("[mcp_client] Connecting MCP server '{}'", server_name);
+
+        let config_file = McpConfigFile::load_for_workspace(workspace_root);
+        let server_cfg = config_file
+            .mcp_servers
+            .get(server_name)
+            .ok_or_else(|| format!("No configuration found for server '{}'", server_name))?;
+
+        let transport_type = match &server_cfg {
+            super::config::McpServerConfig::Stdio { .. } => "stdio".to_string(),
+            super::config::McpServerConfig::Http { .. } => "http".to_string(),
+        };
+
+        // First disconnect if already exists
+        let _ = self.disconnect_server(server_name).await;
+
+        match McpClient::connect(server_name, server_cfg).await {
+            Ok(client) => {
+                let client_arc = Arc::new(client);
+                let tools = client_arc.list_tools().await.map_err(|e| format!("Failed to list tools: {}", e))?;
+                let tool_names: Vec<String> = tools.iter().map(|t| t.name.clone()).collect();
+
+                {
+                    let mut routing_guard = self.tool_routing.write().await;
+                    let mut schema_guard = self.ollama_tools_schema.write().await;
+
+                    for tool in tools {
+                        let scoped_name = format!("{}__{}", server_name, tool.name);
+                        routing_guard.insert(
+                            scoped_name.clone(),
+                            (server_name.to_string(), tool.name.clone(), Arc::clone(&client_arc)),
+                        );
+
+                        if !routing_guard.contains_key(&tool.name) {
+                            routing_guard.insert(
+                                tool.name.clone(),
+                                (server_name.to_string(), tool.name.clone(), Arc::clone(&client_arc)),
+                            );
+                        }
+
+                        let desc = tool.description.unwrap_or_else(|| format!("MCP tool from {}", server_name));
+                        schema_guard.push(json!({
+                            "type": "function",
+                            "function": {
+                                "name": scoped_name,
+                                "description": format!("[MCP: {}] {}", server_name, desc),
+                                "parameters": if tool.input_schema.is_object() { tool.input_schema } else { json!({ "type": "object", "properties": {} }) }
+                            }
+                        }));
+                    }
+                }
+
+                {
+                    let mut clients_guard = self.clients.write().await;
+                    clients_guard.insert(server_name.to_string(), client_arc);
+                }
+
+                {
+                    let mut sum_guard = self.summaries.write().await;
+                    if let Some(existing) = sum_guard.iter_mut().find(|s| s.name == server_name) {
+                        existing.status = "connected".to_string();
+                        existing.tools_count = tool_names.len();
+                        existing.tools = tool_names;
+                        existing.error = None;
+                    } else {
+                        sum_guard.push(McpServerSummary {
+                            name: server_name.to_string(),
+                            transport_type,
+                            status: "connected".to_string(),
+                            tools_count: tool_names.len(),
+                            tools: tool_names,
+                            error: None,
+                        });
+                    }
+                    Ok(sum_guard.clone())
+                }
+            }
+            Err(e) => {
+                let mut sum_guard = self.summaries.write().await;
+                if let Some(existing) = sum_guard.iter_mut().find(|s| s.name == server_name) {
+                    existing.status = "error".to_string();
+                    existing.error = Some(e.clone());
+                } else {
+                    sum_guard.push(McpServerSummary {
+                        name: server_name.to_string(),
+                        transport_type,
+                        status: "error".to_string(),
+                        tools_count: 0,
+                        tools: Vec::new(),
+                        error: Some(e.clone()),
+                    });
+                }
+                Err(e)
+            }
+        }
+    }
+
+    /// Clear all active MCP client sessions and connections.
+    pub async fn clear_all(&self) {
+        self.shutdown().await;
+        let mut sum_guard = self.summaries.write().await;
+        for s in sum_guard.iter_mut() {
+            s.status = "disconnected".to_string();
+        }
+    }
+
     /// Get the cached list of Ollama tools schema.
     pub async fn get_ollama_tools(&self) -> Vec<Value> {
         self.ollama_tools_schema.read().await.clone()
@@ -200,5 +343,11 @@ impl McpClientManager {
             let _ = client.close().await;
             println!("[mcp_client] Server '{}' closed.", name);
         }
+
+        let mut routing_guard = self.tool_routing.write().await;
+        routing_guard.clear();
+
+        let mut schema_guard = self.ollama_tools_schema.write().await;
+        schema_guard.clear();
     }
 }

@@ -1087,6 +1087,9 @@ pub fn run() {
             llm2::commands::llm2_write_skill,
             llm2::commands::llm2_mcp_reload,
             llm2::commands::llm2_mcp_list_servers,
+            llm2::commands::llm2_mcp_disconnect_server,
+            llm2::commands::llm2_mcp_connect_server,
+            llm2::commands::llm2_mcp_clear_all,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

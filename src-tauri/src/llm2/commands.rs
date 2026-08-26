@@ -130,6 +130,32 @@ pub async fn llm2_mcp_list_servers(
     Ok(state.list_servers().await)
 }
 
+#[tauri::command]
+pub async fn llm2_mcp_disconnect_server(
+    server_name: String,
+    state: State<'_, crate::mcp_client::McpClientManager>,
+) -> Result<Vec<crate::mcp_client::McpServerSummary>, String> {
+    state.disconnect_server(&server_name).await
+}
+
+#[tauri::command]
+pub async fn llm2_mcp_connect_server(
+    workspace_root: String,
+    server_name: String,
+    state: State<'_, crate::mcp_client::McpClientManager>,
+) -> Result<Vec<crate::mcp_client::McpServerSummary>, String> {
+    state.connect_server(&workspace_root, &server_name).await
+}
+
+#[tauri::command]
+pub async fn llm2_mcp_clear_all(
+    state: State<'_, crate::mcp_client::McpClientManager>,
+) -> Result<(), String> {
+    state.clear_all().await;
+    Ok(())
+}
+
+
 
 
 

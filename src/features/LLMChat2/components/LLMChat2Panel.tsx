@@ -34,6 +34,7 @@ import { SystemChatMessage } from "./SystemChatMessage";
 import { LLMChat2Input } from "./LLMChat2Input";
 import { ContextUsageGauge } from "./ContextUsageGauge";
 import { LLMChat2HeaderActions } from "./LLMChat2HeaderActions";
+import { clearAllMcpServers } from "@/api-client/mcp";
 
 interface OllamaMessagePayload {
   role: string;
@@ -211,8 +212,17 @@ export function LLMChat2Panel() {
       setTimeout(() => {
         scrollToBottom("auto");
       }, 50);
+    } else {
+      clearAllMcpServers().catch((e) => console.error("Error clearing MCP servers on chat close:", e));
     }
   }, [isChatOpen, scrollToBottom]);
+
+  // Clean up all MCP servers on component unmount
+  useEffect(() => {
+    return () => {
+      clearAllMcpServers().catch((e) => console.error("Error clearing MCP servers on unmount:", e));
+    };
+  }, []);
 
   // Real-time token streaming and metrics listener
   useEffect(() => {

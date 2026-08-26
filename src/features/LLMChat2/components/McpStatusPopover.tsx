@@ -1,8 +1,27 @@
-import React, { useEffect, useCallback } from "react";
+import React, { useEffect, useCallback, useState } from "react";
 import { useAtom, useAtomValue } from "jotai";
-import { Blocks, RefreshCw, CheckCircle2, AlertCircle, Wrench, Terminal, Globe, HelpCircle } from "lucide-react";
+import {
+  Blocks,
+  RefreshCw,
+  CheckCircle2,
+  AlertCircle,
+  Wrench,
+  Terminal,
+  Globe,
+  HelpCircle,
+  Power,
+  PowerOff,
+  Loader2,
+  CircleDot,
+} from "lucide-react";
 import { workspaceRootAtom } from "@/features/FileExplorer/store";
-import { listMcpServers, reloadMcpServers, McpServerSummary } from "@/api-client/mcp";
+import {
+  listMcpServers,
+  reloadMcpServers,
+  disconnectMcpServer,
+  connectMcpServer,
+  McpServerSummary,
+} from "@/api-client/mcp";
 import { mcpServersAtom, isReloadingMcpAtom } from "../store/LLMChat2Store";
 import {
   Popover,
@@ -18,6 +37,7 @@ export const McpStatusPopover: React.FC<McpStatusPopoverProps> = ({ className = 
   const workspaceRoot = useAtomValue(workspaceRootAtom);
   const [servers, setServers] = useAtom(mcpServersAtom);
   const [isReloading, setIsReloading] = useAtom(isReloadingMcpAtom);
+  const [actionLoadingServer, setActionLoadingServer] = useState<string | null>(null);
 
   const fetchServers = useCallback(async () => {
     try {
@@ -45,6 +65,32 @@ export const McpStatusPopover: React.FC<McpStatusPopoverProps> = ({ className = 
     }
   }, [workspaceRoot, fetchServers, setIsReloading, setServers]);
 
+  const handleDisconnect = async (serverName: string) => {
+    setActionLoadingServer(serverName);
+    try {
+      const updated = await disconnectMcpServer(serverName);
+      setServers(updated);
+    } catch (e) {
+      console.error("[McpStatusPopover] Failed to disconnect server:", e);
+    } finally {
+      setActionLoadingServer(null);
+    }
+  };
+
+  const handleConnect = async (serverName: string) => {
+    if (!workspaceRoot) return;
+    setActionLoadingServer(serverName);
+    try {
+      const updated = await connectMcpServer(workspaceRoot, serverName);
+      setServers(updated);
+    } catch (e) {
+      console.error("[McpStatusPopover] Failed to connect server:", e);
+      await fetchServers();
+    } finally {
+      setActionLoadingServer(null);
+    }
+  };
+
   // Initial fetch and workspace root change reload
   useEffect(() => {
     if (workspaceRoot) {
@@ -56,7 +102,9 @@ export const McpStatusPopover: React.FC<McpStatusPopoverProps> = ({ className = 
 
   const hasErrors = servers.some((s) => s.status === "error" || s.error);
   const connectedCount = servers.filter((s) => s.status === "connected" && !s.error).length;
-  const totalToolsCount = servers.reduce((acc, s) => acc + (s.tools_count || 0), 0);
+  const totalToolsCount = servers
+    .filter((s) => s.status === "connected")
+    .reduce((acc, s) => acc + (s.tools_count || 0), 0);
 
   return (
     <Popover>
@@ -70,7 +118,11 @@ export const McpStatusPopover: React.FC<McpStatusPopoverProps> = ({ className = 
           {servers.length > 0 && (
             <span
               className={`absolute top-0.5 right-0.5 h-1.5 w-1.5 rounded-full ring-1 ring-background ${
-                hasErrors ? "bg-red-500 animate-pulse" : "bg-emerald-500"
+                hasErrors
+                  ? "bg-red-500 animate-pulse"
+                  : connectedCount > 0
+                  ? "bg-emerald-500"
+                  : "bg-muted-foreground/50"
               }`}
             />
           )}
@@ -81,7 +133,7 @@ export const McpStatusPopover: React.FC<McpStatusPopoverProps> = ({ className = 
         side="top"
         align="end"
         sideOffset={8}
-        className="w-80 p-0 overflow-hidden bg-popover/95 backdrop-blur-xl border border-border/60 shadow-2xl rounded-xl"
+        className="w-84 p-0 overflow-hidden bg-popover/95 backdrop-blur-xl border border-border/60 shadow-2xl rounded-xl"
       >
         {/* Header */}
         <div className="flex items-center justify-between px-3.5 py-2.5 bg-muted/40 border-b border-border/50">
@@ -105,7 +157,7 @@ export const McpStatusPopover: React.FC<McpStatusPopoverProps> = ({ className = 
         </div>
 
         {/* Server List */}
-        <div className="max-h-72 overflow-y-auto p-2.5 space-y-2">
+        <div className="max-h-80 overflow-y-auto p-2.5 space-y-2">
           {servers.length === 0 ? (
             <div className="py-6 px-3 text-center space-y-2">
               <HelpCircle className="h-6 w-6 text-muted-foreground/50 mx-auto" />
@@ -116,7 +168,13 @@ export const McpStatusPopover: React.FC<McpStatusPopoverProps> = ({ className = 
             </div>
           ) : (
             servers.map((server) => (
-              <ServerCard key={server.name} server={server} />
+              <ServerCard
+                key={server.name}
+                server={server}
+                isLoading={actionLoadingServer === server.name}
+                onConnect={() => handleConnect(server.name)}
+                onDisconnect={() => handleDisconnect(server.name)}
+              />
             ))
           )}
         </div>
@@ -133,13 +191,29 @@ export const McpStatusPopover: React.FC<McpStatusPopoverProps> = ({ className = 
 
 interface ServerCardProps {
   server: McpServerSummary;
+  isLoading: boolean;
+  onConnect: () => void;
+  onDisconnect: () => void;
 }
 
-const ServerCard: React.FC<ServerCardProps> = ({ server }) => {
-  const isOk = server.status === "connected" && !server.error;
+const ServerCard: React.FC<ServerCardProps> = ({
+  server,
+  isLoading,
+  onConnect,
+  onDisconnect,
+}) => {
+  const isConnected = server.status === "connected" && !server.error;
+  const isDisconnected = server.status === "disconnected";
+  const isError = server.status === "error" || Boolean(server.error);
 
   return (
-    <div className="p-2.5 rounded-lg border border-border/50 bg-background/60 hover:bg-background/90 transition-colors space-y-1.5 shadow-xs">
+    <div
+      className={`p-2.5 rounded-lg border transition-colors space-y-2 shadow-xs ${
+        isDisconnected
+          ? "border-border/30 bg-muted/20 opacity-75"
+          : "border-border/50 bg-background/60 hover:bg-background/90"
+      }`}
+    >
       {/* Title row */}
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-1.5 min-w-0">
@@ -156,17 +230,54 @@ const ServerCard: React.FC<ServerCardProps> = ({ server }) => {
           </span>
         </div>
 
-        <div className="flex items-center gap-1 shrink-0">
-          {isOk ? (
+        <div className="flex items-center gap-1.5 shrink-0">
+          {/* Status badge */}
+          {isConnected && (
             <span className="flex items-center gap-1 text-[10px] font-medium text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded-md border border-emerald-500/20">
               <CheckCircle2 className="h-2.5 w-2.5" />
               Ready
             </span>
-          ) : (
+          )}
+          {isDisconnected && (
+            <span className="flex items-center gap-1 text-[10px] font-medium text-muted-foreground bg-muted px-1.5 py-0.5 rounded-md border border-border/40">
+              <CircleDot className="h-2.5 w-2.5" />
+              Off
+            </span>
+          )}
+          {isError && (
             <span className="flex items-center gap-1 text-[10px] font-medium text-red-500 bg-red-500/10 px-1.5 py-0.5 rounded-md border border-red-500/20">
               <AlertCircle className="h-2.5 w-2.5" />
               Error
             </span>
+          )}
+
+          {/* Connect / Disconnect button */}
+          {isConnected ? (
+            <button
+              onClick={onDisconnect}
+              disabled={isLoading}
+              className="p-1 rounded hover:bg-red-500/10 text-muted-foreground hover:text-red-500 transition-colors cursor-pointer disabled:opacity-50"
+              title="Disconnect server"
+            >
+              {isLoading ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <PowerOff className="h-3 w-3" />
+              )}
+            </button>
+          ) : (
+            <button
+              onClick={onConnect}
+              disabled={isLoading}
+              className="p-1 rounded hover:bg-emerald-500/10 text-muted-foreground hover:text-emerald-500 transition-colors cursor-pointer disabled:opacity-50"
+              title="Connect server"
+            >
+              {isLoading ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <Power className="h-3 w-3" />
+              )}
+            </button>
           )}
         </div>
       </div>
@@ -179,7 +290,7 @@ const ServerCard: React.FC<ServerCardProps> = ({ server }) => {
       )}
 
       {/* Tools list */}
-      {server.tools && server.tools.length > 0 && (
+      {!isDisconnected && server.tools && server.tools.length > 0 && (
         <div className="space-y-1 pt-0.5">
           <div className="flex items-center gap-1 text-[10px] text-muted-foreground font-medium">
             <Wrench className="h-2.5 w-2.5" />

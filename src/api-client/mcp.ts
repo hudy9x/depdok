@@ -21,3 +21,21 @@ export const reloadMcpServers = (workspaceRoot: string): Promise<McpServerSummar
 export const listMcpServers = (): Promise<McpServerSummary[]> =>
   invoke("llm2_mcp_list_servers");
 
+export const disconnectMcpServer = (serverName: string): Promise<McpServerSummary[]> =>
+  invoke("llm2_mcp_disconnect_server", { serverName, server_name: serverName });
+
+export const connectMcpServer = (
+  workspaceRoot: string,
+  serverName: string
+): Promise<McpServerSummary[]> =>
+  invoke("llm2_mcp_connect_server", {
+    workspaceRoot,
+    workspace_root: workspaceRoot,
+    serverName,
+    server_name: serverName,
+  });
+
+export const clearAllMcpServers = (): Promise<void> =>
+  invoke("llm2_mcp_clear_all");
+
+

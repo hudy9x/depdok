@@ -2,18 +2,16 @@
 
 ✨ Features
 
-- Implement global keyboard shortcuts for cut, copy, and paste operations in the spreadsheet grid ([e33a4c0](../../commit/e33a4c0))
-- Implement ROW, COLUMN, ROWS, COLUMNS, and ADDRESS functions and improve clipboard copy/paste range handling ([2a8a8d6](../../commit/2a8a8d6))
-- Implement global context menu for spreadsheet cells, rows, and columns ([bdd440a](../../commit/bdd440a))
-- Implement border styling functionality with custom BorderPicker and core logic updates ([9326833](../../commit/9326833))
+- Create ai agent with tool-calling and mcp client (#58) ([5a901b5](../../commit/5a901b5))
 
 ♻️ Refactoring
 
-- Optimize spreadsheet state management with refs and add sheet duplication support via context menus ([46687b3](../../commit/46687b3))
+- Replace native scroll containers with custom viewport-exposed components and update chat icons ([7c9ec6f](../../commit/7c9ec6f))
 
 🔨 Other Changes
 
-- Upgrade version 0.63.0 ([b002b63](../../commit/b002b63))
+- Adjust ExplorerFooter padding and reformat terminal toggle button class logic ([62877e0](../../commit/62877e0))
+- Upgrade version 0.65.0 ([c772706](../../commit/c772706))
 
 
-📋 Full Changelog: [b002b63...e33a4c0](../../compare/b002b63...e33a4c0)
+📋 Full Changelog: [c772706...5a901b5](../../compare/c772706...5a901b5)

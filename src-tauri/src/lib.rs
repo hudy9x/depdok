@@ -481,8 +481,10 @@ mod menu;
 mod license_manager;
 mod keychain;
 mod knowledge_base;
+pub mod mcp_client;
 pub mod mcp_server;
 mod llm;
+mod llm2;
 #[cfg(target_os = "macos")]
 mod dock;
 
@@ -856,6 +858,12 @@ pub fn run() {
             // Initialize LLM state
             app.manage(llm::LlmState::new());
 
+            // Initialize LLM2 PendingRequests
+            app.manage(llm2::PendingRequests::new());
+
+            // Initialize MCP Client Manager
+            app.manage(mcp_client::McpClientManager::new());
+
             // Initialize knowledge base (SQLite + embedding model)
             match knowledge_base::init_knowledge_base(app.handle()) {
                 Ok((kb_state, embedder_state)) => {
@@ -1070,6 +1078,18 @@ pub fn run() {
             llm::settings::get_llm_models_dir,
             llm::commands::grammar_correct_text,
             llm::commands::edit_text_with_ai,
+            llm2::commands::llm2_send_message,
+            llm2::commands::llm2_tool_result,
+            llm2::commands::llm2_list_models,
+            llm2::commands::llm2_skill_setup,
+            llm2::commands::llm2_skill_reload,
+            llm2::commands::llm2_skill_list,
+            llm2::commands::llm2_write_skill,
+            llm2::commands::llm2_mcp_reload,
+            llm2::commands::llm2_mcp_list_servers,
+            llm2::commands::llm2_mcp_disconnect_server,
+            llm2::commands::llm2_mcp_connect_server,
+            llm2::commands::llm2_mcp_clear_all,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
@@ -1078,6 +1098,14 @@ pub fn run() {
                 // Kill all open PTY sessions to prevent orphaned shell processes.
                 if let Some(terminal_state) = app.try_state::<Arc<commands::terminal::TerminalState>>() {
                     terminal_state.kill_all();
+                }
+
+                // Shutdown active MCP client subprocesses.
+                if let Some(mcp_mgr) = app.try_state::<mcp_client::McpClientManager>() {
+                    let mgr = mcp_mgr.inner().clone();
+                    tauri::async_runtime::block_on(async move {
+                        mgr.shutdown().await;
+                    });
                 }
             }
         });

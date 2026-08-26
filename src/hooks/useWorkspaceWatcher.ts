@@ -45,7 +45,7 @@ const normalise = (p: string) => p.replace(/\\/g, '/');
 function isIgnoredPath(filePath: string): boolean {
   const normalised = normalise(filePath);
   const segments = normalised.split('/');
-  const ignored = segments.some((seg) => IGNORED_DIR_NAMES.has(seg) || (seg.startsWith('.') && seg.length > 1));
+  const ignored = segments.some((seg) => IGNORED_DIR_NAMES.has(seg) || (seg.startsWith('.') && seg.length > 1 && seg !== '.depdok'));
   if (ignored) {
     console.log('[WorkspaceWatcher] Path matched ignore rules:', filePath);
   }

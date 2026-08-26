@@ -199,8 +199,8 @@ fn is_ignored_path(path: &Path) -> bool {
     for component in path.components() {
         if let std::path::Component::Normal(os_str) = component {
             if let Some(s) = os_str.to_str() {
-                // Ignore hidden directories/files starting with "." (except "." or "..")
-                if s.starts_with('.') && s.len() > 1 {
+                // Ignore hidden directories/files starting with "." (except "." or ".." or ".depdok")
+                if s.starts_with('.') && s.len() > 1 && s != ".depdok" {
                     return true;
                 }
                 match s {

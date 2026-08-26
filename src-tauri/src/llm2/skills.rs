@@ -49,6 +49,8 @@ pub const KNOWN_TOOLS: &[&str] = &[
     "sum_four_digits",
     "generate_content",
     "write_skill",
+    "get_current_datetime",
+    "get_datetime",
 ];
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

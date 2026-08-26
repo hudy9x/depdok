@@ -6,5 +6,4 @@ export * from "./database";
 export * from "./math";
 export * from "./knowledgeBase";
 export * from "./skills";
-
-
+export * from "./datetime";

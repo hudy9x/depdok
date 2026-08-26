@@ -16,6 +16,7 @@ import {
   Wrench,
   PenTool,
   BookOpen,
+  Clock,
 } from "lucide-react";
 import { ToolExecutionLog } from "../store/LLMChat2Store";
 
@@ -57,6 +58,9 @@ function getToolIcon(name: string) {
       return <Database className="h-3.5 w-3.5 text-cyan-400" />;
     case "sum_four_digits":
       return <Calculator className="h-3.5 w-3.5 text-purple-400" />;
+    case "get_current_datetime":
+    case "get_datetime":
+      return <Clock className="h-3.5 w-3.5 text-amber-400" />;
     default:
       return <Wrench className="h-3.5 w-3.5 text-muted-foreground" />;
   }
@@ -67,6 +71,11 @@ function formatToolSummary(name: string, args: unknown, result: unknown): string
   const parsedResult = typeof result === "object" && result !== null ? (result as Record<string, unknown>) : {};
 
   switch (name) {
+    case "get_current_datetime":
+    case "get_datetime": {
+      const formatted = parsedResult.formatted || parsedResult.compactTimestamp || parsedResult.iso;
+      return formatted ? `Current datetime: ${formatted}` : "Checked current datetime";
+    }
     case "search_knowledge_base":
     case "semantic_search":
     case "search_knowledge": {

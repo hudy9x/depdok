@@ -8,6 +8,7 @@ pub mod knowledge_base;
 pub mod markdown;
 pub mod math;
 pub mod write_skill;
+pub mod datetime;
 
 pub use bridge::*;
 pub use content::*;
@@ -17,6 +18,4 @@ pub use knowledge_base::*;
 pub use markdown::*;
 pub use math::*;
 pub use write_skill::*;
-
-
-
+pub use datetime::*;

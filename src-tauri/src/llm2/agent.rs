@@ -16,6 +16,7 @@ use super::tools::{
   SearchKnowledgeBaseArgs, SearchKnowledgeBaseTool, SumFourDigitsArgs,
   SumFourDigitsTool, UpsertMarkdownArgs, UpsertMarkdownSectionArgs,
   UpsertMarkdownSectionTool, UpsertMarkdownTool, WriteSkillArgs, WriteSkillTool,
+  GetCurrentDatetimeArgs, GetCurrentDatetimeTool,
 };
 
 pub const TOOL_MODEL: &str = "qwen2.5:7b";
@@ -101,6 +102,7 @@ pub async fn prompt_agent(
   let search_knowledge_base_tool = SearchKnowledgeBaseTool { app: app.clone(), pending: pending.clone() };
   let generate_content_tool = GenerateContentTool { app: app.clone() };
   let write_skill_tool = WriteSkillTool { app: app.clone(), pending: pending.clone() };
+  let datetime_tool = GetCurrentDatetimeTool { app: app.clone(), pending: pending.clone() };
 
   let tools_schema = json!([
     {
@@ -414,6 +416,22 @@ pub async fn prompt_agent(
           "required": ["content"]
         }
       }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "get_current_datetime",
+        "description": "Get the current system date, time, timezone, and formatted timestamp strings (such as 'yyyyMMdd-HHmm' for file naming, ISO 8601, dates, etc.).",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "format": {
+              "type": "string",
+              "description": "Optional custom format token string (e.g. 'yyyyMMdd-HHmm', 'yyyy-MM-dd', 'HH:mm:ss'). Defaults to 'yyyy-MM-dd HH:mm:ss'."
+            }
+          }
+        }
+      }
     }
   ]);
 
@@ -528,7 +546,10 @@ pub async fn prompt_agent(
       println!("3. Messages: {:?}", history);
     }
     println!("────────────────────────────────────────────────────────────────────────────");
+    println!("[llm2][turn {}] ⏳ Sending request to Ollama (http://localhost:11434/api/chat)...", turn);
 
+    use std::io::Write;
+    let req_start_time = std::time::Instant::now();
 
     let response = client
       .post("http://localhost:11434/api/chat")
@@ -543,10 +564,19 @@ pub async fn prompt_agent(
       return Err(format!("Ollama HTTP {}: {}", status, err_text));
     }
 
+    println!(
+      "[llm2][turn {}] 📡 HTTP 200 received in {:.2}s. Awaiting stream chunks from Ollama...",
+      turn,
+      req_start_time.elapsed().as_secs_f64()
+    );
+
     let mut stream = response.bytes_stream();
     let mut turn_text = String::new();
     let mut collected_tool_calls: Vec<OllamaToolCall> = Vec::new();
     let mut buffer = String::new();
+    let mut first_chunk_received = false;
+    let mut stream_token_count = 0usize;
+    let mut thinking_token_count = 0usize;
 
     while let Some(chunk_res) = stream.next().await {
       let chunk = chunk_res.map_err(|e| format!("Stream error: {}", e))?;
@@ -562,10 +592,23 @@ pub async fn prompt_agent(
         }
 
         if let Ok(val) = serde_json::from_str::<serde_json::Value>(&line) {
+          if !first_chunk_received {
+            first_chunk_received = true;
+            println!(
+              "[llm2][turn {}] ⚡ First stream chunk received in {:.2}s. Streaming live output:",
+              turn,
+              req_start_time.elapsed().as_secs_f64()
+            );
+          }
+
           // Parse token metrics when stream chunk reports done
           if val.get("done").and_then(|d| d.as_bool()).unwrap_or(false) {
             let prompt_eval = val.get("prompt_eval_count").and_then(|v| v.as_u64()).unwrap_or(0);
             let eval = val.get("eval_count").and_then(|v| v.as_u64()).unwrap_or(0);
+            println!(
+              "\n[llm2][turn {}] 🏁 Stream done chunk. prompt_eval_count: {}, eval_count: {}, total_streamed_chunks: {}",
+              turn, prompt_eval, eval, stream_token_count + thinking_token_count
+            );
             if prompt_eval > 0 || eval > 0 {
               let total = prompt_eval + eval;
               let percent = (total as f64 / num_ctx_to_use as f64) * 100.0;
@@ -587,6 +630,10 @@ pub async fn prompt_agent(
             // Regular content delta
             if let Some(content) = msg.get("content").and_then(|c| c.as_str()) {
               if !content.is_empty() {
+                stream_token_count += 1;
+                print!("{}", content);
+                std::io::stdout().flush().ok();
+
                 turn_text.push_str(content);
                 if let Some(msg_id) = &message_id {
                   let _ = app.emit("llm2_token", json!({
@@ -600,6 +647,10 @@ pub async fn prompt_agent(
             // Thinking delta (for reasoning models)
             if let Some(thinking) = msg.get("thinking").and_then(|t| t.as_str()) {
               if !thinking.is_empty() {
+                thinking_token_count += 1;
+                print!("{}", thinking);
+                std::io::stdout().flush().ok();
+
                 turn_text.push_str(thinking);
                 if let Some(msg_id) = &message_id {
                   let _ = app.emit("llm2_token", json!({
@@ -614,6 +665,10 @@ pub async fn prompt_agent(
             if let Some(tc_array) = msg.get("tool_calls").and_then(|t| t.as_array()) {
               for tc in tc_array {
                 if let Ok(tool_call) = serde_json::from_value::<OllamaToolCall>(tc.clone()) {
+                  println!(
+                    "\n[llm2][turn {}] 🔧 Tool Call parsed in stream: {} with args: {:?}",
+                    turn, tool_call.function.name, tool_call.function.arguments
+                  );
                   collected_tool_calls.push(tool_call);
                 }
               }
@@ -650,6 +705,10 @@ pub async fn prompt_agent(
         if let Some(msg) = val.get("message") {
           if let Some(content) = msg.get("content").and_then(|c| c.as_str()) {
             if !content.is_empty() {
+              stream_token_count += 1;
+              print!("{}", content);
+              std::io::stdout().flush().ok();
+
               turn_text.push_str(content);
               if let Some(msg_id) = &message_id {
                 let _ = app.emit("llm2_token", json!({
@@ -661,6 +720,10 @@ pub async fn prompt_agent(
           }
           if let Some(thinking) = msg.get("thinking").and_then(|t| t.as_str()) {
             if !thinking.is_empty() {
+              thinking_token_count += 1;
+              print!("{}", thinking);
+              std::io::stdout().flush().ok();
+
               turn_text.push_str(thinking);
               if let Some(msg_id) = &message_id {
                 let _ = app.emit("llm2_token", json!({
@@ -673,6 +736,10 @@ pub async fn prompt_agent(
           if let Some(tc_array) = msg.get("tool_calls").and_then(|t| t.as_array()) {
             for tc in tc_array {
               if let Ok(tool_call) = serde_json::from_value::<OllamaToolCall>(tc.clone()) {
+                println!(
+                  "\n[llm2][turn {}] 🔧 Tool Call parsed in stream: {} with args: {:?}",
+                  turn, tool_call.function.name, tool_call.function.arguments
+                );
                 collected_tool_calls.push(tool_call);
               }
             }
@@ -682,7 +749,14 @@ pub async fn prompt_agent(
     }
 
     println!("\n════════════════════ [llm2][turn {}] RESPONSE FROM OLLAMA ════════════════════", turn);
-    println!("Text delta (len {}):\n{}", turn_text.len(), if turn_text.is_empty() { "<empty>" } else { &turn_text });
+    println!(
+      "Elapsed time: {:.2}s | Streamed chunks: {} (thinking: {}) | Text delta (len {}):\n{}",
+      req_start_time.elapsed().as_secs_f64(),
+      stream_token_count,
+      thinking_token_count,
+      turn_text.len(),
+      if turn_text.is_empty() { "<empty>" } else { &turn_text }
+    );
     if !collected_tool_calls.is_empty() {
       if let Ok(pretty_tc) = serde_json::to_string_pretty(&collected_tool_calls) {
         println!("Tool Calls (count {}):\n{}", collected_tool_calls.len(), pretty_tc);
@@ -803,6 +877,11 @@ pub async fn prompt_agent(
             let args: WriteSkillArgs = serde_json::from_value(call_args)
               .map_err(|e| e.to_string())?;
             write_skill_tool.call(args).await.map_err(|e| e.to_string())?
+          }
+          "get_current_datetime" | "get_datetime" => {
+            let args: GetCurrentDatetimeArgs = serde_json::from_value(call_args)
+              .map_err(|e| e.to_string())?;
+            datetime_tool.call(args).await.map_err(|e| e.to_string())?
           }
           unknown => {
             let log_id = uuid::Uuid::new_v4().to_string();

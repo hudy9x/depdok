@@ -21,6 +21,7 @@ import {
   addMarkdownCommentTool,
   searchKnowledgeBaseTool,
   writeSkillTool,
+  getCurrentDatetimeTool,
   CreateFileArgs,
   CreateFolderArgs,
   RenameFileArgs,
@@ -34,6 +35,7 @@ import {
   AddMarkdownCommentArgs,
   SearchKnowledgeBaseArgs,
   WriteSkillArgs,
+  GetCurrentDatetimeArgs,
 } from "../tools";
 
 import {
@@ -247,6 +249,10 @@ export function useToolListener() {
             break;
           case "write_skill":
             toolOutput = await writeSkillTool(args as unknown as WriteSkillArgs);
+            break;
+          case "get_current_datetime":
+          case "get_datetime":
+            toolOutput = getCurrentDatetimeTool(args as unknown as GetCurrentDatetimeArgs);
             break;
           default:
             throw new Error(`Unknown tool: ${tool_name}`);

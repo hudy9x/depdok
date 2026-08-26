@@ -1,6 +1,7 @@
 import React from "react";
-import { LiquidOrb } from "@/components/LiquidOrb";
+
 import { ChatMessage, ToolExecutionLog } from "../store/LLMChat2Store";
+import { AssistantThinkingIndicator } from "./AssistantThinkingIndicator";
 import { ToolCallCard } from "./ToolCallCard";
 
 export interface AssistantChatMessageProps {
@@ -50,16 +51,10 @@ export const AssistantChatMessage: React.FC<AssistantChatMessageProps> = ({
         )}
 
         {/* Real-time generating / tool status indicator */}
-        {isGenerating && (
-          <div className="flex items-center gap-2 text-muted-foreground py-0.5">
-            <LiquidOrb size={18} speed={1.3} />
-            <span className="text-[11px]">
-              {activeToolCall
-                ? `Executing ${activeToolCall.toolName}...`
-                : "Synthesizing response from Ollama..."}
-            </span>
-          </div>
-        )}
+        <AssistantThinkingIndicator
+          isGenerating={isGenerating}
+          activeToolCall={activeToolCall}
+        />
 
         {/* Empty state when done and nothing produced */}
         {!isGenerating && !hasContent && !hasToolCalls && !hasParts && (

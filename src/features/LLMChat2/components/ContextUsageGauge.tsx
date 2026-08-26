@@ -1,6 +1,7 @@
 import { useAtom, useAtomValue } from "jotai";
 import { SlidersHorizontal } from "lucide-react";
 import { chat2MetricsAtom, chat2NumCtxAtom } from "../store/LLMChat2Store";
+import { McpStatusPopover } from "./McpStatusPopover";
 import { Slider } from "@/components/ui/slider";
 import {
   Popover,
@@ -40,7 +41,9 @@ export function ContextUsageGauge({ className = "" }: ContextUsageGaugeProps) {
         </span>
       </div>
 
-      <div className="flex items-center gap-2 font-mono shrink-0">
+      <div className="flex items-center gap-1.5 font-mono shrink-0">
+        {/* MCP Server Status Popover */}
+        <McpStatusPopover />
 
         {/* Custom num_ctx Slider Popover */}
         <Popover>

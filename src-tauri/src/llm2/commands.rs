@@ -115,4 +115,21 @@ pub async fn llm2_write_skill(
     write_skill_file(&workspace_root, &name, &content, &app)
 }
 
+#[tauri::command]
+pub async fn llm2_mcp_reload(
+    workspace_root: String,
+    state: State<'_, crate::mcp_client::McpClientManager>,
+) -> Result<Vec<crate::mcp_client::McpServerSummary>, String> {
+    state.reload_for_workspace(&workspace_root).await
+}
+
+#[tauri::command]
+pub async fn llm2_mcp_list_servers(
+    state: State<'_, crate::mcp_client::McpClientManager>,
+) -> Result<Vec<crate::mcp_client::McpServerSummary>, String> {
+    Ok(state.list_servers().await)
+}
+
+
+
 

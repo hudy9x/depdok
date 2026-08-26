@@ -753,7 +753,7 @@ export function LLMChat2Panel() {
           <EmptyChatGuide onSelectPrompt={handleSelectPrompt} />
         ) : (
           <>
-            {messages.map((msg) =>
+            {messages.map((msg, index) =>
               msg.role === "user" ? (
                 <UserChatMessage key={msg.id} message={msg} />
               ) : msg.role === "system" ? (
@@ -762,8 +762,8 @@ export function LLMChat2Panel() {
                 <AssistantChatMessage
                   key={msg.id}
                   message={msg}
-                  isGenerating={isGenerating}
-                  activeToolCall={activeToolCall}
+                  isGenerating={isGenerating && index === messages.length - 1}
+                  activeToolCall={index === messages.length - 1 ? activeToolCall : null}
                 />
               )
             )}

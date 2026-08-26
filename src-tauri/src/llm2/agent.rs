@@ -2,7 +2,7 @@ use futures_util::StreamExt;
 use rig::tool::PortableTool;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use tauri::{AppHandle, Emitter};
+use tauri::{AppHandle, Emitter, Manager};
 
 use super::pending::PendingRequests;
 use super::tools::{
@@ -417,9 +417,20 @@ pub async fn prompt_agent(
     }
   ]);
 
+  let mcp_manager = app.try_state::<crate::mcp_client::McpClientManager>();
+  let mut all_tools_vec = tools_schema.as_array().cloned().unwrap_or_default();
+  if let Some(mgr) = &mcp_manager {
+    let mcp_tools = mgr.get_ollama_tools().await;
+    if !mcp_tools.is_empty() {
+      println!("[llm2][agent] Injected {} external MCP tools into Ollama schema.", mcp_tools.len());
+      all_tools_vec.extend(mcp_tools);
+    }
+  }
+  let combined_tools_schema = json!(all_tools_vec);
+
   // Filter tools schema if allowed_tools is explicitly specified
   let effective_tools_schema: serde_json::Value = if let Some(allowed) = &allowed_tools {
-    let filtered_list: Vec<serde_json::Value> = tools_schema
+    let filtered_list: Vec<serde_json::Value> = combined_tools_schema
       .as_array()
       .unwrap_or(&vec![])
       .iter()
@@ -435,7 +446,7 @@ pub async fn prompt_agent(
       .collect();
     json!(filtered_list)
   } else {
-    tools_schema
+    combined_tools_schema
   };
 
   let mut system_content = SYSTEM_PROMPT.to_string();
@@ -793,7 +804,75 @@ pub async fn prompt_agent(
               .map_err(|e| e.to_string())?;
             write_skill_tool.call(args).await.map_err(|e| e.to_string())?
           }
-          unknown => return Err(format!("Unknown tool: {}", unknown)),
+          unknown => {
+            let log_id = uuid::Uuid::new_v4().to_string();
+            let req_id = uuid::Uuid::new_v4().to_string();
+
+            // Emit executing event to frontend so tool card appears immediately
+            let _ = app.emit("tool_log_event", json!({
+              "id": log_id,
+              "requestId": req_id,
+              "toolName": unknown,
+              "args": call_args,
+              "status": "executing",
+              "timestamp": chrono::Utc::now().to_rfc3339()
+            }));
+
+            if let Some(mgr) = &mcp_manager {
+              if mgr.has_tool(unknown).await {
+                match mgr.call_tool(unknown, call_args.clone()).await {
+                  Ok(res) => {
+                    let _ = app.emit("tool_log_event", json!({
+                      "id": log_id,
+                      "requestId": req_id,
+                      "toolName": unknown,
+                      "args": call_args,
+                      "result": res,
+                      "status": "success",
+                      "timestamp": chrono::Utc::now().to_rfc3339()
+                    }));
+                    res
+                  }
+                  Err(e) => {
+                    let _ = app.emit("tool_log_event", json!({
+                      "id": log_id,
+                      "requestId": req_id,
+                      "toolName": unknown,
+                      "args": call_args,
+                      "status": "error",
+                      "error": e,
+                      "timestamp": chrono::Utc::now().to_rfc3339()
+                    }));
+                    return Err(e);
+                  }
+                }
+              } else {
+                let err_msg = format!("Unknown tool: {}", unknown);
+                let _ = app.emit("tool_log_event", json!({
+                  "id": log_id,
+                  "requestId": req_id,
+                  "toolName": unknown,
+                  "args": call_args,
+                  "status": "error",
+                  "error": err_msg,
+                  "timestamp": chrono::Utc::now().to_rfc3339()
+                }));
+                return Err(err_msg);
+              }
+            } else {
+              let err_msg = format!("Unknown tool: {}", unknown);
+              let _ = app.emit("tool_log_event", json!({
+                "id": log_id,
+                "requestId": req_id,
+                "toolName": unknown,
+                "args": call_args,
+                "status": "error",
+                "error": err_msg,
+                "timestamp": chrono::Utc::now().to_rfc3339()
+              }));
+              return Err(err_msg);
+            }
+          }
         };
 
         println!("[llm2][tool_result] Tool '{}' succeeded.", call_name);

@@ -9,12 +9,14 @@ pub const SPEC_ANALYZER_TEMPLATE: &str = include_str!("../../templates/skills/sp
 pub const QA_GENERATOR_TEMPLATE: &str = include_str!("../../templates/skills/qa-generator.md");
 pub const WBS_AND_LOC_ESTIMATOR_TEMPLATE: &str =
     include_str!("../../templates/skills/wbs-and-loc-estimator.md");
+pub const MCP_SETUP_TEMPLATE: &str = include_str!("../../templates/skills/mcp-setup.md");
 
 pub const BUILTIN_SKILLS: &[(&str, &str)] = &[
     ("skill-creator.md", SKILL_CREATOR_TEMPLATE),
     ("spec-analyzer.md", SPEC_ANALYZER_TEMPLATE),
     ("qa-generator.md", QA_GENERATOR_TEMPLATE),
     ("wbs-and-loc-estimator.md", WBS_AND_LOC_ESTIMATOR_TEMPLATE),
+    ("mcp-setup.md", MCP_SETUP_TEMPLATE),
 ];
 
 pub const KNOWN_TOOLS: &[&str] = &[

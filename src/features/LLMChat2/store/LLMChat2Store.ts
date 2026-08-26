@@ -68,6 +68,11 @@ export const chat2MetricsAtom = atom<ContextMetrics | null>(null);
 export const availableSkillsAtom = atom<Skill[]>([]);
 export const activeSkillAtom = atom<Skill | null>(null);
 
+// MCP state
+export const mcpServersAtom = atom<import("@/api-client/mcp").McpServerSummary[]>([]);
+export const isReloadingMcpAtom = atom<boolean>(false);
+
+
 
 
 

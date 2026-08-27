@@ -189,7 +189,7 @@ export function LLMChat2Panel() {
   const { clearLogs } = useToolListener();
 
   // Mount token smoother hook for buttery smooth streaming
-  const { enqueueToken, flush: flushTokens, clearAll: clearTokens } = useTokenSmoother();
+  const { enqueueToken, enqueueThought, flush: flushTokens, clearAll: clearTokens } = useTokenSmoother();
 
   const getEffectiveWorkspaceRoot = useCallback(() => {
     return workspaceRoot && workspaceRoot.trim() ? workspaceRoot.trim() : "";
@@ -230,9 +230,10 @@ export function LLMChat2Panel() {
     };
   }, []);
 
-  // Real-time token streaming and metrics listener
+  // Real-time token and thought streaming and metrics listener
   useEffect(() => {
     let unlistenToken: UnlistenFn | null = null;
+    let unlistenThought: UnlistenFn | null = null;
     let unlistenDone: UnlistenFn | null = null;
     let unlistenMetrics: UnlistenFn | null = null;
 
@@ -241,6 +242,13 @@ export function LLMChat2Panel() {
       enqueueToken(message_id, chunk);
     }).then((unlisten) => {
       unlistenToken = unlisten;
+    });
+
+    listen<{ message_id: string; chunk: string }>("llm2_thought", (event) => {
+      const { message_id, chunk } = event.payload;
+      enqueueThought(message_id, chunk);
+    }).then((unlisten) => {
+      unlistenThought = unlisten;
     });
 
     listen<{ message_id: string; content: string }>("llm2_done", (event) => {
@@ -282,10 +290,11 @@ export function LLMChat2Panel() {
 
     return () => {
       unlistenToken?.();
+      unlistenThought?.();
       unlistenDone?.();
       unlistenMetrics?.();
     };
-  }, [setMessages, setMetrics]);
+  }, [enqueueToken, enqueueThought, flushTokens, setMessages, setMetrics]);
 
   // Check for '@' trigger in input text
   const checkMentionTrigger = (text: string, cursorPosition: number) => {

@@ -168,7 +168,20 @@ export function useToolListener() {
         const lastMsg = prev[lastIdx];
         if (lastMsg.role === "assistant") {
           const currentTools = lastMsg.toolCalls || [];
-          const currentParts = lastMsg.parts ? [...lastMsg.parts] : [];
+          let currentParts = lastMsg.parts ? [...lastMsg.parts] : [];
+
+          // Convert any text immediately preceding this tool call in the same turn into a thought part
+          currentParts = currentParts.map((p, idx) => {
+            if (p.type === "text" && idx === currentParts.length - 1 && p.content.trim()) {
+              return {
+                type: "thought" as const,
+                id: p.id,
+                content: p.content,
+              };
+            }
+            return p;
+          });
+
           const updatedMsg = {
             ...lastMsg,
             toolCalls: [...currentTools, logEntry],

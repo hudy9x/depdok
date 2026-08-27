@@ -19,13 +19,20 @@ export interface MessagePartText {
   content: string;
 }
 
+export interface MessagePartThought {
+  type: "thought";
+  id: string;
+  content: string;
+  durationSeconds?: number;
+}
+
 export interface MessagePartTool {
   type: "tool";
   id: string;
   toolCall: ToolExecutionLog;
 }
 
-export type MessagePart = MessagePartText | MessagePartTool;
+export type MessagePart = MessagePartText | MessagePartTool | MessagePartThought;
 
 export interface ChatMessage {
   id: string;

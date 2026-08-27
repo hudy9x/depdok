@@ -2,21 +2,26 @@ import { useRef, useEffect, useCallback } from "react";
 import { useSetAtom } from "jotai";
 import { chat2MessagesAtom } from "../store/LLMChat2Store";
 
+interface QueuedChunk {
+  type: "text" | "thought";
+  text: string;
+}
+
 /**
  * useTokenSmoother
  *
- * Buffers incoming stream chunks from Ollama/Tauri and elastically
- * drains them via requestAnimationFrame to produce a smooth, high-frame-rate
- * typewriter effect that eliminates stream stutter and visual jitter.
+ * Buffers incoming stream chunks from Ollama/Tauri in a strict FIFO queue
+ * and elastically drains them via requestAnimationFrame to produce a smooth,
+ * high-frame-rate typewriter effect without stream stutter or chunk fragmentation.
  */
 export function useTokenSmoother() {
   const setMessages = useSetAtom(chat2MessagesAtom);
-  const queueMapRef = useRef<Map<string, string>>(new Map());
+  const queueMapRef = useRef<Map<string, QueuedChunk[]>>(new Map());
   const rafIdRef = useRef<number | null>(null);
 
-  // Directly append a text chunk to a message's parts and full content
+  // Append drained chunk to the message's parts and full content
   const appendChunkToMessage = useCallback(
-    (messageId: string, chunk: string) => {
+    (messageId: string, type: "text" | "thought", chunk: string) => {
       if (!chunk) return;
       setMessages((prev) =>
         prev.map((msg) => {
@@ -26,14 +31,14 @@ export function useTokenSmoother() {
           const lastPartIndex = currentParts.length - 1;
           const lastPart = currentParts[lastPartIndex];
 
-          if (lastPart && lastPart.type === "text") {
+          if (lastPart && lastPart.type === type) {
             currentParts[lastPartIndex] = {
               ...lastPart,
               content: lastPart.content + chunk,
             };
           } else {
             currentParts.push({
-              type: "text",
+              type,
               id: crypto.randomUUID(),
               content: chunk,
             });
@@ -41,7 +46,7 @@ export function useTokenSmoother() {
 
           return {
             ...msg,
-            content: msg.content + chunk,
+            content: type === "text" ? msg.content + chunk : msg.content,
             parts: currentParts,
           };
         })
@@ -50,17 +55,23 @@ export function useTokenSmoother() {
     [setMessages]
   );
 
-  // Main animation frame loop that drains the pending character buffer elastically
+  // Main animation frame loop that drains the pending character buffer elastically in FIFO order
   useEffect(() => {
     let isRunning = true;
 
     const tick = () => {
       if (!isRunning) return;
 
-      for (const [msgId, pendingText] of queueMapRef.current.entries()) {
-        const len = pendingText.length;
+      for (const [msgId, queue] of queueMapRef.current.entries()) {
+        if (!queue || queue.length === 0) {
+          queueMapRef.current.delete(msgId);
+          continue;
+        }
+
+        const head = queue[0];
+        const len = head.text.length;
+
         if (len > 0) {
-          // Adaptive draining speed based on queue depth
           let charsToDrain = 1;
           if (len > 120) {
             charsToDrain = Math.ceil(len / 3);
@@ -74,18 +85,24 @@ export function useTokenSmoother() {
             charsToDrain = 1;
           }
 
-          const drainChunk = pendingText.slice(0, charsToDrain);
-          const remainder = pendingText.slice(charsToDrain);
+          const drainChunk = head.text.slice(0, charsToDrain);
+          const remainder = head.text.slice(charsToDrain);
 
           if (remainder.length === 0) {
-            queueMapRef.current.delete(msgId);
+            queue.shift();
+            if (queue.length === 0) {
+              queueMapRef.current.delete(msgId);
+            }
           } else {
-            queueMapRef.current.set(msgId, remainder);
+            head.text = remainder;
           }
 
-          appendChunkToMessage(msgId, drainChunk);
+          appendChunkToMessage(msgId, head.type, drainChunk);
         } else {
-          queueMapRef.current.delete(msgId);
+          queue.shift();
+          if (queue.length === 0) {
+            queueMapRef.current.delete(msgId);
+          }
         }
       }
 
@@ -102,20 +119,43 @@ export function useTokenSmoother() {
     };
   }, [appendChunkToMessage]);
 
-  // Push incoming token chunk to queue
+  // Push incoming token chunk to FIFO queue (merges with tail if same type)
   const enqueueToken = useCallback((messageId: string, chunk: string) => {
     if (!chunk) return;
-    const current = queueMapRef.current.get(messageId) || "";
-    queueMapRef.current.set(messageId, current + chunk);
+    const queue = queueMapRef.current.get(messageId) || [];
+    const last = queue[queue.length - 1];
+    if (last && last.type === "text") {
+      last.text += chunk;
+    } else {
+      queue.push({ type: "text", text: chunk });
+    }
+    queueMapRef.current.set(messageId, queue);
+  }, []);
+
+  // Push incoming thought chunk to FIFO queue (merges with tail if same type)
+  const enqueueThought = useCallback((messageId: string, chunk: string) => {
+    if (!chunk) return;
+    const queue = queueMapRef.current.get(messageId) || [];
+    const last = queue[queue.length - 1];
+    if (last && last.type === "thought") {
+      last.text += chunk;
+    } else {
+      queue.push({ type: "thought", text: chunk });
+    }
+    queueMapRef.current.set(messageId, queue);
   }, []);
 
   // Flush all pending text for a message immediately (e.g. when generation finishes)
   const flush = useCallback(
     (messageId: string) => {
-      const remaining = queueMapRef.current.get(messageId);
-      if (remaining && remaining.length > 0) {
+      const queue = queueMapRef.current.get(messageId);
+      if (queue && queue.length > 0) {
         queueMapRef.current.delete(messageId);
-        appendChunkToMessage(messageId, remaining);
+        for (const item of queue) {
+          if (item.text) {
+            appendChunkToMessage(messageId, item.type, item.text);
+          }
+        }
       }
     },
     [appendChunkToMessage]
@@ -128,6 +168,7 @@ export function useTokenSmoother() {
 
   return {
     enqueueToken,
+    enqueueThought,
     flush,
     clearAll,
   };

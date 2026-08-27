@@ -721,7 +721,7 @@ pub async fn prompt_agent(
 
                 turn_text.push_str(thinking);
                 if let Some(msg_id) = &message_id {
-                  let _ = app.emit("llm2_token", json!({
+                  let _ = app.emit("llm2_thought", json!({
                     "message_id": msg_id,
                     "chunk": thinking,
                   }));
@@ -794,7 +794,7 @@ pub async fn prompt_agent(
 
               turn_text.push_str(thinking);
               if let Some(msg_id) = &message_id {
-                let _ = app.emit("llm2_token", json!({
+                let _ = app.emit("llm2_thought", json!({
                   "message_id": msg_id,
                   "chunk": thinking,
                 }));

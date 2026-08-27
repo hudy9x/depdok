@@ -1,8 +1,9 @@
 import { useAtom, useAtomValue } from "jotai";
 import { SlidersHorizontal } from "lucide-react";
-import { chat2MetricsAtom, chat2NumCtxAtom } from "../store/LLMChat2Store";
+import { chat2MetricsAtom, chat2NumCtxAtom, chat2IsStatefulAtom } from "../store/LLMChat2Store";
 import { McpStatusPopover } from "./McpStatusPopover";
 import { Slider } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch";
 import {
   Popover,
   PopoverContent,
@@ -25,6 +26,7 @@ const PRESETS = [
 export function ContextUsageGauge({ className = "" }: ContextUsageGaugeProps) {
   const metrics = useAtomValue(chat2MetricsAtom);
   const [numCtx, setNumCtx] = useAtom(chat2NumCtxAtom);
+  const [isStateful, setIsStateful] = useAtom(chat2IsStatefulAtom);
 
   const activeLimit = metrics ? metrics.numCtx : numCtx;
   const percent = metrics ? metrics.percentConsumed : 0;
@@ -41,7 +43,30 @@ export function ContextUsageGauge({ className = "" }: ContextUsageGaugeProps) {
         </span>
       </div>
 
-      <div className="flex items-center gap-1.5 font-mono shrink-0">
+      <div className="flex items-center gap-2 shrink-0">
+        {/* Stateful / Stateless History Switch */}
+        <div
+          className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-muted/50 border border-border/40 text-[9px]"
+          title={
+            isStateful
+              ? "Stateful Mode (ON): Multi-turn conversation history is sent with each prompt."
+              : "Stateless Mode (OFF): Each prompt is evaluated in complete isolation."
+          }
+        >
+          <span
+            className={`font-sans font-medium select-none transition-colors ${
+              isStateful ? "text-sky-500 font-semibold" : "text-muted-foreground"
+            }`}
+          >
+            {isStateful ? "History ON" : "History OFF"}
+          </span>
+          <Switch
+            checked={isStateful}
+            onCheckedChange={setIsStateful}
+            className="scale-75 origin-right cursor-pointer"
+          />
+        </div>
+
         {/* MCP Server Status Popover */}
         <McpStatusPopover />
 

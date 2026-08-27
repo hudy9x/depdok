@@ -23,6 +23,8 @@ import {
   writeSkillTool,
   getCurrentDatetimeTool,
   runShellTool,
+  searchWebTool,
+  fetchWebPageTool,
   CreateFileArgs,
   CreateFolderArgs,
   RenameFileArgs,
@@ -38,6 +40,8 @@ import {
   WriteSkillArgs,
   GetCurrentDatetimeArgs,
   RunShellArgs,
+  SearchWebArgs,
+  FetchWebPageArgs,
 } from "../tools";
 
 import {
@@ -261,6 +265,17 @@ export function useToolListener() {
           case "shell_command":
           case "exec_command":
             toolOutput = await runShellTool(args as unknown as RunShellArgs);
+            break;
+          case "web_search":
+          case "search_web":
+          case "internet_search":
+            toolOutput = await searchWebTool(args as unknown as SearchWebArgs);
+            break;
+          case "fetch_web_page":
+          case "read_web_page":
+          case "fetch_url":
+          case "read_url":
+            toolOutput = await fetchWebPageTool(args as unknown as FetchWebPageArgs);
             break;
           default:
             throw new Error(`Unknown tool: ${tool_name}`);

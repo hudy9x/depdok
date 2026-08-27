@@ -14,6 +14,7 @@ import {
   chat2NumCtxAtom,
   chat2PanelWidthAtom,
   chat2MetricsAtom,
+  chat2WebSearchEnabledAtom,
   availableSkillsAtom,
   activeSkillAtom,
   ChatMessage,
@@ -148,6 +149,7 @@ export function LLMChat2Panel() {
   const model = useAtomValue(chat2ModelAtom);
   const isStateful = useAtomValue(chat2IsStatefulAtom);
   const numCtx = useAtomValue(chat2NumCtxAtom);
+  const isWebSearchEnabled = useAtomValue(chat2WebSearchEnabledAtom);
   const setMetrics = useSetAtom(chat2MetricsAtom);
   const activeToolCall = useAtomValue(activeToolCallAtom);
 
@@ -521,6 +523,31 @@ export function LLMChat2Panel() {
     if (matchedSkills.length > 0) {
       const combinedTools = Array.from(new Set(matchedSkills.flatMap((s) => s.tools)));
       allowedTools = combinedTools;
+    } else if (!isWebSearchEnabled) {
+      // Exclude web search tools when web toggle is OFF
+      allowedTools = [
+        "search_knowledge_base",
+        "generate_content",
+        "sum_four_digits",
+        "get_user_name",
+        "get_user_age",
+        "get_user_country",
+        "get_user_dob",
+        "create_file",
+        "create_folder",
+        "rename_file",
+        "rename_folder",
+        "delete_file_or_folder",
+        "move_files_or_folders",
+        "list_files",
+        "read_markdown",
+        "upsert_markdown",
+        "upsert_markdown_section",
+        "add_markdown_comment",
+        "write_skill",
+        "get_current_datetime",
+        "run_shell",
+      ];
     }
 
     const historyPayload = isStateful ? formatHistoryForBackend(messages) : undefined;

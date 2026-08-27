@@ -18,6 +18,8 @@ import {
   BookOpen,
   Clock,
   Terminal,
+  Globe,
+  ExternalLink,
 } from "lucide-react";
 import { ToolExecutionLog } from "../store/LLMChat2Store";
 
@@ -32,6 +34,15 @@ function getToolIcon(name: string) {
     case "shell_command":
     case "exec_command":
       return <Terminal className="h-3.5 w-3.5 text-emerald-400" />;
+    case "web_search":
+    case "search_web":
+    case "internet_search":
+      return <Globe className="h-3.5 w-3.5 text-sky-400" />;
+    case "fetch_web_page":
+    case "read_web_page":
+    case "fetch_url":
+    case "read_url":
+      return <ExternalLink className="h-3.5 w-3.5 text-cyan-400" />;
     case "search_knowledge_base":
     case "semantic_search":
     case "search_knowledge":
@@ -89,6 +100,21 @@ function formatToolSummary(name: string, args: unknown, result: unknown): string
       const cmd = parsedArgs.command ? `"${parsedArgs.command}"` : "command";
       const exitStr = typeof parsedResult.exit_code === "number" ? ` (exit: ${parsedResult.exit_code})` : "";
       return `Ran: ${cmd}${exitStr}`;
+    }
+    case "web_search":
+    case "search_web":
+    case "internet_search": {
+      const query = parsedArgs.query ? `"${parsedArgs.query}"` : "query";
+      const total = typeof parsedResult.total_found === "number" ? ` (${parsedResult.total_found} results)` : "";
+      return `Searched web for ${query}${total}`;
+    }
+    case "fetch_web_page":
+    case "read_web_page":
+    case "fetch_url":
+    case "read_url": {
+      const title = parsedResult.title ? `"${parsedResult.title}"` : (parsedArgs.url ? `"${parsedArgs.url}"` : "webpage");
+      const chars = typeof parsedResult.character_count === "number" ? ` (${parsedResult.character_count} chars)` : "";
+      return `Fetched webpage ${title}${chars}`;
     }
     case "search_knowledge_base":
     case "semantic_search":

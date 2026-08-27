@@ -8,4 +8,5 @@ export * from "./knowledgeBase";
 export * from "./skills";
 export * from "./datetime";
 export * from "./shell";
+export * from "./web";
 

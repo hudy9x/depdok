@@ -17,6 +17,7 @@ use super::tools::{
   SumFourDigitsTool, UpsertMarkdownArgs, UpsertMarkdownSectionArgs,
   UpsertMarkdownSectionTool, UpsertMarkdownTool, WriteSkillArgs, WriteSkillTool,
   GetCurrentDatetimeArgs, GetCurrentDatetimeTool, RunShellArgs, RunShellTool,
+  WebSearchArgs, WebSearchTool, FetchWebPageArgs, FetchWebPageTool,
 };
 
 pub const TOOL_MODEL: &str = "qwen2.5:7b";
@@ -31,6 +32,9 @@ You operate in a Dual-Model Specialization architecture:
 
 IMPORTANT RULES:
 - When asked questions about workspace documentation, project architecture, guides, previous notes, or concepts, invoke 'search_knowledge_base' to retrieve relevant sections and notes from the vector knowledge base before answering.
+- When asked questions about external tools, setup guides, technologies, libraries, documentation, or up-to-date online information (e.g. 'how to setup claude code', 'latest Next.js release', 'bun vs node performance'), invoke 'web_search' to find relevant sources and links online.
+- When the search results or snippets from 'web_search' require deeper details, installation steps, code examples, or when a specific URL is provided, invoke 'fetch_web_page' to read the full page content before answering.
+- When answering from web research, synthesize a clear, comprehensive answer with code examples and cite source URLs cleanly (e.g. [Claude Code Docs](https://...)).
 - When asked to run terminal / shell commands (e.g. 'git status', 'npm test', 'cargo check', scripts, CLI tools, or inspecting system info), invoke 'run_shell'.
 - When asked to draft, write, or expand rich markdown articles, tutorials, or deep reviews, invoke 'generate_content' to leverage gemma2:9b.
 - When asked to review, inspect, or summarize an active markdown file, call 'read_markdown' first.
@@ -105,6 +109,8 @@ pub async fn prompt_agent(
   let write_skill_tool = WriteSkillTool { app: app.clone(), pending: pending.clone() };
   let datetime_tool = GetCurrentDatetimeTool { app: app.clone(), pending: pending.clone() };
   let shell_tool = RunShellTool { app: app.clone(), pending: pending.clone() };
+  let web_search_tool = WebSearchTool { app: app.clone(), pending: pending.clone() };
+  let fetch_web_page_tool = FetchWebPageTool { app: app.clone(), pending: pending.clone() };
 
   let tools_schema = json!([
     {
@@ -457,6 +463,44 @@ pub async fn prompt_agent(
             }
           },
           "required": ["command"]
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "web_search",
+        "description": "Search the web for up-to-date information, facts, technical guides, documentation, APIs, and news. Returns top search results with titles, snippets, and URLs.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string",
+              "description": "The search query or keywords to search online (e.g. 'claude code setup guide', 'tauri v2 release notes', 'react 19 server actions')"
+            },
+            "limit": {
+              "type": "integer",
+              "description": "Maximum number of search results to return (default: 5, max: 10)"
+            }
+          },
+          "required": ["query"]
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "fetch_web_page",
+        "description": "Fetch and read the full readable text/markdown content of a webpage by URL. Strips navigation, ads, and scripts to return clean article/doc text.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "url": {
+              "type": "string",
+              "description": "The full HTTP/HTTPS URL of the webpage to fetch and read (e.g. 'https://docs.anthropic.com/en/docs/...')"
+            }
+          },
+          "required": ["url"]
         }
       }
     }
@@ -914,6 +958,16 @@ pub async fn prompt_agent(
             let args: RunShellArgs = serde_json::from_value(call_args)
               .map_err(|e| e.to_string())?;
             shell_tool.call(args).await.map_err(|e| e.to_string())?
+          }
+          "web_search" | "search_web" | "internet_search" => {
+            let args: WebSearchArgs = serde_json::from_value(call_args)
+              .map_err(|e| e.to_string())?;
+            web_search_tool.call(args).await.map_err(|e| e.to_string())?
+          }
+          "fetch_web_page" | "read_web_page" | "fetch_url" | "read_url" => {
+            let args: FetchWebPageArgs = serde_json::from_value(call_args)
+              .map_err(|e| e.to_string())?;
+            fetch_web_page_tool.call(args).await.map_err(|e| e.to_string())?
           }
           unknown => {
             let log_id = uuid::Uuid::new_v4().to_string();

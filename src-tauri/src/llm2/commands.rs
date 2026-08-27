@@ -21,6 +21,7 @@ pub async fn llm2_send_message(
     num_ctx: Option<usize>,
     system_prompt_addendum: Option<String>,
     allowed_tools: Option<Vec<String>>,
+    think: Option<bool>,
     state: State<'_, PendingRequests>,
     app: AppHandle,
 ) -> Result<String, String> {
@@ -35,6 +36,7 @@ pub async fn llm2_send_message(
         num_ctx,
         system_prompt_addendum,
         allowed_tools,
+        think,
     )
     .await
 }

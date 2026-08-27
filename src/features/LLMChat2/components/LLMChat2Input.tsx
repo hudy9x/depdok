@@ -10,10 +10,11 @@ import {
   AtSign,
   FolderTree,
   Globe,
+  Brain,
 } from "lucide-react";
 import { useAtom } from "jotai";
 import { cn } from "@/lib/utils";
-import { chat2WebSearchEnabledAtom } from "../store/LLMChat2Store";
+import { chat2WebSearchEnabledAtom, chat2ThinkingEnabledAtom } from "../store/LLMChat2Store";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -43,6 +44,7 @@ export const LLMChat2Input: React.FC<LLMChat2InputProps> = ({
   onKeyDown,
 }) => {
   const [isWebSearchEnabled, setIsWebSearchEnabled] = useAtom(chat2WebSearchEnabledAtom);
+  const [isThinkingEnabled, setIsThinkingEnabled] = useAtom(chat2ThinkingEnabledAtom);
   const localRef = useRef<HTMLTextAreaElement>(null);
   const textareaRef = inputRef || localRef;
 
@@ -112,7 +114,7 @@ export const LLMChat2Input: React.FC<LLMChat2InputProps> = ({
 
       {/* Bottom Action Bar */}
       <div className="flex items-center justify-between gap-2 pt-2 select-none">
-        {/* Left Side: + Action Menu and Web Search Icon Toggle */}
+        {/* Left Side: + Action Menu and Web Search/Thinking Icon Toggles */}
         <div className="flex items-center gap-1.5 min-w-0">
           {/* + Dropdown Menu */}
           <DropdownMenu>
@@ -189,7 +191,7 @@ export const LLMChat2Input: React.FC<LLMChat2InputProps> = ({
             className={cn(
               "h-7 w-7 rounded-xl border flex items-center justify-center transition-all cursor-pointer shrink-0 select-none",
               isWebSearchEnabled
-                ? "bg-sky-500/15 border-sky-500/40 text-sky-600 dark:text-sky-400 shadow-xs hover:bg-sky-500/20"
+                ? "bg-primary/10 border-primary/30 text-primary shadow-xs hover:bg-primary/15"
                 : "border-border/60 bg-muted/30 hover:bg-muted text-muted-foreground hover:text-foreground"
             )}
             title={
@@ -201,7 +203,31 @@ export const LLMChat2Input: React.FC<LLMChat2InputProps> = ({
             <Globe
               className={cn(
                 "h-4 w-4 shrink-0 transition-transform",
-                isWebSearchEnabled ? "text-sky-500 scale-105" : "text-muted-foreground"
+                isWebSearchEnabled ? "text-primary scale-105" : "text-muted-foreground"
+              )}
+            />
+          </button>
+
+          {/* Thinking / Reasoning Icon Toggle Button */}
+          <button
+            type="button"
+            onClick={() => setIsThinkingEnabled(!isThinkingEnabled)}
+            className={cn(
+              "h-7 w-7 rounded-xl border flex items-center justify-center transition-all cursor-pointer shrink-0 select-none",
+              isThinkingEnabled
+                ? "bg-primary/10 border-primary/30 text-primary shadow-xs hover:bg-primary/15"
+                : "border-border/60 bg-muted/30 hover:bg-muted text-muted-foreground hover:text-foreground"
+            )}
+            title={
+              isThinkingEnabled
+                ? "Deep Thinking: ON (Model will output reasoning trace)"
+                : "Deep Thinking: OFF (click to disable reasoning)"
+            }
+          >
+            <Brain
+              className={cn(
+                "h-4 w-4 shrink-0 transition-transform",
+                isThinkingEnabled ? "text-primary scale-105" : "text-muted-foreground"
               )}
             />
           </button>

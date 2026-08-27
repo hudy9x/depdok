@@ -15,6 +15,7 @@ import {
   chat2PanelWidthAtom,
   chat2MetricsAtom,
   chat2WebSearchEnabledAtom,
+  chat2ThinkingEnabledAtom,
   availableSkillsAtom,
   activeSkillAtom,
   ChatMessage,
@@ -150,6 +151,7 @@ export function LLMChat2Panel() {
   const isStateful = useAtomValue(chat2IsStatefulAtom);
   const numCtx = useAtomValue(chat2NumCtxAtom);
   const isWebSearchEnabled = useAtomValue(chat2WebSearchEnabledAtom);
+  const isThinkingEnabled = useAtomValue(chat2ThinkingEnabledAtom);
   const setMetrics = useSetAtom(chat2MetricsAtom);
   const activeToolCall = useAtomValue(activeToolCallAtom);
 
@@ -594,6 +596,7 @@ export function LLMChat2Panel() {
         system_prompt_addendum: systemPromptAddendum,
         allowedTools: allowedTools,
         allowed_tools: allowedTools,
+        think: isThinkingEnabled,
       });
 
       // Ensure final assistant message has full content if stream was missed or buffered

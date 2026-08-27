@@ -143,7 +143,7 @@ pub async fn fetch_web_page_async(url: &str) -> Result<WebPageResult, String> {
     let client = reqwest::Client::builder()
         .user_agent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
         .timeout(std::time::Duration::from_secs(15))
-        .redirect(reqwest::redirect::Policy::limited(5))
+        .redirect(reqwest::redirect::Policy::limited(10))
         .build()
         .map_err(|e| format!("Failed to build HTTP client: {}", e))?;
 
@@ -153,8 +153,9 @@ pub async fn fetch_web_page_async(url: &str) -> Result<WebPageResult, String> {
         .await
         .map_err(|e| format!("Failed to fetch URL '{}': {}", trimmed_url, e))?;
 
-    if !response.status().is_success() {
-        return Err(format!("Web request failed with HTTP status {}", response.status()));
+    let status = response.status();
+    if !status.is_success() && !status.is_redirection() {
+        return Err(format!("Web request failed with HTTP status {}", status));
     }
 
     let html_text = response

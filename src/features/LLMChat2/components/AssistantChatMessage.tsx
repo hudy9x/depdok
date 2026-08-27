@@ -1,4 +1,5 @@
 import React from "react";
+import { Streamdown } from "streamdown";
 
 import { ChatMessage, ToolExecutionLog } from "../store/LLMChat2Store";
 import { AssistantThinkingIndicator } from "./AssistantThinkingIndicator";
@@ -27,9 +28,9 @@ export const AssistantChatMessage: React.FC<AssistantChatMessageProps> = ({
             if (part.type === "text") {
               if (!part.content.trim()) return null;
               return (
-                <p key={part.id} className="whitespace-pre-wrap select-text">
+                <Streamdown key={part.id} animated caret="block">
                   {part.content}
-                </p>
+                </Streamdown>
               );
             } else if (part.type === "tool") {
               return <ToolCallCard key={part.id} log={part.toolCall} />;
@@ -46,7 +47,11 @@ export const AssistantChatMessage: React.FC<AssistantChatMessageProps> = ({
                 ))}
               </div>
             )}
-            {hasContent && <p className="whitespace-pre-wrap select-text">{message.content}</p>}
+            {hasContent && (
+              <Streamdown animated caret="block">
+                {message.content}
+              </Streamdown>
+            )}
           </>
         )}
 

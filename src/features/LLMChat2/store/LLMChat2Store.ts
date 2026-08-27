@@ -63,6 +63,7 @@ export const chat2IsStatefulAtom = atomWithStorage<boolean>("llm2_stateful_histo
 export const chat2NumCtxAtom = atomWithStorage<number>("llm2_num_ctx", 16384, localStorageDriver);
 export const chat2PanelWidthAtom = atomWithStorage<number>("llm2_panel_width", 420, localStorageDriver);
 export const chat2WebSearchEnabledAtom = atomWithStorage<boolean>("llm2_web_search_enabled", false, localStorageDriver);
+export const chat2ThinkingEnabledAtom = atomWithStorage<boolean>("llm2_thinking_enabled", true, localStorageDriver);
 export const chat2MetricsAtom = atom<ContextMetrics | null>(null);
 
 // Skill state

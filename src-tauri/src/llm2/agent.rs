@@ -6,18 +6,12 @@ use tauri::{AppHandle, Emitter, Manager};
 
 use super::pending::PendingRequests;
 use super::tools::{
-  AddMarkdownCommentArgs, AddMarkdownCommentTool, CreateFileArgs, CreateFileTool,
-  CreateFolderArgs, CreateFolderTool, DeleteFileOrFolderArgs, DeleteFileOrFolderTool,
-  GenerateContentArgs, GenerateContentTool, GetUserAgeArgs, GetUserAgeTool,
-  GetUserCountryArgs, GetUserCountryTool, GetUserDobArgs, GetUserDobTool,
-  GetUserNameArgs, GetUserNameTool, ListFilesArgs, ListFilesTool,
-  MoveFilesOrFoldersArgs, MoveFilesOrFoldersTool, ReadMarkdownArgs, ReadMarkdownTool,
-  RenameFileArgs, RenameFileTool, RenameFolderArgs, RenameFolderTool,
-  SearchKnowledgeBaseArgs, SearchKnowledgeBaseTool, SumFourDigitsArgs,
-  SumFourDigitsTool, UpsertMarkdownArgs, UpsertMarkdownSectionArgs,
-  UpsertMarkdownSectionTool, UpsertMarkdownTool, WriteSkillArgs, WriteSkillTool,
-  GetCurrentDatetimeArgs, GetCurrentDatetimeTool, RunShellArgs, RunShellTool,
-  WebSearchArgs, WebSearchTool, FetchWebPageArgs, FetchWebPageTool,
+  AddMarkdownCommentTool, CreateFileTool, CreateFolderTool, DeleteFileOrFolderTool,
+  GenerateContentTool, GetCurrentDatetimeTool, GetUserAgeTool, GetUserCountryTool,
+  GetUserDobTool, GetUserNameTool, ListFilesTool, MoveFilesOrFoldersTool,
+  ReadMarkdownTool, RenameFileTool, RenameFolderTool, RunShellTool,
+  SearchKnowledgeBaseTool, SumFourDigitsTool, UpsertMarkdownSectionTool,
+  UpsertMarkdownTool, WebSearchTool, FetchWebPageTool, WriteSkillTool,
 };
 
 pub const TOOL_MODEL: &str = "qwen2.5:7b";
@@ -76,6 +70,7 @@ pub async fn prompt_agent(
   num_ctx: Option<usize>,
   system_prompt_addendum: Option<String>,
   allowed_tools: Option<Vec<String>>,
+  think: Option<bool>,
 ) -> Result<String, String> {
   let model_to_use = model_name
     .filter(|s| !s.trim().is_empty())
@@ -599,6 +594,8 @@ pub async fn prompt_agent(
       request_map.insert("tools".to_string(), effective_tools_schema.clone());
     }
     request_map.insert("stream".to_string(), json!(true));
+    let should_think = think.unwrap_or(true);
+    request_map.insert("think".to_string(), json!(should_think));
     request_map.insert(
       "options".to_string(),
       json!({
@@ -852,122 +849,144 @@ pub async fn prompt_agent(
         let call_args = tool_call.function.arguments;
         println!("[llm2][tool_call] Executing '{}' with args: {:?}", call_name, call_args);
 
-        let tool_result_value = match call_name.as_str() {
+        let tool_execution_result: Result<serde_json::Value, String> = match call_name.as_str() {
           "generate_content" => {
-            let args: GenerateContentArgs = serde_json::from_value(call_args)
-              .map_err(|e| e.to_string())?;
-            generate_content_tool.call(args).await.map_err(|e| e.to_string())?
+            match serde_json::from_value(call_args) {
+              Ok(args) => generate_content_tool.call(args).await.map_err(|e| e.to_string()),
+              Err(e) => Err(format!("Invalid arguments for generate_content: {}", e)),
+            }
           }
           "get_user_name" => {
-            let args: GetUserNameArgs = serde_json::from_value(call_args)
-              .map_err(|e| e.to_string())?;
-            user_name_tool.call(args).await.map_err(|e| e.to_string())?
+            match serde_json::from_value(call_args) {
+              Ok(args) => user_name_tool.call(args).await.map_err(|e| e.to_string()),
+              Err(e) => Err(format!("Invalid arguments for get_user_name: {}", e)),
+            }
           }
           "get_user_age" => {
-            let args: GetUserAgeArgs = serde_json::from_value(call_args)
-              .map_err(|e| e.to_string())?;
-            user_age_tool.call(args).await.map_err(|e| e.to_string())?
+            match serde_json::from_value(call_args) {
+              Ok(args) => user_age_tool.call(args).await.map_err(|e| e.to_string()),
+              Err(e) => Err(format!("Invalid arguments for get_user_age: {}", e)),
+            }
           }
           "get_user_country" => {
-            let args: GetUserCountryArgs = serde_json::from_value(call_args)
-              .map_err(|e| e.to_string())?;
-            user_country_tool.call(args).await.map_err(|e| e.to_string())?
+            match serde_json::from_value(call_args) {
+              Ok(args) => user_country_tool.call(args).await.map_err(|e| e.to_string()),
+              Err(e) => Err(format!("Invalid arguments for get_user_country: {}", e)),
+            }
           }
           "get_user_dob" => {
-            let args: GetUserDobArgs = serde_json::from_value(call_args)
-              .map_err(|e| e.to_string())?;
-            user_dob_tool.call(args).await.map_err(|e| e.to_string())?
+            match serde_json::from_value(call_args) {
+              Ok(args) => user_dob_tool.call(args).await.map_err(|e| e.to_string()),
+              Err(e) => Err(format!("Invalid arguments for get_user_dob: {}", e)),
+            }
           }
           "sum_four_digits" => {
-            let args: SumFourDigitsArgs = serde_json::from_value(call_args)
-              .map_err(|e| e.to_string())?;
-            sum_tool.call(args).await.map_err(|e| e.to_string())?
+            match serde_json::from_value(call_args) {
+              Ok(args) => sum_tool.call(args).await.map_err(|e| e.to_string()),
+              Err(e) => Err(format!("Invalid arguments for sum_four_digits: {}", e)),
+            }
           }
           "create_file" => {
-            let args: CreateFileArgs = serde_json::from_value(call_args)
-              .map_err(|e| e.to_string())?;
-            create_file_tool.call(args).await.map_err(|e| e.to_string())?
+            match serde_json::from_value(call_args) {
+              Ok(args) => create_file_tool.call(args).await.map_err(|e| e.to_string()),
+              Err(e) => Err(format!("Invalid arguments for create_file: {}", e)),
+            }
           }
           "create_folder" => {
-            let args: CreateFolderArgs = serde_json::from_value(call_args)
-              .map_err(|e| e.to_string())?;
-            create_folder_tool.call(args).await.map_err(|e| e.to_string())?
+            match serde_json::from_value(call_args) {
+              Ok(args) => create_folder_tool.call(args).await.map_err(|e| e.to_string()),
+              Err(e) => Err(format!("Invalid arguments for create_folder: {}", e)),
+            }
           }
           "rename_file" => {
-            let args: RenameFileArgs = serde_json::from_value(call_args)
-              .map_err(|e| e.to_string())?;
-            rename_file_tool.call(args).await.map_err(|e| e.to_string())?
+            match serde_json::from_value(call_args) {
+              Ok(args) => rename_file_tool.call(args).await.map_err(|e| e.to_string()),
+              Err(e) => Err(format!("Invalid arguments for rename_file: {}", e)),
+            }
           }
           "rename_folder" => {
-            let args: RenameFolderArgs = serde_json::from_value(call_args)
-              .map_err(|e| e.to_string())?;
-            rename_folder_tool.call(args).await.map_err(|e| e.to_string())?
+            match serde_json::from_value(call_args) {
+              Ok(args) => rename_folder_tool.call(args).await.map_err(|e| e.to_string()),
+              Err(e) => Err(format!("Invalid arguments for rename_folder: {}", e)),
+            }
           }
           "delete_file_or_folder" | "delete_node" => {
-            let args: DeleteFileOrFolderArgs = serde_json::from_value(call_args)
-              .map_err(|e| e.to_string())?;
-            delete_tool.call(args).await.map_err(|e| e.to_string())?
+            match serde_json::from_value(call_args) {
+              Ok(args) => delete_tool.call(args).await.map_err(|e| e.to_string()),
+              Err(e) => Err(format!("Invalid arguments for delete_file_or_folder: {}", e)),
+            }
           }
           "move_files_or_folders" | "move_file_or_folder" | "move_files" | "cut_and_move" => {
-            let args: MoveFilesOrFoldersArgs = serde_json::from_value(call_args)
-              .map_err(|e| e.to_string())?;
-            move_tool.call(args).await.map_err(|e| e.to_string())?
+            match serde_json::from_value(call_args) {
+              Ok(args) => move_tool.call(args).await.map_err(|e| e.to_string()),
+              Err(e) => Err(format!("Invalid arguments for move_files_or_folders: {}", e)),
+            }
           }
           "list_files" | "list_directory" | "traverse_directory" => {
-            let args: ListFilesArgs = serde_json::from_value(call_args)
-              .map_err(|e| e.to_string())?;
-            list_files_tool.call(args).await.map_err(|e| e.to_string())?
+            match serde_json::from_value(call_args) {
+              Ok(args) => list_files_tool.call(args).await.map_err(|e| e.to_string()),
+              Err(e) => Err(format!("Invalid arguments for list_files: {}", e)),
+            }
           }
           "read_markdown" => {
-
-            let args: ReadMarkdownArgs = serde_json::from_value(call_args)
-              .map_err(|e| e.to_string())?;
-            read_markdown_tool.call(args).await.map_err(|e| e.to_string())?
+            match serde_json::from_value(call_args) {
+              Ok(args) => read_markdown_tool.call(args).await.map_err(|e| e.to_string()),
+              Err(e) => Err(format!("Invalid arguments for read_markdown: {}", e)),
+            }
           }
           "upsert_markdown" | "update_markdown" => {
-            let args: UpsertMarkdownArgs = serde_json::from_value(call_args)
-              .map_err(|e| e.to_string())?;
-            upsert_markdown_tool.call(args).await.map_err(|e| e.to_string())?
+            match serde_json::from_value(call_args) {
+              Ok(args) => upsert_markdown_tool.call(args).await.map_err(|e| e.to_string()),
+              Err(e) => Err(format!("Invalid arguments for upsert_markdown: {}", e)),
+            }
           }
           "upsert_markdown_section" | "update_markdown_section" => {
-            let args: UpsertMarkdownSectionArgs = serde_json::from_value(call_args)
-              .map_err(|e| e.to_string())?;
-            upsert_markdown_section_tool.call(args).await.map_err(|e| e.to_string())?
+            match serde_json::from_value(call_args) {
+              Ok(args) => upsert_markdown_section_tool.call(args).await.map_err(|e| e.to_string()),
+              Err(e) => Err(format!("Invalid arguments for upsert_markdown_section: {}", e)),
+            }
           }
           "add_markdown_comment" => {
-            let args: AddMarkdownCommentArgs = serde_json::from_value(call_args)
-              .map_err(|e| e.to_string())?;
-            add_markdown_comment_tool.call(args).await.map_err(|e| e.to_string())?
+            match serde_json::from_value(call_args) {
+              Ok(args) => add_markdown_comment_tool.call(args).await.map_err(|e| e.to_string()),
+              Err(e) => Err(format!("Invalid arguments for add_markdown_comment: {}", e)),
+            }
           }
           "search_knowledge_base" | "semantic_search" | "search_knowledge" => {
-            let args: SearchKnowledgeBaseArgs = serde_json::from_value(call_args)
-              .map_err(|e| e.to_string())?;
-            search_knowledge_base_tool.call(args).await.map_err(|e| e.to_string())?
+            match serde_json::from_value(call_args) {
+              Ok(args) => search_knowledge_base_tool.call(args).await.map_err(|e| e.to_string()),
+              Err(e) => Err(format!("Invalid arguments for search_knowledge_base: {}", e)),
+            }
           }
           "write_skill" => {
-            let args: WriteSkillArgs = serde_json::from_value(call_args)
-              .map_err(|e| e.to_string())?;
-            write_skill_tool.call(args).await.map_err(|e| e.to_string())?
+            match serde_json::from_value(call_args) {
+              Ok(args) => write_skill_tool.call(args).await.map_err(|e| e.to_string()),
+              Err(e) => Err(format!("Invalid arguments for write_skill: {}", e)),
+            }
           }
           "get_current_datetime" | "get_datetime" => {
-            let args: GetCurrentDatetimeArgs = serde_json::from_value(call_args)
-              .map_err(|e| e.to_string())?;
-            datetime_tool.call(args).await.map_err(|e| e.to_string())?
+            match serde_json::from_value(call_args) {
+              Ok(args) => datetime_tool.call(args).await.map_err(|e| e.to_string()),
+              Err(e) => Err(format!("Invalid arguments for get_current_datetime: {}", e)),
+            }
           }
           "run_shell" | "execute_shell" | "shell_command" | "exec_command" => {
-            let args: RunShellArgs = serde_json::from_value(call_args)
-              .map_err(|e| e.to_string())?;
-            shell_tool.call(args).await.map_err(|e| e.to_string())?
+            match serde_json::from_value(call_args) {
+              Ok(args) => shell_tool.call(args).await.map_err(|e| e.to_string()),
+              Err(e) => Err(format!("Invalid arguments for run_shell: {}", e)),
+            }
           }
           "web_search" | "search_web" | "internet_search" => {
-            let args: WebSearchArgs = serde_json::from_value(call_args)
-              .map_err(|e| e.to_string())?;
-            web_search_tool.call(args).await.map_err(|e| e.to_string())?
+            match serde_json::from_value(call_args) {
+              Ok(args) => web_search_tool.call(args).await.map_err(|e| e.to_string()),
+              Err(e) => Err(format!("Invalid arguments for web_search: {}", e)),
+            }
           }
           "fetch_web_page" | "read_web_page" | "fetch_url" | "read_url" => {
-            let args: FetchWebPageArgs = serde_json::from_value(call_args)
-              .map_err(|e| e.to_string())?;
-            fetch_web_page_tool.call(args).await.map_err(|e| e.to_string())?
+            match serde_json::from_value(call_args) {
+              Ok(args) => fetch_web_page_tool.call(args).await.map_err(|e| e.to_string()),
+              Err(e) => Err(format!("Invalid arguments for fetch_web_page: {}", e)),
+            }
           }
           unknown => {
             let log_id = uuid::Uuid::new_v4().to_string();
@@ -996,7 +1015,7 @@ pub async fn prompt_agent(
                       "status": "success",
                       "timestamp": chrono::Utc::now().to_rfc3339()
                     }));
-                    res
+                    Ok(res)
                   }
                   Err(e) => {
                     let _ = app.emit("tool_log_event", json!({
@@ -1008,7 +1027,7 @@ pub async fn prompt_agent(
                       "error": e,
                       "timestamp": chrono::Utc::now().to_rfc3339()
                     }));
-                    return Err(e);
+                    Err(e)
                   }
                 }
               } else {
@@ -1022,7 +1041,7 @@ pub async fn prompt_agent(
                   "error": err_msg,
                   "timestamp": chrono::Utc::now().to_rfc3339()
                 }));
-                return Err(err_msg);
+                Err(err_msg)
               }
             } else {
               let err_msg = format!("Unknown tool: {}", unknown);
@@ -1035,12 +1054,21 @@ pub async fn prompt_agent(
                 "error": err_msg,
                 "timestamp": chrono::Utc::now().to_rfc3339()
               }));
-              return Err(err_msg);
+              Err(err_msg)
             }
           }
         };
 
-        println!("[llm2][tool_result] Tool '{}' succeeded.", call_name);
+        let tool_result_value = match tool_execution_result {
+          Ok(val) => {
+            println!("[llm2][tool_result] Tool '{}' succeeded.", call_name);
+            val
+          }
+          Err(err) => {
+            println!("[llm2][tool_result] Tool '{}' failed with error: {}. Feeding error to model.", call_name, err);
+            json!({ "error": err })
+          }
+        };
 
         // Push clean tool result into history for the next turn
         history.push(OllamaMessage {

@@ -22,6 +22,7 @@ import {
   searchKnowledgeBaseTool,
   writeSkillTool,
   getCurrentDatetimeTool,
+  runShellTool,
   CreateFileArgs,
   CreateFolderArgs,
   RenameFileArgs,
@@ -36,6 +37,7 @@ import {
   SearchKnowledgeBaseArgs,
   WriteSkillArgs,
   GetCurrentDatetimeArgs,
+  RunShellArgs,
 } from "../tools";
 
 import {
@@ -253,6 +255,12 @@ export function useToolListener() {
           case "get_current_datetime":
           case "get_datetime":
             toolOutput = getCurrentDatetimeTool(args as unknown as GetCurrentDatetimeArgs);
+            break;
+          case "run_shell":
+          case "execute_shell":
+          case "shell_command":
+          case "exec_command":
+            toolOutput = await runShellTool(args as unknown as RunShellArgs);
             break;
           default:
             throw new Error(`Unknown tool: ${tool_name}`);

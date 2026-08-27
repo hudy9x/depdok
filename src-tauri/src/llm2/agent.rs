@@ -16,7 +16,7 @@ use super::tools::{
   SearchKnowledgeBaseArgs, SearchKnowledgeBaseTool, SumFourDigitsArgs,
   SumFourDigitsTool, UpsertMarkdownArgs, UpsertMarkdownSectionArgs,
   UpsertMarkdownSectionTool, UpsertMarkdownTool, WriteSkillArgs, WriteSkillTool,
-  GetCurrentDatetimeArgs, GetCurrentDatetimeTool,
+  GetCurrentDatetimeArgs, GetCurrentDatetimeTool, RunShellArgs, RunShellTool,
 };
 
 pub const TOOL_MODEL: &str = "qwen2.5:7b";
@@ -31,6 +31,7 @@ You operate in a Dual-Model Specialization architecture:
 
 IMPORTANT RULES:
 - When asked questions about workspace documentation, project architecture, guides, previous notes, or concepts, invoke 'search_knowledge_base' to retrieve relevant sections and notes from the vector knowledge base before answering.
+- When asked to run terminal / shell commands (e.g. 'git status', 'npm test', 'cargo check', scripts, CLI tools, or inspecting system info), invoke 'run_shell'.
 - When asked to draft, write, or expand rich markdown articles, tutorials, or deep reviews, invoke 'generate_content' to leverage gemma2:9b.
 - When asked to review, inspect, or summarize an active markdown file, call 'read_markdown' first.
 - When asked to add or update a section (e.g. 'Add Conclusion in test.md'), call 'upsert_markdown_section'.
@@ -103,6 +104,7 @@ pub async fn prompt_agent(
   let generate_content_tool = GenerateContentTool { app: app.clone() };
   let write_skill_tool = WriteSkillTool { app: app.clone(), pending: pending.clone() };
   let datetime_tool = GetCurrentDatetimeTool { app: app.clone(), pending: pending.clone() };
+  let shell_tool = RunShellTool { app: app.clone(), pending: pending.clone() };
 
   let tools_schema = json!([
     {
@@ -430,6 +432,31 @@ pub async fn prompt_agent(
               "description": "Optional custom format token string (e.g. 'yyyyMMdd-HHmm', 'yyyy-MM-dd', 'HH:mm:ss'). Defaults to 'yyyy-MM-dd HH:mm:ss'."
             }
           }
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "run_shell",
+        "description": "Execute a shell / terminal command in the workspace directory across Windows, Linux, and macOS. Returns stdout, stderr, exit_code, and success status.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "command": {
+              "type": "string",
+              "description": "The shell command line string to execute (e.g. 'git status', 'npm test', 'cargo check', 'ls -la', 'dir')."
+            },
+            "cwd": {
+              "type": "string",
+              "description": "Optional working directory relative to workspace root or absolute path. Defaults to the workspace root directory."
+            },
+            "timeout_ms": {
+              "type": "number",
+              "description": "Optional execution timeout in milliseconds (default 30000ms)."
+            }
+          },
+          "required": ["command"]
         }
       }
     }
@@ -882,6 +909,11 @@ pub async fn prompt_agent(
             let args: GetCurrentDatetimeArgs = serde_json::from_value(call_args)
               .map_err(|e| e.to_string())?;
             datetime_tool.call(args).await.map_err(|e| e.to_string())?
+          }
+          "run_shell" | "execute_shell" | "shell_command" | "exec_command" => {
+            let args: RunShellArgs = serde_json::from_value(call_args)
+              .map_err(|e| e.to_string())?;
+            shell_tool.call(args).await.map_err(|e| e.to_string())?
           }
           unknown => {
             let log_id = uuid::Uuid::new_v4().to_string();

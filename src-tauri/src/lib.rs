@@ -1039,6 +1039,7 @@ pub fn run() {
             commands::terminal::write_to_pty,
             commands::terminal::resize_pty,
             commands::terminal::close_pty_session,
+            commands::shell::execute_shell_command,
             knowledge_base::commands::insert_or_replace_document,
             knowledge_base::commands::index_markdown_document_sections,
             knowledge_base::commands::delete_document,

@@ -17,6 +17,7 @@ import {
   PenTool,
   BookOpen,
   Clock,
+  Terminal,
 } from "lucide-react";
 import { ToolExecutionLog } from "../store/LLMChat2Store";
 
@@ -26,6 +27,11 @@ interface ToolCallCardProps {
 
 function getToolIcon(name: string) {
   switch (name) {
+    case "run_shell":
+    case "execute_shell":
+    case "shell_command":
+    case "exec_command":
+      return <Terminal className="h-3.5 w-3.5 text-emerald-400" />;
     case "search_knowledge_base":
     case "semantic_search":
     case "search_knowledge":
@@ -75,6 +81,14 @@ function formatToolSummary(name: string, args: unknown, result: unknown): string
     case "get_datetime": {
       const formatted = parsedResult.formatted || parsedResult.compactTimestamp || parsedResult.iso;
       return formatted ? `Current datetime: ${formatted}` : "Checked current datetime";
+    }
+    case "run_shell":
+    case "execute_shell":
+    case "shell_command":
+    case "exec_command": {
+      const cmd = parsedArgs.command ? `"${parsedArgs.command}"` : "command";
+      const exitStr = typeof parsedResult.exit_code === "number" ? ` (exit: ${parsedResult.exit_code})` : "";
+      return `Ran: ${cmd}${exitStr}`;
     }
     case "search_knowledge_base":
     case "semantic_search":
@@ -200,6 +214,55 @@ export function ToolCallCard({ log }: ToolCallCardProps) {
                 Output
               </span>
               {typeof log.result === "object" &&
+              log.result !== null &&
+              "stdout" in (log.result as Record<string, unknown>) &&
+              "exit_code" in (log.result as Record<string, unknown>) ? (
+                (() => {
+                  const res = log.result as {
+                    stdout?: string;
+                    stderr?: string;
+                    exit_code?: number;
+                    duration_ms?: number;
+                    cwd?: string;
+                    truncated?: boolean;
+                  };
+                  return (
+                    <div className="space-y-1.5 font-mono text-[10px]">
+                      <div className="flex items-center justify-between text-[9px] text-muted-foreground">
+                        <span className="truncate max-w-[60%]">cwd: {res.cwd || "workspace"}</span>
+                        <span>
+                          {res.duration_ms !== undefined ? `${res.duration_ms}ms · ` : ""}
+                          exit code:{" "}
+                          <span
+                            className={
+                              res.exit_code === 0
+                                ? "text-emerald-400 font-semibold"
+                                : "text-red-400 font-semibold"
+                            }
+                          >
+                            {res.exit_code}
+                          </span>
+                        </span>
+                      </div>
+                      {res.stdout ? (
+                        <pre className="p-2 rounded-lg bg-zinc-950/80 border border-zinc-800 text-emerald-300 overflow-x-auto max-h-48 whitespace-pre-wrap">
+                          {res.stdout}
+                        </pre>
+                      ) : null}
+                      {res.stderr ? (
+                        <pre className="p-2 rounded-lg bg-zinc-950/80 border border-red-900/40 text-red-300 overflow-x-auto max-h-48 whitespace-pre-wrap">
+                          {res.stderr}
+                        </pre>
+                      ) : null}
+                      {!res.stdout && !res.stderr && (
+                        <div className="text-muted-foreground italic p-1">
+                          (No output returned)
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()
+              ) : typeof log.result === "object" &&
               log.result !== null &&
               Array.isArray((log.result as Record<string, unknown>).results) ? (
                 <div className="space-y-1.5 max-h-48 overflow-y-auto">

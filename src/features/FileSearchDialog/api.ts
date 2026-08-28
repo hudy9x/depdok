@@ -4,6 +4,7 @@ export interface SearchResult {
   path: string;
   score: number;
   match_indices: number[];
+  is_dir?: boolean;
 }
 
 export async function indexWorkspaceFiles(workspacePath: string): Promise<number> {

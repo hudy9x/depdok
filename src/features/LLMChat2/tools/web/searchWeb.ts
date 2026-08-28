@@ -1,4 +1,3 @@
-import { toast } from "sonner";
 import { searchWeb, WebSearchResult } from "@/api-client/web-search";
 
 export interface SearchWebArgs {
@@ -18,19 +17,9 @@ export async function searchWebTool(args: SearchWebArgs): Promise<SearchWebResul
 
   try {
     const result = await searchWeb(query, limit);
-
-    if (result.total_found > 0) {
-      toast.info(`Searched web for "${query}"`, {
-        description: `Found ${result.total_found} top results`,
-      });
-    } else {
-      toast.warning(`No web results found for "${query}"`);
-    }
-
     return result;
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : String(err);
-    toast.error(`Web search failed: ${errorMsg}`);
     throw new Error(`Failed to search the web for '${query}': ${errorMsg}`);
   }
 }

@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
 import { useAtomValue, useSetAtom } from "jotai";
+import { Folder } from "lucide-react";
 import { tabsAtom, switchTabAtom, createTabAtom } from "@/stores/TabStore";
 import { workspaceRootAtom, revealFileAtom } from "@/features/FileExplorer/store";
 import { FileIcon } from "@/components/FileIcon";
@@ -20,6 +21,7 @@ interface CombinedResult {
   fileName: string;
   tabId?: string;
   score?: number;
+  is_dir?: boolean;
 }
 
 export function FileSearchDialog() {
@@ -100,6 +102,7 @@ export function FileSearchDialog() {
             path: result.path,
             fileName,
             score: result.score,
+            is_dir: result.is_dir,
           });
         }
       }
@@ -115,14 +118,19 @@ export function FileSearchDialog() {
       revealFile(result.path);
     } else if (result.type === "workspace" && workspaceRoot) {
       const fullPath = `${workspaceRoot}/${result.path}`;
-      createTab({
-        filePath: fullPath,
-        fileName: result.fileName,
-        switchTo: true,
-        isPreview: true,
-      });
-      // Reveal the file in FileExplorer
-      revealFile(fullPath);
+      if (result.is_dir) {
+        // Reveal directory in explorer
+        revealFile(fullPath);
+      } else {
+        createTab({
+          filePath: fullPath,
+          fileName: result.fileName,
+          switchTo: true,
+          isPreview: true,
+        });
+        // Reveal the file in FileExplorer
+        revealFile(fullPath);
+      }
     }
     setOpen(false);
   };
@@ -134,12 +142,12 @@ export function FileSearchDialog() {
   return (
     <CommandDialog open={open} onOpenChange={setOpen}>
       <CommandInput
-        placeholder={workspaceRoot ? "Search files..." : "Search tabs..."}
+        placeholder={workspaceRoot ? "Search files & folders..." : "Search tabs..."}
         value={searchQuery}
         onValueChange={setSearchQuery}
       />
       <CommandList>
-        <CommandEmpty>No files found.</CommandEmpty>
+        <CommandEmpty>No matches found.</CommandEmpty>
 
         {tabResults.length > 0 && (
           <CommandGroup heading="Open Files">
@@ -163,7 +171,7 @@ export function FileSearchDialog() {
         )}
 
         {workspaceOnlyResults.length > 0 && (
-          <CommandGroup heading="Workspace Files">
+          <CommandGroup heading="Workspace Files &amp; Folders">
             {workspaceOnlyResults.map((result, idx) => (
               <CommandItem
                 key={`workspace-${idx}`}
@@ -171,7 +179,11 @@ export function FileSearchDialog() {
                 onSelect={() => handleSelect(result)}
                 className="cursor-pointer"
               >
-                <FileIcon filename={result.fileName} className="mr-2" />
+                {result.is_dir ? (
+                  <Folder className="mr-2 h-4 w-4 text-amber-500 shrink-0" />
+                ) : (
+                  <FileIcon filename={result.fileName} className="mr-2 shrink-0" />
+                )}
                 <div className="flex flex-col">
                   <span>{result.fileName}</span>
                   <span className="text-xs text-muted-foreground truncate">

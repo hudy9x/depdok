@@ -54,6 +54,16 @@ pub fn llm2_tool_result(
 }
 
 #[tauri::command]
+pub fn llm2_cancel_generation(
+    message_id: Option<String>,
+    state: State<'_, PendingRequests>,
+) -> Result<(), String> {
+    println!("[llm2][command] llm2_cancel_generation requested for message_id: {:?}", message_id);
+    state.cancel(message_id.as_deref());
+    Ok(())
+}
+
+#[tauri::command]
 pub async fn llm2_list_models() -> Result<Vec<OllamaModelInfo>, String> {
     let client = reqwest::Client::new();
     let res = client

@@ -38,6 +38,7 @@ IMPORTANT RULES:
 - When asked what files exist or to inspect folder structure, invoke 'list_files'.
 - When asked to move, relocate, or cut/paste files, invoke 'move_files_or_folders'.
 - When a user mentions a file using '@' (e.g. '@notes.md' or '@docs/guide.md'), use that path in your tool calls.
+- When a user mentions a folder or directory using '@' (e.g. '@src/components/' or '@docs/'), inspect its contents with 'list_files', or search its relevant notes with 'search_knowledge_base'.
 - Once all tool results are provided, synthesize a clear, helpful final response with references or citations to source files/sections."#
   )
 }
@@ -82,6 +83,11 @@ pub async fn prompt_agent(
     .unwrap_or_else(|| CONTENT_MODEL.to_string());
   let num_ctx_to_use = num_ctx.unwrap_or(NUM_CTX);
   println!("[llm2][agent] Starting prompt with tool model '{}' (content model '{}', num_ctx {}): {:?}", model_to_use, content_model_to_use, num_ctx_to_use, prompt);
+
+  let cancel_flag = match &message_id {
+    Some(id) => pending.register_cancel(id),
+    None => pending.register_cancel("default"),
+  };
 
   let client = reqwest::Client::new();
 
@@ -595,6 +601,20 @@ pub async fn prompt_agent(
 
   // Multi-turn streaming resolution loop
   for turn in 0..6 {
+    // Check if cancellation was requested before starting turn
+    if cancel_flag.load(std::sync::atomic::Ordering::Relaxed) || pending.is_cancelled(message_id.as_deref()) {
+      println!("[llm2][turn {}] 🛑 Generation cancelled by user.", turn);
+      if let Some(msg_id) = &message_id {
+        let _ = app.emit("llm2_done", json!({
+          "message_id": msg_id,
+          "content": accumulated_final_text,
+          "cancelled": true,
+        }));
+        pending.remove_cancel(msg_id);
+      }
+      return Ok(accumulated_final_text);
+    }
+
     let mut request_map = serde_json::Map::new();
     request_map.insert("model".to_string(), json!(model_to_use));
     request_map.insert("messages".to_string(), json!(history));
@@ -655,6 +675,19 @@ pub async fn prompt_agent(
     let mut thinking_token_count = 0usize;
 
     while let Some(chunk_res) = stream.next().await {
+      if cancel_flag.load(std::sync::atomic::Ordering::Relaxed) || pending.is_cancelled(message_id.as_deref()) {
+        println!("[llm2][turn {}] 🛑 Stream reading cancelled by user.", turn);
+        if let Some(msg_id) = &message_id {
+          let _ = app.emit("llm2_done", json!({
+            "message_id": msg_id,
+            "content": turn_text,
+            "cancelled": true,
+          }));
+          pending.remove_cancel(msg_id);
+        }
+        return Ok(turn_text);
+      }
+
       let chunk = chunk_res.map_err(|e| format!("Stream error: {}", e))?;
       let text = String::from_utf8_lossy(&chunk);
       buffer.push_str(&text);
@@ -853,6 +886,11 @@ pub async fn prompt_agent(
 
       // Execute each tool call
       for tool_call in collected_tool_calls {
+        if cancel_flag.load(std::sync::atomic::Ordering::Relaxed) || pending.is_cancelled(message_id.as_deref()) {
+          println!("[llm2] 🛑 Tool execution cancelled by user.");
+          break;
+        }
+
         let call_name = tool_call.function.name;
         let call_args = tool_call.function.arguments;
         println!("[llm2][tool_call] Executing '{}' with args: {:?}", call_name, call_args);
@@ -1099,6 +1137,7 @@ pub async fn prompt_agent(
       "message_id": msg_id,
       "content": accumulated_final_text,
     }));
+    pending.remove_cancel(msg_id);
   }
 
   Ok(accumulated_final_text)

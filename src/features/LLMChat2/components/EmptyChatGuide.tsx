@@ -16,7 +16,7 @@ export const EmptyChatGuide: React.FC<EmptyChatGuideProps> = ({ onSelectPrompt }
         <p className="text-sm font-semibold text-foreground">Frontend Tool-Calling v2</p>
         <p className="text-xs text-muted-foreground max-w-sm leading-relaxed">
           Live streaming tokens from local Ollama. Type{" "}
-          <code className="text-sky-400 font-semibold">@</code> to mention files, review &amp; update
+          <code className="text-sky-400 font-semibold">@</code> to mention files &amp; folders, review &amp; update
           markdown live.
         </p>
       </div>

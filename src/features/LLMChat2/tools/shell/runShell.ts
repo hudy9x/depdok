@@ -1,5 +1,4 @@
 import { getDefaultStore } from "jotai";
-import { toast } from "sonner";
 import { executeShellCommand, ShellExecutionResult } from "@/api-client/shell";
 import { workspaceRootAtom } from "@/features/FileExplorer/store";
 import { resolvePath } from "../common/pathHelper";
@@ -35,20 +34,9 @@ export async function runShellTool(args: RunShellArgs): Promise<RunShellResult> 
       timeout_ms: args.timeout_ms,
     });
 
-    if (result.success) {
-      toast.success(`Executed: ${trimmedCommand}`, {
-        description: `Exit code: 0 (${result.duration_ms}ms)`,
-      });
-    } else {
-      toast.warning(`Command finished with exit code ${result.exit_code}: ${trimmedCommand}`, {
-        description: result.stderr.slice(0, 100) || undefined,
-      });
-    }
-
     return result;
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : String(err);
-    toast.error(`Command failed: ${errorMsg}`);
     throw new Error(`Failed to execute shell command '${trimmedCommand}': ${errorMsg}`);
   }
 }

@@ -1,4 +1,3 @@
-import { toast } from "sonner";
 import { fetchWebPage, WebPageResult } from "@/api-client/web-search";
 
 export interface FetchWebPageArgs {
@@ -15,15 +14,9 @@ export async function fetchWebPageTool(args: FetchWebPageArgs): Promise<FetchWeb
 
   try {
     const result = await fetchWebPage(url);
-
-    toast.info(`Fetched webpage`, {
-      description: `${result.title} (${result.character_count} chars)`,
-    });
-
     return result;
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : String(err);
-    toast.error(`Webpage fetch failed: ${errorMsg}`);
     throw new Error(`Failed to fetch webpage at '${url}': ${errorMsg}`);
   }
 }

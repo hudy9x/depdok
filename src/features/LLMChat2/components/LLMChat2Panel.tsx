@@ -165,6 +165,7 @@ export function LLMChat2Panel() {
   const [inputVal, setInputVal] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const currentAssistantMsgIdRef = useRef<string | null>(null);
 
   const handleNewChat = () => {
     setMessages([]);
@@ -357,7 +358,13 @@ export function LLMChat2Panel() {
 
     const before = inputVal.slice(0, mentionStartIndex);
     const after = inputVal.slice(mentionStartIndex + 1 + mentionQuery.length);
-    const replacement = `@${item.relativePath} `;
+    const isFolder = Boolean(item.isDir || item.type === "folder");
+    const formattedRelPath = isFolder
+      ? item.relativePath.endsWith("/")
+        ? item.relativePath
+        : `${item.relativePath}/`
+      : item.relativePath;
+    const replacement = `@${formattedRelPath} `;
     const newVal = `${before}${replacement}${after}`;
 
     setInputVal(newVal);
@@ -374,6 +381,24 @@ export function LLMChat2Panel() {
       }
     }, 10);
   };
+
+  const handleStopGeneration = useCallback(async () => {
+    const activeId = currentAssistantMsgIdRef.current;
+    try {
+      await invoke("llm2_cancel_generation", {
+        messageId: activeId,
+        message_id: activeId,
+      });
+    } catch (err) {
+      console.error("Failed to cancel llm2 generation:", err);
+    } finally {
+      if (activeId) {
+        flushTokens(activeId);
+      }
+      setIsGenerating(false);
+      currentAssistantMsgIdRef.current = null;
+    }
+  }, [flushTokens, setIsGenerating]);
 
   // Execute hardcoded command /skill-setup
   const handleExecuteSkillSetup = async () => {
@@ -588,6 +613,7 @@ export function LLMChat2Panel() {
     setIsMentionOpen(false);
     setIsSlashOpen(false);
     setIsGenerating(true);
+    currentAssistantMsgIdRef.current = assistantMsgId;
 
     // Scroll to bottom when user sends a message
     setTimeout(() => {
@@ -635,6 +661,7 @@ export function LLMChat2Panel() {
     } finally {
       flushTokens(assistantMsgId);
       setIsGenerating(false);
+      currentAssistantMsgIdRef.current = null;
     }
   };
 
@@ -689,6 +716,12 @@ export function LLMChat2Panel() {
         setIsMentionOpen(false);
         return;
       }
+    }
+
+    if (isGenerating && e.key === "Escape") {
+      e.preventDefault();
+      handleStopGeneration();
+      return;
     }
 
     if (e.key === "Escape" && activeSkill) {
@@ -834,6 +867,7 @@ export function LLMChat2Panel() {
             setInputVal={setInputVal}
             isGenerating={isGenerating}
             onSend={handleSend}
+            onStop={handleStopGeneration}
             inputRef={inputRef}
             onInputChange={handleInputChange}
             onKeyDown={handleKeyDown}

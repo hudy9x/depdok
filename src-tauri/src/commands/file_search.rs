@@ -4,10 +4,16 @@ use nucleo_matcher::{Matcher, Config};
 use serde::{Serialize, Deserialize};
 use tauri::State;
 
+#[derive(Clone, Debug)]
+pub struct IndexedEntry {
+    pub path: String,
+    pub is_dir: bool,
+}
+
 #[derive(Default)]
 pub struct FileSearchState {
     workspace_path: Option<String>,
-    indexed_files: Vec<String>,
+    indexed_entries: Vec<IndexedEntry>,
 }
 
 pub type FileSearchStateHandle = Arc<Mutex<FileSearchState>>;
@@ -16,11 +22,13 @@ pub fn init() -> FileSearchStateHandle {
     Arc::new(Mutex::new(FileSearchState::default()))
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct SearchResult {
-    path: String,
-    score: i32,
-    match_indices: Vec<u32>,
+    pub path: String,
+    pub score: i32,
+    pub match_indices: Vec<u32>,
+    #[serde(default)]
+    pub is_dir: bool,
 }
 
 #[tauri::command]
@@ -30,7 +38,7 @@ pub fn index_workspace_files(
 ) -> Result<usize, String> {
     let start_time = std::time::Instant::now();
     println!("[PERF RUST] index_workspace_files starting for: {}", workspace_path);
-    let mut indexed_files = Vec::new();
+    let mut indexed_entries = Vec::new();
     
     // Use WalkBuilder to traverse directory
     let walker = WalkBuilder::new(&workspace_path)
@@ -42,14 +50,16 @@ pub fn index_workspace_files(
     for result in walker {
         match result {
             Ok(entry) => {
-                // Only index files, not directories
                 if let Some(file_type) = entry.file_type() {
-                    if file_type.is_file() {
-                        if let Ok(relative_path) = entry.path().strip_prefix(&workspace_path) {
-                            // Convert to string and use forward slashes for consistency
-                            let path_str = relative_path.to_string_lossy()
-                                .replace('\\', "/");
-                            indexed_files.push(path_str);
+                    // Index both files and directories, excluding the workspace root itself
+                    if let Ok(relative_path) = entry.path().strip_prefix(&workspace_path) {
+                        let path_str = relative_path.to_string_lossy()
+                            .replace('\\', "/");
+                        if !path_str.is_empty() {
+                            indexed_entries.push(IndexedEntry {
+                                path: path_str,
+                                is_dir: file_type.is_dir(),
+                            });
                         }
                     }
                 }
@@ -60,13 +70,13 @@ pub fn index_workspace_files(
         }
     }
     
-    let count = indexed_files.len();
-    println!("[PERF RUST] index_workspace_files completed: indexed {} files in {:?}", count, start_time.elapsed());
+    let count = indexed_entries.len();
+    println!("[PERF RUST] index_workspace_files completed: indexed {} entries in {:?}", count, start_time.elapsed());
     
     // Update state
     let mut state_guard = state.lock().map_err(|e| e.to_string())?;
     state_guard.workspace_path = Some(workspace_path);
-    state_guard.indexed_files = indexed_files;
+    state_guard.indexed_entries = indexed_entries;
     
     Ok(count)
 }
@@ -83,7 +93,7 @@ pub fn fuzzy_search_files(
         return Ok(Vec::new());
     }
     
-    let indexed_files = &state_guard.indexed_files;
+    let indexed_entries = &state_guard.indexed_entries;
     let limit = limit.unwrap_or(50);
     
     // Create matcher with default config
@@ -93,20 +103,38 @@ pub fn fuzzy_search_files(
     // Convert query to Utf32String for nucleo-matcher (this is the needle - what we search for)
     let needle = nucleo_matcher::Utf32String::from(query.as_str());
     
-    // Search through all indexed files
-    for file_path in indexed_files {
+    // Search through all indexed entries
+    for entry in indexed_entries {
         let mut indices = Vec::new();
         
-        // Convert file path to Utf32String (this is the haystack - what we search in)
-        let haystack = nucleo_matcher::Utf32String::from(file_path.as_str());
+        // Convert path to Utf32String (this is the haystack - what we search in)
+        let haystack = nucleo_matcher::Utf32String::from(entry.path.as_str());
         
         // Perform fuzzy match: fuzzy_indices(haystack, needle, indices)
-        // Use .slice() to convert Utf32String to Utf32Str
         if let Some(score) = matcher.fuzzy_indices(haystack.slice(..), needle.slice(..), &mut indices) {
+            let mut final_score = score as i32;
+            let file_name = entry.path.split('/').last().unwrap_or(&entry.path);
+            let lower_needle = query.to_lowercase();
+            let lower_name = file_name.to_lowercase();
+            let lower_path = entry.path.to_lowercase();
+            let name_without_ext = lower_name.rsplit_once('.').map(|(stem, _)| stem).unwrap_or(&lower_name);
+
+            // Exact match on filename, stem, or full path
+            if lower_name == lower_needle || name_without_ext == lower_needle || lower_path == lower_needle {
+                final_score += 20000;
+            } else if lower_name.starts_with(&lower_needle) || name_without_ext.starts_with(&lower_needle) {
+                final_score += 10000;
+            } else if lower_path.starts_with(&lower_needle) {
+                final_score += 5000;
+            } else if lower_name.contains(&lower_needle) {
+                final_score += 2000;
+            }
+
             results.push(SearchResult {
-                path: file_path.clone(),
-                score: score as i32,  // Convert u16 to i32
+                path: entry.path.clone(),
+                score: final_score,
                 match_indices: indices,
+                is_dir: entry.is_dir,
             });
         }
     }

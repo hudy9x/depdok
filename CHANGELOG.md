@@ -2,23 +2,14 @@
 
 ✨ Features
 
-- Parameterize content model selection in agent and update LLMChat2 styling for improved markdown rendering ([d3cc72d](../../commit/d3cc72d))
-- Introduce ThoughtBlock component and support for streaming model reasoning chunks in LLMChat2 ([eb6c7d1](../../commit/eb6c7d1))
-- Add thinking mode toggle and improve error handling for tool execution and web search requests ([5f1b336](../../commit/5f1b336))
-- Implement web search and page fetching tools with Yahoo scraping integration ([cdc52be](../../commit/cdc52be))
-- Implement shell command execution tool with UI integration and agent support ([a3b46c3](../../commit/a3b46c3))
-
-♻️ Refactoring
-
-- Simplify LLMChat2 UI by replacing the tool execution drawer with a new chat button and relocating the history toggle to the context usage gauge. ([4195246](../../commit/4195246))
-
-📝 Documentation
-
-- Add documentation for the cross-platform shell execution tool to AGENTS.md ([94c219c](../../commit/94c219c))
+- Add Yi and Minimax icons and optimize installed model matching logic ([f0a7989](../../commit/f0a7989))
+- Implement search_file tool and add mcp_reload and reload_skills capabilities to the agent ([e5d3015](../../commit/e5d3015))
+- Implement workspace-relative path normalization and validation for MCP server configurations ([1dc0053](../../commit/1dc0053))
+- Add folder support to file mentions, implement generation cancellation, and refine UI for file search and web tools ([700d49b](../../commit/700d49b))
 
 🔨 Other Changes
 
-- Upgrade version 0.66.0 ([8d2c6fa](../../commit/8d2c6fa))
+- Upgrade version 0.68.0 ([05bb68d](../../commit/05bb68d))
 
 
-📋 Full Changelog: [8d2c6fa...d3cc72d](../../compare/8d2c6fa...d3cc72d)
+📋 Full Changelog: [05bb68d...f0a7989](../../compare/05bb68d...f0a7989)

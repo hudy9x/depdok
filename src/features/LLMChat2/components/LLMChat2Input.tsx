@@ -115,15 +115,15 @@ export const LLMChat2Input: React.FC<LLMChat2InputProps> = ({
       />
 
       {/* Bottom Action Bar */}
-      <div className="flex items-center justify-between gap-2 pt-2 select-none">
+      <div className="chat2-input-action-bar flex items-center justify-between gap-2 pt-2 select-none">
         {/* Left Side: + Action Menu and Web Search/Thinking Icon Toggles */}
-        <div className="flex items-center gap-1.5 min-w-0">
+        <div className="chat2-input-actions-left flex items-center gap-1.5 min-w-0">
           {/* + Dropdown Menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
                 type="button"
-                className="h-7 w-7 rounded-xl border border-border/60 bg-muted/30 hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors cursor-pointer shrink-0"
+                className="chat2-input-action-btn h-7 w-7 rounded-xl border border-border/60 bg-muted/30 hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors cursor-pointer shrink-0"
                 title="Add attachment or action"
               >
                 <Plus className="h-4 w-4" />
@@ -191,7 +191,7 @@ export const LLMChat2Input: React.FC<LLMChat2InputProps> = ({
             type="button"
             onClick={() => setIsWebSearchEnabled(!isWebSearchEnabled)}
             className={cn(
-              "h-7 w-7 rounded-xl border flex items-center justify-center transition-all cursor-pointer shrink-0 select-none",
+              "chat2-input-action-btn h-7 w-7 rounded-xl border flex items-center justify-center transition-all cursor-pointer shrink-0 select-none",
               isWebSearchEnabled
                 ? "bg-primary/10 border-primary/30 text-primary shadow-xs hover:bg-primary/15"
                 : "border-border/60 bg-muted/30 hover:bg-muted text-muted-foreground hover:text-foreground"
@@ -215,7 +215,7 @@ export const LLMChat2Input: React.FC<LLMChat2InputProps> = ({
             type="button"
             onClick={() => setIsThinkingEnabled(!isThinkingEnabled)}
             className={cn(
-              "h-7 w-7 rounded-xl border flex items-center justify-center transition-all cursor-pointer shrink-0 select-none",
+              "chat2-input-action-btn h-7 w-7 rounded-xl border flex items-center justify-center transition-all cursor-pointer shrink-0 select-none",
               isThinkingEnabled
                 ? "bg-primary/10 border-primary/30 text-primary shadow-xs hover:bg-primary/15"
                 : "border-border/60 bg-muted/30 hover:bg-muted text-muted-foreground hover:text-foreground"
@@ -236,7 +236,7 @@ export const LLMChat2Input: React.FC<LLMChat2InputProps> = ({
         </div>
 
         {/* Right Side: Model Selector & Send / Stop Button */}
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="chat2-input-actions-right flex items-center gap-2 shrink-0">
           {/* Inline Compact Model Selector */}
           <div className="scale-95 origin-right">
             <ModelSelector />
@@ -247,7 +247,7 @@ export const LLMChat2Input: React.FC<LLMChat2InputProps> = ({
             <button
               type="button"
               onClick={onStop}
-              className="h-7 w-7 rounded-xl bg-destructive text-destructive-foreground hover:bg-destructive/90 flex items-center justify-center transition-all cursor-pointer shadow-xs shrink-0 animate-in fade-in zoom-in-90 duration-150"
+              className="chat2-send-btn h-7 w-7 rounded-xl bg-destructive text-destructive-foreground hover:bg-destructive/90 flex items-center justify-center transition-all cursor-pointer shadow-xs shrink-0 animate-in fade-in zoom-in-90 duration-150"
               title="Stop generation (Esc)"
             >
               <Square className="h-3 w-3 fill-current" />
@@ -257,7 +257,7 @@ export const LLMChat2Input: React.FC<LLMChat2InputProps> = ({
               type="button"
               onClick={() => onSend()}
               disabled={!inputVal.trim()}
-              className="h-7 w-7 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 disabled:bg-muted disabled:text-muted-foreground/40 disabled:cursor-not-allowed flex items-center justify-center transition-all cursor-pointer shadow-xs shrink-0"
+              className="chat2-send-btn h-7 w-7 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 disabled:bg-muted disabled:text-muted-foreground/40 disabled:cursor-not-allowed flex items-center justify-center transition-all cursor-pointer shadow-xs shrink-0"
               title="Send prompt (Enter)"
             >
               <ArrowUp className="h-4 w-4" />

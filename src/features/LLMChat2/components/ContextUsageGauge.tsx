@@ -34,19 +34,19 @@ export function ContextUsageGauge({ className = "" }: ContextUsageGaugeProps) {
 
   return (
     <div
-      className={`flex items-center justify-between px-2.5 py-1 text-[10px] text-muted-foreground select-none ${className}`}
+      className={`chat2-context-gauge flex items-center justify-between px-2.5 py-1 text-[10px] text-muted-foreground select-none ${className}`}
     >
-      <div className="flex items-center gap-1.5 min-w-0">
-        <span className="font-medium text-foreground/80">Context:</span>
-        <span className="font-mono font-semibold text-primary">
+      <div className="chat2-context-gauge-left flex items-center gap-1.5 min-w-0">
+        <span className="chat2-context-label font-medium text-foreground/80">Context:</span>
+        <span className="chat2-context-value font-mono font-semibold text-primary">
           {percent}% of {ctxK}k
         </span>
       </div>
 
-      <div className="flex items-center gap-2 shrink-0">
+      <div className="chat2-context-gauge-right flex items-center gap-2 shrink-0">
         {/* Stateful / Stateless History Switch */}
         <div
-          className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-muted/50 border border-border/40 text-[9px]"
+          className="chat2-history-switch flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-muted/50 border border-border/40 text-[9px]"
           title={
             isStateful
               ? "Stateful Mode (ON): Multi-turn conversation history is sent with each prompt."
@@ -54,7 +54,7 @@ export function ContextUsageGauge({ className = "" }: ContextUsageGaugeProps) {
           }
         >
           <span
-            className={`font-sans font-medium select-none transition-colors ${
+            className={`chat2-history-text font-sans font-medium select-none transition-colors ${
               isStateful ? "text-sky-500 font-semibold" : "text-muted-foreground"
             }`}
           >

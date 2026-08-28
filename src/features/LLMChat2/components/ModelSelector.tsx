@@ -207,19 +207,19 @@ export function ModelSelector() {
       <PopoverTrigger asChild>
         <button
           type="button"
-          className="h-6 w-auto flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-muted/40 hover:bg-muted/70 border border-border/50 text-[11px] font-mono text-foreground transition-colors cursor-pointer select-none"
+          className="chat2-model-selector-btn h-6 w-auto flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-muted/40 hover:bg-muted/70 border border-border/50 text-[11px] font-mono text-foreground transition-colors cursor-pointer select-none"
           title={`Active Models: Main (${mainDisplayName}) | Content Writer (${contentDisplayName})`}
         >
-          <div className="flex items-center gap-1">
+          <div className="chat2-model-main flex items-center gap-1">
             {renderModelAvatar(model, 13)}
-            <span className="font-medium truncate max-w-[95px]">{mainDisplayName}</span>
+            <span className="chat2-model-main-label font-medium truncate max-w-[95px]">{mainDisplayName}</span>
           </div>
 
-          <span className="text-muted-foreground/40 text-[10px] select-none">/</span>
+          <span className="chat2-model-slash text-muted-foreground/40 text-[10px] select-none">/</span>
 
-          <div className="flex items-center gap-1 text-muted-foreground">
+          <div className="chat2-model-content flex items-center gap-1 text-muted-foreground">
             {renderModelAvatar(contentModel, 13)}
-            <span className="truncate max-w-[85px]">{contentDisplayName}</span>
+            <span className="chat2-model-content-label truncate max-w-[85px]">{contentDisplayName}</span>
           </div>
 
           <ChevronDown className="h-3 w-3 opacity-60 shrink-0 ml-0.5" />

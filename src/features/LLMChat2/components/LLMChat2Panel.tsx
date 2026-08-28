@@ -35,6 +35,7 @@ import { SystemChatMessage } from "./SystemChatMessage";
 import { LLMChat2Input } from "./LLMChat2Input";
 import { ContextUsageGauge } from "./ContextUsageGauge";
 import { clearAllMcpServers } from "@/api-client/mcp";
+import "../LLMChat2.css";
 
 interface OllamaMessagePayload {
   role: string;
@@ -778,7 +779,7 @@ export function LLMChat2Panel() {
 
   return (
     <div
-      className="h-full flex flex-col shrink-0 relative bg-layout-chrome border-l border-border select-none overflow-hidden"
+      className="llm-chat2-container h-full flex flex-col shrink-0 relative bg-layout-chrome border-l border-border select-none overflow-hidden"
       style={{ width: panelWidth }}
     >
       {/* Drag handle on left border */}
@@ -791,7 +792,7 @@ export function LLMChat2Panel() {
       {/* Header */}
       <div
         data-tauri-drag-region
-        className="flex items-center justify-between px-3 py-2 border-b border-border/60 shrink-0 bg-muted/20"
+        className="chat2-header flex items-center justify-between px-3 py-2 border-b border-border/60 shrink-0 bg-muted/20"
       >
         <Button
           data-tauri-drag-region="false"
@@ -802,12 +803,12 @@ export function LLMChat2Panel() {
           title="Start new chat"
         >
           <Plus data-tauri-drag-region="false" className="h-3.5 w-3.5" />
-          <span data-tauri-drag-region="false">New Chat</span>
+          <span data-tauri-drag-region="false" className="chat2-header-new-chat-text">New Chat</span>
         </Button>
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 select-text">
+      <div className="chat2-messages-container flex-1 overflow-y-auto p-4 space-y-4 select-text">
         {messages.length === 0 ? (
           <EmptyChatGuide onSelectPrompt={handleSelectPrompt} />
         ) : (

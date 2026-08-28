@@ -3,7 +3,6 @@ import {
   FileText,
   FolderTree,
   PenTool,
-  Sparkles,
   Database,
   ArrowRight,
   BookOpen,
@@ -123,8 +122,7 @@ const EXAMPLE_PROMPTS: ExamplePrompt[] = [
   },
 ];
 
-const CATEGORIES: { id: ExamplePrompt["category"] | "all"; label: string; icon: React.ReactNode }[] = [
-  { id: "all", label: "All", icon: <Sparkles className="h-3 w-3" /> },
+const CATEGORIES: { id: ExamplePrompt["category"]; label: string; icon: React.ReactNode }[] = [
   { id: "knowledgeBase", label: "Knowledge Base", icon: <BookOpen className="h-3 w-3" /> },
   { id: "markdown", label: "Markdown", icon: <FileText className="h-3 w-3" /> },
   { id: "content", label: "Writer (Gemma)", icon: <PenTool className="h-3 w-3" /> },
@@ -133,24 +131,21 @@ const CATEGORIES: { id: ExamplePrompt["category"] | "all"; label: string; icon: 
 ];
 
 export const QuickPromptChips: React.FC<QuickPromptChipsProps> = ({ onSelectPrompt }) => {
-  const [selectedCategory, setSelectedCategory] = useState<ExamplePrompt["category"] | "all">("all");
+  const [selectedCategory, setSelectedCategory] = useState<ExamplePrompt["category"]>("knowledgeBase");
 
-  const filteredPrompts =
-    selectedCategory === "all"
-      ? EXAMPLE_PROMPTS
-      : EXAMPLE_PROMPTS.filter((p) => p.category === selectedCategory);
+  const filteredPrompts = EXAMPLE_PROMPTS.filter((p) => p.category === selectedCategory);
 
   return (
     <div className="w-full space-y-2.5 pt-2">
       {/* Category Pills */}
-      <div className="flex items-center gap-1 overflow-x-auto pb-1 no-scrollbar">
+      <div className="flex flex-wrap items-center justify-center gap-1.5 pb-1">
         {CATEGORIES.map((cat) => {
           const isSelected = selectedCategory === cat.id;
           return (
             <button
               key={cat.id}
               onClick={() => setSelectedCategory(cat.id)}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium whitespace-nowrap transition-colors cursor-pointer border ${
+              className={`chat2-category-pill flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium whitespace-nowrap transition-colors cursor-pointer border ${
                 isSelected
                   ? "bg-sky-500/15 text-sky-400 border-sky-500/30 font-semibold"
                   : "bg-muted/30 text-muted-foreground border-border/40 hover:bg-muted/60 hover:text-foreground"

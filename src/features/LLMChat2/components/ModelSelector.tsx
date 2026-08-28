@@ -12,6 +12,8 @@ import {
   Claude,
   Gemini,
   Ollama,
+  Yi,
+  Minimax,
 } from "@lobehub/icons";
 
 import {
@@ -125,6 +127,12 @@ function renderModelAvatar(name: string, size = 14) {
   if (lower.includes("gemini")) {
     return <Gemini.Avatar size={size} className="shrink-0" />;
   }
+  if (lower.includes("yi")) {
+    return <Yi.Avatar size={size} className="shrink-0" />;
+  }
+  if (lower.includes("minimax")) {
+    return <Minimax.Avatar size={size} className="shrink-0" />;
+  }
   return <Ollama.Avatar size={size} className="shrink-0" />;
 }
 
@@ -142,7 +150,6 @@ export function ModelSelector() {
       const list = await invoke<OllamaModelInfo[]>("llm2_list_models");
       setInstalledModels(list || []);
     } catch {
-      // Ollama offline or error
       setInstalledModels([]);
     } finally {
       setIsLoading(false);
@@ -153,49 +160,37 @@ export function ModelSelector() {
     fetchModels();
   }, [fetchModels]);
 
-  const installedNames = new Set(installedModels.map((m) => m.name.toLowerCase()));
-
-  const isModelInstalled = useCallback(
-    (id: string) => {
-      const lowerId = id.toLowerCase();
-      const baseId = lowerId.split(":")[0];
-      return (
-        installedNames.has(lowerId) ||
-        installedNames.has(`${lowerId}:latest`) ||
-        installedNames.has(baseId)
-      );
-    },
-    [installedNames]
-  );
+  const isMatchingModel = useCallback((installedName: string, targetId: string) => {
+    const normInstalled = installedName.toLowerCase();
+    const normTarget = targetId.toLowerCase();
+    if (normInstalled === normTarget) return true;
+    if (normInstalled === `${normTarget}:latest`) return true;
+    if (normTarget === `${normInstalled}:latest`) return true;
+    return false;
+  }, []);
 
   const currentFeaturedList = activeTab === "main" ? FEATURED_MAIN_MODELS : FEATURED_CONTENT_MODELS;
   const currentActiveModel = activeTab === "main" ? model : contentModel;
 
-  // Filter featured models to ONLY those that are downloaded/installed
-  const installedFeatured = currentFeaturedList.filter((fm) => isModelInstalled(fm.id));
+  const installedFeatured = currentFeaturedList.filter((fm) =>
+    installedModels.some((m) => isMatchingModel(m.name, fm.id))
+  );
 
-  // Matched installed IDs to avoid duplicates in the other models list
-  const matchedInstalledIds = new Set(
-    installedFeatured.flatMap((fm) => [
-      fm.id.toLowerCase(),
-      `${fm.id.toLowerCase()}:latest`,
-      fm.id.split(":")[0].toLowerCase(),
-    ])
+  const matchedInstalledNames = new Set(
+    installedModels
+      .filter((m) => installedFeatured.some((fm) => isMatchingModel(m.name, fm.id)))
+      .map((m) => m.name.toLowerCase())
   );
 
   const otherDownloadedModels = installedModels.filter(
-    (m) =>
-      !matchedInstalledIds.has(m.name.toLowerCase()) &&
-      !matchedInstalledIds.has(m.name.split(":")[0].toLowerCase())
+    (m) => !matchedInstalledNames.has(m.name.toLowerCase())
   );
 
-  const mainFeatured = FEATURED_MAIN_MODELS.find(
-    (m) => m.id.toLowerCase() === model.toLowerCase()
-  );
+  const mainFeatured = FEATURED_MAIN_MODELS.find((m) => isMatchingModel(model, m.id));
   const mainDisplayName = mainFeatured?.displayName || model;
 
   const contentFeatured = FEATURED_CONTENT_MODELS.find(
-    (m) => m.id.toLowerCase() === contentModel.toLowerCase()
+    (m) => isMatchingModel(contentModel, m.id)
   );
   const contentDisplayName = contentFeatured?.displayName || contentModel;
 

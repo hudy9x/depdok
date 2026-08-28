@@ -789,16 +789,20 @@ export function LLMChat2Panel() {
       />
 
       {/* Header */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-border/60 shrink-0 bg-muted/20">
+      <div
+        data-tauri-drag-region
+        className="flex items-center justify-between px-3 py-2 border-b border-border/60 shrink-0 bg-muted/20"
+      >
         <Button
+          data-tauri-drag-region="false"
           variant="ghost"
           size="sm"
           onClick={handleNewChat}
           className="h-7 px-2 gap-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/60 cursor-pointer"
           title="Start new chat"
         >
-          <Plus className="h-3.5 w-3.5" />
-          <span>New Chat</span>
+          <Plus data-tauri-drag-region="false" className="h-3.5 w-3.5" />
+          <span data-tauri-drag-region="false">New Chat</span>
         </Button>
       </div>
 

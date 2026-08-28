@@ -107,44 +107,50 @@ export function LLMChatPanel() {
       style={{ boxShadow: "0 24px 64px rgba(0,0,0,0.4)" }}
     >
       {/* Header */}
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-border/60 shrink-0 bg-muted/20">
-        <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-primary/10 border border-primary/20">
-          <Bot className="h-4 w-4 text-primary" />
+      <div
+        data-tauri-drag-region
+        className="flex items-center gap-2 px-4 py-3 border-b border-border/60 shrink-0 bg-muted/20"
+      >
+        <div data-tauri-drag-region="false" className="flex items-center justify-center w-7 h-7 rounded-lg bg-primary/10 border border-primary/20">
+          <Bot data-tauri-drag-region="false" className="h-4 w-4 text-primary" />
         </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-foreground leading-tight">AI Assistant</p>
+        <div data-tauri-drag-region="false" className="flex-1 min-w-0">
+          <p data-tauri-drag-region="false" className="text-sm font-semibold text-foreground leading-tight">AI Assistant</p>
           {modelLabel && (
-            <p className="text-[10px] text-muted-foreground truncate">{modelLabel}</p>
+            <p data-tauri-drag-region="false" className="text-[10px] text-muted-foreground truncate">{modelLabel}</p>
           )}
         </div>
 
-        <div className="flex items-center gap-1">
+        <div data-tauri-drag-region="false" className="flex items-center gap-1">
           <Button
+            data-tauri-drag-region="false"
             variant="ghost"
             size="icon"
             className="h-6 w-6 text-muted-foreground hover:text-foreground cursor-pointer"
             onClick={handleNewChat}
             title="New chat session"
           >
-            <Plus className="h-3.5 w-3.5" />
+            <Plus data-tauri-drag-region="false" className="h-3.5 w-3.5" />
           </Button>
           <Button
+            data-tauri-drag-region="false"
             variant="ghost"
             size="icon"
             className="h-6 w-6 text-muted-foreground hover:text-foreground cursor-pointer"
             onClick={handleClearMessages}
             title="Clear messages"
           >
-            <Trash2 className="h-3.5 w-3.5" />
+            <Trash2 data-tauri-drag-region="false" className="h-3.5 w-3.5" />
           </Button>
           <Button
+            data-tauri-drag-region="false"
             variant="ghost"
             size="icon"
             className="h-6 w-6 text-muted-foreground hover:text-foreground cursor-pointer"
             onClick={() => setIsChatOpen(false)}
             title="Close chat"
           >
-            <X className="h-3.5 w-3.5" />
+            <X data-tauri-drag-region="false" className="h-3.5 w-3.5" />
           </Button>
         </div>
       </div>

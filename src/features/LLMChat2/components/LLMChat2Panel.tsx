@@ -562,7 +562,7 @@ export function LLMChat2Panel() {
       const combinedTools = Array.from(new Set(matchedSkills.flatMap((s) => s.tools)));
       allowedTools = combinedTools;
     } else if (!isWebSearchEnabled) {
-      // Exclude web search tools when web toggle is OFF
+      // Exclude web search tools when web toggle is OFF, while preserving all MCP tools
       allowedTools = [
         "search_knowledge_base",
         "generate_content",
@@ -585,6 +585,7 @@ export function LLMChat2Panel() {
         "write_skill",
         "get_current_datetime",
         "run_shell",
+        "mcp",
       ];
     }
 

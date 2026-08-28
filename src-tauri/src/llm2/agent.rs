@@ -12,6 +12,7 @@ use super::tools::{
   ReadMarkdownTool, RenameFileTool, RenameFolderTool, RunShellTool,
   SearchKnowledgeBaseTool, SumFourDigitsTool, UpsertMarkdownSectionTool,
   UpsertMarkdownTool, WebSearchTool, FetchWebPageTool, WriteSkillTool,
+  McpVerifyConfigTool, McpTestServerTool, McpListServersTool,
 };
 
 pub const TOOL_MODEL: &str = "qwen2.5:7b";
@@ -120,6 +121,9 @@ pub async fn prompt_agent(
   let shell_tool = RunShellTool { app: app.clone(), pending: pending.clone() };
   let web_search_tool = WebSearchTool { app: app.clone(), pending: pending.clone() };
   let fetch_web_page_tool = FetchWebPageTool { app: app.clone(), pending: pending.clone() };
+  let mcp_verify_config_tool = McpVerifyConfigTool { app: app.clone() };
+  let mcp_test_server_tool = McpTestServerTool { app: app.clone() };
+  let mcp_list_servers_tool = McpListServersTool { app: app.clone() };
 
   let tools_schema = json!([
     {
@@ -512,6 +516,62 @@ pub async fn prompt_agent(
           "required": ["url"]
         }
       }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "mcp_verify_config",
+        "description": "Verify and validate an MCP configuration snippet or existing .depdok/settings.json file. Checks JSON syntax, schema rules (command, args, env, url, headers), path validity, and Windows-specific command availability.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "config_json": {
+              "type": "string",
+              "description": "Optional raw JSON string of the configuration (or 'mcpServers' object) to validate. If omitted, validates the workspace's active .depdok/settings.json."
+            },
+            "workspace_root": {
+              "type": "string",
+              "description": "Optional workspace root directory path. Defaults to the current active workspace."
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "mcp_test_server",
+        "description": "Test connecting to an MCP server, completing the MCP handshake (initialize and tools/list), and discovering exposed tools. Captures detailed error messages and stderr if the connection fails.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "server_name": {
+              "type": "string",
+              "description": "The name of the MCP server to test (from .depdok/settings.json or a custom name)."
+            },
+            "config_json": {
+              "type": "string",
+              "description": "Optional inline JSON string of the server config (e.g. '{\"command\": \"node\", \"args\": [\"./server.js\"]}') to test without saving first."
+            },
+            "workspace_root": {
+              "type": "string",
+              "description": "Optional workspace root directory path. Defaults to the current active workspace."
+            }
+          },
+          "required": ["server_name"]
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "mcp_list_servers",
+        "description": "List all currently configured and connected MCP servers in the app runtime, transport types, connection status ('connected', 'error', 'disconnected'), and discovered tool names.",
+        "parameters": {
+          "type": "object",
+          "properties": {}
+        }
+      }
     }
   ]);
 
@@ -538,7 +598,12 @@ pub async fn prompt_agent(
           .and_then(|f| f.get("name"))
           .and_then(|n| n.as_str())
           .unwrap_or("");
-        allowed.iter().any(|a| a == fn_name)
+        allowed.iter().any(|a| {
+          a == fn_name
+            || fn_name.starts_with(&format!("{a}__"))
+            || a == "mcp"
+            || a == "*"
+        })
       })
       .cloned()
       .collect();
@@ -548,6 +613,28 @@ pub async fn prompt_agent(
   };
 
   let mut system_content = build_system_prompt(&model_to_use, &content_model_to_use);
+
+  if let Some(mgr) = &mcp_manager {
+    let summaries = mgr.list_servers().await;
+    let connected: Vec<_> = summaries
+      .into_iter()
+      .filter(|s| s.status == "connected" && s.tools_count > 0)
+      .collect();
+    if !connected.is_empty() {
+      system_content.push_str("\n\n---\n## Connected MCP (Model Context Protocol) Servers & External Tools\n");
+      system_content.push_str("The following external MCP servers are currently connected and active. You have full capability and permission to invoke their tools:\n");
+      for s in connected {
+        system_content.push_str(&format!(
+          "- Server '{}' ({} tools): {}\n",
+          s.name,
+          s.tools_count,
+          s.tools.join(", ")
+        ));
+      }
+      system_content.push_str("When the user asks to query, perform actions on, or interact with any of these services, you MUST invoke the corresponding MCP tool function instead of stating that you cannot access them.\n");
+    }
+  }
+
   if let Some(addendum) = system_prompt_addendum {
     if !addendum.trim().is_empty() {
       system_content.push_str("\n\n---\n## Active Skill Instructions\n");
@@ -1032,6 +1119,24 @@ pub async fn prompt_agent(
             match serde_json::from_value(call_args) {
               Ok(args) => fetch_web_page_tool.call(args).await.map_err(|e| e.to_string()),
               Err(e) => Err(format!("Invalid arguments for fetch_web_page: {}", e)),
+            }
+          }
+          "mcp_verify_config" | "mcp-verify-config" | "verify_mcp_config" => {
+            match serde_json::from_value(call_args) {
+              Ok(args) => mcp_verify_config_tool.call(args).await.map_err(|e| e.to_string()),
+              Err(e) => Err(format!("Invalid arguments for mcp_verify_config: {}", e)),
+            }
+          }
+          "mcp_test_server" | "mcp-test-server" | "test_mcp_server" => {
+            match serde_json::from_value(call_args) {
+              Ok(args) => mcp_test_server_tool.call(args).await.map_err(|e| e.to_string()),
+              Err(e) => Err(format!("Invalid arguments for mcp_test_server: {}", e)),
+            }
+          }
+          "mcp_list_servers" | "mcp-list-servers" | "list_mcp_servers" => {
+            match serde_json::from_value(call_args) {
+              Ok(args) => mcp_list_servers_tool.call(args).await.map_err(|e| e.to_string()),
+              Err(e) => Err(format!("Invalid arguments for mcp_list_servers: {}", e)),
             }
           }
           unknown => {

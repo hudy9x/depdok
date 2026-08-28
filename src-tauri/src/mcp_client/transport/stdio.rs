@@ -52,6 +52,11 @@ impl StdioTransport {
             cmd.creation_flags(CREATE_NO_WINDOW);
         }
 
+        println!(
+            "[mcp_client][{}] Spawning stdio server: command='{}', args={:?}, cwd={:?}",
+            server_name, command, args, cwd
+        );
+
         let mut child = cmd
             .spawn()
             .map_err(|e| format!("Failed to spawn MCP stdio server '{}' (cmd: '{}'): {}", server_name, command, e))?;

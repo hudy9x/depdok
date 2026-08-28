@@ -336,6 +336,37 @@ impl McpClientManager {
         self.summaries.read().await.clone()
     }
 
+    /// Test an MCP server connection and tool discovery without mutating global state.
+    pub async fn test_connection(
+        server_name: &str,
+        config: &super::config::McpServerConfig,
+    ) -> Result<serde_json::Value, String> {
+        let start = std::time::Instant::now();
+        let client = McpClient::connect(server_name, config).await?;
+        let tools = client.list_tools().await?;
+        let elapsed = start.elapsed().as_millis();
+        let _ = client.close().await;
+
+        let tool_summaries: Vec<serde_json::Value> = tools
+            .into_iter()
+            .map(|t| {
+                json!({
+                    "name": t.name,
+                    "description": t.description,
+                    "parameters": t.input_schema
+                })
+            })
+            .collect();
+
+        Ok(json!({
+            "status": "connected",
+            "server_name": server_name,
+            "latency_ms": elapsed,
+            "tools_count": tool_summaries.len(),
+            "tools": tool_summaries
+        }))
+    }
+
     /// Shutdown all servers gracefully.
     pub async fn shutdown(&self) {
         let mut clients_guard = self.clients.write().await;

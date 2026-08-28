@@ -11,6 +11,7 @@ pub mod write_skill;
 pub mod datetime;
 pub mod shell;
 pub mod web_search;
+pub mod mcp_management;
 
 pub use bridge::*;
 pub use content::*;
@@ -23,4 +24,5 @@ pub use write_skill::*;
 pub use datetime::*;
 pub use shell::*;
 pub use web_search::*;
+pub use mcp_management::*;
 

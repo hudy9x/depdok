@@ -15,9 +15,9 @@ pub struct McpVerifyConfigTool {
 
 #[derive(Debug, Deserialize, Serialize, Default)]
 pub struct McpVerifyConfigArgs {
-  #[serde(default)]
+  #[serde(default, alias = "raw_json", alias = "json", alias = "config", alias = "content")]
   pub config_json: Option<String>,
-  #[serde(default)]
+  #[serde(default, alias = "workspace", alias = "workspace_path", alias = "root")]
   pub workspace_root: Option<String>,
 }
 
@@ -275,3 +275,109 @@ impl PortableTool for McpListServersTool {
     Ok(res)
   }
 }
+
+// 4. McpReloadTool
+#[derive(Clone)]
+pub struct McpReloadTool {
+  pub app: AppHandle,
+}
+
+#[derive(Debug, Deserialize, Serialize, Default)]
+pub struct McpReloadArgs {
+  #[serde(default, alias = "workspace", alias = "workspace_path", alias = "root")]
+  pub workspace_root: Option<String>,
+}
+
+impl PortableTool for McpReloadTool {
+  const NAME: &'static str = "mcp_reload";
+  type Error = ToolBridgeError;
+  type Args = McpReloadArgs;
+  type Output = serde_json::Value;
+
+  fn description(&self) -> String {
+    "Reload and reconnect all MCP servers configured in .depdok/settings.json (or .depdok/mcp.json) for the active workspace. Discovers updated tools and returns their statuses.".to_string()
+  }
+
+  fn parameters(&self) -> serde_json::Value {
+    json!({
+      "type": "object",
+      "properties": {
+        "workspace_root": {
+          "type": "string",
+          "description": "Optional workspace root directory path. Defaults to the current active workspace."
+        }
+      }
+    })
+  }
+
+  async fn call(&self, args: Self::Args) -> Result<Self::Output, Self::Error> {
+    let log_id = Uuid::new_v4().to_string();
+    let req_id = Uuid::new_v4().to_string();
+    let args_val = serde_json::to_value(&args).unwrap_or_default();
+
+    let _ = self.app.emit("tool_log_event", json!({
+      "id": log_id,
+      "requestId": req_id,
+      "toolName": Self::NAME,
+      "args": args_val,
+      "status": "executing",
+      "timestamp": chrono::Utc::now().to_rfc3339()
+    }));
+
+    let ws_root = args.workspace_root.as_deref().unwrap_or(".");
+    let mcp_manager = self.app.try_state::<McpClientManager>();
+
+    if let Some(mgr) = &mcp_manager {
+      match mgr.reload_for_workspace(ws_root).await {
+        Ok(summaries) => {
+          let connected_count = summaries.iter().filter(|s| s.status == "connected").count();
+          let total_tools: usize = summaries.iter().map(|s| s.tools_count).sum();
+          let res = json!({
+            "success": true,
+            "total_servers": summaries.len(),
+            "connected_servers": connected_count,
+            "total_tools": total_tools,
+            "servers": summaries
+          });
+
+          let _ = self.app.emit("tool_log_event", json!({
+            "id": log_id,
+            "requestId": req_id,
+            "toolName": Self::NAME,
+            "args": args_val,
+            "result": &res,
+            "status": "success",
+            "timestamp": chrono::Utc::now().to_rfc3339()
+          }));
+
+          Ok(res)
+        }
+        Err(err) => {
+          let _ = self.app.emit("tool_log_event", json!({
+            "id": log_id,
+            "requestId": req_id,
+            "toolName": Self::NAME,
+            "args": args_val,
+            "error": &err,
+            "status": "error",
+            "timestamp": chrono::Utc::now().to_rfc3339()
+          }));
+          Err(ToolBridgeError(err))
+        }
+      }
+    } else {
+      let err_msg = "McpClientManager is not initialized".to_string();
+      let _ = self.app.emit("tool_log_event", json!({
+        "id": log_id,
+        "requestId": req_id,
+        "toolName": Self::NAME,
+        "args": args_val,
+        "error": &err_msg,
+        "status": "error",
+        "timestamp": chrono::Utc::now().to_rfc3339()
+      }));
+      Err(ToolBridgeError(err_msg))
+    }
+  }
+}
+

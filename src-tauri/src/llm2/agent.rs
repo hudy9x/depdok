@@ -12,7 +12,8 @@ use super::tools::{
   ReadMarkdownTool, RenameFileTool, RenameFolderTool, RunShellTool,
   SearchKnowledgeBaseTool, SumFourDigitsTool, UpsertMarkdownSectionTool,
   UpsertMarkdownTool, WebSearchTool, FetchWebPageTool, WriteSkillTool,
-  McpVerifyConfigTool, McpTestServerTool, McpListServersTool,
+  McpVerifyConfigTool, McpTestServerTool, McpListServersTool, McpReloadTool,
+  SearchFileTool, ReloadSkillsTool,
 };
 
 pub const TOOL_MODEL: &str = "qwen2.5:7b";
@@ -105,6 +106,7 @@ pub async fn prompt_agent(
   let delete_tool = DeleteFileOrFolderTool { app: app.clone(), pending: pending.clone() };
   let move_tool = MoveFilesOrFoldersTool { app: app.clone(), pending: pending.clone() };
   let list_files_tool = ListFilesTool { app: app.clone(), pending: pending.clone() };
+  let search_file_tool = SearchFileTool { app: app.clone(), pending: pending.clone() };
 
   let read_markdown_tool = ReadMarkdownTool { app: app.clone(), pending: pending.clone() };
 
@@ -117,6 +119,7 @@ pub async fn prompt_agent(
     default_content_model: Some(content_model_to_use.clone()),
   };
   let write_skill_tool = WriteSkillTool { app: app.clone(), pending: pending.clone() };
+  let reload_skills_tool = ReloadSkillsTool { app: app.clone() };
   let datetime_tool = GetCurrentDatetimeTool { app: app.clone(), pending: pending.clone() };
   let shell_tool = RunShellTool { app: app.clone(), pending: pending.clone() };
   let web_search_tool = WebSearchTool { app: app.clone(), pending: pending.clone() };
@@ -124,6 +127,7 @@ pub async fn prompt_agent(
   let mcp_verify_config_tool = McpVerifyConfigTool { app: app.clone() };
   let mcp_test_server_tool = McpTestServerTool { app: app.clone() };
   let mcp_list_servers_tool = McpListServersTool { app: app.clone() };
+  let mcp_reload_tool = McpReloadTool { app: app.clone() };
 
   let tools_schema = json!([
     {
@@ -357,6 +361,27 @@ pub async fn prompt_agent(
     {
       "type": "function",
       "function": {
+        "name": "search_file",
+        "description": "Quickly search for files or folders across the workspace by filename, path, or keyword using high-performance fuzzy matching.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string",
+              "description": "The filename, path pattern, or keyword to search for (e.g. 'settings.json', 'index.ts', '.depdok', 'auth')"
+            },
+            "limit": {
+              "type": "integer",
+              "description": "Maximum number of matching files/folders to return (default: 20)"
+            }
+          },
+          "required": ["query"]
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
         "name": "read_markdown",
 
         "description": "Read the content of a Markdown file (or active open document if path omitted or set to 'active'). Returns document text, heading outline (# H1, ## H2), word count, and existing comments.",
@@ -570,6 +595,38 @@ pub async fn prompt_agent(
         "parameters": {
           "type": "object",
           "properties": {}
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "mcp_reload",
+        "description": "Reload and reconnect all MCP servers configured in .depdok/settings.json (or .depdok/mcp.json) for the active workspace. Discovers updated tools and returns their statuses.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "workspace_root": {
+              "type": "string",
+              "description": "Optional workspace root directory path. Defaults to the current active workspace."
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "reload_skills",
+        "description": "Reload and rebuild the workspace AI skills cache from .depdok/skills/*.md. Returns the updated list of available skills and their declared tools.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "workspace_root": {
+              "type": "string",
+              "description": "Optional workspace root directory path. Defaults to active workspace."
+            }
+          }
         }
       }
     }
@@ -1061,6 +1118,12 @@ pub async fn prompt_agent(
               Err(e) => Err(format!("Invalid arguments for list_files: {}", e)),
             }
           }
+          "search_file" | "search_files" | "fuzzy_search_files" => {
+            match serde_json::from_value(call_args) {
+              Ok(args) => search_file_tool.call(args).await.map_err(|e| e.to_string()),
+              Err(e) => Err(format!("Invalid arguments for search_file: {}", e)),
+            }
+          }
           "read_markdown" => {
             match serde_json::from_value(call_args) {
               Ok(args) => read_markdown_tool.call(args).await.map_err(|e| e.to_string()),
@@ -1137,6 +1200,18 @@ pub async fn prompt_agent(
             match serde_json::from_value(call_args) {
               Ok(args) => mcp_list_servers_tool.call(args).await.map_err(|e| e.to_string()),
               Err(e) => Err(format!("Invalid arguments for mcp_list_servers: {}", e)),
+            }
+          }
+          "mcp_reload" | "mcp-reload" | "reload_mcp" => {
+            match serde_json::from_value(call_args) {
+              Ok(args) => mcp_reload_tool.call(args).await.map_err(|e| e.to_string()),
+              Err(e) => Err(format!("Invalid arguments for mcp_reload: {}", e)),
+            }
+          }
+          "reload_skills" | "skill_reload" | "reload-skills" => {
+            match serde_json::from_value(call_args) {
+              Ok(args) => reload_skills_tool.call(args).await.map_err(|e| e.to_string()),
+              Err(e) => Err(format!("Invalid arguments for reload_skills: {}", e)),
             }
           }
           unknown => {

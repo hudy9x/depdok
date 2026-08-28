@@ -578,14 +578,17 @@ export function LLMChat2Panel() {
         "delete_file_or_folder",
         "move_files_or_folders",
         "list_files",
+        "search_file",
         "read_markdown",
         "upsert_markdown",
         "upsert_markdown_section",
         "add_markdown_comment",
         "write_skill",
+        "reload_skills",
         "get_current_datetime",
         "run_shell",
         "mcp",
+        "mcp_reload",
       ];
     }
 

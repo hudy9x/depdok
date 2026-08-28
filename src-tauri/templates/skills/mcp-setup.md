@@ -5,7 +5,7 @@ tools:
   - read_markdown
   - create_file
   - upsert_markdown
-  - list_files
+  - search_file
   - mcp_verify_config
   - mcp_list_servers
 ---
@@ -104,7 +104,7 @@ Depdok fully supports:
    - If `mcp_verify_config` reports errors (such as malformed JSON or empty command), fix them before proceeding.
 
 2. **Check Existing `.depdok/settings.json`**:
-   - Inspect `.depdok/settings.json` (or `.depdok/mcp.json`) in the current workspace using `read_markdown` or `list_files`.
+   - Inspect `.depdok/settings.json` (or `.depdok/mcp.json`) in the current workspace using `read_markdown` or `search_file`.
    - Check if `<server_name>` is already configured in the existing `mcpServers` object.
 
 3. **Save Configuration (If not yet configured)**:

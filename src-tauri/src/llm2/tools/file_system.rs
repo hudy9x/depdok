@@ -302,3 +302,50 @@ impl PortableTool for ListFilesTool {
   }
 }
 
+// SearchFileTool
+#[derive(Clone)]
+pub struct SearchFileTool {
+  pub app: AppHandle,
+  pub pending: PendingRequests,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct SearchFileArgs {
+  pub query: String,
+  #[serde(default)]
+  pub limit: Option<usize>,
+}
+
+impl PortableTool for SearchFileTool {
+  const NAME: &'static str = "search_file";
+  type Error = ToolBridgeError;
+  type Args = SearchFileArgs;
+  type Output = serde_json::Value;
+
+  fn description(&self) -> String {
+    "Quickly search for files or folders across the workspace by filename, path, or keyword using high-performance fuzzy matching.".to_string()
+  }
+
+  fn parameters(&self) -> serde_json::Value {
+    json!({
+      "type": "object",
+      "properties": {
+        "query": {
+          "type": "string",
+          "description": "The filename, path pattern, or keyword to search for (e.g. 'settings.json', 'index.ts', '.depdok', 'auth')"
+        },
+        "limit": {
+          "type": "integer",
+          "description": "Maximum number of matching files/folders to return (default: 20)"
+        }
+      },
+      "required": ["query"]
+    })
+  }
+
+  async fn call(&self, args: Self::Args) -> Result<Self::Output, Self::Error> {
+    call_frontend_tool(&self.app, &self.pending, Self::NAME, args).await
+  }
+}
+
+

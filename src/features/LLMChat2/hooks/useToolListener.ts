@@ -15,6 +15,7 @@ import {
   deleteFileOrFolderTool,
   moveFilesOrFoldersTool,
   listFilesTool,
+  searchFileTool,
   readMarkdownTool,
   upsertMarkdownTool,
   upsertMarkdownSectionTool,
@@ -32,6 +33,7 @@ import {
   DeleteFileOrFolderArgs,
   MoveFilesOrFoldersArgs,
   ListFilesArgs,
+  SearchFileArgs,
   ReadMarkdownArgs,
   UpsertMarkdownArgs,
   UpsertMarkdownSectionArgs,
@@ -245,6 +247,11 @@ export function useToolListener() {
           case "list_directory":
           case "traverse_directory":
             toolOutput = await listFilesTool(args as unknown as ListFilesArgs);
+            break;
+          case "search_file":
+          case "search_files":
+          case "fuzzy_search_files":
+            toolOutput = await searchFileTool(args as unknown as SearchFileArgs);
             break;
           case "read_markdown":
 

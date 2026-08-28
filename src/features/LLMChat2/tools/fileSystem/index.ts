@@ -5,3 +5,4 @@ export * from "./renameFolder";
 export * from "./deleteFileOrFolder";
 export * from "./moveFilesOrFolders";
 export * from "./listFiles";
+export * from "./searchFile";

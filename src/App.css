@@ -303,3 +303,51 @@ body:after {
 .xterm:focus-within .xterm-cursor-layer {
   outline: none;
 }
+
+/* ─── LLMChat2 Scoped Code & Markdown Typography ─────────────────────────────
+   Ensures inline code snippets and code blocks in LLMChat2 scale harmoniously
+   with the chat's 12px (text-xs) font size without leaking to document preview. */
+
+.llm2-chat-markdown code[data-streamdown="inline-code"],
+.llm2-chat-markdown code:not(pre code) {
+  font-size: 0.85em !important;
+  font-family: var(--font-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+  padding: 0.1rem 0.3rem !important;
+  border-radius: 0.25rem !important;
+  background-color: var(--color-muted) !important;
+  border: 1px solid color-mix(in oklch, var(--color-border) 70%, transparent) !important;
+  vertical-align: baseline !important;
+  font-weight: 500 !important;
+}
+
+.llm2-chat-markdown div[data-streamdown="code-block"] {
+  margin-top: 0.5rem !important;
+  margin-bottom: 0.5rem !important;
+  border-radius: 0.5rem !important;
+}
+
+.llm2-chat-markdown div[data-streamdown="code-block-header"] {
+  height: 1.75rem !important;
+  font-size: 0.7rem !important;
+  padding: 0 0.5rem !important;
+}
+
+.llm2-chat-markdown div[data-streamdown="code-block-body"] {
+  padding: 0.625rem 0.75rem !important;
+  font-size: 0.725rem !important; /* ~11.5px */
+  line-height: 1.45 !important;
+  border-radius: 0.375rem !important;
+}
+
+.llm2-chat-markdown div[data-streamdown="code-block-body"] pre,
+.llm2-chat-markdown div[data-streamdown="code-block-body"] code {
+  font-size: 0.725rem !important;
+  line-height: 1.45 !important;
+  font-family: var(--font-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+}
+
+.llm2-chat-markdown div[data-streamdown="code-block-body"] span[class*="before:text-"]::before {
+  font-size: 0.65rem !important;
+  width: 1.25rem !important;
+  margin-right: 0.5rem !important;
+}

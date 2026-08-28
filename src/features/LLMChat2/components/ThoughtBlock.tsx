@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Lightbulb, ChevronRight } from "lucide-react";
 import { Streamdown } from "streamdown";
 import { cn } from "@/lib/utils";
@@ -14,7 +14,19 @@ export const ThoughtBlock: React.FC<ThoughtBlockProps> = ({
   durationSeconds,
   isStreaming = false,
 }) => {
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(isStreaming);
+  const wasStreamingRef = useRef(isStreaming);
+
+  useEffect(() => {
+    if (isStreaming && !wasStreamingRef.current) {
+      // Thought started streaming -> automatically expand
+      setIsOpen(true);
+    } else if (!isStreaming && wasStreamingRef.current) {
+      // Thought finished streaming -> automatically collapse
+      setIsOpen(false);
+    }
+    wasStreamingRef.current = isStreaming;
+  }, [isStreaming]);
 
   if (!content.trim() && !isStreaming) {
     return null;
@@ -22,13 +34,15 @@ export const ThoughtBlock: React.FC<ThoughtBlockProps> = ({
 
   const label = durationSeconds && durationSeconds > 0
     ? `Thought for ${durationSeconds.toFixed(1)}s`
+    : isStreaming
+    ? "Thinking..."
     : "Thought";
 
   return (
     <div className="w-full my-1.5 rounded-xl border border-border/40 bg-muted/20 overflow-hidden transition-all select-text">
       <button
         type="button"
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => setIsOpen((prev) => !prev)}
         className="flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground hover:text-foreground w-full select-none cursor-pointer transition-colors bg-muted/10 hover:bg-muted/30"
       >
         <Lightbulb className="h-3.5 w-3.5 text-muted-foreground/80 shrink-0" />
@@ -47,7 +61,7 @@ export const ThoughtBlock: React.FC<ThoughtBlockProps> = ({
       </button>
 
       {isOpen && (
-        <div className="px-3.5 py-2.5 text-[11px] text-muted-foreground/90 border-t border-border/20 bg-background/50 leading-relaxed font-sans select-text">
+        <div className="px-3.5 py-2.5 text-[11px] text-muted-foreground/90 border-t border-border/20 bg-background/50 leading-relaxed font-sans select-text llm2-chat-markdown">
           <Streamdown animated caret="block">
             {content}
           </Streamdown>

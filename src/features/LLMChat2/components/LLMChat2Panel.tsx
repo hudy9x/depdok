@@ -10,6 +10,7 @@ import {
   activeToolCallAtom,
   isGeneratingAtom,
   chat2ModelAtom,
+  chat2ContentModelAtom,
   chat2IsStatefulAtom,
   chat2NumCtxAtom,
   chat2PanelWidthAtom,
@@ -148,6 +149,7 @@ export function LLMChat2Panel() {
   const [messages, setMessages] = useAtom(chat2MessagesAtom);
   const [isGenerating, setIsGenerating] = useAtom(isGeneratingAtom);
   const model = useAtomValue(chat2ModelAtom);
+  const contentModel = useAtomValue(chat2ContentModelAtom);
   const isStateful = useAtomValue(chat2IsStatefulAtom);
   const numCtx = useAtomValue(chat2NumCtxAtom);
   const isWebSearchEnabled = useAtomValue(chat2WebSearchEnabledAtom);
@@ -596,6 +598,8 @@ export function LLMChat2Panel() {
       const response = await invoke<string>("llm2_send_message", {
         prompt: textToSend,
         model: model.trim() || undefined,
+        contentModel: contentModel.trim() || undefined,
+        content_model: contentModel.trim() || undefined,
         messageId: assistantMsgId,
         message_id: assistantMsgId,
         history: historyPayload,

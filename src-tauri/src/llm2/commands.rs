@@ -16,6 +16,7 @@ pub struct OllamaModelInfo {
 pub async fn llm2_send_message(
     prompt: String,
     model: Option<String>,
+    content_model: Option<String>,
     message_id: Option<String>,
     history: Option<Vec<OllamaMessage>>,
     num_ctx: Option<usize>,
@@ -31,6 +32,7 @@ pub async fn llm2_send_message(
         pending,
         &prompt,
         model,
+        content_model,
         message_id,
         history,
         num_ctx,

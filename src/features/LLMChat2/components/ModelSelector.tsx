@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useAtom } from "jotai";
 import { invoke } from "@tauri-apps/api/core";
-import { Sparkles, RefreshCw, Layers, ChevronDown, Check } from "lucide-react";
+import { Sparkles, RefreshCw, Layers, ChevronDown, Check, PenTool, Bot } from "lucide-react";
 import {
   Qwen,
   Gemma,
@@ -19,7 +19,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { chat2ModelAtom } from "../store/LLMChat2Store";
+import { chat2ModelAtom, chat2ContentModelAtom } from "../store/LLMChat2Store";
 
 interface OllamaModelInfo {
   name: string;
@@ -37,7 +37,7 @@ interface FeaturedModel {
   details: string;
 }
 
-const FEATURED_MODELS: FeaturedModel[] = [
+const FEATURED_MAIN_MODELS: FeaturedModel[] = [
   {
     id: "qwen3.5:9b",
     displayName: "Qwen 3.5 9B",
@@ -61,6 +61,41 @@ const FEATURED_MODELS: FeaturedModel[] = [
     badgeColor: "bg-amber-500/15 text-amber-400 border-amber-500/30",
     summary: "Standard text & tool model (shorter context, no thinking mode)",
     details: "~4.7GB RAM • Text only",
+  },
+];
+
+const FEATURED_CONTENT_MODELS: FeaturedModel[] = [
+  {
+    id: "gemma2:9b",
+    displayName: "Gemma 2 9B",
+    badge: "Best Prose",
+    badgeColor: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
+    summary: "Google's premier creative writer, exceptional markdown flow & prose quality",
+    details: "~5.4GB RAM • Dual-model writing specialist",
+  },
+  {
+    id: "llama3.1:8b",
+    displayName: "Llama 3.1 8B",
+    badge: "Fast & 128k Ctx",
+    badgeColor: "bg-purple-500/15 text-purple-400 border-purple-500/30",
+    summary: "Meta's flagship versatile model, massive context & crisp technical tutorials",
+    details: "~4.7GB RAM • 128k context support",
+  },
+  {
+    id: "llama3.2:3b",
+    displayName: "Llama 3.2 3B",
+    badge: "Ultra Fast",
+    badgeColor: "bg-sky-500/15 text-sky-400 border-sky-500/30",
+    summary: "High-speed generation on CPU, lightweight yet punchy structured markdown",
+    details: "~2.0GB RAM • Meta lightweight",
+  },
+  {
+    id: "gemma2:2b",
+    displayName: "Gemma 2 2B",
+    badge: "Compact Gemma",
+    badgeColor: "bg-amber-500/15 text-amber-400 border-amber-500/30",
+    summary: "Fast, memory-efficient writer for laptops and low-resource devices",
+    details: "~1.6GB RAM • Low resource footprint",
   },
 ];
 
@@ -95,9 +130,11 @@ function renderModelAvatar(name: string, size = 14) {
 
 export function ModelSelector() {
   const [model, setModel] = useAtom(chat2ModelAtom);
+  const [contentModel, setContentModel] = useAtom(chat2ContentModelAtom);
   const [installedModels, setInstalledModels] = useState<OllamaModelInfo[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<"main" | "content">("main");
 
   const fetchModels = useCallback(async () => {
     setIsLoading(true);
@@ -117,20 +154,57 @@ export function ModelSelector() {
   }, [fetchModels]);
 
   const installedNames = new Set(installedModels.map((m) => m.name.toLowerCase()));
-  const featuredIds = new Set(FEATURED_MODELS.map((m) => m.id.toLowerCase()));
 
-  const otherModels = installedModels.filter(
-    (m) => !featuredIds.has(m.name.toLowerCase())
+  const isModelInstalled = useCallback(
+    (id: string) => {
+      const lowerId = id.toLowerCase();
+      const baseId = lowerId.split(":")[0];
+      return (
+        installedNames.has(lowerId) ||
+        installedNames.has(`${lowerId}:latest`) ||
+        installedNames.has(baseId)
+      );
+    },
+    [installedNames]
   );
 
-  const currentFeatured = FEATURED_MODELS.find(
+  const currentFeaturedList = activeTab === "main" ? FEATURED_MAIN_MODELS : FEATURED_CONTENT_MODELS;
+  const currentActiveModel = activeTab === "main" ? model : contentModel;
+
+  // Filter featured models to ONLY those that are downloaded/installed
+  const installedFeatured = currentFeaturedList.filter((fm) => isModelInstalled(fm.id));
+
+  // Matched installed IDs to avoid duplicates in the other models list
+  const matchedInstalledIds = new Set(
+    installedFeatured.flatMap((fm) => [
+      fm.id.toLowerCase(),
+      `${fm.id.toLowerCase()}:latest`,
+      fm.id.split(":")[0].toLowerCase(),
+    ])
+  );
+
+  const otherDownloadedModels = installedModels.filter(
+    (m) =>
+      !matchedInstalledIds.has(m.name.toLowerCase()) &&
+      !matchedInstalledIds.has(m.name.split(":")[0].toLowerCase())
+  );
+
+  const mainFeatured = FEATURED_MAIN_MODELS.find(
     (m) => m.id.toLowerCase() === model.toLowerCase()
   );
-  const currentDisplayName = currentFeatured?.displayName || model;
+  const mainDisplayName = mainFeatured?.displayName || model;
+
+  const contentFeatured = FEATURED_CONTENT_MODELS.find(
+    (m) => m.id.toLowerCase() === contentModel.toLowerCase()
+  );
+  const contentDisplayName = contentFeatured?.displayName || contentModel;
 
   const handleSelectModel = (selectedModelId: string) => {
-    setModel(selectedModelId);
-    setIsOpen(false);
+    if (activeTab === "main") {
+      setModel(selectedModelId);
+    } else {
+      setContentModel(selectedModelId);
+    }
   };
 
   return (
@@ -139,31 +213,65 @@ export function ModelSelector() {
         <button
           type="button"
           className="h-6 w-auto flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-muted/40 hover:bg-muted/70 border border-border/50 text-[11px] font-mono text-foreground transition-colors cursor-pointer select-none"
-          title="Select active Ollama AI model"
+          title={`Active Models: Main (${mainDisplayName}) | Content Writer (${contentDisplayName})`}
         >
-          {renderModelAvatar(model, 14)}
-          <span className="font-medium truncate max-w-[130px]">{currentDisplayName}</span>
-          <ChevronDown className="h-3 w-3 opacity-60 shrink-0" />
+          <div className="flex items-center gap-1">
+            {renderModelAvatar(model, 13)}
+            <span className="font-medium truncate max-w-[95px]">{mainDisplayName}</span>
+          </div>
+
+          <span className="text-muted-foreground/40 text-[10px] select-none">/</span>
+
+          <div className="flex items-center gap-1 text-muted-foreground">
+            {renderModelAvatar(contentModel, 13)}
+            <span className="truncate max-w-[85px]">{contentDisplayName}</span>
+          </div>
+
+          <ChevronDown className="h-3 w-3 opacity-60 shrink-0 ml-0.5" />
         </button>
       </PopoverTrigger>
 
       <PopoverContent
         align="start"
         sideOffset={6}
-        className="w-80 max-h-[380px] p-2 bg-popover/95 backdrop-blur-xl border border-border/60 shadow-2xl rounded-xl z-50 overflow-y-auto space-y-2"
+        className="w-84 max-h-[420px] p-2 bg-popover/95 backdrop-blur-xl border border-border/60 shadow-2xl rounded-xl z-50 overflow-y-auto space-y-2"
       >
-        {/* Header with refresh button */}
-        <div className="flex items-center justify-between px-1.5 pb-1.5 border-b border-border/40 text-[10px] text-muted-foreground">
-          <span className="font-semibold text-foreground/80 uppercase tracking-wider text-[9px]">
-            Ollama Models
-          </span>
+        {/* Header with Dual Tab Switcher & Refresh button */}
+        <div className="flex items-center justify-between pb-1 border-b border-border/40">
+          <div className="flex items-center gap-1 bg-muted/50 p-0.5 rounded-lg border border-border/40">
+            <button
+              type="button"
+              onClick={() => setActiveTab("main")}
+              className={`flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium transition-colors cursor-pointer ${
+                activeTab === "main"
+                  ? "bg-background text-foreground shadow-xs font-semibold"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <Bot className="h-3 w-3" />
+              <span>Main Agent</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("content")}
+              className={`flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium transition-colors cursor-pointer ${
+                activeTab === "content"
+                  ? "bg-background text-foreground shadow-xs font-semibold"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <PenTool className="h-3 w-3" />
+              <span>Content Writer</span>
+            </button>
+          </div>
+
           <button
             type="button"
             onClick={(e) => {
               e.stopPropagation();
               fetchModels();
             }}
-            className="flex items-center gap-1 hover:text-foreground transition-colors p-0.5 rounded cursor-pointer"
+            className="flex items-center gap-1 hover:text-foreground transition-colors p-1 rounded cursor-pointer text-muted-foreground"
             title="Refresh models from Ollama API"
           >
             <RefreshCw className={`h-2.5 w-2.5 ${isLoading ? "animate-spin text-sky-400" : ""}`} />
@@ -171,79 +279,96 @@ export function ModelSelector() {
           </button>
         </div>
 
-        {/* Featured Models Section */}
-        <div className="space-y-1">
-          <div className="text-[10px] font-semibold text-sky-400 px-1.5 py-0.5 flex items-center gap-1">
-            <Sparkles className="h-3 w-3" />
-            <span>Recommended Models</span>
-          </div>
-
-          <div className="space-y-1">
-            {FEATURED_MODELS.map((fm) => {
-              const isSelected = model.toLowerCase() === fm.id.toLowerCase();
-              const isInstalled =
-                installedNames.has(fm.id.toLowerCase()) ||
-                installedNames.has(`${fm.id}:latest`.toLowerCase()) ||
-                installedNames.has(fm.id.split(":")[0]);
-
-              return (
-                <div
-                  key={fm.id}
-                  onClick={() => handleSelectModel(fm.id)}
-                  className={`px-2.5 py-2 rounded-lg cursor-pointer transition-all ${
-                    isSelected
-                      ? "bg-sky-500/10 border border-sky-500/40 text-foreground"
-                      : "hover:bg-muted/70 border border-transparent text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  <div className="flex flex-col gap-1 w-full text-left">
-                    <div className="flex items-center justify-between gap-1.5">
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        {renderModelAvatar(fm.id, 16)}
-                        <span className="font-semibold text-foreground truncate font-mono text-[11px]">
-                          {fm.displayName}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1 shrink-0">
-                        <span
-                          className={`text-[9px] px-1.5 py-0.2 rounded-full border font-medium ${fm.badgeColor}`}
-                        >
-                          {fm.badge}
-                        </span>
-                        {isInstalled && (
-                          <span className="text-[9px] text-emerald-400 font-mono bg-emerald-500/10 px-1 py-0.2 rounded">
-                            ready
-                          </span>
-                        )}
-                        {isSelected && <Check className="h-3 w-3 text-sky-400 ml-0.5 shrink-0" />}
-                      </div>
-                    </div>
-
-                    <p className="text-[10px] text-muted-foreground leading-tight">
-                      {fm.summary}
-                    </p>
-
-                    <div className="text-[9px] text-muted-foreground/70 font-mono flex items-center gap-2">
-                      <span>{fm.details}</span>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+        {/* Tab Role Description Banner */}
+        <div className="px-1.5 py-1 rounded-md bg-muted/30 border border-border/30 text-[10px] text-muted-foreground leading-tight">
+          {activeTab === "main" ? (
+            <span>
+              <strong className="text-foreground">Main Model:</strong> Orchestrates tools, commands, knowledge base search, and user chat.
+            </span>
+          ) : (
+            <span>
+              <strong className="text-foreground">Content Writer:</strong> Generates long-form markdown articles, tutorials, and creative prose via <code className="text-[9px] bg-muted/60 px-1 py-0.2 rounded font-mono">generate_content</code>.
+            </span>
+          )}
         </div>
 
-        {/* Other Local Models Section */}
-        {otherModels.length > 0 && (
+        {/* Empty State when no models are installed */}
+        {installedModels.length === 0 && !isLoading && (
+          <div className="py-6 px-3 text-center space-y-1.5">
+            <Layers className="h-6 w-6 text-muted-foreground/40 mx-auto" />
+            <p className="text-[11px] font-medium text-foreground">No downloaded models found</p>
+            <p className="text-[10px] text-muted-foreground leading-relaxed">
+              Make sure Ollama is running and pull a model using <code className="bg-muted px-1 py-0.5 rounded font-mono text-[9px]">ollama pull qwen2.5:7b</code>
+            </p>
+          </div>
+        )}
+
+        {/* Recommended Downloaded Models Section */}
+        {installedFeatured.length > 0 && (
+          <div className="space-y-1">
+            <div className="text-[10px] font-semibold text-sky-400 px-1.5 py-0.5 flex items-center gap-1">
+              <Sparkles className="h-3 w-3" />
+              <span>Recommended ({installedFeatured.length})</span>
+            </div>
+
+            <div className="space-y-1">
+              {installedFeatured.map((fm) => {
+                const isSelected = currentActiveModel.toLowerCase() === fm.id.toLowerCase();
+
+                return (
+                  <div
+                    key={fm.id}
+                    onClick={() => handleSelectModel(fm.id)}
+                    className={`px-2.5 py-2 rounded-lg cursor-pointer transition-all ${
+                      isSelected
+                        ? "bg-sky-500/10 border border-sky-500/40 text-foreground"
+                        : "hover:bg-muted/70 border border-transparent text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <div className="flex flex-col gap-1 w-full text-left">
+                      <div className="flex items-center justify-between gap-1.5">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          {renderModelAvatar(fm.id, 16)}
+                          <span className="font-semibold text-foreground truncate font-mono text-[11px]">
+                            {fm.displayName}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <span
+                            className={`text-[9px] px-1.5 py-0.2 rounded-full border font-medium ${fm.badgeColor}`}
+                          >
+                            {fm.badge}
+                          </span>
+                          {isSelected && <Check className="h-3 w-3 text-sky-400 ml-0.5 shrink-0" />}
+                        </div>
+                      </div>
+
+                      <p className="text-[10px] text-muted-foreground leading-tight">
+                        {fm.summary}
+                      </p>
+
+                      <div className="text-[9px] text-muted-foreground/70 font-mono flex items-center gap-2">
+                        <span>{fm.details}</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Other Downloaded Models Section */}
+        {otherDownloadedModels.length > 0 && (
           <div className="pt-2 border-t border-border/40 space-y-1">
             <div className="text-[10px] font-semibold text-muted-foreground px-1.5 py-0.5 flex items-center gap-1">
               <Layers className="h-3 w-3" />
-              <span>Other Installed Models ({otherModels.length})</span>
+              <span>Downloaded Models ({otherDownloadedModels.length})</span>
             </div>
 
             <div className="space-y-0.5">
-              {otherModels.map((m) => {
-                const isSelected = model.toLowerCase() === m.name.toLowerCase();
+              {otherDownloadedModels.map((m) => {
+                const isSelected = currentActiveModel.toLowerCase() === m.name.toLowerCase();
 
                 return (
                   <div

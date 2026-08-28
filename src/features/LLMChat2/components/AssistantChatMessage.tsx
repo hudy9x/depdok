@@ -61,17 +61,18 @@ export const AssistantChatMessage: React.FC<AssistantChatMessageProps> = ({
 
   return (
     <div className="flex flex-col items-start w-full select-text">
-      <div className="w-full max-w-[92%] text-xs leading-relaxed text-foreground space-y-2.5 select-text">
+      <div className="w-full max-w-[92%] text-xs leading-relaxed text-foreground space-y-2.5 select-text llm2-chat-markdown">
         {hasParts ? (
-          message.parts!.map((part) => {
+          message.parts!.map((part, index) => {
             if (part.type === "thought") {
               if (!part.content.trim()) return null;
+              const isLastPart = index === message.parts!.length - 1;
               return (
                 <ThoughtBlock
                   key={part.id}
                   content={part.content}
                   durationSeconds={part.durationSeconds}
-                  isStreaming={isGenerating}
+                  isStreaming={isGenerating && isLastPart}
                 />
               );
             } else if (part.type === "text") {

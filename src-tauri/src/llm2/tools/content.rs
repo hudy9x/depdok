@@ -6,10 +6,11 @@ use uuid::Uuid;
 
 use super::bridge::ToolBridgeError;
 
-// 15. GenerateContentTool (Direct Rust execution calling Content Model Gemma 2:9b)
+// 15. GenerateContentTool (Direct Rust execution calling Content Specialist Model e.g. Gemma 2 / Llama 3)
 #[derive(Clone)]
 pub struct GenerateContentTool {
   pub app: AppHandle,
+  pub default_content_model: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -30,7 +31,7 @@ impl PortableTool for GenerateContentTool {
   type Output = serde_json::Value;
 
   fn description(&self) -> String {
-    "Delegate long-form Markdown prose, creative writing, rich tutorials, or in-depth document generation to the Content Specialist model (gemma2:9b).".to_string()
+    "Delegate long-form Markdown prose, creative writing, rich tutorials, or in-depth document generation to the Content Specialist model.".to_string()
   }
 
   fn parameters(&self) -> serde_json::Value {
@@ -40,14 +41,19 @@ impl PortableTool for GenerateContentTool {
         "topic": { "type": "string", "description": "The topic, instructions, or outline for the content to generate" },
         "style": { "type": "string", "description": "The tone or style (e.g. 'professional tutorial', 'engaging blog post', 'technical report')" },
         "language": { "type": "string", "description": "Target language (e.g. 'English', 'Vietnamese', 'Japanese')" },
-        "content_model": { "type": "string", "description": "Optional specific content model name (defaults to 'gemma2:9b')" }
+        "content_model": { "type": "string", "description": "Optional specific content model name (e.g. 'gemma2:9b', 'llama3.1:8b', 'llama3.2:3b')" }
       },
       "required": ["topic"]
     })
   }
 
   async fn call(&self, args: Self::Args) -> Result<Self::Output, Self::Error> {
-    let content_model = args.content_model.as_deref().unwrap_or("gemma2:9b");
+    let default_fallback = self.default_content_model.as_deref().unwrap_or("gemma2:9b");
+    let content_model = args
+      .content_model
+      .as_deref()
+      .filter(|s| !s.trim().is_empty())
+      .unwrap_or(default_fallback);
     let style = args.style.as_deref().unwrap_or("informative and engaging markdown");
     let language = args.language.as_deref().unwrap_or("English");
 

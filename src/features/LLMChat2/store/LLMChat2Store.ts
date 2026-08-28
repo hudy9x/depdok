@@ -66,6 +66,7 @@ export const chat2LogsAtom = atom<ToolExecutionLog[]>([]);
 export const activeToolCallAtom = atom<ToolExecutionLog | null>(null);
 export const isGeneratingAtom = atom<boolean>(false);
 export const chat2ModelAtom = atomWithStorage<string>("llm2_active_model", "qwen2.5:7b", localStorageDriver);
+export const chat2ContentModelAtom = atomWithStorage<string>("llm2_content_model", "gemma2:9b", localStorageDriver);
 export const chat2IsStatefulAtom = atomWithStorage<boolean>("llm2_stateful_history", true, localStorageDriver);
 export const chat2NumCtxAtom = atomWithStorage<number>("llm2_num_ctx", 16384, localStorageDriver);
 export const chat2PanelWidthAtom = atomWithStorage<number>("llm2_panel_width", 420, localStorageDriver);

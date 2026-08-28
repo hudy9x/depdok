@@ -18,11 +18,12 @@ pub const TOOL_MODEL: &str = "qwen2.5:7b";
 pub const CONTENT_MODEL: &str = "gemma2:9b";
 pub const NUM_CTX: usize = 16384;
 
-const SYSTEM_PROMPT: &str = "\
-You are a helpful, precise, and capable AI desktop assistant for the Depdok document editor.
+pub fn build_system_prompt(tool_model: &str, content_model: &str) -> String {
+  format!(
+    r#"You are a helpful, precise, and capable AI desktop assistant for the Depdok document editor.
 You operate in a Dual-Model Specialization architecture:
-- You (qwen2.5:7b) are the Tool & Orchestration Specialist: fast intent recognition, accurate tool calls, and structured workflow management.
-- You have access to 'generate_content', which delegates long-form Markdown prose, creative writing, in-depth reports, tutorials, and editorial review to the Content Specialist (gemma2:9b).
+- You ({tool_model}) are the Tool & Orchestration Specialist: fast intent recognition, accurate tool calls, and structured workflow management.
+- You have access to 'generate_content', which delegates long-form Markdown prose, creative writing, in-depth reports, tutorials, and editorial review to the Content Specialist ({content_model}).
 
 IMPORTANT RULES:
 - When asked questions about workspace documentation, project architecture, guides, previous notes, or concepts, invoke 'search_knowledge_base' to retrieve relevant sections and notes from the vector knowledge base before answering.
@@ -30,16 +31,16 @@ IMPORTANT RULES:
 - When the search results or snippets from 'web_search' require deeper details, installation steps, code examples, or when a specific URL is provided, invoke 'fetch_web_page' to read the full page content before answering.
 - When answering from web research, synthesize a clear, comprehensive answer with code examples and cite source URLs cleanly (e.g. [Claude Code Docs](https://...)).
 - When asked to run terminal / shell commands (e.g. 'git status', 'npm test', 'cargo check', scripts, CLI tools, or inspecting system info), invoke 'run_shell'.
-- When asked to draft, write, or expand rich markdown articles, tutorials, or deep reviews, invoke 'generate_content' to leverage gemma2:9b.
+- When asked to draft, write, or expand rich markdown articles, tutorials, or deep reviews, invoke 'generate_content' to leverage {content_model}.
 - When asked to review, inspect, or summarize an active markdown file, call 'read_markdown' first.
 - When asked to add or update a section (e.g. 'Add Conclusion in test.md'), call 'upsert_markdown_section'.
 - When asked to save, write, or record generated content, summaries, notes, or reviews to a file, always supply the complete markdown text in the 'content' parameter of 'create_file' or 'upsert_markdown'.
 - When asked what files exist or to inspect folder structure, invoke 'list_files'.
 - When asked to move, relocate, or cut/paste files, invoke 'move_files_or_folders'.
 - When a user mentions a file using '@' (e.g. '@notes.md' or '@docs/guide.md'), use that path in your tool calls.
-- Once all tool results are provided, synthesize a clear, helpful final response with references or citations to source files/sections.";
-
-
+- Once all tool results are provided, synthesize a clear, helpful final response with references or citations to source files/sections."#
+  )
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OllamaToolCall {
@@ -65,6 +66,7 @@ pub async fn prompt_agent(
   pending: PendingRequests,
   prompt: &str,
   model_name: Option<String>,
+  content_model: Option<String>,
   message_id: Option<String>,
   initial_history: Option<Vec<OllamaMessage>>,
   num_ctx: Option<usize>,
@@ -75,8 +77,11 @@ pub async fn prompt_agent(
   let model_to_use = model_name
     .filter(|s| !s.trim().is_empty())
     .unwrap_or_else(|| TOOL_MODEL.to_string());
+  let content_model_to_use = content_model
+    .filter(|s| !s.trim().is_empty())
+    .unwrap_or_else(|| CONTENT_MODEL.to_string());
   let num_ctx_to_use = num_ctx.unwrap_or(NUM_CTX);
-  println!("[llm2][agent] Starting prompt with tool model '{}' (content model '{}', num_ctx {}): {:?}", model_to_use, CONTENT_MODEL, num_ctx_to_use, prompt);
+  println!("[llm2][agent] Starting prompt with tool model '{}' (content model '{}', num_ctx {}): {:?}", model_to_use, content_model_to_use, num_ctx_to_use, prompt);
 
   let client = reqwest::Client::new();
 
@@ -100,7 +105,10 @@ pub async fn prompt_agent(
   let upsert_markdown_section_tool = UpsertMarkdownSectionTool { app: app.clone(), pending: pending.clone() };
   let add_markdown_comment_tool = AddMarkdownCommentTool { app: app.clone(), pending: pending.clone() };
   let search_knowledge_base_tool = SearchKnowledgeBaseTool { app: app.clone(), pending: pending.clone() };
-  let generate_content_tool = GenerateContentTool { app: app.clone() };
+  let generate_content_tool = GenerateContentTool {
+    app: app.clone(),
+    default_content_model: Some(content_model_to_use.clone()),
+  };
   let write_skill_tool = WriteSkillTool { app: app.clone(), pending: pending.clone() };
   let datetime_tool = GetCurrentDatetimeTool { app: app.clone(), pending: pending.clone() };
   let shell_tool = RunShellTool { app: app.clone(), pending: pending.clone() };
@@ -127,14 +135,14 @@ pub async fn prompt_agent(
       "type": "function",
       "function": {
         "name": "generate_content",
-        "description": "Delegate long-form Markdown prose, creative writing, rich tutorials, or in-depth document generation to the Content Specialist model (gemma2:9b).",
+        "description": format!("Delegate long-form Markdown prose, creative writing, rich tutorials, or in-depth document generation to the Content Specialist model ({}).", content_model_to_use),
         "parameters": {
           "type": "object",
           "properties": {
             "topic": { "type": "string", "description": "The topic, instructions, or outline for the content to generate" },
             "style": { "type": "string", "description": "The tone or style (e.g. 'professional tutorial', 'engaging blog post', 'technical report')" },
             "language": { "type": "string", "description": "Target language (e.g. 'English', 'Vietnamese', 'Japanese')" },
-            "content_model": { "type": "string", "description": "Optional specific content model name (defaults to 'gemma2:9b')" }
+            "content_model": { "type": "string", "description": format!("Optional specific content model name (defaults to '{}')", content_model_to_use) }
           },
           "required": ["topic"]
         }
@@ -533,7 +541,7 @@ pub async fn prompt_agent(
     combined_tools_schema
   };
 
-  let mut system_content = SYSTEM_PROMPT.to_string();
+  let mut system_content = build_system_prompt(&model_to_use, &content_model_to_use);
   if let Some(addendum) = system_prompt_addendum {
     if !addendum.trim().is_empty() {
       system_content.push_str("\n\n---\n## Active Skill Instructions\n");

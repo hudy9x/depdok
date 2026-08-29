@@ -9,4 +9,4 @@ export * from "./skills";
 export * from "./datetime";
 export * from "./shell";
 export * from "./web";
-
+export * from "./spreadsheet";

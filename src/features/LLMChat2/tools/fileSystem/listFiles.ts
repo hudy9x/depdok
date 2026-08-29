@@ -48,11 +48,13 @@ export async function listFilesTool(args: ListFilesArgs): Promise<ListFilesResul
   const folderList: string[] = [];
   const fileList: string[] = [];
 
-  async function traverse(currentDir: string, currentDepth: number): Promise<void> {
+  async function traverse(currentDir: string, currentDepth: number): Promise<boolean> {
     try {
       const rawEntries: FileEntry[] = await listDirectory(currentDir);
+      let foundAny = false;
 
       for (const entry of rawEntries) {
+        foundAny = true;
         const isHidden = entry.name.startsWith(".");
         if (isHidden && !includeHidden) {
           continue;
@@ -75,13 +77,29 @@ export async function listFilesTool(args: ListFilesArgs): Promise<ListFilesResul
           fileList.push(relativePath);
         }
       }
+      return foundAny || rawEntries.length === 0;
     } catch (err) {
-      console.warn(`[listFilesTool] Failed to list directory '${currentDir}':`, err);
+      console.warn(`[listFilesTool] Directory read failed for '${currentDir}':`, err);
+      return false;
     }
   }
 
   try {
-    await traverse(targetDir, 1);
+    let successRead = await traverse(targetDir, 1);
+
+    // Fallback: If targetDir is a file or failed to read as directory, inspect its parent directory
+    let isFilePathFallback = false;
+    if (!successRead && targetDir !== workspaceRoot) {
+      const parentDir = targetDir.split(/[/\\]/).slice(0, -1).join("/") || workspaceRoot;
+      if (parentDir && parentDir !== targetDir) {
+        targetDir = parentDir;
+        folderList.length = 0;
+        fileList.length = 0;
+        await traverse(targetDir, 1);
+        isFilePathFallback = true;
+      }
+    }
+
     const dirName = targetDir.split(/[/\\]/).pop() || targetDir || "workspace";
 
     return {
@@ -91,7 +109,9 @@ export async function listFilesTool(args: ListFilesArgs): Promise<ListFilesResul
       totalFolders: folderList.length,
       folders: folderList,
       files: fileList,
-      message: `Listed ${fileList.length} file(s) and ${folderList.length} folder(s) in '${dirName}'${isRecursive ? ` (recursive up to depth ${maxDepth})` : ""}.`,
+      message: isFilePathFallback
+        ? `Note: '${args.path}' is a file. Listed its containing folder '${dirName}': ${fileList.length} file(s) and ${folderList.length} folder(s).`
+        : `Listed ${fileList.length} file(s) and ${folderList.length} folder(s) in '${dirName}'${isRecursive ? ` (recursive up to depth ${maxDepth})` : ""}.`,
     };
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : String(err);

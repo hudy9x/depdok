@@ -1,3 +1,5 @@
+#![recursion_limit = "512"]
+
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 use std::sync::{Arc, Mutex};
 use tauri::{Manager, WebviewUrl, WebviewWindowBuilder, Emitter};

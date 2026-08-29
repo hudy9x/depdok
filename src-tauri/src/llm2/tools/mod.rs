@@ -12,6 +12,7 @@ pub mod datetime;
 pub mod shell;
 pub mod web_search;
 pub mod mcp_management;
+pub mod spreadsheet;
 
 pub use bridge::*;
 pub use content::*;
@@ -25,4 +26,5 @@ pub use datetime::*;
 pub use shell::*;
 pub use web_search::*;
 pub use mcp_management::*;
+pub use spreadsheet::*;
 

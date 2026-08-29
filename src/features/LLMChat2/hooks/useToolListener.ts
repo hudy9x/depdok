@@ -44,6 +44,28 @@ import {
   RunShellArgs,
   SearchWebArgs,
   FetchWebPageArgs,
+  sheetReadTool,
+  sheetGetDataTool,
+  sheetGetCellTool,
+  sheetCreateTool,
+  sheetSetRangeDataTool,
+  sheetEditCellTool,
+  sheetClearRangeTool,
+  sheetManageSheetTool,
+  sheetModifyStructureTool,
+  sheetFormatRangeTool,
+  sheetExecuteCommandsTool,
+  SheetReadArgs,
+  SheetGetDataArgs,
+  SheetGetCellArgs,
+  SheetCreateArgs,
+  SheetSetRangeDataArgs,
+  SheetEditCellArgs,
+  SheetClearRangeArgs,
+  SheetManageSheetArgs,
+  SheetModifyStructureArgs,
+  SheetFormatRangeArgs,
+  SheetExecuteCommandsArgs,
 } from "../tools";
 
 import {
@@ -296,6 +318,53 @@ export function useToolListener() {
           case "fetch_url":
           case "read_url":
             toolOutput = await fetchWebPageTool(args as unknown as FetchWebPageArgs);
+            break;
+          case "sheet_read":
+          case "sheet_read_overview":
+          case "read_spreadsheet":
+            toolOutput = await sheetReadTool(args as unknown as SheetReadArgs);
+            break;
+          case "sheet_get_data":
+          case "sheet_read_data":
+          case "get_spreadsheet_data":
+            toolOutput = await sheetGetDataTool(args as unknown as SheetGetDataArgs);
+            break;
+          case "sheet_get_cell":
+          case "get_cell_value":
+            toolOutput = await sheetGetCellTool(args as unknown as SheetGetCellArgs);
+            break;
+          case "sheet_create":
+          case "create_spreadsheet":
+            toolOutput = await sheetCreateTool(args as unknown as SheetCreateArgs);
+            break;
+          case "sheet_set_range_data":
+          case "set_range_data":
+            toolOutput = await sheetSetRangeDataTool(args as unknown as SheetSetRangeDataArgs);
+            break;
+          case "sheet_edit_cell":
+          case "edit_cell":
+          case "set_cell_value":
+            toolOutput = await sheetEditCellTool(args as unknown as SheetEditCellArgs);
+            break;
+          case "sheet_clear_range":
+          case "clear_range":
+            toolOutput = await sheetClearRangeTool(args as unknown as SheetClearRangeArgs);
+            break;
+          case "sheet_manage_sheet":
+          case "manage_spreadsheet_sheet":
+            toolOutput = await sheetManageSheetTool(args as unknown as SheetManageSheetArgs);
+            break;
+          case "sheet_modify_structure":
+          case "modify_spreadsheet_structure":
+            toolOutput = await sheetModifyStructureTool(args as unknown as SheetModifyStructureArgs);
+            break;
+          case "sheet_format_range":
+          case "format_spreadsheet_range":
+            toolOutput = await sheetFormatRangeTool(args as unknown as SheetFormatRangeArgs);
+            break;
+          case "sheet_execute_commands":
+          case "execute_spreadsheet_commands":
+            toolOutput = await sheetExecuteCommandsTool(args as unknown as SheetExecuteCommandsArgs);
             break;
           default:
             throw new Error(`Unknown tool: ${tool_name}`);

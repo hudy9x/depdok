@@ -19,7 +19,6 @@ import { useSetAtom } from 'jotai';
 import { refreshLicenseStatusAtom } from './stores/license';
 import { useSyncRecentFoldersToDock } from './hooks/useSyncRecentFoldersToDock';
 import { useProjectStateSync } from './hooks/useProjectStateSync';
-import { LLMChatPanel } from './features/LLMChat';
 
 function LayoutRoute() {
   return (
@@ -59,7 +58,6 @@ function App() {
             <CLIListener />
             <Toaster position="bottom-right" richColors />
             <LicensePopover />
-            <LLMChatPanel />
             <Routes>
               <Route path="/home" element={<Home />} />
               <Route path="/onboarding" element={<Onboarding />} />

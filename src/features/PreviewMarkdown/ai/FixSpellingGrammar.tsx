@@ -1,7 +1,7 @@
 import type { Editor } from "@tiptap/react";
 import { SpellCheck } from "lucide-react";
 
-import { useAiEdit } from "@/features/LLMChat/hooks/useAiEdit";
+import { useAiEdit } from "./useAiEdit";
 
 interface FixSpellingGrammarProps {
   editor: Editor;

@@ -1,5 +1,5 @@
 import { useAtom } from "jotai";
-import { Bot, Database, Puzzle, Settings, Terminal, X } from "lucide-react";
+import { Database, Puzzle, Settings, Terminal, X } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 
@@ -23,7 +23,6 @@ import { PlantUmlThemeSetting } from "./PlantUmlThemeSetting";
 import { CliCommandSetting } from "./CliCommandSetting";
 import { ContextMenuSetting } from "./ContextMenuSetting";
 import { ThemeSetting } from "./ThemeSetting";
-import { LLMModelSetting } from "@/features/LLMChat";
 import { VscMcp } from "react-icons/vsc";
 
 interface SettingsDialogProps {
@@ -32,7 +31,7 @@ interface SettingsDialogProps {
   defaultTab?: SettingsTab;
 }
 
-type SettingsTab = "general" | "integrations" | "system" | "mcp" | "embeddings" | "ai-models";
+type SettingsTab = "general" | "integrations" | "system" | "mcp" | "embeddings";
 
 export function SettingsDialog({ open, onOpenChange, defaultTab }: SettingsDialogProps) {
   const [autoSaveEnabled, setAutoSaveEnabled] = useAtom(autoSaveEnabledAtom);
@@ -82,12 +81,6 @@ export function SettingsDialog({ open, onOpenChange, defaultTab }: SettingsDialo
       name: "MCP Server",
       icon: VscMcp,
       desc: "Model Context Protocol connections",
-    },
-    {
-      id: "ai-models",
-      name: "AI Models",
-      icon: Bot,
-      desc: "Configure LLM providers and manage local GGUF models",
     },
   ] as const;
 
@@ -154,7 +147,7 @@ export function SettingsDialog({ open, onOpenChange, defaultTab }: SettingsDialo
           <div
             className={cn(
               "flex-1",
-              activeTab === "embeddings" || activeTab === "ai-models"
+              activeTab === "embeddings"
                 ? "overflow-hidden flex flex-col"
                 : "overflow-y-auto space-y-6"
             )}
@@ -220,10 +213,6 @@ export function SettingsDialog({ open, onOpenChange, defaultTab }: SettingsDialo
               <div className="space-y-6 p-8">
                 <McpServerPathSetting />
               </div>
-            )}
-
-            {activeTab === "ai-models" && (
-              <LLMModelSetting />
             )}
           </div>
         </div>

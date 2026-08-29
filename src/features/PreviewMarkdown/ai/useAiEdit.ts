@@ -1,15 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Editor } from "@tiptap/react";
+import { invoke } from "@tauri-apps/api/core";
 import { toast } from "sonner";
-
-import { editTextWithAi } from "../api/llm";
 
 /**
  * Shared hook for AI-powered text transformation in TipTap.
- * Fetches a transformation from the LLM, then plays it back with a
- * typewriter animation that mirrors an AI streaming response.
+ * Uses LLM2 (Ollama) backend for generation and plays it back with a typewriter animation.
  *
- * @param editor  - The active TipTap editor instance (may be null).
+ * @param editor - The active TipTap editor instance (may be null).
  * @returns `{ runEdit, isRunning }` — call `runEdit(instruction)` to start.
  */
 export function useAiEdit(editor: Editor | null) {
@@ -50,7 +48,23 @@ export function useAiEdit(editor: Editor | null) {
       editor.setEditable(false);
 
       try {
-        const result = await editTextWithAi(text, instruction);
+        const prompt = `${instruction}\nReturn ONLY the resulting text with no explanation, no quotes, no markdown codeblocks, and no extra commentary:\n\n${text}`;
+
+        const result = await invoke<string>("llm2_send_message", {
+          prompt,
+          allowedTools: [],
+          allowed_tools: [],
+          think: false,
+          systemPromptAddendum:
+            "You are a concise text transformation assistant. Output ONLY the requested transformed text without conversational filler, explanations, or code blocks.",
+          system_prompt_addendum:
+            "You are a concise text transformation assistant. Output ONLY the requested transformed text without conversational filler, explanations, or code blocks.",
+        });
+
+        if (!result || !result.trim()) {
+          toast.error("AI returned an empty response. Please try again.");
+          return;
+        }
 
         // Typewriter animation — targets 400ms–1200ms based on result length
         await new Promise<void>((resolve, reject) => {
@@ -100,9 +114,24 @@ export function useAiEdit(editor: Editor | null) {
             }
           }, tickRate);
         });
-      } catch (err) {
+      } catch (err: unknown) {
         console.error("[useAiEdit] failed:", err);
-        toast.error(`AI action failed: ${String(err)}`);
+        const errMsg = typeof err === "string" ? err : (err as Error)?.message || String(err);
+
+        if (
+          errMsg.includes("connect") ||
+          errMsg.includes("11434") ||
+          errMsg.includes("Ollama") ||
+          errMsg.includes("Cannot connect")
+        ) {
+          toast.error("Ollama is not running or unreachable", {
+            description: "Please make sure Ollama is started locally on port 11434.",
+          });
+        } else {
+          toast.error("AI action failed", {
+            description: errMsg,
+          });
+        }
       } finally {
         if (editor && !editor.isDestroyed) {
           editor.setEditable(true);

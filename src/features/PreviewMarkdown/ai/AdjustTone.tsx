@@ -1,7 +1,7 @@
 import type { Editor } from "@tiptap/react";
 import { Briefcase, ChevronLeft, ChevronRight, Coffee, Heart, Megaphone, Mic, Shield, Zap } from "lucide-react";
 
-import { useAiEdit } from "@/features/LLMChat/hooks/useAiEdit";
+import { useAiEdit } from "./useAiEdit";
 
 const TONES = [
   { label: "Professional", value: "professional", icon: Briefcase },

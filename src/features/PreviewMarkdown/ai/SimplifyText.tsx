@@ -1,7 +1,7 @@
 import type { Editor } from "@tiptap/react";
 import { BookOpen } from "lucide-react";
 
-import { useAiEdit } from "@/features/LLMChat/hooks/useAiEdit";
+import { useAiEdit } from "./useAiEdit";
 
 interface SimplifyTextProps {
   editor: Editor;

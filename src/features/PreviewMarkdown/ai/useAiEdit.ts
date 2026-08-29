@@ -3,9 +3,12 @@ import type { Editor } from "@tiptap/react";
 import { invoke } from "@tauri-apps/api/core";
 import { toast } from "sonner";
 
+const AI_MODEL = "gemma3:4b";
+
 /**
  * Shared hook for AI-powered text transformation in TipTap.
- * Uses LLM2 (Ollama) backend for generation and plays it back with a typewriter animation.
+ * Uses LLM2 (Ollama) backend with fixed model 'gemma3:4b' for generation
+ * and plays it back with a typewriter animation.
  *
  * @param editor - The active TipTap editor instance (may be null).
  * @returns `{ runEdit, isRunning }` — call `runEdit(instruction)` to start.
@@ -47,11 +50,18 @@ export function useAiEdit(editor: Editor | null) {
       // Lock the editor during the operation
       editor.setEditable(false);
 
+      const messageId = `ai-edit-${Date.now()}`;
+
       try {
         const prompt = `${instruction}\nReturn ONLY the resulting text with no explanation, no quotes, no markdown codeblocks, and no extra commentary:\n\n${text}`;
 
         const result = await invoke<string>("llm2_send_message", {
           prompt,
+          model: AI_MODEL,
+          contentModel: AI_MODEL,
+          content_model: AI_MODEL,
+          messageId,
+          message_id: messageId,
           allowedTools: [],
           allowed_tools: [],
           think: false,
@@ -119,13 +129,18 @@ export function useAiEdit(editor: Editor | null) {
         const errMsg = typeof err === "string" ? err : (err as Error)?.message || String(err);
 
         if (
-          errMsg.includes("connect") ||
-          errMsg.includes("11434") ||
-          errMsg.includes("Ollama") ||
-          errMsg.includes("Cannot connect")
+          errMsg.includes("Failed to connect") ||
+          errMsg.includes("Cannot connect") ||
+          errMsg.includes("connection refused") ||
+          errMsg.includes("error trying to connect") ||
+          errMsg.includes("os error 61")
         ) {
           toast.error("Ollama is not running or unreachable", {
-            description: "Please make sure Ollama is started locally on port 11434.",
+            description: `Please make sure Ollama is running on port 11434 with model '${AI_MODEL}'.`,
+          });
+        } else if (errMsg.toLowerCase().includes("not found")) {
+          toast.error(`Model '${AI_MODEL}' not found in Ollama`, {
+            description: `Please run 'ollama pull ${AI_MODEL}' in your terminal.`,
           });
         } else {
           toast.error("AI action failed", {

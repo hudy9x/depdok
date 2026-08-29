@@ -82,6 +82,15 @@ export const activeSkillAtom = atom<Skill | null>(null);
 export const mcpServersAtom = atom<import("@/api-client/mcp").McpServerSummary[]>([]);
 export const isReloadingMcpAtom = atom<boolean>(false);
 
+// Generation & Model Status
+export interface GenerationStatus {
+  phase: "loading_model" | "synthesizing" | "streaming" | "tool" | "idle";
+  model?: string;
+  message?: string;
+}
+
+export const chat2GenerationStatusAtom = atom<GenerationStatus>({ phase: "idle" });
+
 
 
 

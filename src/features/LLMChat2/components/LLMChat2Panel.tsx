@@ -17,6 +17,7 @@ import {
   chat2MetricsAtom,
   chat2WebSearchEnabledAtom,
   chat2ThinkingEnabledAtom,
+  chat2GenerationStatusAtom,
   availableSkillsAtom,
   activeSkillAtom,
   ChatMessage,
@@ -156,6 +157,7 @@ export function LLMChat2Panel() {
   const isWebSearchEnabled = useAtomValue(chat2WebSearchEnabledAtom);
   const isThinkingEnabled = useAtomValue(chat2ThinkingEnabledAtom);
   const setMetrics = useSetAtom(chat2MetricsAtom);
+  const setGenerationStatus = useSetAtom(chat2GenerationStatusAtom);
   const activeToolCall = useAtomValue(activeToolCallAtom);
 
   const [availableSkills, setAvailableSkills] = useAtom(availableSkillsAtom);
@@ -240,6 +242,7 @@ export function LLMChat2Panel() {
     let unlistenThought: UnlistenFn | null = null;
     let unlistenDone: UnlistenFn | null = null;
     let unlistenMetrics: UnlistenFn | null = null;
+    let unlistenStatus: UnlistenFn | null = null;
 
     listen<{ message_id: string; chunk: string }>("llm2_token", (event) => {
       const { message_id, chunk } = event.payload;
@@ -258,6 +261,7 @@ export function LLMChat2Panel() {
     listen<{ message_id: string; content: string }>("llm2_done", (event) => {
       const { message_id, content } = event.payload;
       flushTokens(message_id);
+      setGenerationStatus({ phase: "idle" });
       setMessages((prev) =>
         prev.map((msg) => {
           if (msg.id !== message_id) return msg;
@@ -292,13 +296,29 @@ export function LLMChat2Panel() {
       unlistenMetrics = unlisten;
     });
 
+    listen<{
+      message_id: string;
+      phase: "loading_model" | "synthesizing" | "streaming" | "tool" | "idle";
+      model?: string;
+      message?: string;
+    }>("llm2_status", (event) => {
+      setGenerationStatus({
+        phase: event.payload.phase,
+        model: event.payload.model,
+        message: event.payload.message,
+      });
+    }).then((unlisten) => {
+      unlistenStatus = unlisten;
+    });
+
     return () => {
       unlistenToken?.();
       unlistenThought?.();
       unlistenDone?.();
       unlistenMetrics?.();
+      unlistenStatus?.();
     };
-  }, [enqueueToken, enqueueThought, flushTokens, setMessages, setMetrics]);
+  }, [enqueueToken, enqueueThought, flushTokens, setMessages, setMetrics, setGenerationStatus]);
 
   // Check for '@' trigger in input text
   const checkMentionTrigger = (text: string, cursorPosition: number) => {
@@ -666,6 +686,7 @@ export function LLMChat2Panel() {
     } finally {
       flushTokens(assistantMsgId);
       setIsGenerating(false);
+      setGenerationStatus({ phase: "idle" });
       currentAssistantMsgIdRef.current = null;
     }
   };

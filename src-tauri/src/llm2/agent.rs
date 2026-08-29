@@ -995,6 +995,17 @@ pub async fn prompt_agent(
       println!("3. Messages: {:?}", history);
     }
     println!("────────────────────────────────────────────────────────────────────────────");
+
+    // Check if model is resident in Ollama RAM and notify frontend
+    super::warmup::check_and_notify_model_status(
+      &client,
+      &app,
+      &model_to_use,
+      message_id.as_deref(),
+      turn,
+    )
+    .await;
+
     println!("[llm2][turn {}] ⏳ Sending request to Ollama (http://localhost:11434/api/chat)...", turn);
 
     use std::io::Write;
@@ -1028,6 +1039,16 @@ pub async fn prompt_agent(
     let mut thinking_token_count = 0usize;
 
     while let Some(chunk_res) = stream.next().await {
+      if !first_chunk_received {
+        first_chunk_received = true;
+        if let Some(msg_id) = &message_id {
+          let _ = app.emit("llm2_status", json!({
+            "message_id": msg_id,
+            "phase": "streaming",
+            "model": model_to_use,
+          }));
+        }
+      }
       if cancel_flag.load(std::sync::atomic::Ordering::Relaxed) || pending.is_cancelled(message_id.as_deref()) {
         println!("[llm2][turn {}] 🛑 Stream reading cancelled by user.", turn);
         if let Some(msg_id) = &message_id {

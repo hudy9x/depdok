@@ -27,8 +27,8 @@ export class SpreadsheetSDK {
   /**
    * Loads a workbook from binary Uint8Array, ArrayBuffer, or Base64 string
    */
-  public static loadWorkbook(data: Uint8Array | ArrayBuffer | string): WorkbookModel {
-    return parseXlsxFromData(data);
+  public static async loadWorkbook(data: Uint8Array | ArrayBuffer | string): Promise<WorkbookModel> {
+    return await parseXlsxFromData(data);
   }
 
   /**
@@ -41,15 +41,15 @@ export class SpreadsheetSDK {
   /**
    * Serializes workbook to binary Uint8Array
    */
-  public static toBinary(workbook: WorkbookModel): Uint8Array {
-    return exportXlsxToBytes(workbook);
+  public static async toBinary(workbook: WorkbookModel): Promise<Uint8Array> {
+    return await exportXlsxToBytes(workbook);
   }
 
   /**
    * Serializes workbook to Base64 string
    */
-  public static toBase64(workbook: WorkbookModel): string {
-    return exportXlsxToBase64(workbook);
+  public static async toBase64(workbook: WorkbookModel): Promise<string> {
+    return await exportXlsxToBase64(workbook);
   }
 
   /**

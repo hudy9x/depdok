@@ -96,7 +96,7 @@ export async function saveFileContent(path: string, content: string): Promise<vo
     if (isBase64) {
       try {
         const { SpreadsheetSDK } = await import('@/features/PreviewXlsx/core/spreadsheetSdk');
-        const wb = SpreadsheetSDK.loadWorkbook(content);
+        const wb = await SpreadsheetSDK.loadWorkbook(content);
         csvText = SpreadsheetSDK.toCsv(wb);
       } catch {
         // Fall back to raw content if parsing fails

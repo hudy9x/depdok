@@ -38,7 +38,7 @@ export async function createFileTool(args: CreateFileArgs): Promise<CreateFileRe
       await writeFileContent(fullPath, emptyScene);
     } else if (fileName.endsWith(".xlsx") || fileName.endsWith(".xls")) {
       const emptyWorkbook = SpreadsheetSDK.createWorkbook();
-      const bytes = SpreadsheetSDK.toBinary(emptyWorkbook);
+      const bytes = await SpreadsheetSDK.toBinary(emptyWorkbook);
       await writeBinaryFile(fullPath, bytes);
     }
 

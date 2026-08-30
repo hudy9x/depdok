@@ -22,12 +22,8 @@ export const XlsxPreview: React.FC<XlsxPreviewProps> = ({
   onContentChange,
 }) => {
   // Initialize workbook
-  const [workbook, setWorkbook] = useState<WorkbookModel>(() => {
-    if (content && content.trim()) {
-      return SpreadsheetSDK.loadWorkbook(content);
-    }
-    return SpreadsheetSDK.createWorkbook();
-  });
+  const [workbook, setWorkbook] = useState<WorkbookModel>(() => SpreadsheetSDK.createWorkbook());
+  const [isLoaded, setIsLoaded] = useState(!content || !content.trim());
 
   const workbookRef = useRef<WorkbookModel>(workbook);
   workbookRef.current = workbook;
@@ -52,17 +48,34 @@ export const XlsxPreview: React.FC<XlsxPreviewProps> = ({
   const lastEmittedB64 = useRef<string>(content || '');
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Sync external content update if different
+  // Sync external content update
   useEffect(() => {
-    if (!content) return;
-    if (content !== lastEmittedB64.current) {
-      console.log('[XlsxPreview] ⚠️ Content sync: external content changed → resetting workbook');
-      lastEmittedB64.current = content;
-      const parsed = SpreadsheetSDK.loadWorkbook(content);
-      workbookRef.current = parsed;
-      setWorkbook(parsed);
+    let isMounted = true;
+    if (!content || !content.trim()) {
+      setIsLoaded(true);
+      return;
     }
-  }, [content]);
+
+    if (content !== lastEmittedB64.current || !isLoaded) {
+      lastEmittedB64.current = content;
+      SpreadsheetSDK.loadWorkbook(content)
+        .then((parsed) => {
+          if (isMounted) {
+            workbookRef.current = parsed;
+            setWorkbook(parsed);
+            setIsLoaded(true);
+          }
+        })
+        .catch((err) => {
+          console.error('[XlsxPreview] Failed to parse workbook:', err);
+          if (isMounted) setIsLoaded(true);
+        });
+    }
+
+    return () => {
+      isMounted = false;
+    };
+  }, [content, isLoaded]);
 
   // Active sheet
   const activeSheetModel = useMemo(() => {
@@ -89,16 +102,15 @@ export const XlsxPreview: React.FC<XlsxPreviewProps> = ({
       if (!onContentChange) return;
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
 
-      try {
-        const b64 = SpreadsheetSDK.toBase64(newWb);
-        lastEmittedB64.current = b64;
-
-        saveTimerRef.current = setTimeout(() => {
+      saveTimerRef.current = setTimeout(async () => {
+        try {
+          const b64 = await SpreadsheetSDK.toBase64(newWb);
+          lastEmittedB64.current = b64;
           onContentChange(b64);
-        }, 400);
-      } catch (err) {
-        console.error('[XlsxPreview] Error serializing workbook:', err);
-      }
+        } catch (err) {
+          console.error('[XlsxPreview] Error serializing workbook:', err);
+        }
+      }, 400);
     },
     [onContentChange]
   );

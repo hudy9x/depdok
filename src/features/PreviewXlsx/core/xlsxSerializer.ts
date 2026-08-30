@@ -1,7 +1,7 @@
-import * as XLSX from 'xlsx';
-import { CellModel, CellStyle, SheetModel, WorkbookModel } from './types';
+import ExcelJS from 'exceljs';
+import { BorderLineStyle, BorderSide, CellBorder, CellModel, CellStyle, CellType, CellValue, SheetModel, WorkbookModel } from './types';
 import { FormulaEngine } from './formulaEngine';
-import { coordinateToAddress } from './numberFormatter';
+import { parseRangeAddress } from './numberFormatter';
 
 const DEFAULT_ROWS = 60;
 const DEFAULT_COLS = 26;
@@ -29,216 +29,225 @@ export function createEmptyWorkbook(initialSheetName = 'Sheet1'): WorkbookModel 
 }
 
 /**
- * Parses XLSX data (Uint8Array, ArrayBuffer, or base64 string) into WorkbookModel
+ * Parses XLSX data (Uint8Array, ArrayBuffer, or base64 string) into WorkbookModel using ExcelJS
  */
-export function parseXlsxFromData(data: Uint8Array | ArrayBuffer | string): WorkbookModel {
+export async function parseXlsxFromData(data: Uint8Array | ArrayBuffer | string): Promise<WorkbookModel> {
   try {
-    let readOpts: XLSX.ParsingOptions = {
-      type: 'array',
-      cellFormula: true,
-      cellStyles: true,
-      cellNF: true,
-      cellDates: true,
-    };
-
-    let wb: XLSX.WorkBook;
+    const wb = new ExcelJS.Workbook();
+    let buffer: ArrayBuffer | Uint8Array;
 
     if (typeof data === 'string') {
-      const isBase64 = data.startsWith('data:') || (/^[A-Za-z0-9+/=\s]+$/.test(data.trim()) && data.length % 4 === 0 && !data.includes('\n'));
-      if (isBase64) {
-        try {
-          const base64Index = data.indexOf('base64,');
-          const b64 = base64Index !== -1 ? data.substring(base64Index + 7) : data;
-          wb = XLSX.read(b64, { ...readOpts, type: 'base64' });
-        } catch {
-          wb = XLSX.read(data, { ...readOpts, type: 'string' });
-        }
-      } else {
-        wb = XLSX.read(data, { ...readOpts, type: 'string' });
-      }
+      buffer = base64ToUint8Array(data);
     } else if (data instanceof Uint8Array) {
-      wb = XLSX.read(data, readOpts);
+      buffer = data;
     } else {
-      wb = XLSX.read(new Uint8Array(data), readOpts);
+      buffer = new Uint8Array(data);
     }
 
-    if (!wb.SheetNames || wb.SheetNames.length === 0) {
+    await wb.xlsx.load(buffer as any);
+
+    if (!wb.worksheets || wb.worksheets.length === 0) {
       return createEmptyWorkbook();
     }
 
+    const sheetNames: string[] = [];
     const sheets: Record<string, SheetModel> = {};
 
-    for (const sheetName of wb.SheetNames) {
-      const ws = wb.Sheets[sheetName];
-      if (!ws) continue;
+    wb.eachSheet((worksheet) => {
+      const sheetName = worksheet.name || `Sheet${sheetNames.length + 1}`;
+      sheetNames.push(sheetName);
 
       const cells: Record<string, CellModel> = {};
       let maxRow = DEFAULT_ROWS;
       let maxCol = DEFAULT_COLS;
 
-      // Parse range '!ref'
-      const range = ws['!ref'] ? XLSX.utils.decode_range(ws['!ref']) : null;
-      if (range) {
-        maxRow = Math.max(range.e.r + 20, DEFAULT_ROWS);
-        maxCol = Math.max(range.e.c + 5, DEFAULT_COLS);
-      }
+      // Extract cells and styles (including formatted cells with null values)
+      worksheet.eachRow({ includeEmpty: true }, (row, rowNumber) => {
+        if (rowNumber > maxRow) maxRow = Math.max(rowNumber + 10, DEFAULT_ROWS);
 
-      // Read all cell keys in sheet
-      for (const [key, cellData] of Object.entries(ws)) {
-        if (key.startsWith('!')) continue; // Skip metadata like '!ref', '!cols'
-        const c = cellData as XLSX.CellObject;
-        if (!c) continue;
+        row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+          if (colNumber > maxCol) maxCol = Math.max(colNumber + 5, DEFAULT_COLS);
 
-        const cellModel: CellModel = {
-          v: c.v !== undefined ? (c.v as any) : null,
-          t: c.t as any,
-          f: c.f ? c.f.replace(/^=/, '') : undefined,
-          w: c.w,
-          numFmt: c.z ? String(c.z) : undefined,
-          s: parseSheetJsStyle(c.s),
-        };
+          const addr = cell.address.toUpperCase();
+          const parsedCell = parseExcelJsCell(cell);
+          if (
+            parsedCell &&
+            (parsedCell.v !== null ||
+              parsedCell.f ||
+              (parsedCell.s && Object.keys(parsedCell.s).length > 0))
+          ) {
+            cells[addr] = parsedCell;
+          }
+        });
+      });
 
-        cells[key.toUpperCase()] = cellModel;
-      }
-
-      // Column widths from ws['!cols']
+      // Column widths
       const columnWidths: Record<number, number> = {};
-      if (ws['!cols']) {
-        ws['!cols'].forEach((col, idx) => {
-          if (col && col.wpx) {
-            columnWidths[idx] = col.wpx;
-          } else if (col && col.wch) {
-            columnWidths[idx] = Math.round(col.wch * 8);
+      if (worksheet.columns) {
+        worksheet.columns.forEach((col, idx) => {
+          if (col && typeof col.width === 'number' && col.width > 0) {
+            columnWidths[idx] = Math.round(col.width * 8);
           }
         });
       }
 
-      // Row heights from ws['!rows']
+      // Row heights
       const rowHeights: Record<number, number> = {};
-      if (ws['!rows']) {
-        ws['!rows'].forEach((row, idx) => {
-          if (row && row.hpx) {
-            rowHeights[idx] = row.hpx;
-          } else if (row && row.hpt) {
-            rowHeights[idx] = Math.round(row.hpt * 1.33);
-          }
-        });
-      }
+      worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+        if (typeof row.height === 'number' && row.height > 0) {
+          rowHeights[rowNumber - 1] = Math.round(row.height * 1.33);
+        }
+      });
 
       // Merges
       const merges: string[] = [];
-      if (ws['!merges']) {
-        for (const m of ws['!merges']) {
-          merges.push(
-            `${coordinateToAddress({ r: m.s.r, c: m.s.c })}:${coordinateToAddress({ r: m.e.r, c: m.e.c })}`
-          );
+      const modelMerges = (worksheet.model as any)?.merges;
+      if (Array.isArray(modelMerges)) {
+        for (const m of modelMerges) {
+          if (typeof m === 'string') {
+            merges.push(m.toUpperCase());
+          }
         }
       }
 
       sheets[sheetName] = {
         name: sheetName,
         cells,
-        rowCount: maxRow,
-        colCount: maxCol,
+        rowCount: Math.max(maxRow, DEFAULT_ROWS),
+        colCount: Math.max(maxCol, DEFAULT_COLS),
         columnWidths,
         rowHeights,
         merges,
       };
-    }
+    });
 
     const initialWb: WorkbookModel = {
-      sheetNames: wb.SheetNames,
+      sheetNames,
       sheets,
-      activeSheet: wb.SheetNames[0] || 'Sheet1',
+      activeSheet: sheetNames[0] || 'Sheet1',
     };
 
     // Calculate formulas across all sheets
     return FormulaEngine.evaluateWorkbook(initialWb);
   } catch (err) {
-    console.error('[XlsxSerializer] Failed to parse XLSX:', err);
+    console.error('[XlsxSerializer] Failed to parse XLSX with ExcelJS:', err);
     return createEmptyWorkbook();
   }
 }
 
 /**
- * Exports WorkbookModel to binary Uint8Array
+ * Exports WorkbookModel to binary Uint8Array using ExcelJS
  */
-export function exportXlsxToBytes(workbook: WorkbookModel): Uint8Array {
-  const wb = XLSX.utils.book_new();
+export async function exportXlsxToBytes(workbook: WorkbookModel): Promise<Uint8Array> {
+  const wb = new ExcelJS.Workbook();
+  wb.creator = 'Depdok';
+  wb.lastModifiedBy = 'Depdok';
+  wb.created = new Date();
+  wb.modified = new Date();
 
   for (const sheetName of workbook.sheetNames) {
     const sheet = workbook.sheets[sheetName];
     if (!sheet) continue;
 
-    const ws: XLSX.WorkSheet = {};
-    let minR = 0;
-    let minC = 0;
-    let maxR = 0;
-    let maxC = 0;
-
-    for (const [addr, cell] of Object.entries(sheet.cells)) {
-      const decoded = XLSX.utils.decode_cell(addr);
-      if (decoded.r > maxR) maxR = decoded.r;
-      if (decoded.c > maxC) maxC = decoded.c;
-
-      const cellObj: XLSX.CellObject = {
-        t: cell.t || (typeof cell.v === 'number' ? 'n' : typeof cell.v === 'boolean' ? 'b' : 's'),
-        v: cell.v as any,
-      };
-
-      if (cell.f) {
-        cellObj.f = cell.f;
-      }
-      if (cell.numFmt) {
-        cellObj.z = cell.numFmt;
-      }
-      if (cell.s) {
-        cellObj.s = serializeSheetJsStyle(cell.s);
-      }
-
-      ws[addr] = cellObj;
-    }
-
-    // Set range
-    ws['!ref'] = XLSX.utils.encode_range({
-      s: { r: minR, c: minC },
-      e: { r: Math.max(maxR, 20), c: Math.max(maxC, 10) },
+    const ws = wb.addWorksheet(sheetName, {
+      views: [{ showGridLines: true }],
     });
 
-    // Column widths
+    // Column widths (0-indexed -> 1-indexed)
     if (sheet.columnWidths && Object.keys(sheet.columnWidths).length > 0) {
-      const cols: XLSX.ColInfo[] = [];
-      const colIndices = Object.keys(sheet.columnWidths).map(Number);
-      const maxColIdx = Math.max(...colIndices, maxC);
-      for (let i = 0; i <= maxColIdx; i++) {
-        const wpx = sheet.columnWidths[i];
-        cols.push(wpx ? { wpx } : { wch: 10 });
+      for (const [colIdxStr, widthPx] of Object.entries(sheet.columnWidths)) {
+        const colIdx = Number(colIdxStr) + 1;
+        const col = ws.getColumn(colIdx);
+        col.width = Math.max(Math.round(widthPx / 8), 4);
       }
-      ws['!cols'] = cols;
     }
 
-    // Row heights
+    // Row heights (0-indexed -> 1-indexed)
     if (sheet.rowHeights && Object.keys(sheet.rowHeights).length > 0) {
-      const rows: XLSX.RowInfo[] = [];
-      const rowIndices = Object.keys(sheet.rowHeights).map(Number);
-      const maxRowIdx = Math.max(...rowIndices, maxR);
-      for (let i = 0; i <= maxRowIdx; i++) {
-        const hpx = sheet.rowHeights[i];
-        rows.push(hpx ? { hpx } : { hpt: 18 });
+      for (const [rowIdxStr, heightPx] of Object.entries(sheet.rowHeights)) {
+        const rowIdx = Number(rowIdxStr) + 1;
+        const row = ws.getRow(rowIdx);
+        row.height = Math.max(Math.round(heightPx / 1.33), 12);
       }
-      ws['!rows'] = rows;
     }
 
-    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+    // Populate cells
+    for (const [addr, cellModel] of Object.entries(sheet.cells)) {
+      const cell = ws.getCell(addr);
+
+      // Value / Formula
+      if (cellModel.f) {
+        cell.value = {
+          formula: cellModel.f,
+          result: cellModel.v ?? undefined,
+        };
+      } else {
+        cell.value = cellModel.v as any;
+      }
+
+      // Number Format
+      if (cellModel.numFmt) {
+        cell.numFmt = cellModel.numFmt;
+      }
+
+      // Styles
+      if (cellModel.s) {
+        const s = cellModel.s;
+
+        // Font
+        const font = serializeExcelJsFont(s);
+        if (font) cell.font = font;
+
+        // Background Color / Fill
+        if (s.bgColor) {
+          const fill = serializeExcelJsFill(s.bgColor);
+          if (fill) cell.fill = fill;
+        }
+
+        // Borders
+        if (s.border) {
+          const border = serializeExcelJsBorder(s.border);
+          if (border) cell.border = border;
+        }
+
+        // Alignment
+        if (s.align || s.valign || s.wrapText) {
+          cell.alignment = {
+            horizontal: s.align,
+            vertical: s.valign,
+            wrapText: s.wrapText,
+          };
+        }
+      }
+    }
+
+    // Merged Cells
+    if (sheet.merges && sheet.merges.length > 0) {
+      for (const mergeRange of sheet.merges) {
+        try {
+          ws.mergeCells(mergeRange);
+        } catch (err) {
+          console.warn(`[XlsxSerializer] Failed to merge range '${mergeRange}':`, err);
+        }
+      }
+    }
   }
 
-  const out = XLSX.write(wb, {
-    bookType: 'xlsx',
-    type: 'array',
-    cellStyles: true,
-  });
+  const buffer = await wb.xlsx.writeBuffer();
+  return new Uint8Array(buffer);
+}
 
-  return new Uint8Array(out);
+/**
+ * Converts WorkbookModel to Base64 string
+ */
+export async function exportXlsxToBase64(workbook: WorkbookModel): Promise<string> {
+  const bytes = await exportXlsxToBytes(workbook);
+  let binary = '';
+  const len = bytes.byteLength;
+  for (let i = 0; i < len; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
 }
 
 /**
@@ -249,45 +258,38 @@ export function exportCsvText(workbook: WorkbookModel, sheetName?: string): stri
   const sheet = workbook.sheets[targetSheetName];
   if (!sheet) return '';
 
-  const ws: XLSX.WorkSheet = {};
-  let minR = 0;
-  let minC = 0;
+  const rows: Record<number, Record<number, string>> = {};
   let maxR = 0;
   let maxC = 0;
 
   for (const [addr, cell] of Object.entries(sheet.cells)) {
-    const decoded = XLSX.utils.decode_cell(addr);
-    if (decoded.r > maxR) maxR = decoded.r;
-    if (decoded.c > maxC) maxC = decoded.c;
+    const range = parseRangeAddress(addr);
+    if (!range) continue;
+    const r = range.start.r;
+    const c = range.start.c;
+    if (r > maxR) maxR = r;
+    if (c > maxC) maxC = c;
 
-    const cellObj: XLSX.CellObject = {
-      t: cell.t || (typeof cell.v === 'number' ? 'n' : typeof cell.v === 'boolean' ? 'b' : 's'),
-      v: cell.v as any,
-    };
-    if (cell.f) cellObj.f = cell.f;
-    if (cell.numFmt) cellObj.z = cell.numFmt;
-    ws[addr] = cellObj;
+    if (!rows[r]) rows[r] = {};
+    const val = cell.v !== null && cell.v !== undefined ? String(cell.v) : '';
+    rows[r][c] = val;
   }
 
-  ws['!ref'] = XLSX.utils.encode_range({
-    s: { r: minR, c: minC },
-    e: { r: Math.max(maxR, 0), c: Math.max(maxC, 0) },
-  });
-
-  return XLSX.utils.sheet_to_csv(ws);
-}
-
-/**
- * Converts WorkbookModel to Base64 string
- */
-export function exportXlsxToBase64(workbook: WorkbookModel): string {
-  const bytes = exportXlsxToBytes(workbook);
-  let binary = '';
-  const len = bytes.byteLength;
-  for (let i = 0; i < len; i++) {
-    binary += String.fromCharCode(bytes[i]);
+  const lines: string[] = [];
+  for (let r = 0; r <= maxR; r++) {
+    const rowCells: string[] = [];
+    for (let c = 0; c <= maxC; c++) {
+      const cellText = rows[r]?.[c] || '';
+      if (cellText.includes(',') || cellText.includes('"') || cellText.includes('\n')) {
+        rowCells.push(`"${cellText.replace(/"/g, '""')}"`);
+      } else {
+        rowCells.push(cellText);
+      }
+    }
+    lines.push(rowCells.join(','));
   }
-  return btoa(binary);
+
+  return lines.join('\n');
 }
 
 /**
@@ -297,7 +299,7 @@ export function base64ToUint8Array(base64: string): Uint8Array {
   const cleanB64 = base64.startsWith('data:')
     ? base64.substring(base64.indexOf('base64,') + 7)
     : base64;
-  const binaryString = atob(cleanB64);
+  const binaryString = atob(cleanB64.trim());
   const len = binaryString.length;
   const bytes = new Uint8Array(len);
   for (let i = 0; i < len; i++) {
@@ -306,44 +308,120 @@ export function base64ToUint8Array(base64: string): Uint8Array {
   return bytes;
 }
 
-// Style conversion helpers
-function parseSheetJsStyle(s: any): CellStyle | undefined {
-  if (!s || typeof s !== 'object') return undefined;
+// Internal Helper Functions
 
+function parseExcelJsCell(cell: ExcelJS.Cell): CellModel | null {
+  let v: CellValue = null;
+  let f: string | undefined = undefined;
+  let t: CellType = 's';
+  const numFmt: string | undefined = typeof cell.numFmt === 'string' ? cell.numFmt : undefined;
+
+  const rawVal = cell.value;
+  if (rawVal !== null && rawVal !== undefined) {
+    if (typeof rawVal === 'object') {
+      if ('formula' in rawVal) {
+        f = (rawVal as any).formula.replace(/^=/, '');
+        v = (rawVal as any).result ?? null;
+        t = typeof v === 'number' ? 'n' : typeof v === 'boolean' ? 'b' : 's';
+      } else if ('sharedFormula' in rawVal) {
+        f = (rawVal as any).sharedFormula.replace(/^=/, '');
+        v = (rawVal as any).result ?? null;
+        t = typeof v === 'number' ? 'n' : typeof v === 'boolean' ? 'b' : 's';
+      } else if ('richText' in rawVal && Array.isArray((rawVal as any).richText)) {
+        v = (rawVal as any).richText.map((item: any) => item.text || '').join('');
+        t = 's';
+      } else if ('text' in rawVal) {
+        v = (rawVal as any).text;
+        t = 's';
+      } else if (rawVal instanceof Date) {
+        v = rawVal.toISOString();
+        t = 'd';
+      } else if ('error' in rawVal) {
+        v = (rawVal as any).error;
+        t = 'e';
+      } else {
+        v = String(rawVal);
+        t = 's';
+      }
+    } else if (typeof rawVal === 'number') {
+      v = rawVal;
+      t = 'n';
+    } else if (typeof rawVal === 'boolean') {
+      v = rawVal;
+      t = 'b';
+    } else {
+      v = String(rawVal);
+      t = 's';
+    }
+  }
+
+  const style = parseExcelJsStyle(cell);
+
+  return {
+    v,
+    t,
+    f,
+    numFmt,
+    s: style,
+  };
+}
+
+function parseExcelJsStyle(cell: ExcelJS.Cell): CellStyle | undefined {
   const style: CellStyle = {};
-  if (s.font) {
-    if (s.font.bold) style.bold = true;
-    if (s.font.italic) style.italic = true;
-    if (s.font.underline) style.underline = true;
-    if (s.font.strike) style.strike = true;
-    if (s.font.color && s.font.color.rgb) style.color = `#${s.font.color.rgb}`;
-    if (s.font.sz) style.fontSize = s.font.sz;
-    if (s.font.name) style.fontFamily = s.font.name;
+
+  // 1. Font
+  if (cell.font) {
+    if (cell.font.bold) style.bold = true;
+    if (cell.font.italic) style.italic = true;
+    if (cell.font.underline) style.underline = true;
+    if (cell.font.strike) style.strike = true;
+    if (cell.font.size) style.fontSize = cell.font.size;
+    if (cell.font.name) style.fontFamily = cell.font.name;
+    const fontColor = argbToHex(cell.font.color);
+    if (fontColor) style.color = fontColor;
   }
 
-  if (s.fill && s.fill.fgColor && s.fill.fgColor.rgb) {
-    style.bgColor = `#${s.fill.fgColor.rgb}`;
+  // 2. Fill (Background Color)
+  if (cell.fill && cell.fill.type === 'pattern') {
+    const patternFill = cell.fill as ExcelJS.FillPattern;
+    const bg = argbToHex(patternFill.fgColor) || argbToHex(patternFill.bgColor);
+    if (bg) style.bgColor = bg;
   }
 
-  if (s.alignment) {
-    if (s.alignment.horizontal) style.align = s.alignment.horizontal;
-    if (s.alignment.vertical) style.valign = s.alignment.vertical;
-    if (s.alignment.wrapText) style.wrapText = true;
+  // 3. Alignment
+  if (cell.alignment) {
+    if (cell.alignment.horizontal) {
+      style.align = cell.alignment.horizontal as any;
+    }
+    if (cell.alignment.vertical) {
+      const vAlign = cell.alignment.vertical;
+      style.valign = vAlign === 'middle' ? 'middle' : vAlign === 'top' ? 'top' : 'bottom';
+    }
+    if (cell.alignment.wrapText) style.wrapText = true;
   }
 
-  if (s.border) {
-    const parseSide = (side: any) => {
-      if (!side) return undefined;
-      const color = side.color?.rgb ? `#${side.color.rgb}` : undefined;
-      const borderStyle = side.style || 'thin';
-      return { style: borderStyle, color };
+  // 4. Borders
+  if (cell.border) {
+    const border: CellBorder = {};
+    const parseSide = (side?: Partial<ExcelJS.Border>): BorderSide | undefined => {
+      if (!side || !side.style) return undefined;
+      const color = argbToHex(side.color);
+      const validStyles: BorderLineStyle[] = ['thin', 'medium', 'thick', 'double', 'dashed', 'dotted'];
+      let s: BorderLineStyle = 'thin';
+      if (validStyles.includes(side.style as BorderLineStyle)) {
+        s = side.style as BorderLineStyle;
+      } else if (side.style.includes('dash')) {
+        s = 'dashed';
+      } else if (side.style.includes('dot') || side.style === 'hair') {
+        s = 'dotted';
+      }
+      return { style: s, color };
     };
 
-    const border: any = {};
-    if (s.border.top) border.top = parseSide(s.border.top);
-    if (s.border.bottom) border.bottom = parseSide(s.border.bottom);
-    if (s.border.left) border.left = parseSide(s.border.left);
-    if (s.border.right) border.right = parseSide(s.border.right);
+    if (cell.border.top) border.top = parseSide(cell.border.top);
+    if (cell.border.bottom) border.bottom = parseSide(cell.border.bottom);
+    if (cell.border.left) border.left = parseSide(cell.border.left);
+    if (cell.border.right) border.right = parseSide(cell.border.right);
 
     if (Object.keys(border).length > 0) {
       style.border = border;
@@ -353,52 +431,89 @@ function parseSheetJsStyle(s: any): CellStyle | undefined {
   return Object.keys(style).length > 0 ? style : undefined;
 }
 
-function serializeSheetJsStyle(style: CellStyle): any {
-  const s: any = {};
+function hexToArgb(hex?: string): string | undefined {
+  if (!hex) return undefined;
+  let clean = hex.replace(/^#/, '').trim();
+  if (clean.length === 3) {
+    clean = clean.split('').map((c) => c + c).join('');
+  }
+  if (clean.length === 6) {
+    return `FF${clean.toUpperCase()}`;
+  }
+  if (clean.length === 8) {
+    return clean.toUpperCase();
+  }
+  return undefined;
+}
 
-  if (style.bold || style.italic || style.underline || style.strike || style.color || style.fontSize || style.fontFamily) {
-    s.font = {};
-    if (style.bold) s.font.bold = true;
-    if (style.italic) s.font.italic = true;
-    if (style.underline) s.font.underline = true;
-    if (style.strike) s.font.strike = true;
-    if (style.fontSize) s.font.sz = style.fontSize;
-    if (style.fontFamily) s.font.name = style.fontFamily;
-    if (style.color) {
-      s.font.color = { rgb: style.color.replace(/^#/, '') };
+function argbToHex(color?: any): string | undefined {
+  if (!color) return undefined;
+  const argbStr = typeof color === 'string' ? color : color.argb;
+  if (argbStr && typeof argbStr === 'string') {
+    const clean = argbStr.replace(/^#/, '').trim();
+    if (clean.length === 8) {
+      return `#${clean.substring(2).toUpperCase()}`;
+    }
+    if (clean.length === 6) {
+      return `#${clean.toUpperCase()}`;
     }
   }
+  return undefined;
+}
 
-  if (style.bgColor) {
-    s.fill = {
-      fgColor: { rgb: style.bgColor.replace(/^#/, '') },
-    };
+function serializeExcelJsFont(style: CellStyle): Partial<ExcelJS.Font> | undefined {
+  const font: Partial<ExcelJS.Font> = {};
+  let hasFont = false;
+
+  if (style.bold !== undefined) { font.bold = style.bold; hasFont = true; }
+  if (style.italic !== undefined) { font.italic = style.italic; hasFont = true; }
+  if (style.underline !== undefined) { font.underline = style.underline; hasFont = true; }
+  if (style.strike !== undefined) { font.strike = style.strike; hasFont = true; }
+  if (style.fontSize !== undefined) { font.size = style.fontSize; hasFont = true; }
+  if (style.fontFamily !== undefined) { font.name = style.fontFamily; hasFont = true; }
+  if (style.color) {
+    const argb = hexToArgb(style.color);
+    if (argb) { font.color = { argb }; hasFont = true; }
   }
 
-  if (style.align || style.valign || style.wrapText) {
-    s.alignment = {};
-    if (style.align) s.alignment.horizontal = style.align;
-    if (style.valign) s.alignment.vertical = style.valign;
-    if (style.wrapText) s.alignment.wrapText = true;
-  }
+  return hasFont ? font : undefined;
+}
 
-  if (style.border) {
-    const serializeSide = (side: any) => {
-      if (!side) return undefined;
-      const styleVal = (typeof side === 'object' ? side.style : undefined) || style.border?.style || 'thin';
-      const colorVal = (typeof side === 'object' ? side.color : undefined) || style.border?.color || '#000000';
+function serializeExcelJsFill(bgColor?: string): ExcelJS.Fill | undefined {
+  if (!bgColor) return undefined;
+  const argb = hexToArgb(bgColor);
+  if (!argb) return undefined;
+  return {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb },
+  };
+}
+
+function serializeExcelJsBorder(border?: CellBorder): Partial<ExcelJS.Borders> | undefined {
+  if (!border) return undefined;
+
+  const serializeSide = (side?: BorderSide | boolean): Partial<ExcelJS.Border> | undefined => {
+    if (!side) return undefined;
+    if (side === true) {
       return {
-        style: styleVal,
-        color: { rgb: colorVal.replace(/^#/, '') },
+        style: (border.style || 'thin') as ExcelJS.BorderStyle,
+        color: border.color ? { argb: hexToArgb(border.color) } : { argb: 'FF000000' },
       };
+    }
+    const styleVal = side.style || border.style || 'thin';
+    const colorVal = side.color || border.color;
+    return {
+      style: styleVal as ExcelJS.BorderStyle,
+      color: colorVal ? { argb: hexToArgb(colorVal) } : { argb: 'FF000000' },
     };
+  };
 
-    s.border = {};
-    if (style.border.top) s.border.top = serializeSide(style.border.top);
-    if (style.border.bottom) s.border.bottom = serializeSide(style.border.bottom);
-    if (style.border.left) s.border.left = serializeSide(style.border.left);
-    if (style.border.right) s.border.right = serializeSide(style.border.right);
-  }
+  const result: Partial<ExcelJS.Borders> = {};
+  if (border.top) result.top = serializeSide(border.top);
+  if (border.bottom) result.bottom = serializeSide(border.bottom);
+  if (border.left) result.left = serializeSide(border.left);
+  if (border.right) result.right = serializeSide(border.right);
 
-  return s;
+  return Object.keys(result).length > 0 ? result : undefined;
 }

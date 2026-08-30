@@ -1,6 +1,6 @@
 import { toast } from "sonner";
 import { SpreadsheetSDK } from "@/features/PreviewXlsx/core/spreadsheetSdk";
-import { CellValue } from "@/features/PreviewXlsx/core/types";
+import { CellStyle, CellValue } from "@/features/PreviewXlsx/core/types";
 import { loadWorkbookFromPath, saveWorkbookToPath } from "./sheetHelper";
 
 export interface SheetEditCellArgs {
@@ -18,6 +18,8 @@ export interface SheetEditCellResult {
   value: CellValue;
   isFormula: boolean;
   calculatedValue?: CellValue;
+  formattedText?: string;
+  style?: CellStyle;
 }
 
 export async function sheetEditCellTool(args: SheetEditCellArgs): Promise<SheetEditCellResult> {
@@ -29,7 +31,9 @@ export async function sheetEditCellTool(args: SheetEditCellArgs): Promise<SheetE
   const targetSheet = args.sheet || workbook.activeSheet || workbook.sheetNames[0];
 
   if (!workbook.sheets[targetSheet]) {
-    throw new Error(`Sheet '${targetSheet}' not found in workbook '${fileName}'. Available sheets: ${workbook.sheetNames.join(", ")}`);
+    throw new Error(
+      `Sheet '${targetSheet}' not found in workbook '${fileName}'. Available sheets: ${workbook.sheetNames.join(", ")}`
+    );
   }
 
   const upperCell = args.cell.trim().toUpperCase();
@@ -51,7 +55,6 @@ export async function sheetEditCellTool(args: SheetEditCellArgs): Promise<SheetE
       };
 
   const { workbook: nextWb, result } = SpreadsheetSDK.executeCommand(workbook, command);
-
   if (!result.success) {
     throw new Error(result.message || `Failed to edit cell ${upperCell}.`);
   }
@@ -69,5 +72,7 @@ export async function sheetEditCellTool(args: SheetEditCellArgs): Promise<SheetE
     value: val,
     isFormula,
     calculatedValue: cellDetails.calculatedValue,
+    formattedText: cellDetails.formattedText,
+    style: cellDetails.style,
   };
 }

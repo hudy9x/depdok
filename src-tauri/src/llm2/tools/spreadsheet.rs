@@ -561,7 +561,11 @@ impl PortableTool for SheetFormatRangeTool {
         },
         "style": {
           "type": "object",
-          "description": "Styling properties: { bold?: bool, italic?: bool, color?: string, bgColor?: string, align?: 'left'|'center'|'right', fontSize?: number }."
+          "description": "Styling properties: { bold?: bool, italic?: bool, color?: string, bgColor?: string, bg_color?: string, align?: 'left'|'center'|'right', fontSize?: number, font_size?: number }."
+        },
+        "bg_color": {
+          "type": "string",
+          "description": "Optional shorthand background/fill hex color (e.g. '#FFFF00', '#E2E8F0', '#3B82F6')."
         },
         "num_fmt": {
           "type": "string",
@@ -569,7 +573,7 @@ impl PortableTool for SheetFormatRangeTool {
         },
         "border": {
           "type": "object",
-          "description": "Border settings: { borderType: 'all'|'outer'|'inner'|'top'|'bottom'|'left'|'right'|'none', color?: string, style?: 'thin'|'medium'|'thick'|'double' }."
+          "description": "Border settings: { borderType: 'all'|'outer'|'inner'|'top'|'bottom'|'left'|'right'|'none', color?: string, style?: 'thin'|'medium'|'thick'|'double'|'dashed'|'dotted' }."
         }
       },
       "required": ["range"]

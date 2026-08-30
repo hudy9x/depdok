@@ -76,7 +76,7 @@ export function FileOperationDialogs() {
           await writeFileContent(newPath, emptyScene);
         } else if (nameInput.endsWith('.xlsx') || nameInput.endsWith('.xls')) {
           const emptyWorkbook = SpreadsheetSDK.createWorkbook();
-          const bytes = SpreadsheetSDK.toBinary(emptyWorkbook);
+          const bytes = await SpreadsheetSDK.toBinary(emptyWorkbook);
           await writeBinaryFile(newPath, bytes);
         }
 

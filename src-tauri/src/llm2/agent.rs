@@ -23,6 +23,7 @@ use super::tools::{
 pub const TOOL_MODEL: &str = "qwen2.5:7b";
 pub const CONTENT_MODEL: &str = "gemma2:9b";
 pub const NUM_CTX: usize = 16384;
+pub const MAX_AGENT_TURNS: usize = 15;
 
 pub fn build_system_prompt(tool_model: &str, content_model: &str) -> String {
   format!(
@@ -32,6 +33,10 @@ You operate in a Dual-Model Specialization architecture:
 - You have access to 'generate_content', which delegates long-form Markdown prose, creative writing, in-depth reports, tutorials, and editorial review to the Content Specialist ({content_model}).
 
 IMPORTANT RULES:
+- MULTI-STEP EXECUTION & TOOL FOLLOW-THROUGH:
+  * When a user request requires multiple steps (e.g. creating a spreadsheet, populating table data, adding formulas, and applying cell styling or borders), you MUST continuously invoke the required tools step-by-step until ALL tasks are completely executed.
+  * If a tool call fails or needs a different format, immediately invoke the next or corrected tool call in the same turn.
+  * DO NOT output conversational filler text (e.g., 'Let me try again...', 'Now I will create...', 'I will set the data...') when you still have tools to call. Generating plain conversational text without tool calls terminates the execution prematurely.
 - When asked questions about workspace documentation, project architecture, guides, previous notes, or concepts, invoke 'search_knowledge_base' to retrieve relevant sections and notes from the vector knowledge base before answering.
 - When asked questions about external tools, setup guides, technologies, libraries, documentation, or up-to-date online information (e.g. 'how to setup claude code', 'latest Next.js release', 'bun vs node performance'), invoke 'web_search' to find relevant sources and links online.
 - When the search results or snippets from 'web_search' require deeper details, installation steps, code examples, or when a specific URL is provided, invoke 'fetch_web_page' to read the full page content before answering.
@@ -952,8 +957,8 @@ pub async fn prompt_agent(
     Vec::new()
   };
 
-  // Multi-turn streaming resolution loop
-  for turn in 0..6 {
+  // Multi-turn streaming resolution loop (up to MAX_AGENT_TURNS iterations)
+  for turn in 0..MAX_AGENT_TURNS {
     // Check if cancellation was requested before starting turn
     if cancel_flag.load(std::sync::atomic::Ordering::Relaxed) || pending.is_cancelled(message_id.as_deref()) {
       println!("[llm2][turn {}] 🛑 Generation cancelled by user.", turn);

@@ -66,10 +66,10 @@ export async function loadWorkbookFromPath(path?: string): Promise<LoadedSpreads
     let workbook: WorkbookModel;
 
     if (liveContent && liveContent.trim().length > 0) {
-      workbook = SpreadsheetSDK.loadWorkbook(liveContent);
+      workbook = await SpreadsheetSDK.loadWorkbook(liveContent);
     } else {
       const bytes = await readBinaryFile(fullPath);
-      workbook = SpreadsheetSDK.loadWorkbook(bytes);
+      workbook = await SpreadsheetSDK.loadWorkbook(bytes);
     }
 
     return {
@@ -88,8 +88,8 @@ export async function loadWorkbookFromPath(path?: string): Promise<LoadedSpreads
  */
 export async function saveWorkbookToPath(fullPath: string, workbook: WorkbookModel): Promise<void> {
   const evaluatedWb = SpreadsheetSDK.evaluateAll(workbook);
-  const bytes = SpreadsheetSDK.toBinary(evaluatedWb);
-  const base64 = SpreadsheetSDK.toBase64(evaluatedWb);
+  const bytes = await SpreadsheetSDK.toBinary(evaluatedWb);
+  const base64 = await SpreadsheetSDK.toBase64(evaluatedWb);
 
   await writeBinaryFile(fullPath, bytes);
 

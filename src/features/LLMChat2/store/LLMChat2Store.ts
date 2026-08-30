@@ -41,6 +41,11 @@ export interface ChatMessage {
   toolCalls?: ToolExecutionLog[];
   parts?: MessagePart[];
   timestamp: Date;
+  tokens?: {
+    promptTokens?: number;
+    completionTokens?: number;
+    totalTokens?: number;
+  };
 }
 
 export interface ContextMetrics {

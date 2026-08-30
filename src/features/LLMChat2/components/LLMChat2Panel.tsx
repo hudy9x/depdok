@@ -292,6 +292,49 @@ export function LLMChat2Panel() {
         percentConsumed: event.payload.percent_consumed,
         remainingTokens: event.payload.remaining_tokens,
       });
+
+      // Attach token metrics: 1st message includes base context; subsequent messages display incremental tokens
+      setMessages((prev) => {
+        const assistantIdx = prev.findIndex((m) => m.id === event.payload.message_id);
+        if (assistantIdx === -1) return prev;
+
+        // Find the previous assistant message's totalTokens to compute incremental tokens added by this turn
+        let previousTotalTokens = 0;
+        for (let i = assistantIdx - 1; i >= 0; i--) {
+          if (prev[i].role === "assistant" && prev[i].tokens?.totalTokens) {
+            previousTotalTokens = prev[i].tokens!.totalTokens!;
+            break;
+          }
+        }
+
+        const userTokens =
+          previousTotalTokens > 0
+            ? Math.max(1, event.payload.prompt_tokens - previousTotalTokens)
+            : event.payload.prompt_tokens;
+
+        return prev.map((msg, idx) => {
+          if (msg.id === event.payload.message_id) {
+            return {
+              ...msg,
+              tokens: {
+                promptTokens: event.payload.prompt_tokens,
+                completionTokens: event.payload.completion_tokens,
+                totalTokens: event.payload.total_tokens,
+              },
+            };
+          }
+          // Preceding user message
+          if (idx === assistantIdx - 1 && msg.role === "user") {
+            return {
+              ...msg,
+              tokens: {
+                promptTokens: userTokens,
+              },
+            };
+          }
+          return msg;
+        });
+      });
     }).then((unlisten) => {
       unlistenMetrics = unlisten;
     });

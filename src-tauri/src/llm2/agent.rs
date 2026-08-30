@@ -2,6 +2,7 @@ use futures_util::StreamExt;
 use rig::tool::PortableTool;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
+use std::io::Write;
 use tauri::{AppHandle, Emitter, Manager};
 
 use super::pending::PendingRequests;
@@ -936,6 +937,8 @@ pub async fn prompt_agent(
   });
 
   let mut accumulated_final_text = String::new();
+  let mut accumulated_eval_tokens = 0u64;
+  let mut latest_prompt_tokens = 0u64;
 
   let has_tools = effective_tools_schema
     .as_array()
@@ -1012,20 +1015,22 @@ pub async fn prompt_agent(
     .await;
 
     println!("[llm2][turn {}] ⏳ Sending request to Ollama (http://localhost:11434/api/chat)...", turn);
-
-    use std::io::Write;
     let req_start_time = std::time::Instant::now();
-
-    let response = client
+    let res = match client
       .post("http://localhost:11434/api/chat")
       .json(&request_body)
       .send()
       .await
-      .map_err(|e| format!("Failed to connect to Ollama (http://localhost:11434): {}", e))?;
+    {
+      Ok(r) => r,
+      Err(e) => {
+        return Err(format!("Failed to connect to Ollama at http://localhost:11434: {}", e));
+      }
+    };
 
-    if !response.status().is_success() {
-      let status = response.status();
-      let err_text = response.text().await.unwrap_or_default();
+    let status = res.status();
+    if !status.is_success() {
+      let err_text = res.text().await.unwrap_or_default();
       return Err(format!("Ollama HTTP {}: {}", status, err_text));
     }
 
@@ -1035,25 +1040,16 @@ pub async fn prompt_agent(
       req_start_time.elapsed().as_secs_f64()
     );
 
-    let mut stream = response.bytes_stream();
     let mut turn_text = String::new();
     let mut collected_tool_calls: Vec<OllamaToolCall> = Vec::new();
-    let mut buffer = String::new();
-    let mut first_chunk_received = false;
     let mut stream_token_count = 0usize;
     let mut thinking_token_count = 0usize;
+    let mut first_chunk = true;
+
+    let mut stream = res.bytes_stream();
+    let mut buffer = String::new();
 
     while let Some(chunk_res) = stream.next().await {
-      if !first_chunk_received {
-        first_chunk_received = true;
-        if let Some(msg_id) = &message_id {
-          let _ = app.emit("llm2_status", json!({
-            "message_id": msg_id,
-            "phase": "streaming",
-            "model": model_to_use,
-          }));
-        }
-      }
       if cancel_flag.load(std::sync::atomic::Ordering::Relaxed) || pending.is_cancelled(message_id.as_deref()) {
         println!("[llm2][turn {}] 🛑 Stream reading cancelled by user.", turn);
         if let Some(msg_id) = &message_id {
@@ -1067,9 +1063,16 @@ pub async fn prompt_agent(
         return Ok(turn_text);
       }
 
-      let chunk = chunk_res.map_err(|e| format!("Stream error: {}", e))?;
-      let text = String::from_utf8_lossy(&chunk);
-      buffer.push_str(&text);
+      let chunk = match chunk_res {
+        Ok(c) => c,
+        Err(e) => {
+          eprintln!("[llm2][turn {}] Error reading stream chunk: {}", turn, e);
+          break;
+        }
+      };
+
+      let chunk_str = String::from_utf8_lossy(&chunk);
+      buffer.push_str(&chunk_str);
 
       while let Some(pos) = buffer.find('\n') {
         let line = buffer[..pos].trim().to_string();
@@ -1080,13 +1083,13 @@ pub async fn prompt_agent(
         }
 
         if let Ok(val) = serde_json::from_str::<serde_json::Value>(&line) {
-          if !first_chunk_received {
-            first_chunk_received = true;
+          if first_chunk {
             println!(
               "[llm2][turn {}] ⚡ First stream chunk received in {:.2}s. Streaming live output:",
               turn,
               req_start_time.elapsed().as_secs_f64()
             );
+            first_chunk = false;
           }
 
           // Parse token metrics when stream chunk reports done
@@ -1098,13 +1101,17 @@ pub async fn prompt_agent(
               turn, prompt_eval, eval, stream_token_count + thinking_token_count
             );
             if prompt_eval > 0 || eval > 0 {
-              let total = prompt_eval + eval;
+              if prompt_eval > 0 {
+                latest_prompt_tokens = prompt_eval;
+              }
+              accumulated_eval_tokens += eval;
+              let total = latest_prompt_tokens + accumulated_eval_tokens;
               let percent = (total as f64 / num_ctx_to_use as f64) * 100.0;
               if let Some(msg_id) = &message_id {
                 let _ = app.emit("llm2_metrics", json!({
                   "message_id": msg_id,
-                  "prompt_tokens": prompt_eval,
-                  "completion_tokens": eval,
+                  "prompt_tokens": latest_prompt_tokens,
+                  "completion_tokens": accumulated_eval_tokens,
                   "total_tokens": total,
                   "num_ctx": num_ctx_to_use,
                   "percent_consumed": (percent * 10.0).round() / 10.0,
@@ -1115,7 +1122,7 @@ pub async fn prompt_agent(
           }
 
           if let Some(msg) = val.get("message") {
-            // Regular content delta
+            // Text delta
             if let Some(content) = msg.get("content").and_then(|c| c.as_str()) {
               if !content.is_empty() {
                 stream_token_count += 1;
@@ -1132,7 +1139,7 @@ pub async fn prompt_agent(
               }
             }
 
-            // Thinking delta (for reasoning models)
+            // Thinking delta
             if let Some(thinking) = msg.get("thinking").and_then(|t| t.as_str()) {
               if !thinking.is_empty() {
                 thinking_token_count += 1;
@@ -1174,13 +1181,17 @@ pub async fn prompt_agent(
           let prompt_eval = val.get("prompt_eval_count").and_then(|v| v.as_u64()).unwrap_or(0);
           let eval = val.get("eval_count").and_then(|v| v.as_u64()).unwrap_or(0);
           if prompt_eval > 0 || eval > 0 {
-            let total = prompt_eval + eval;
+            if prompt_eval > 0 {
+              latest_prompt_tokens = prompt_eval;
+            }
+            accumulated_eval_tokens += eval;
+            let total = latest_prompt_tokens + accumulated_eval_tokens;
             let percent = (total as f64 / num_ctx_to_use as f64) * 100.0;
             if let Some(msg_id) = &message_id {
               let _ = app.emit("llm2_metrics", json!({
                 "message_id": msg_id,
-                "prompt_tokens": prompt_eval,
-                "completion_tokens": eval,
+                "prompt_tokens": latest_prompt_tokens,
+                "completion_tokens": accumulated_eval_tokens,
                 "total_tokens": total,
                 "num_ctx": num_ctx_to_use,
                 "percent_consumed": (percent * 10.0).round() / 10.0,

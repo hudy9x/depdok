@@ -69,16 +69,33 @@ pub async fn prompt_agent(
 
   let effective_tools_schema = filter_tools_schema(json!(all_tools_vec), allowed_tools.as_ref());
 
-  // 2. Prepare optimized conversation history (stripping prior <think> scratchpads)
-  let mut history = prepare_agent_history(
+  // 2. Prepare optimized conversation history & apply sliding window budgeting
+  let (mut history, sliding_res) = prepare_agent_history(
     &model_to_use,
     &content_model_to_use,
     prompt,
     initial_history,
     system_prompt_addendum,
     mcp_manager.as_deref(),
+    num_ctx_to_use,
+    Some(&effective_tools_schema),
   )
   .await;
+
+  if sliding_res.pruned_turns > 0 {
+    if let Some(msg_id) = &message_id {
+      let _ = app.emit(
+        "llm2_sliding_window",
+        json!({
+          "message_id": msg_id,
+          "pruned_turns": sliding_res.pruned_turns,
+          "retained_turns": sliding_res.retained_turns,
+          "num_ctx": num_ctx_to_use,
+          "estimated_tokens": sliding_res.estimated_tokens,
+        }),
+      );
+    }
+  }
 
   let mut accumulated_final_text = String::new();
   let mut metrics = StreamMetrics {

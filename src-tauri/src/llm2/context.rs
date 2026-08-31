@@ -1,3 +1,4 @@
+use super::sliding_window::{apply_sliding_window, SlidingWindowResult};
 use super::system_prompt::build_system_prompt;
 use super::types::OllamaMessage;
 use crate::mcp_client::McpClientManager;
@@ -39,7 +40,8 @@ pub fn truncate_tool_payload(content: &str, max_chars: usize) -> String {
   )
 }
 
-/// Prepares the complete, sanitized conversation history vector for the Ollama chat turn.
+/// Prepares the complete, sanitized conversation history vector for the Ollama chat turn,
+/// applying sliding window budgeting dynamically based on `num_ctx`.
 pub async fn prepare_agent_history(
   model_to_use: &str,
   content_model_to_use: &str,
@@ -47,7 +49,9 @@ pub async fn prepare_agent_history(
   initial_history: Option<Vec<OllamaMessage>>,
   system_prompt_addendum: Option<String>,
   mcp_manager: Option<&McpClientManager>,
-) -> Vec<OllamaMessage> {
+  num_ctx: usize,
+  tools_schema: Option<&serde_json::Value>,
+) -> (Vec<OllamaMessage>, SlidingWindowResult) {
   let mut system_content = build_system_prompt(model_to_use, content_model_to_use);
 
   // Inject active MCP servers & discovered tools info
@@ -80,15 +84,14 @@ pub async fn prepare_agent_history(
     }
   }
 
-  let mut history: Vec<OllamaMessage> = vec![
-    OllamaMessage {
-      role: "system".to_string(),
-      content: system_content,
-      tool_calls: None,
-    },
-  ];
+  let system_message = OllamaMessage {
+    role: "system".to_string(),
+    content: system_content,
+    tool_calls: None,
+  };
 
-  // Append cleaned prior messages
+  // Clean prior messages (strip thoughts & truncate tool payloads)
+  let mut cleaned_prior_messages: Vec<OllamaMessage> = Vec::new();
   if let Some(prev_messages) = initial_history {
     for mut msg in prev_messages {
       if msg.role == "system" {
@@ -105,16 +108,24 @@ pub async fn prepare_agent_history(
         msg.content = truncate_tool_payload(&msg.content, MAX_TOOL_PAYLOAD_CHARS);
       }
 
-      history.push(msg);
+      cleaned_prior_messages.push(msg);
     }
   }
 
-  // Append active user prompt
-  history.push(OllamaMessage {
+  let active_user_prompt = OllamaMessage {
     role: "user".to_string(),
     content: prompt.to_string(),
     tool_calls: None,
-  });
+  };
 
-  history
+  // Apply sliding window with dynamic num_ctx budget
+  let sliding_res = apply_sliding_window(
+    system_message,
+    cleaned_prior_messages,
+    active_user_prompt,
+    num_ctx,
+    tools_schema,
+  );
+
+  (sliding_res.messages.clone(), sliding_res)
 }

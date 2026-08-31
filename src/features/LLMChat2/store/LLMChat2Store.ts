@@ -34,6 +34,13 @@ export interface MessagePartTool {
 
 export type MessagePart = MessagePartText | MessagePartTool | MessagePartThought;
 
+export interface SlidingWindowInfo {
+  prunedTurns: number;
+  retainedTurns: number;
+  numCtx: number;
+  estimatedTokens: number;
+}
+
 export interface ChatMessage {
   id: string;
   role: "user" | "assistant" | "system";
@@ -41,6 +48,7 @@ export interface ChatMessage {
   toolCalls?: ToolExecutionLog[];
   parts?: MessagePart[];
   timestamp: Date;
+  slidingWindow?: SlidingWindowInfo;
   tokens?: {
     promptTokens?: number;
     completionTokens?: number;

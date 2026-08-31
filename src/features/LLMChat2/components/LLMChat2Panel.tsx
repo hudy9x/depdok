@@ -356,12 +356,41 @@ export function LLMChat2Panel() {
       unlistenStatus = unlisten;
     });
 
+    let unlistenSliding: UnlistenFn | null = null;
+
+    listen<{
+      message_id: string;
+      pruned_turns: number;
+      retained_turns: number;
+      num_ctx: number;
+      estimated_tokens: number;
+    }>("llm2_sliding_window", (event) => {
+      const { message_id, pruned_turns, retained_turns, num_ctx, estimated_tokens } = event.payload;
+      setMessages((prev) =>
+        prev.map((msg) => {
+          if (msg.id !== message_id) return msg;
+          return {
+            ...msg,
+            slidingWindow: {
+              prunedTurns: pruned_turns,
+              retainedTurns: retained_turns,
+              numCtx: num_ctx,
+              estimatedTokens: estimated_tokens,
+            },
+          };
+        })
+      );
+    }).then((unlisten) => {
+      unlistenSliding = unlisten;
+    });
+
     return () => {
       unlistenToken?.();
       unlistenThought?.();
       unlistenDone?.();
       unlistenMetrics?.();
       unlistenStatus?.();
+      unlistenSliding?.();
     };
   }, [enqueueToken, enqueueThought, flushTokens, setMessages, setMetrics, setGenerationStatus]);
 

@@ -122,6 +122,7 @@ export const AssistantChatMessage: React.FC<AssistantChatMessageProps> = ({
         <AssistantThinkingIndicator
           isGenerating={isGenerating}
           activeToolCall={activeToolCall}
+          hasStreamedContent={hasParts || hasContent || hasToolCalls}
         />
 
         {/* Empty state when done and nothing produced */}

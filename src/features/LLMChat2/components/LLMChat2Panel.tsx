@@ -247,6 +247,7 @@ export function LLMChat2Panel() {
     listen<{ message_id: string; chunk: string }>("llm2_token", (event) => {
       const { message_id, chunk } = event.payload;
       enqueueToken(message_id, chunk);
+      setGenerationStatus((prev) => (prev.phase === "loading_model" ? { phase: "streaming" } : prev));
     }).then((unlisten) => {
       unlistenToken = unlisten;
     });
@@ -254,6 +255,7 @@ export function LLMChat2Panel() {
     listen<{ message_id: string; chunk: string }>("llm2_thought", (event) => {
       const { message_id, chunk } = event.payload;
       enqueueThought(message_id, chunk);
+      setGenerationStatus((prev) => (prev.phase === "loading_model" ? { phase: "streaming" } : prev));
     }).then((unlisten) => {
       unlistenThought = unlisten;
     });

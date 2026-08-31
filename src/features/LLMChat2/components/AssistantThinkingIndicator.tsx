@@ -14,25 +14,25 @@ export interface AssistantThinkingIndicatorProps {
   className?: string;
   defaultText?: string;
   generationStatus?: GenerationStatus;
+  hasStreamedContent?: boolean;
 }
 
-const MODEL_LOADING_PHRASES = [
-  "Ollama is loading {model} model into memory...",
-  "Warming up model weights from disk...",
-  "Allocating context memory buffers...",
-  "Initializing neural graph & layers...",
-  "Almost ready, finalizing load...",
+const SYNTHESIZING_PHRASES = [
+  "Synthesizing response from Ollama",
+  "Reasoning through options",
+  "Analyzing context & instructions",
+  "Connecting ideas & knowledge",
+  "Formulating solution",
+  "Drafting response",
+  "Deliberating next steps",
+  "Synthesizing findings",
 ];
 
-const SYNTHESIZING_PHRASES = [
-  "Synthesizing response from Ollama...",
-  "Pondering the solution...",
-  "Analyzing context & instructions...",
-  "Reasoning through options...",
-  "Connecting thoughts...",
-  "Formulating answer...",
-  "Deliberating next steps...",
-  "Drafting response...",
+const MODEL_LOADING_PHRASES = [
+  "Ollama is loading {model} into memory",
+  "Warming up model layers",
+  "Allocating memory buffers",
+  "Initializing model graph",
 ];
 
 function resolveOrbState(toolName?: string, phase?: string): OrbState {
@@ -84,32 +84,27 @@ export const AssistantThinkingIndicator: React.FC<AssistantThinkingIndicatorProp
   isGenerating = false,
   activeToolCall = null,
   className = "",
-  defaultText = "Synthesizing response from Ollama...",
+  defaultText = "Synthesizing response from Ollama",
   generationStatus: propStatus,
+  hasStreamedContent = false,
 }) => {
   const storeStatus = useAtomValue(chat2GenerationStatusAtom);
   const status = propStatus || storeStatus;
 
   const [phraseIndex, setPhraseIndex] = useState(0);
-  const [fadeState, setFadeState] = useState<"visible" | "fading">("visible");
 
   const isToolExecuting = Boolean(activeToolCall);
 
-  // Cycle phrases every 1.5s (1500ms) while generating
+  // Cycle phrases smoothly every 2.4s while generating
   useEffect(() => {
     if (!isGenerating || isToolExecuting) {
       setPhraseIndex(0);
-      setFadeState("visible");
       return;
     }
 
     const interval = setInterval(() => {
-      setFadeState("fading");
-      setTimeout(() => {
-        setPhraseIndex((prev) => prev + 1);
-        setFadeState("visible");
-      }, 200);
-    }, 3000);
+      setPhraseIndex((prev) => prev + 1);
+    }, 2400);
 
     return () => clearInterval(interval);
   }, [isGenerating, isToolExecuting]);
@@ -120,7 +115,7 @@ export const AssistantThinkingIndicator: React.FC<AssistantThinkingIndicatorProp
 
   const displayText = useMemo(() => {
     if (activeToolCall?.toolName) {
-      return `Executing ${activeToolCall.toolName}...`;
+      return `Executing ${activeToolCall.toolName}`;
     }
 
     if (status.phase === "loading_model") {
@@ -137,21 +132,40 @@ export const AssistantThinkingIndicator: React.FC<AssistantThinkingIndicatorProp
     return defaultText;
   }, [activeToolCall?.toolName, status.phase, status.model, phraseIndex, isGenerating, defaultText]);
 
-  if (!isGenerating) {
+  // Hide the indicator if not generating, or if model has started streaming content/thoughts and no tool is executing
+  if (!isGenerating || (hasStreamedContent && !activeToolCall)) {
     return null;
   }
 
+  const isLoadingModel = status.phase === "loading_model";
+
   return (
     <div
-      className={`flex items-center gap-2 text-muted-foreground py-0.5 ${className}`.trim()}
+      className={`flex items-center gap-2 text-muted-foreground py-0.5 select-none isolate ${className}`.trim()}
     >
-      <ThinkingOrb size={20} state={orbState} />
-      <span
-        className={`text-[11px] select-none transition-opacity duration-150 ${fadeState === "fading" ? "opacity-30" : "opacity-100"
-          } ${status.phase === "loading_model" ? "text-amber-500/90 font-medium" : ""}`}
-      >
-        {displayText}
-      </span>
+      <div className="shrink-0 flex items-center justify-center">
+        <ThinkingOrb size={20} state={orbState} />
+      </div>
+
+      <div className="flex items-center gap-1 min-w-0 overflow-hidden">
+        <span
+          key={displayText}
+          className={`text-[11px] font-sans truncate animate-in fade-in slide-in-from-bottom-0.5 duration-200 inline-block ${
+            isLoadingModel
+              ? "text-amber-500/90 font-medium"
+              : "text-muted-foreground/85"
+          }`}
+        >
+          {displayText}
+        </span>
+
+        {/* Dynamic pulsing ellipsis animation to show active processing */}
+        <span className="flex items-center text-[11px] tracking-widest text-muted-foreground/70 font-mono select-none">
+          <span className="animate-pulse duration-700">.</span>
+          <span className="animate-pulse duration-700 delay-150">.</span>
+          <span className="animate-pulse duration-700 delay-300">.</span>
+        </span>
+      </div>
     </div>
   );
 };

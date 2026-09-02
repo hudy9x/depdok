@@ -7,6 +7,7 @@ import {
   chat2IsStatefulAtom,
   chat2AutoCompactAtom,
   chat2SlidingWindowAtom,
+  chat2ShowClassifierAtom,
   isCompactingAtom,
 } from "../store/LLMChat2Store";
 import { McpStatusPopover } from "./McpStatusPopover";
@@ -79,6 +80,7 @@ export function ContextUsageGauge({
   const [isStateful, setIsStateful] = useAtom(chat2IsStatefulAtom);
   const [autoCompact, setAutoCompact] = useAtom(chat2AutoCompactAtom);
   const [slidingWindowEnabled, setSlidingWindowEnabled] = useAtom(chat2SlidingWindowAtom);
+  const [showClassifier, setShowClassifier] = useAtom(chat2ShowClassifierAtom);
 
   const activeLimit = metrics ? metrics.numCtx : numCtx;
   const targetPercent = metrics ? metrics.percentConsumed : 0;
@@ -231,6 +233,21 @@ export function ContextUsageGauge({
                 <Switch
                   checked={isStateful}
                   onCheckedChange={setIsStateful}
+                  className="scale-75 origin-right cursor-pointer shrink-0"
+                />
+              </div>
+
+              {/* Show Tool Classifier Debug Bar Switch */}
+              <div className="flex items-center justify-between">
+                <div className="flex flex-col pr-2">
+                  <span className="text-xs font-semibold text-foreground">Tool Classifier Bar</span>
+                  <span className="text-[10px] text-muted-foreground leading-tight">
+                    Shows real-time predicted tools above input box
+                  </span>
+                </div>
+                <Switch
+                  checked={showClassifier}
+                  onCheckedChange={setShowClassifier}
                   className="scale-75 origin-right cursor-pointer shrink-0"
                 />
               </div>

@@ -1,6 +1,7 @@
 import React, { useMemo, useEffect } from "react";
 import { Sparkles, Terminal, RefreshCw, Wrench } from "lucide-react";
 import { Skill } from "../store/LLMChat2Store";
+import { TOOL_CATALOG } from "../tools/toolCatalog";
 
 export type SlashItem =
   | {
@@ -13,6 +14,12 @@ export type SlashItem =
       name: string;
       description: string;
       skill: Skill;
+    }
+  | {
+      type: "tool";
+      name: string; // "tool:create_file"
+      toolName: string; // "create_file"
+      description: string;
     };
 
 interface SlashCommandPopupProps {
@@ -58,7 +65,7 @@ function getFuzzyScore(query: string, name: string, description: string): number
   if (nRaw.includes(query.toLowerCase()) || nClean.includes(q)) return 600;
 
   // 4. Acronym match (e.g. "sc" -> "skill-creator", "sr" -> "skill-reload")
-  const parts = nRaw.split("-");
+  const parts = nRaw.split(/[-_:]/);
   const acronym = parts.map((p) => p[0]).join("");
   if (acronym.startsWith(q)) return 500;
 
@@ -122,6 +129,27 @@ export const SlashCommandPopup: React.FC<SlashCommandPopupProps> = ({
       }
     }
 
+    // Tools with "tool:<tool-name>" prefix for search and explicit override
+    for (const tool of TOOL_CATALOG) {
+      const prefixedName = `tool:${tool.name}`;
+      // Also match against pure tool name or prefixed name
+      const scorePrefixed = getFuzzyScore(cleanQuery, prefixedName, tool.description);
+      const scoreRaw = getFuzzyScore(cleanQuery, tool.name, tool.description);
+      const score = Math.max(scorePrefixed ?? -1, scoreRaw ?? -1);
+
+      if (score >= 0) {
+        all.push({
+          item: {
+            type: "tool",
+            name: prefixedName,
+            toolName: tool.name,
+            description: tool.description,
+          },
+          score,
+        });
+      }
+    }
+
     // Sort by relevance score descending
     all.sort((a, b) => b.score - a.score);
 
@@ -143,7 +171,7 @@ export const SlashCommandPopup: React.FC<SlashCommandPopupProps> = ({
         <div className="flex items-center gap-1.5">
           <Sparkles className="w-3 h-3 text-amber-500" />
           <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-            Commands & Skills (/)
+            Commands, Skills & Tools (/)
           </span>
         </div>
         <div className="flex items-center gap-1.5">
@@ -163,13 +191,14 @@ export const SlashCommandPopup: React.FC<SlashCommandPopupProps> = ({
 
       {items.length === 0 ? (
         <div className="py-3 text-center text-xs text-muted-foreground">
-          No commands or skills matching &quot;/{query}&quot;
+          No commands, skills or tools matching &quot;/{query}&quot;
         </div>
       ) : (
         <div className="space-y-0.5">
           {items.map((item, idx) => {
             const isSelected = idx === selectedIndex;
             const isCommand = item.type === "command";
+            const isTool = item.type === "tool";
 
             return (
               <button
@@ -183,7 +212,9 @@ export const SlashCommandPopup: React.FC<SlashCommandPopupProps> = ({
                 }`}
               >
                 <div className="shrink-0">
-                  {isCommand ? (
+                  {isTool ? (
+                    <Wrench className="w-3.5 h-3.5 text-blue-500" />
+                  ) : isCommand ? (
                     item.name === "skill-reload" ? (
                       <RefreshCw className="w-3.5 h-3.5 text-muted-foreground" />
                     ) : (
@@ -199,8 +230,16 @@ export const SlashCommandPopup: React.FC<SlashCommandPopupProps> = ({
                     <span className="font-semibold font-mono tracking-tight text-xs">
                       /{item.name}
                     </span>
-                    <span className="text-[9px] uppercase px-1 py-0.2 rounded font-mono font-medium bg-muted text-muted-foreground">
-                      {isCommand ? "Command" : "Skill"}
+                    <span
+                      className={`text-[9px] uppercase px-1 py-0.2 rounded font-mono font-medium ${
+                        isTool
+                          ? "bg-blue-500/10 text-blue-500 border border-blue-500/20"
+                          : isCommand
+                          ? "bg-muted text-muted-foreground"
+                          : "bg-purple-500/10 text-purple-500 border border-purple-500/20"
+                      }`}
+                    >
+                      {isTool ? "Tool" : isCommand ? "Command" : "Skill"}
                     </span>
                   </div>
                   <p className="text-[11px] text-muted-foreground truncate mt-0.5">

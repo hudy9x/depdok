@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { useAtom } from "jotai";
 import { cn } from "@/lib/utils";
-import { chat2WebSearchEnabledAtom, chat2ThinkingEnabledAtom } from "../store/LLMChat2Store";
+import { chat2WebSearchEnabledAtom, chat2ThinkingEnabledAtom, chat2ShowClassifierAtom } from "../store/LLMChat2Store";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,6 +23,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ModelSelector } from "./ModelSelector";
+import { ToolClassifierDebugBar } from "./ToolClassifierDebugBar";
 
 export interface LLMChat2InputProps {
   inputVal: string;
@@ -47,6 +48,7 @@ export const LLMChat2Input: React.FC<LLMChat2InputProps> = ({
 }) => {
   const [isWebSearchEnabled, setIsWebSearchEnabled] = useAtom(chat2WebSearchEnabledAtom);
   const [isThinkingEnabled, setIsThinkingEnabled] = useAtom(chat2ThinkingEnabledAtom);
+  const [showClassifier] = useAtom(chat2ShowClassifierAtom);
   const localRef = useRef<HTMLTextAreaElement>(null);
   const textareaRef = inputRef || localRef;
 
@@ -98,6 +100,9 @@ export const LLMChat2Input: React.FC<LLMChat2InputProps> = ({
 
   return (
     <div className="relative flex flex-col bg-background/95 border border-border/80 rounded-2xl p-2.5 shadow-xs focus-within:border-ring/70 focus-within:ring-1 focus-within:ring-ring/20 transition-all">
+      {/* Real-time Tool Classifier Debug Bar */}
+      {showClassifier && <ToolClassifierDebugBar inputVal={inputVal} />}
+
       {/* Top Input Area */}
       <textarea
         ref={textareaRef}

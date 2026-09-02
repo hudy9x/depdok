@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useAtom } from "jotai";
 import { invoke } from "@tauri-apps/api/core";
-import { Sparkles, RefreshCw, Layers, ChevronDown, Check, PenTool, Bot } from "lucide-react";
+import { Sparkles, RefreshCw, Layers, Check, PenTool, Bot } from "lucide-react";
 import {
   Qwen,
   Gemma,
@@ -207,22 +207,10 @@ export function ModelSelector() {
       <PopoverTrigger asChild>
         <button
           type="button"
-          className="chat2-model-selector-btn h-6 w-auto flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-muted/40 hover:bg-muted/70 border border-border/50 text-[11px] font-mono text-foreground transition-colors cursor-pointer select-none"
+          className="chat2-input-action-btn h-7 w-7 rounded-xl border border-border/60 bg-muted/30 hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors cursor-pointer shrink-0 select-none"
           title={`Active Models: Main (${mainDisplayName}) | Content Writer (${contentDisplayName})`}
         >
-          <div className="chat2-model-main flex items-center gap-1">
-            {renderModelAvatar(model, 13)}
-            <span className="chat2-model-main-label font-medium truncate max-w-[95px]">{mainDisplayName}</span>
-          </div>
-
-          <span className="chat2-model-slash text-muted-foreground/40 text-[10px] select-none">/</span>
-
-          <div className="chat2-model-content flex items-center gap-1 text-muted-foreground">
-            {renderModelAvatar(contentModel, 13)}
-            <span className="chat2-model-content-label truncate max-w-[85px]">{contentDisplayName}</span>
-          </div>
-
-          <ChevronDown className="h-3 w-3 opacity-60 shrink-0 ml-0.5" />
+          {renderModelAvatar(model, 16)}
         </button>
       </PopoverTrigger>
 

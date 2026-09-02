@@ -236,11 +236,9 @@ export const LLMChat2Input: React.FC<LLMChat2InputProps> = ({
         </div>
 
         {/* Right Side: Model Selector & Send / Stop Button */}
-        <div className="chat2-input-actions-right flex items-center gap-2 shrink-0">
+        <div className="chat2-input-actions-right flex items-center gap-1.5 shrink-0">
           {/* Inline Compact Model Selector */}
-          <div className="scale-95 origin-right">
-            <ModelSelector />
-          </div>
+          <ModelSelector />
 
           {/* Send Up-Arrow or Stop Square Button */}
           {isGenerating ? (

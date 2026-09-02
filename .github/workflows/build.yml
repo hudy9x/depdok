@@ -8,6 +8,9 @@ on:
     paths:
       - 'src-tauri/**'
       - 'src/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+
 env:
   NODE_OPTIONS: '--max-old-space-size=6144'
 

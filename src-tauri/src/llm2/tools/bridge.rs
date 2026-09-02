@@ -4,7 +4,7 @@ use std::time::Duration;
 use tauri::{AppHandle, Emitter};
 use uuid::Uuid;
 
-use crate::llm2::pending::PendingRequests;
+use crate::llm2::runtime::PendingRequests;
 
 #[derive(Debug)]
 pub struct ToolBridgeError(pub String);

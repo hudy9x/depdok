@@ -1,26 +1,35 @@
-use super::sliding_window::{apply_sliding_window, SlidingWindowResult};
-use super::system_prompt::build_system_prompt;
-use super::types::OllamaMessage;
+pub mod compact;
+pub mod sliding_window;
+pub mod system_prompt;
+
+#[allow(unused_imports)]
+pub use compact::{compact_full_history, compact_tool_payloads, CompactedResult};
+#[allow(unused_imports)]
+pub use sliding_window::{apply_sliding_window, estimate_message_tokens, estimate_tokens, SlidingWindowResult};
+pub use system_prompt::build_system_prompt;
+
+use crate::llm2::types::OllamaMessage;
 use crate::mcp_client::McpClientManager;
 
-/// Default character limit for tool execution payloads in history.
+/// Default maximum characters allowed in a historical tool result payload before truncation.
 pub const MAX_TOOL_PAYLOAD_CHARS: usize = 3000;
 
-/// Strips `<think>...</think>` internal reasoning tags from assistant message content
-/// so previous turns do not bloat the context window during multi-turn conversations.
+/// Strips reasoning/planning `<think>...</think>` tags from a message string.
 pub fn strip_thinking_tags(text: &str) -> String {
-  let mut result = String::with_capacity(text.len());
+  let mut result = String::new();
   let mut remaining = text;
+
   while let Some(start) = remaining.find("<think>") {
     result.push_str(&remaining[..start]);
     if let Some(end) = remaining[start..].find("</think>") {
       remaining = &remaining[start + end + 8..];
     } else {
-      // Unclosed think tag: omit remainder
+      // Unclosed think tag: discard the rest
       remaining = "";
       break;
     }
   }
+
   result.push_str(remaining);
   result.trim().to_string()
 }
@@ -41,7 +50,7 @@ pub fn truncate_tool_payload(content: &str, max_chars: usize) -> String {
 }
 
 /// Prepares the complete, sanitized conversation history vector for the Ollama chat turn,
-/// applying sliding window budgeting dynamically based on `num_ctx`.
+/// applying tool folding and sliding window budgeting dynamically based on `num_ctx`.
 pub async fn prepare_agent_history(
   model_to_use: &str,
   content_model_to_use: &str,
@@ -51,6 +60,8 @@ pub async fn prepare_agent_history(
   mcp_manager: Option<&McpClientManager>,
   num_ctx: usize,
   tools_schema: Option<&serde_json::Value>,
+  auto_compact: bool,
+  sliding_window_enabled: bool,
 ) -> (Vec<OllamaMessage>, SlidingWindowResult) {
   let mut system_content = build_system_prompt(model_to_use, content_model_to_use);
 
@@ -112,20 +123,47 @@ pub async fn prepare_agent_history(
     }
   }
 
+  // If auto-compact is enabled, fold historical tool outputs to save context
+  let (folded_count, chars_saved) = if auto_compact {
+    compact_tool_payloads(&mut cleaned_prior_messages)
+  } else {
+    (0, 0)
+  };
+
   let active_user_prompt = OllamaMessage {
     role: "user".to_string(),
     content: prompt.to_string(),
     tool_calls: None,
   };
 
-  // Apply sliding window with dynamic num_ctx budget
-  let sliding_res = apply_sliding_window(
-    system_message,
-    cleaned_prior_messages,
-    active_user_prompt,
-    num_ctx,
-    tools_schema,
-  );
+  if sliding_window_enabled {
+    let mut sliding_res = apply_sliding_window(
+      system_message,
+      cleaned_prior_messages,
+      active_user_prompt,
+      num_ctx,
+      tools_schema,
+    );
+    sliding_res.folded_tools_count = folded_count;
+    sliding_res.folded_chars_saved = chars_saved;
+    (sliding_res.messages.clone(), sliding_res)
+  } else {
+    let retained_count = cleaned_prior_messages.len();
+    let mut all_msgs = Vec::with_capacity(2 + retained_count);
+    all_msgs.push(system_message.clone());
+    all_msgs.extend(cleaned_prior_messages);
+    all_msgs.push(active_user_prompt.clone());
 
-  (sliding_res.messages.clone(), sliding_res)
+    let est_tokens: usize = all_msgs.iter().map(estimate_message_tokens).sum();
+
+    let sliding_res = SlidingWindowResult {
+      messages: all_msgs.clone(),
+      pruned_turns: 0,
+      retained_turns: retained_count,
+      estimated_tokens: est_tokens,
+      folded_tools_count: folded_count,
+      folded_chars_saved: chars_saved,
+    };
+    (all_msgs, sliding_res)
+  }
 }

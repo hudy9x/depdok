@@ -1064,6 +1064,7 @@ pub fn run() {
             llm2::commands::llm2_send_message,
             llm2::commands::llm2_tool_result,
             llm2::commands::llm2_cancel_generation,
+            llm2::commands::llm2_compact_history,
             llm2::commands::llm2_list_models,
             llm2::commands::llm2_skill_setup,
             llm2::commands::llm2_skill_reload,

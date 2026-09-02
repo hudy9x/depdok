@@ -37,8 +37,17 @@ export type MessagePart = MessagePartText | MessagePartTool | MessagePartThought
 export interface SlidingWindowInfo {
   prunedTurns: number;
   retainedTurns: number;
+  foldedTools?: number;
+  charsSaved?: number;
   numCtx: number;
   estimatedTokens: number;
+}
+
+export interface CompactedInfo {
+  summary: string;
+  originalTurns: number;
+  estimatedTokensBefore: number;
+  estimatedTokensAfter: number;
 }
 
 export interface ChatMessage {
@@ -49,6 +58,7 @@ export interface ChatMessage {
   parts?: MessagePart[];
   timestamp: Date;
   slidingWindow?: SlidingWindowInfo;
+  compacted?: CompactedInfo;
   tokens?: {
     promptTokens?: number;
     completionTokens?: number;
@@ -85,6 +95,9 @@ export const chat2NumCtxAtom = atomWithStorage<number>("llm2_num_ctx", 16384, lo
 export const chat2PanelWidthAtom = atomWithStorage<number>("llm2_panel_width", 420, localStorageDriver);
 export const chat2WebSearchEnabledAtom = atomWithStorage<boolean>("llm2_web_search_enabled", false, localStorageDriver);
 export const chat2ThinkingEnabledAtom = atomWithStorage<boolean>("llm2_thinking_enabled", true, localStorageDriver);
+export const chat2AutoCompactAtom = atomWithStorage<boolean>("llm2_auto_compact", true, localStorageDriver);
+export const chat2SlidingWindowAtom = atomWithStorage<boolean>("llm2_sliding_window_enabled", true, localStorageDriver);
+export const isCompactingAtom = atom<boolean>(false);
 export const chat2MetricsAtom = atom<ContextMetrics | null>(null);
 
 // Skill state

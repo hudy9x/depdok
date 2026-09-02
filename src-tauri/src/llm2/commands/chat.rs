@@ -1,7 +1,7 @@
 use tauri::{AppHandle, State};
 
 use crate::llm2::agent::prompt_agent;
-use crate::llm2::pending::{PendingRequests, ToolResultResponse};
+use crate::llm2::runtime::{PendingRequests, ToolResultResponse};
 use crate::llm2::types::OllamaMessage;
 
 #[tauri::command]
@@ -15,6 +15,8 @@ pub async fn llm2_send_message(
   system_prompt_addendum: Option<String>,
   allowed_tools: Option<Vec<String>>,
   think: Option<bool>,
+  auto_compact: Option<bool>,
+  sliding_window: Option<bool>,
   state: State<'_, PendingRequests>,
   app: AppHandle,
 ) -> Result<String, String> {
@@ -31,6 +33,8 @@ pub async fn llm2_send_message(
     system_prompt_addendum,
     allowed_tools,
     think,
+    auto_compact,
+    sliding_window,
   )
   .await
 }

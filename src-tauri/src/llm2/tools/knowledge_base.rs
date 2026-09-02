@@ -4,7 +4,7 @@ use serde_json::json;
 use tauri::AppHandle;
 
 use super::bridge::{call_frontend_tool, ToolBridgeError};
-use crate::llm2::pending::PendingRequests;
+use crate::llm2::runtime::PendingRequests;
 
 // SearchKnowledgeBaseTool
 #[derive(Clone)]

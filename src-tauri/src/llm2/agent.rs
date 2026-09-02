@@ -4,7 +4,7 @@ use tauri::{AppHandle, Emitter, Manager};
 
 use super::clients::ollama::{stream_chat_turn, StreamMetrics};
 use super::context::prepare_agent_history;
-use super::pending::PendingRequests;
+use super::runtime::PendingRequests;
 use super::tools::{dispatch_tool_call, filter_tools_schema, get_builtin_tools_schema};
 use crate::mcp_client::McpClientManager;
 
@@ -14,7 +14,7 @@ pub const NUM_CTX: usize = 16384;
 pub const MAX_AGENT_TURNS: usize = 15;
 
 #[allow(unused_imports)]
-pub use super::system_prompt::build_system_prompt;
+pub use super::context::build_system_prompt;
 pub use super::types::OllamaMessage;
 
 /// Primary orchestrator for the LLM2 agent.
@@ -31,6 +31,8 @@ pub async fn prompt_agent(
   system_prompt_addendum: Option<String>,
   allowed_tools: Option<Vec<String>>,
   think: Option<bool>,
+  auto_compact: Option<bool>,
+  sliding_window: Option<bool>,
 ) -> Result<String, String> {
   let model_to_use = model_name
     .filter(|s| !s.trim().is_empty())
@@ -39,10 +41,12 @@ pub async fn prompt_agent(
     .filter(|s| !s.trim().is_empty())
     .unwrap_or_else(|| CONTENT_MODEL.to_string());
   let num_ctx_to_use = num_ctx.unwrap_or(NUM_CTX);
+  let auto_compact_enabled = auto_compact.unwrap_or(true);
+  let sliding_window_enabled = sliding_window.unwrap_or(true);
 
   println!(
-    "[llm2][agent] Starting prompt with tool model '{}' (content model '{}', num_ctx {}): {:?}",
-    model_to_use, content_model_to_use, num_ctx_to_use, prompt
+    "[llm2][agent] Starting prompt with tool model '{}' (content model '{}', num_ctx {}, auto_compact {}, sliding_window {}): {:?}",
+    model_to_use, content_model_to_use, num_ctx_to_use, auto_compact_enabled, sliding_window_enabled, prompt
   );
 
   let cancel_flag = match &message_id {
@@ -79,10 +83,12 @@ pub async fn prompt_agent(
     mcp_manager.as_deref(),
     num_ctx_to_use,
     Some(&effective_tools_schema),
+    auto_compact_enabled,
+    sliding_window_enabled,
   )
   .await;
 
-  if sliding_res.pruned_turns > 0 {
+  if sliding_res.pruned_turns > 0 || sliding_res.folded_tools_count > 0 {
     if let Some(msg_id) = &message_id {
       let _ = app.emit(
         "llm2_sliding_window",
@@ -90,11 +96,30 @@ pub async fn prompt_agent(
           "message_id": msg_id,
           "pruned_turns": sliding_res.pruned_turns,
           "retained_turns": sliding_res.retained_turns,
+          "folded_tools": sliding_res.folded_tools_count,
+          "chars_saved": sliding_res.folded_chars_saved,
           "num_ctx": num_ctx_to_use,
           "estimated_tokens": sliding_res.estimated_tokens,
         }),
       );
     }
+  }
+
+  // Update frontend token metrics immediately with sanitized context budget
+  if let Some(msg_id) = &message_id {
+    let percent = ((sliding_res.estimated_tokens as f64 / num_ctx_to_use as f64) * 1000.0).round() / 10.0;
+    let _ = app.emit(
+      "llm2_metrics",
+      json!({
+        "message_id": msg_id,
+        "prompt_tokens": sliding_res.estimated_tokens,
+        "completion_tokens": 0,
+        "total_tokens": sliding_res.estimated_tokens,
+        "num_ctx": num_ctx_to_use,
+        "percent_consumed": percent,
+        "remaining_tokens": num_ctx_to_use.saturating_sub(sliding_res.estimated_tokens),
+      }),
+    );
   }
 
   let mut accumulated_final_text = String::new();

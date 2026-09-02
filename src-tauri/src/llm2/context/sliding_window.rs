@@ -1,4 +1,4 @@
-use super::types::OllamaMessage;
+use crate::llm2::types::OllamaMessage;
 
 /// Default fraction of num_ctx allocated for input context history (leaving headroom for generation & tool calls).
 pub const INPUT_CONTEXT_BUDGET_RATIO: f64 = 0.75;
@@ -9,6 +9,8 @@ pub struct SlidingWindowResult {
   pub pruned_turns: usize,
   pub retained_turns: usize,
   pub estimated_tokens: usize,
+  pub folded_tools_count: usize,
+  pub folded_chars_saved: usize,
 }
 
 /// Heuristically estimates the token count of text (approx ~3.5 characters per token for English/Code).
@@ -24,22 +26,32 @@ pub fn estimate_tokens(text: &str) -> usize {
 
 /// Estimates tokens for a single OllamaMessage including tool calls and JSON formatting overhead.
 pub fn estimate_message_tokens(msg: &OllamaMessage) -> usize {
-  let mut tokens = estimate_tokens(&msg.content) + 4; // role & framing overhead
-  if let Some(tcs) = &msg.tool_calls {
-    for tc in tcs {
-      tokens += estimate_tokens(&tc.function.name);
-      tokens += estimate_tokens(&tc.function.arguments.to_string()) + 8;
-    }
-  }
-  tokens
-}
-
-/// Estimates the token footprint of tool schema definitions.
-pub fn estimate_tools_schema_tokens(tools_schema: Option<&serde_json::Value>) -> usize {
-  if let Some(schema) = tools_schema {
-    estimate_tokens(&schema.to_string())
+  let content_tokens = estimate_tokens(&msg.content);
+  let tool_calls_tokens = if let Some(tools) = &msg.tool_calls {
+    tools
+      .iter()
+      .map(|t| {
+        let name_tokens = estimate_tokens(&t.function.name);
+        let args_tokens = estimate_tokens(&t.function.arguments.to_string());
+        name_tokens + args_tokens + 8 // 8 tokens overhead for JSON wrapper
+      })
+      .sum()
   } else {
     0
+  };
+
+  // Role tag + framing overhead (~4 tokens per message)
+  content_tokens + tool_calls_tokens + 4
+}
+
+/// Estimates the total token overhead for the tool definitions schema injected into Ollama.
+pub fn estimate_tools_schema_tokens(tools_schema: Option<&serde_json::Value>) -> usize {
+  match tools_schema {
+    Some(schema) => {
+      let schema_str = schema.to_string();
+      estimate_tokens(&schema_str)
+    }
+    None => 0,
   }
 }
 
@@ -73,19 +85,22 @@ pub fn apply_sliding_window(
       pruned_turns: pruned,
       retained_turns: 0,
       estimated_tokens: baseline_tokens,
+      folded_tools_count: 0,
+      folded_chars_saved: 0,
     };
   }
 
-  let remaining_budget = max_allowed_input_tokens - baseline_tokens;
+  let remaining_history_budget = max_allowed_input_tokens.saturating_sub(baseline_tokens);
 
-  // Iterate backwards from the most recent prior message to the oldest
-  let mut kept_messages_rev: Vec<OllamaMessage> = Vec::new();
   let mut used_history_tokens = 0usize;
+  let mut kept_messages_rev: Vec<OllamaMessage> = Vec::new();
   let mut pruned_count = 0usize;
 
+  // Walk backwards from newest turn to oldest turn
   for msg in prior_messages.into_iter().rev() {
     let msg_tokens = estimate_message_tokens(&msg);
-    if used_history_tokens + msg_tokens <= remaining_budget {
+
+    if used_history_tokens + msg_tokens <= remaining_history_budget {
       used_history_tokens += msg_tokens;
       kept_messages_rev.push(msg);
     } else {
@@ -116,5 +131,7 @@ pub fn apply_sliding_window(
     pruned_turns: pruned_count,
     retained_turns: retained_count,
     estimated_tokens: total_estimated,
+    folded_tools_count: 0,
+    folded_chars_saved: 0,
   }
 }

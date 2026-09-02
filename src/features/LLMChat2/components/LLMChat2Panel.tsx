@@ -17,10 +17,14 @@ import {
   chat2MetricsAtom,
   chat2WebSearchEnabledAtom,
   chat2ThinkingEnabledAtom,
+  chat2AutoCompactAtom,
+  chat2SlidingWindowAtom,
+  isCompactingAtom,
   chat2GenerationStatusAtom,
   availableSkillsAtom,
   activeSkillAtom,
   ChatMessage,
+  CompactedInfo,
   ToolExecutionLog,
   Skill,
 } from "../store/LLMChat2Store";
@@ -156,6 +160,9 @@ export function LLMChat2Panel() {
   const numCtx = useAtomValue(chat2NumCtxAtom);
   const isWebSearchEnabled = useAtomValue(chat2WebSearchEnabledAtom);
   const isThinkingEnabled = useAtomValue(chat2ThinkingEnabledAtom);
+  const autoCompact = useAtomValue(chat2AutoCompactAtom);
+  const slidingWindowEnabled = useAtomValue(chat2SlidingWindowAtom);
+  const [isCompacting, setIsCompacting] = useAtom(isCompactingAtom);
   const setMetrics = useSetAtom(chat2MetricsAtom);
   const setGenerationStatus = useSetAtom(chat2GenerationStatusAtom);
   const activeToolCall = useAtomValue(activeToolCallAtom);
@@ -176,6 +183,44 @@ export function LLMChat2Panel() {
     clearLogs();
     clearTokens();
   };
+
+  const handleManualCompact = useCallback(async () => {
+    if (messages.length < 2 || isGenerating || isCompacting) return;
+    setIsCompacting(true);
+    try {
+      const historyPayload = formatHistoryForBackend(messages);
+      const result = await invoke<CompactedInfo>("llm2_compact_history", {
+        messages: historyPayload,
+        model: model.trim() || undefined,
+      });
+
+      const summaryMsg: ChatMessage = {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        content: `[Previous Conversation Context Summary]:\n${result.summary}`,
+        timestamp: new Date(),
+        compacted: result,
+      };
+
+      setMessages([summaryMsg]);
+
+      // Immediately update token metrics & percentage
+      const newTokens = result.estimatedTokensAfter;
+      const newPercent = Math.round((newTokens / numCtx) * 1000) / 10;
+      setMetrics({
+        promptTokens: newTokens,
+        completionTokens: 0,
+        totalTokens: newTokens,
+        numCtx: numCtx,
+        percentConsumed: newPercent,
+        remainingTokens: Math.max(0, numCtx - newTokens),
+      });
+    } catch (err) {
+      console.error("[llm2] Failed to compact history:", err);
+    } finally {
+      setIsCompacting(false);
+    }
+  }, [messages, isGenerating, isCompacting, model, numCtx, setMessages, setIsCompacting, setMetrics]);
 
   // Mention (@) state
   const [isMentionOpen, setIsMentionOpen] = useState(false);
@@ -362,10 +407,20 @@ export function LLMChat2Panel() {
       message_id: string;
       pruned_turns: number;
       retained_turns: number;
+      folded_tools?: number;
+      chars_saved?: number;
       num_ctx: number;
       estimated_tokens: number;
     }>("llm2_sliding_window", (event) => {
-      const { message_id, pruned_turns, retained_turns, num_ctx, estimated_tokens } = event.payload;
+      const {
+        message_id,
+        pruned_turns,
+        retained_turns,
+        folded_tools,
+        chars_saved,
+        num_ctx,
+        estimated_tokens,
+      } = event.payload;
       setMessages((prev) =>
         prev.map((msg) => {
           if (msg.id !== message_id) return msg;
@@ -374,6 +429,8 @@ export function LLMChat2Panel() {
             slidingWindow: {
               prunedTurns: pruned_turns,
               retainedTurns: retained_turns,
+              foldedTools: folded_tools,
+              charsSaved: chars_saved,
               numCtx: num_ctx,
               estimatedTokens: estimated_tokens,
             },
@@ -735,6 +792,10 @@ export function LLMChat2Panel() {
         allowedTools: allowedTools,
         allowed_tools: allowedTools,
         think: isThinkingEnabled,
+        autoCompact: autoCompact,
+        auto_compact: autoCompact,
+        slidingWindow: slidingWindowEnabled,
+        sliding_window: slidingWindowEnabled,
       });
 
       // Ensure final assistant message has full content if stream was missed or buffered
@@ -963,7 +1024,11 @@ export function LLMChat2Panel() {
         {/* Gray/Muted Wrapper enclosing Usage at top and Input Card directly behind it */}
         <div className="bg-muted/40 border border-border/60 rounded-3xl p-1.5 space-y-1 shadow-xs">
           {/* Top Usage Section */}
-          <ContextUsageGauge className="px-2 py-0.5" />
+          <ContextUsageGauge
+            className="px-2 py-0.5"
+            onCompactHistory={handleManualCompact}
+            messagesCount={messages.length}
+          />
 
           {/* Chat Input Card */}
           <LLMChat2Input

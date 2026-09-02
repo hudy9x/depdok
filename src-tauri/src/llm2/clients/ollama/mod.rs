@@ -2,6 +2,7 @@ pub mod builder;
 pub mod emitter;
 pub mod parser;
 pub mod types;
+pub mod warmup;
 
 pub use builder::OllamaChatRequestBuilder;
 pub use emitter::StreamEventEmitter;
@@ -13,7 +14,7 @@ use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 use tauri::AppHandle;
 
-use crate::llm2::pending::PendingRequests;
+use crate::llm2::runtime::PendingRequests;
 use crate::llm2::types::{OllamaMessage, OllamaToolCall};
 
 /// Primary facade for streaming a conversation turn with an Ollama instance.
@@ -39,6 +40,7 @@ pub async fn stream_chat_turn(
     num_ctx,
   );
 
+  // Build validated JSON payload
   let request_body = OllamaChatRequestBuilder::new(model_name)
     .messages(history)
     .tools(tools_schema)
@@ -69,7 +71,7 @@ pub async fn stream_chat_turn(
   println!("────────────────────────────────────────────────────────────────────────────");
 
   // Check model residency status
-  crate::llm2::warmup::check_and_notify_model_status(client, app, model_name, message_id, turn).await;
+  warmup::check_and_notify_model_status(client, app, model_name, message_id, turn).await;
 
   println!("[llm2][turn {}] ⏳ Sending request to Ollama (http://localhost:11434/api/chat)...", turn);
   let req_start_time = std::time::Instant::now();

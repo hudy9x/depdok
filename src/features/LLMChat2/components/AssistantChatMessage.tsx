@@ -6,6 +6,7 @@ import { AssistantThinkingIndicator } from "./AssistantThinkingIndicator";
 import { ToolCallCard } from "./ToolCallCard";
 import { ThoughtBlock } from "./ThoughtBlock";
 import { ContextSlidingCard } from "./ContextSlidingCard";
+import { ContextCompactedCard } from "./ContextCompactedCard";
 
 export interface AssistantChatMessageProps {
   message: ChatMessage;
@@ -63,10 +64,17 @@ export const AssistantChatMessage: React.FC<AssistantChatMessageProps> = ({
   return (
     <div className="flex flex-col items-start w-full select-text">
       <div className="w-full max-w-[92%] text-xs leading-relaxed text-foreground space-y-2.5 select-text llm2-chat-markdown">
-        {/* Context Sliding Window notice card */}
-        {message.slidingWindow && message.slidingWindow.prunedTurns > 0 && (
-          <ContextSlidingCard info={message.slidingWindow} />
+        {/* Compacted History Summary notice card */}
+        {message.compacted && (
+          <ContextCompactedCard info={message.compacted} />
         )}
+
+        {/* Context Sliding Window & Compaction notice card */}
+        {message.slidingWindow &&
+          (message.slidingWindow.prunedTurns > 0 ||
+            (message.slidingWindow.foldedTools ?? 0) > 0) && (
+            <ContextSlidingCard info={message.slidingWindow} />
+          )}
 
         {hasParts ? (
           message.parts!.map((part, index) => {

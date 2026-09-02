@@ -1,9 +1,18 @@
+import { useEffect, useRef, useState } from "react";
 import { useAtom, useAtomValue } from "jotai";
-import { SlidersHorizontal } from "lucide-react";
-import { chat2MetricsAtom, chat2NumCtxAtom, chat2IsStatefulAtom } from "../store/LLMChat2Store";
+import { SlidersHorizontal, Sparkles, Loader2 } from "lucide-react";
+import {
+  chat2MetricsAtom,
+  chat2NumCtxAtom,
+  chat2IsStatefulAtom,
+  chat2AutoCompactAtom,
+  chat2SlidingWindowAtom,
+  isCompactingAtom,
+} from "../store/LLMChat2Store";
 import { McpStatusPopover } from "./McpStatusPopover";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
+import { Button } from "@/components/ui/button";
 import {
   Popover,
   PopoverContent,
@@ -12,6 +21,8 @@ import {
 
 interface ContextUsageGaugeProps {
   className?: string;
+  onCompactHistory?: () => void;
+  messagesCount?: number;
 }
 
 const PRESETS = [
@@ -23,14 +34,72 @@ const PRESETS = [
   { label: "256k", value: 262144 },
 ];
 
-export function ContextUsageGauge({ className = "" }: ContextUsageGaugeProps) {
+/**
+ * Hook to smoothly animate numeric values over time with cubic ease-out.
+ */
+function useAnimatedNumber(target: number, durationMs = 500): number {
+  const [current, setCurrent] = useState(target);
+  const startValRef = useRef(target);
+  const startTimeRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    startValRef.current = current;
+    startTimeRef.current = null;
+    let animationFrameId: number;
+
+    const step = (timestamp: number) => {
+      if (!startTimeRef.current) startTimeRef.current = timestamp;
+      const progress = Math.min((timestamp - startTimeRef.current) / durationMs, 1);
+      // Ease out cubic
+      const easedProgress = 1 - Math.pow(1 - progress, 3);
+      const val = startValRef.current + (target - startValRef.current) * easedProgress;
+      setCurrent(val);
+
+      if (progress < 1) {
+        animationFrameId = requestAnimationFrame(step);
+      }
+    };
+
+    animationFrameId = requestAnimationFrame(step);
+
+    return () => cancelAnimationFrame(animationFrameId);
+  }, [target, durationMs]);
+
+  return current;
+}
+
+export function ContextUsageGauge({
+  className = "",
+  onCompactHistory,
+  messagesCount = 0,
+}: ContextUsageGaugeProps) {
   const metrics = useAtomValue(chat2MetricsAtom);
+  const isCompacting = useAtomValue(isCompactingAtom);
   const [numCtx, setNumCtx] = useAtom(chat2NumCtxAtom);
   const [isStateful, setIsStateful] = useAtom(chat2IsStatefulAtom);
+  const [autoCompact, setAutoCompact] = useAtom(chat2AutoCompactAtom);
+  const [slidingWindowEnabled, setSlidingWindowEnabled] = useAtom(chat2SlidingWindowAtom);
 
   const activeLimit = metrics ? metrics.numCtx : numCtx;
-  const percent = metrics ? metrics.percentConsumed : 0;
+  const targetPercent = metrics ? metrics.percentConsumed : 0;
+  const animatedPercent = useAnimatedNumber(targetPercent, 600);
   const ctxK = (activeLimit / 1024).toFixed(1);
+
+  // Flash highlight when percentage changes significantly (e.g. compaction drops)
+  const [isFlashing, setIsFlashing] = useState(false);
+  const prevTargetRef = useRef(targetPercent);
+
+  useEffect(() => {
+    if (Math.abs(targetPercent - prevTargetRef.current) > 2) {
+      setIsFlashing(true);
+      const timer = setTimeout(() => setIsFlashing(false), 900);
+      prevTargetRef.current = targetPercent;
+      return () => clearTimeout(timer);
+    }
+    prevTargetRef.current = targetPercent;
+  }, [targetPercent]);
+
+  const displayPercent = animatedPercent.toFixed(1);
 
   return (
     <div
@@ -38,44 +107,31 @@ export function ContextUsageGauge({ className = "" }: ContextUsageGaugeProps) {
     >
       <div className="chat2-context-gauge-left flex items-center gap-1.5 min-w-0">
         <span className="chat2-context-label font-medium text-foreground/80">Context:</span>
-        <span className="chat2-context-value font-mono font-semibold text-primary">
-          {percent}% of {ctxK}k
+        <span
+          className={`chat2-context-value font-mono font-semibold transition-all duration-300 ${
+            isFlashing
+              ? "text-emerald-400 font-bold scale-105"
+              : targetPercent > 90
+              ? "text-red-400"
+              : targetPercent > 75
+              ? "text-amber-400"
+              : "text-primary"
+          }`}
+        >
+          {displayPercent}% of {ctxK}k
         </span>
       </div>
 
-      <div className="chat2-context-gauge-right flex items-center gap-2 shrink-0">
-        {/* Stateful / Stateless History Switch */}
-        <div
-          className="chat2-history-switch flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-muted/50 border border-border/40 text-[9px]"
-          title={
-            isStateful
-              ? "Stateful Mode (ON): Multi-turn conversation history is sent with each prompt."
-              : "Stateless Mode (OFF): Each prompt is evaluated in complete isolation."
-          }
-        >
-          <span
-            className={`chat2-history-text font-sans font-medium select-none transition-colors ${
-              isStateful ? "text-sky-500 font-semibold" : "text-muted-foreground"
-            }`}
-          >
-            {isStateful ? "History ON" : "History OFF"}
-          </span>
-          <Switch
-            checked={isStateful}
-            onCheckedChange={setIsStateful}
-            className="scale-75 origin-right cursor-pointer"
-          />
-        </div>
-
+      <div className="chat2-context-gauge-right flex items-center gap-1.5 shrink-0">
         {/* MCP Server Status Popover */}
         <McpStatusPopover />
 
-        {/* Custom num_ctx Slider Popover */}
+        {/* Custom num_ctx & Context Options Popover */}
         <Popover>
           <PopoverTrigger asChild>
             <button
               className="p-1 -mr-1 rounded hover:bg-muted/60 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-              title="Configure context window size (num_ctx)"
+              title="Configure context window & compaction settings"
             >
               <SlidersHorizontal className="h-3 w-3 text-muted-foreground hover:text-foreground" />
             </button>
@@ -84,10 +140,10 @@ export function ContextUsageGauge({ className = "" }: ContextUsageGaugeProps) {
             side="top"
             align="end"
             sideOffset={8}
-            className="w-72 p-3.5 space-y-3 bg-popover/95 backdrop-blur-xl border border-border/60 shadow-xl rounded-xl"
+            className="w-80 p-3.5 space-y-3 bg-popover/95 backdrop-blur-xl border border-border/60 shadow-xl rounded-xl"
           >
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-foreground">Context Window</span>
+              <span className="text-xs font-semibold text-foreground">Context Window Size</span>
               <span className="text-xs font-mono font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-lg border border-primary/20">
                 {numCtx.toLocaleString()}
               </span>
@@ -132,9 +188,81 @@ export function ContextUsageGauge({ className = "" }: ContextUsageGaugeProps) {
               </div>
             </div>
 
-            <p className="text-[10px] text-muted-foreground leading-relaxed pt-1 border-t border-border/40">
-              Allocates Ollama context buffer. Higher values hold longer chats &amp; larger documents, but require more VRAM.
-            </p>
+            {/* Context Switches Section */}
+            <div className="space-y-2 pt-2 border-t border-border/40">
+              {/* Sliding Window Switch */}
+              <div className="flex items-center justify-between">
+                <div className="flex flex-col pr-2">
+                  <span className="text-xs font-semibold text-foreground">Sliding Window Context</span>
+                  <span className="text-[10px] text-muted-foreground leading-tight">
+                    Prunes oldest turns when exceeding 75% of context limit
+                  </span>
+                </div>
+                <Switch
+                  checked={slidingWindowEnabled}
+                  onCheckedChange={setSlidingWindowEnabled}
+                  className="scale-75 origin-right cursor-pointer shrink-0"
+                />
+              </div>
+
+              {/* Auto Compact Switch */}
+              <div className="flex items-center justify-between">
+                <div className="flex flex-col pr-2">
+                  <span className="text-xs font-semibold text-foreground">Auto Compact History</span>
+                  <span className="text-[10px] text-muted-foreground leading-tight">
+                    Folds large tool payloads and summarizes completed turns
+                  </span>
+                </div>
+                <Switch
+                  checked={autoCompact}
+                  onCheckedChange={setAutoCompact}
+                  className="scale-75 origin-right cursor-pointer shrink-0"
+                />
+              </div>
+
+              {/* Stateful / Multi-turn History Switch */}
+              <div className="flex items-center justify-between">
+                <div className="flex flex-col pr-2">
+                  <span className="text-xs font-semibold text-foreground">Multi-turn History (Stateful)</span>
+                  <span className="text-[10px] text-muted-foreground leading-tight">
+                    Sends conversation history with each prompt
+                  </span>
+                </div>
+                <Switch
+                  checked={isStateful}
+                  onCheckedChange={setIsStateful}
+                  className="scale-75 origin-right cursor-pointer shrink-0"
+                />
+              </div>
+            </div>
+
+            {/* Manual Compact History Button */}
+            {onCompactHistory && (
+              <div className="pt-2 border-t border-border/40 space-y-1.5">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={onCompactHistory}
+                  disabled={isCompacting || messagesCount < 2}
+                  className="w-full flex items-center justify-center gap-1.5 text-xs h-8 cursor-pointer hover:bg-primary/10 hover:text-primary hover:border-primary/40 transition-colors"
+                >
+                  {isCompacting ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+                      <span>Compacting History...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="h-3.5 w-3.5 text-sky-400" />
+                      <span>Compact Conversation Now</span>
+                    </>
+                  )}
+                </Button>
+                <p className="text-[9px] text-muted-foreground leading-relaxed">
+                  Compresses all previous turns into an executive summary, freeing up context headroom immediately.
+                </p>
+              </div>
+            )}
           </PopoverContent>
         </Popover>
       </div>

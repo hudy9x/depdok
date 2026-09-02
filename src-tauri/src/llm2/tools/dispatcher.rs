@@ -2,7 +2,7 @@ use rig::tool::PortableTool;
 use serde_json::json;
 use tauri::{AppHandle, Emitter};
 
-use crate::llm2::pending::PendingRequests;
+use crate::llm2::runtime::PendingRequests;
 use crate::mcp_client::McpClientManager;
 
 use super::{

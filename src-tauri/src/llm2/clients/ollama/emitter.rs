@@ -4,7 +4,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter};
 
-use crate::llm2::pending::PendingRequests;
+use crate::llm2::runtime::PendingRequests;
 use super::types::StreamMetrics;
 
 /// Emitter and observer for live tokens, thinking thoughts, token usage metrics, and cancellation.

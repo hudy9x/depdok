@@ -116,8 +116,9 @@ export interface GenerationStatus {
 }
 
 export const chat2GenerationStatusAtom = atom<GenerationStatus>({ phase: "idle" });
-
-
-
+// Tool Classifier state
+export const chat2ShowClassifierAtom = atomWithStorage<boolean>("llm2_show_classifier", true, localStorageDriver);
+export const chat2EnableCategoriesAtom = atomWithStorage<boolean>("llm2_classifier_categories", true, localStorageDriver);
+export const chat2EnableFilterAtom = atomWithStorage<boolean>("llm2_classifier_filter", true, localStorageDriver);
 
 

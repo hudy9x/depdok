@@ -5,7 +5,7 @@ use tauri::{AppHandle, Emitter, Manager};
 use super::clients::ollama::{stream_chat_turn, StreamMetrics};
 use super::context::prepare_agent_history;
 use super::runtime::PendingRequests;
-use super::tools::{dispatch_tool_call, filter_tools_schema, get_builtin_tools_schema};
+use super::tools::dispatch_tool_call;
 use crate::mcp_client::McpClientManager;
 
 pub const TOOL_MODEL: &str = "qwen3.5:4b";
@@ -57,21 +57,16 @@ pub async fn prompt_agent(
   let client = reqwest::Client::new();
   let mcp_manager = app.try_state::<McpClientManager>();
 
-  // 1. Build and filter tool schemas
-  let mut all_tools_vec = get_builtin_tools_schema(&content_model_to_use)
-    .as_array()
-    .cloned()
-    .unwrap_or_default();
-
-  if let Some(mgr) = &mcp_manager {
-    let mcp_tools = mgr.get_ollama_tools().await;
-    if !mcp_tools.is_empty() {
-      println!("[llm2][agent] Injected {} external MCP tools into Ollama schema.", mcp_tools.len());
-      all_tools_vec.extend(mcp_tools);
-    }
-  }
-
-  let effective_tools_schema = filter_tools_schema(json!(all_tools_vec), allowed_tools.as_ref());
+  // 1. Build and filter tool schemas using the 3-layer router
+  let effective_tools_schema = crate::llm2::router::resolve_effective_tools_schema(
+    &client,
+    &model_to_use,
+    &content_model_to_use,
+    prompt,
+    allowed_tools,
+    mcp_manager.as_deref(),
+  )
+  .await;
 
   // 2. Prepare optimized conversation history & apply sliding window budgeting
   let (mut history, sliding_res) = prepare_agent_history(

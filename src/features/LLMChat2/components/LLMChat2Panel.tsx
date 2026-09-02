@@ -649,8 +649,8 @@ export function LLMChat2Panel() {
       } else if (item.name === "skill-reload") {
         await handleExecuteSkillReload();
       }
-    } else if (item.type === "skill") {
-      // Insert /skill-name into inputVal, keeping it visible inline
+    } else if (item.type === "skill" || item.type === "tool") {
+      // Insert /<name> (e.g. /skill-creator or /tool:create_file) into inputVal
       if (slashStartIndex === null) return;
       const before = inputVal.slice(0, slashStartIndex);
       const after = inputVal.slice(slashStartIndex + 1 + slashQuery.length);
@@ -742,6 +742,17 @@ export function LLMChat2Panel() {
         "mcp",
         "mcp_reload",
       ];
+    }
+
+    // Detect explicit tools (e.g. /tool:create_file or tool:create_file)
+    const explicitToolMatches = Array.from(
+      textToSend.matchAll(/(?:^|\s)\/?tool:([a-z0-9_-]+)(?=\s|$)/gi)
+    ).map((m) => m[1].toLowerCase());
+
+    if (explicitToolMatches.length > 0) {
+      if (allowedTools) {
+        allowedTools = Array.from(new Set([...allowedTools, ...explicitToolMatches]));
+      }
     }
 
     const historyPayload = isStateful ? formatHistoryForBackend(messages) : undefined;

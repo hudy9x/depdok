@@ -2,6 +2,7 @@ pub mod agent;
 pub mod clients;
 pub mod commands;
 pub mod context;
+pub mod router;
 pub mod runtime;
 pub mod skills;
 pub mod tools;

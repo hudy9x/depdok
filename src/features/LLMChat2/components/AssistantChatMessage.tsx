@@ -1,12 +1,15 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { Streamdown } from "streamdown";
 
+import { extractCitedSources } from "../lib/extractCitedSources";
 import { ChatMessage, ToolExecutionLog } from "../store/LLMChat2Store";
 import { AssistantThinkingIndicator } from "./AssistantThinkingIndicator";
-import { ToolCallCard } from "./ToolCallCard";
-import { ThoughtBlock } from "./ThoughtBlock";
-import { ContextSlidingCard } from "./ContextSlidingCard";
+import { CitationBadge } from "./CitationBadge";
 import { ContextCompactedCard } from "./ContextCompactedCard";
+import { ContextSlidingCard } from "./ContextSlidingCard";
+import { SourcesBar } from "./SourcesBar";
+import { ThoughtBlock } from "./ThoughtBlock";
+import { ToolCallCard } from "./ToolCallCard";
 
 export interface AssistantChatMessageProps {
   message: ChatMessage;
@@ -61,6 +64,65 @@ export const AssistantChatMessage: React.FC<AssistantChatMessageProps> = ({
   const hasToolCalls = Boolean(message.toolCalls && message.toolCalls.length > 0);
   const hasContent = Boolean(message.content && message.content.trim().length > 0);
 
+  // Extract cited knowledge base and web search sources from tool execution results
+  const sources = useMemo(() => extractCitedSources(message), [message]);
+
+  // Configure custom Streamdown components to intercept citation links (e.g. cite:1 or [^1])
+  const streamdownComponents = useMemo(() => {
+    return {
+      a: ({ href, children, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement>) => {
+        if (href) {
+          let numId: number | null = null;
+          if (href.startsWith("cite:") || href.startsWith("depdok-cite:")) {
+            const parsed = parseInt(href.replace(/^(cite|depdok-cite):/, ""), 10);
+            if (!isNaN(parsed)) numId = parsed;
+          } else if (
+            href.startsWith("#fn") ||
+            href.startsWith("#source-") ||
+            href.startsWith("#source")
+          ) {
+            const rawText = String(children ?? "").replace(/\D/g, "");
+            const parsed = parseInt(rawText, 10);
+            if (!isNaN(parsed)) numId = parsed;
+          }
+
+          if (numId !== null) {
+            return <CitationBadge citationId={numId} sources={sources} />;
+          }
+
+          // Block cite:/depdok-cite: schemes from navigating — Tauri WebView would mark them as [blocked]
+          if (href.startsWith("cite:") || href.startsWith("depdok-cite:")) {
+            return (
+              <span
+                className="inline-flex items-center justify-center min-w-[15px] h-[15px] px-1 text-[10px] font-mono font-medium rounded bg-muted/60 text-muted-foreground align-super select-none"
+              >
+                {children}
+              </span>
+            );
+          }
+        }
+
+        return (
+          <a
+            href={href}
+            target="_blank"
+            rel="noreferrer"
+            onClick={(e) => {
+              // Prevent Tauri WebView from blocking unknown URL schemes
+              if (href && !href.startsWith("http") && !href.startsWith("https")) {
+                e.preventDefault();
+              }
+            }}
+            className="text-primary underline underline-offset-2 hover:opacity-80 transition-opacity"
+            {...props}
+          >
+            {children}
+          </a>
+        );
+      },
+    };
+  }, [sources]);
+
   return (
     <div className="flex flex-col items-start w-full select-text">
       <div className="w-full max-w-[92%] text-xs leading-relaxed text-foreground space-y-2.5 select-text llm2-chat-markdown">
@@ -77,30 +139,40 @@ export const AssistantChatMessage: React.FC<AssistantChatMessageProps> = ({
           )}
 
         {hasParts ? (
-          message.parts!.map((part, index) => {
-            if (part.type === "thought") {
-              if (!part.content.trim()) return null;
-              const isLastPart = index === message.parts!.length - 1;
-              return (
-                <ThoughtBlock
-                  key={part.id}
-                  content={part.content}
-                  durationSeconds={part.durationSeconds}
-                  isStreaming={isGenerating && isLastPart}
-                />
-              );
-            } else if (part.type === "text") {
-              if (!part.content.trim()) return null;
-              return (
-                <Streamdown key={part.id} animated caret="block">
-                  {part.content}
-                </Streamdown>
-              );
-            } else if (part.type === "tool") {
-              return <ToolCallCard key={part.id} log={part.toolCall} />;
-            }
-            return null;
-          })
+          <>
+            {message.parts!.map((part, index) => {
+              if (part.type === "thought") {
+                if (!part.content.trim()) return null;
+                const isLastPart = index === message.parts!.length - 1;
+                return (
+                  <ThoughtBlock
+                    key={part.id}
+                    content={part.content}
+                    durationSeconds={part.durationSeconds}
+                    isStreaming={isGenerating && isLastPart}
+                  />
+                );
+              } else if (part.type === "tool") {
+                return <ToolCallCard key={part.id} log={part.toolCall} />;
+              } else if (part.type === "text") {
+                if (!part.content.trim()) return null;
+                return (
+                  <Streamdown
+                    key={part.id}
+                    animated
+                    caret="block"
+                    components={streamdownComponents}
+                  >
+                    {part.content}
+                  </Streamdown>
+                );
+              }
+              return null;
+            })}
+
+            {/* Referenced Sources overview bar */}
+            {sources.length > 0 && <SourcesBar sources={sources} />}
+          </>
         ) : (
           <>
             {/* Fallback for legacy messages without chronological parts */}
@@ -111,6 +183,10 @@ export const AssistantChatMessage: React.FC<AssistantChatMessageProps> = ({
                 ))}
               </div>
             )}
+
+            {/* Referenced Sources overview bar */}
+            {sources.length > 0 && <SourcesBar sources={sources} />}
+
             {hasContent && (() => {
               const { thought, answer } = splitMonologueFromText(message.content);
               return (
@@ -122,7 +198,11 @@ export const AssistantChatMessage: React.FC<AssistantChatMessageProps> = ({
                     />
                   )}
                   {answer && (
-                    <Streamdown animated caret="block">
+                    <Streamdown
+                      animated
+                      caret="block"
+                      components={streamdownComponents}
+                    >
                       {answer}
                     </Streamdown>
                   )}

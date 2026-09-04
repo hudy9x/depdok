@@ -29,7 +29,7 @@ pub async fn insert_or_replace_document(
     content: String,
     group_ids: Vec<String>,
 ) -> Result<String, String> {
-    kb_state.0.upsert_document(id, title, content, group_ids).await
+    kb_state.0.upsert_document(id, title, content, group_ids, 0).await
 }
 
 #[tauri::command]

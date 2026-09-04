@@ -7,6 +7,8 @@ pub struct ParsedSection {
     pub content: String,
     #[allow(dead_code)]
     pub level: u32,
+    /// 0-based line number where this section's heading starts in the original file.
+    pub line_start: u64,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -38,6 +40,12 @@ fn slugify_section_title(title: &str) -> String {
     } else {
         slug
     }
+}
+
+/// Count the number of newlines before byte `offset` in `text`.
+/// Returns the 0-based line number of that position.
+fn line_at_byte(text: &str, offset: usize) -> u64 {
+    text[..offset.min(text.len())].chars().filter(|&c| c == '\n').count() as u64
 }
 
 /// Split markdown text into hierarchical section documents at heading boundaries.
@@ -80,6 +88,7 @@ pub fn split_markdown_into_sections(content: &str) -> Vec<ParsedSection> {
                             title: prev_title,
                             content: section_content,
                             level: prev_level,
+                            line_start: line_at_byte(content, prev_start),
                         });
                     }
                 }
@@ -97,6 +106,7 @@ pub fn split_markdown_into_sections(content: &str) -> Vec<ParsedSection> {
                 title: prev_title,
                 content: section_content,
                 level: prev_level,
+                line_start: line_at_byte(content, prev_start),
             });
         }
     } else if !content.trim().is_empty() {
@@ -105,6 +115,7 @@ pub fn split_markdown_into_sections(content: &str) -> Vec<ParsedSection> {
             title: "Overview".to_string(),
             content: content.trim().to_string(),
             level: 1,
+            line_start: 0,
         });
     }
 
@@ -120,6 +131,8 @@ pub fn split_markdown_into_sections(content: &str) -> Vec<ParsedSection> {
 
     sections
 }
+
+
 
 /// Extract tags and links (both markdown links and wikilinks) from markdown content.
 pub fn extract_metadata(content: &str) -> ExtractedMetadata {

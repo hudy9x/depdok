@@ -118,6 +118,7 @@ async fn upsert_and_get_document_works() -> Result<(), String> {
         "My title".to_string(),
         "My content #tag-one with some text.".to_string(),
         vec!["project-a".to_string()],
+        0,
     ).await?;
 
     assert_eq!(doc_id, "doc-1");
@@ -171,6 +172,7 @@ async fn get_chunk_context_works() -> Result<(), String> {
         "Context Test".to_string(),
         content,
         vec!["project-a".to_string()],
+        0,
     ).await?;
 
     // Fetch chunk text from DB to get a chunk containing "Second"
@@ -200,6 +202,7 @@ async fn hybrid_search_rrf_works() -> Result<(), String> {
         "Rust Ownership".to_string(),
         "Rust uses ownership and borrowing to manage memory safety without a garbage collector.".to_string(),
         vec!["group-1".to_string()],
+        0,
     ).await?;
 
     kb.upsert_document(
@@ -207,6 +210,7 @@ async fn hybrid_search_rrf_works() -> Result<(), String> {
         "Garbage Collection".to_string(),
         "Many languages like Go and Java use garbage collection to automatically reclaim memory.".to_string(),
         vec!["group-1".to_string()],
+        0,
     ).await?;
 
     let results = kb.search_hybrid("ownership".to_string(), 10).await?;
@@ -227,12 +231,14 @@ async fn connect_and_delete_document_works() -> Result<(), String> {
         "A".to_string(),
         "Alpha".to_string(),
         vec!["project-a".to_string()],
+        0,
     ).await?;
     kb.upsert_document(
         Some("doc-b".to_string()),
         "B".to_string(),
         "Beta".to_string(),
         vec!["project-a".to_string()],
+        0,
     ).await?;
 
     // Create edge via edges table directly
@@ -285,12 +291,14 @@ async fn get_project_graph_returns_group_data() -> Result<(), String> {
         "Graph One".to_string(),
         "Alpha".to_string(),
         vec!["project-graph".to_string()],
+        0,
     ).await?;
     kb.upsert_document(
         Some("doc-g2".to_string()),
         "Graph Two".to_string(),
         "Beta".to_string(),
         vec!["project-graph".to_string()],
+        0,
     ).await?;
 
     // Connect documents (both exist in DB)

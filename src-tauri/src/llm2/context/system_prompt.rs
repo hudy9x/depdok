@@ -36,14 +36,19 @@ pub const PROMPT_MULTI_STEP_EXECUTION: &str = r#"- MULTI-STEP EXECUTION & TOOL F
 /// 4. Knowledge Base & Vector Search Rules
 /// Why we need this: Grounding in local workspace knowledge. Ensures the model searches the vector
 /// database (`search_knowledge_base`) for project documentation, architecture, and notes before answering.
-pub const PROMPT_KNOWLEDGE_BASE: &str = r#"- When asked questions about workspace documentation, project architecture, guides, previous notes, or concepts, invoke 'search_knowledge_base' to retrieve relevant sections and notes from the vector knowledge base before answering."#;
+pub const PROMPT_KNOWLEDGE_BASE: &str = r#"- When asked questions about workspace documentation, project architecture, guides, previous notes, or concepts, invoke 'search_knowledge_base' to retrieve relevant sections and notes from the vector knowledge base before answering.
+- When answering from knowledge base results:
+  * SYNTHESIZE & REWRITE: Do not raw copy-paste large blocks. Rephrase and summarize the insights cleanly in your own words while retaining the original facts and technical meaning.
+  * CITE SOURCES INLINE: Attach inline citation markdown links right after sentences, claims, or bullet points derived from a source:
+    - Use format `[1](cite:1)` or `[2](cite:2)` matching the citationId / [Source N] number returned by the tool.
+    - Example: "Depdok calculates pagination layout using an A4 height simulation plugin [1](cite:1) and stores vector embeddings in sqlite-vec [2](cite:2).""#;
 
 /// 5. Web Search & Online Research Rules
 /// Why we need this: Gives the model the ability to discover fresh online documentation, setup guides,
 /// and external libraries via `web_search` and `fetch_web_page`, while requiring clean source citations.
 pub const PROMPT_WEB_RESEARCH: &str = r#"- When asked questions about external tools, setup guides, technologies, libraries, documentation, or up-to-date online information (e.g. 'how to setup claude code', 'latest Next.js release', 'bun vs node performance'), invoke 'web_search' to find relevant sources and links online.
 - When the search results or snippets from 'web_search' require deeper details, installation steps, code examples, or when a specific URL is provided, invoke 'fetch_web_page' to read the full page content before answering.
-- When answering from web research, synthesize a clear, comprehensive answer with code examples and cite source URLs cleanly (e.g. [Claude Code Docs](https://...))."#;
+- When answering from web research, synthesize a clear, comprehensive answer with code examples and cite sources inline using `[1](cite:1)` corresponding to citationId, or direct markdown URL links (e.g. [Documentation](https://...))."#;
 
 /// 6. Shell Execution Rules
 /// Why we need this: Guides developer tool workflows by instructing the model to use `run_shell`

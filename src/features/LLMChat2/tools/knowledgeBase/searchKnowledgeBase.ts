@@ -9,6 +9,8 @@ export interface SearchKnowledgeBaseArgs {
 }
 
 export interface FormattedKnowledgeMatch {
+  citationId: number;
+  sourceTag: string;
   documentId: string;
   title: string;
   filePath: string;
@@ -17,12 +19,14 @@ export interface FormattedKnowledgeMatch {
   score: number;
   content: string;
   matchedChunks: string[];
+  lineStart?: number;
 }
 
 export interface SearchKnowledgeBaseResult {
   query: string;
   totalFound: number;
   message?: string;
+  instruction?: string;
   results: FormattedKnowledgeMatch[];
 }
 
@@ -73,14 +77,18 @@ export async function searchKnowledgeBaseTool(
       };
     }
 
-    const formattedMatches: FormattedKnowledgeMatch[] = rawResults.map((r) => {
+    const formattedMatches: FormattedKnowledgeMatch[] = rawResults.map((r, index) => {
       const { filePath, relativePath, sectionSlug } = parseDocumentId(r.documentId, workspaceRoot);
 
       // Keep max 2000 chars per section content to prevent overflowing context
       const truncatedContent =
         r.content.length > 2000 ? `${r.content.slice(0, 2000)}\n...(truncated)` : r.content;
 
+      const citationId = index + 1;
+
       return {
+        citationId,
+        sourceTag: `[Source ${citationId}]`,
         documentId: r.documentId,
         title: r.title,
         filePath,
@@ -89,12 +97,15 @@ export async function searchKnowledgeBaseTool(
         score: Number(r.score.toFixed(4)),
         content: truncatedContent,
         matchedChunks: (r.matchedChunks || []).slice(0, 3),
+        lineStart: r.lineStart,
       };
     });
 
     return {
       query,
       totalFound: formattedMatches.length,
+      instruction:
+        "When referencing or summarizing facts from these documents, synthesize in your own words and place inline citation links like [1](cite:1) or [2](cite:2) corresponding to citationId.",
       results: formattedMatches,
     };
   } catch (err: unknown) {

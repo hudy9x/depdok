@@ -16,6 +16,9 @@ pub struct HybridSearchResult {
     pub score: f32,
     #[serde(rename = "matchedChunks")]
     pub matched_chunks: Vec<String>,
+    /// 0-based line number within the source file where the best-matching chunk starts.
+    #[serde(rename = "lineStart")]
+    pub line_start: Option<u64>,
 }
 
 #[derive(Serialize, Clone, Debug)]
@@ -94,19 +97,24 @@ impl KbManager {
     }
 
     /// Insert or update a document, automatically parsing tags, links, and creating vector embeddings.
+    ///
+    /// `section_line_offset` is the 0-based line number of the first line of `content` within the
+    /// original full file. Chunk line numbers are computed relative to `content` and then shifted
+    /// by this offset so that `document_chunks.line_start` is always absolute.
     pub async fn upsert_document(
         &self,
         id: Option<String>,
         title: String,
         content: String,
         group_ids: Vec<String>,
+        section_line_offset: u64,
     ) -> Result<String, String> {
         let doc_id = id.unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
 
         // 1. Extract metadata (links & tags)
         let metadata = extract_metadata(&content);
 
-        // 2. Chunk text
+        // 2. Chunk text — returns Vec<(content, relative_line_start)>
         let opts = ChunkOptions::default();
         let chunks = chunk_text(&content, &opts);
 
@@ -114,8 +122,8 @@ impl KbManager {
         let embeddings: Vec<Vec<f32>> = {
             let embedder = self.embedder.read().await;
             let mut results = Vec::new();
-            for chunk in &chunks {
-                let vec = embedder.embed(chunk).await?;
+            for (chunk_content, _) in &chunks {
+                let vec = embedder.embed(chunk_content).await?;
                 results.push(vec);
             }
             results
@@ -181,13 +189,14 @@ impl KbManager {
         .map_err(|e| format!("Failed to delete old tags: {e}"))?;
 
         // Insert new chunks and embeddings
-        for (i, (chunk_content, embedding)) in chunks.iter().zip(embeddings.iter()).enumerate() {
+        for (i, ((chunk_content, chunk_rel_line), embedding)) in chunks.iter().zip(embeddings.iter()).enumerate() {
             let chunk_id = format!("{doc_id}#{i}");
+            let abs_line_start = section_line_offset + chunk_rel_line;
 
             tx.execute(
-                "INSERT INTO document_chunks (chunk_id, document_id, chunk_index, content)
-                 VALUES (?1, ?2, ?3, ?4)",
-                params![chunk_id, doc_id, i as i64, chunk_content],
+                "INSERT INTO document_chunks (chunk_id, document_id, chunk_index, content, line_start)
+                 VALUES (?1, ?2, ?3, ?4, ?5)",
+                params![chunk_id, doc_id, i as i64, chunk_content, abs_line_start as i64],
             )
             .map_err(|e| format!("Failed to insert chunk {i}: {e}"))?;
 
@@ -301,6 +310,7 @@ impl KbManager {
                 document_title,
                 content,
                 group_ids,
+                0, // no section offset for whole-document fallback
             )
             .await?;
             return Ok(1);
@@ -310,12 +320,14 @@ impl KbManager {
         for section in sections {
             let section_document_id = format!("{base_document_id}#section:{}", section.id);
             let section_title = format!("{document_title} - {}", section.title);
+            let section_line_offset = section.line_start;
 
             self.upsert_document(
                 Some(section_document_id),
                 section_title,
                 section.content,
                 group_ids.clone(),
+                section_line_offset,
             )
             .await?;
 
@@ -474,6 +486,7 @@ impl KbManager {
             fts_rank: Option<usize>,
             vec_rank: Option<usize>,
             matched_chunks: Vec<String>,
+            line_start: Option<u64>,
         }
 
         let mut doc_map: std::collections::HashMap<String, RawResult> = std::collections::HashMap::new();
@@ -506,6 +519,7 @@ impl KbManager {
                         fts_rank: Some(idx + 1),
                         vec_rank: None,
                         matched_chunks: Vec::new(),
+                        line_start: None,
                     },
                 );
                 idx += 1;
@@ -521,7 +535,7 @@ impl KbManager {
 
         let mut vec_stmt = conn
             .prepare(
-                "SELECT de.document_id, d.title, d.content, de.distance, dc.content
+                "SELECT de.document_id, d.title, d.content, de.distance, dc.content, dc.line_start
                  FROM documents_embeddings de
                  INNER JOIN documents d ON d.id = de.document_id
                  INNER JOIN document_chunks dc ON dc.chunk_id = de.chunk_id
@@ -541,6 +555,7 @@ impl KbManager {
             let content: String = row.get(2).map_err(|e| e.to_string())?;
             let _distance: f32 = row.get(3).map_err(|e| e.to_string())?;
             let chunk_content: String = row.get(4).map_err(|e| e.to_string())?;
+            let chunk_line_start: Option<i64> = row.get(5).map_err(|e| e.to_string())?;
 
             let is_new = seen_docs.insert(id.clone());
             if is_new {
@@ -554,10 +569,13 @@ impl KbManager {
                 fts_rank: None,
                 vec_rank: None,
                 matched_chunks: Vec::new(),
+                line_start: None,
             });
 
             if is_new {
                 entry.vec_rank = Some(vec_counter);
+                // Keep the line_start from the top-ranked (nearest) chunk for this document.
+                entry.line_start = chunk_line_start.map(|v| v as u64);
             }
             entry.matched_chunks.push(chunk_content);
         }
@@ -583,6 +601,7 @@ impl KbManager {
                 content: doc.content,
                 score,
                 matched_chunks: doc.matched_chunks,
+                line_start: doc.line_start,
             });
         }
 

@@ -91,6 +91,7 @@ export interface HybridSearchResult {
   content: string;
   score: number;
   matchedChunks: string[];
+  lineStart?: number;
 }
 
 export async function searchSimilar(query: string, limit = 20): Promise<KnowledgeSearchResult[]> {

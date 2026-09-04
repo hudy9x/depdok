@@ -77,7 +77,7 @@ fn init_database_inner(db_path: &Path, dims: usize) -> Result<Connection, String
         .query_row("PRAGMA user_version;", [], |row| row.get(0))
         .map_err(|e| format!("Failed to read user_version: {e}"))?;
 
-    let target_version = 2;
+    let target_version = 3;
 
     if user_version < target_version {
         // Drop all existing tables to perform a clean reset, avoiding trigger/virtual table mismatches.
@@ -131,7 +131,8 @@ fn init_database_inner(db_path: &Path, dims: usize) -> Result<Connection, String
             chunk_id    TEXT PRIMARY KEY,
             document_id TEXT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
             chunk_index INTEGER NOT NULL,
-            content     TEXT NOT NULL
+            content     TEXT NOT NULL,
+            line_start  INTEGER NOT NULL DEFAULT 0
         );
 
         CREATE TABLE IF NOT EXISTS document_tags (

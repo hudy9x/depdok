@@ -117,6 +117,7 @@ fn schedule_kb_upsert(app_handle: tauri::AppHandle, file_path: String) {
             title,
             content,
             group_ids,
+            0,
         ).await {
             Ok(id) => {
                 println!(

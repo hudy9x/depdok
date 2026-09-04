@@ -107,29 +107,61 @@ fn schedule_kb_upsert(app_handle: tauri::AppHandle, file_path: String) {
             return;
         };
 
-        let group_ids = app_handle
-            .try_state::<crate::knowledge_base::CurrentProjectGroup>()
-            .and_then(|state| state.0.lock().ok().and_then(|group| group.clone().map(|group_id| vec![group_id])))
-            .unwrap_or_default();
+        let project_ids = app_handle
+            .try_state::<crate::knowledge_base::CurrentProject>()
+            .and_then(|state| state.0.lock().ok().and_then(|project| project.clone().map(|project_id| vec![project_id])))
+            .unwrap_or_else(|| {
+                Path::new(&file_path)
+                    .parent()
+                    .and_then(|p| p.to_str())
+                    .map(|p| vec![p.to_string()])
+                    .unwrap_or_default()
+            });
 
-        match kb_state.0.upsert_document(
-            Some(doc_id),
-            title,
-            content,
-            group_ids,
-            0,
-        ).await {
-            Ok(id) => {
-                println!(
-                    "[knowledge_base] debounced auto upsert executed for {} (document_id={})",
-                    file_path, id
-                );
+        let is_markdown = Path::new(&file_path)
+            .extension()
+            .map_or(false, |ext| ext.eq_ignore_ascii_case("md") || ext.eq_ignore_ascii_case("markdown"));
+
+        if is_markdown {
+            match kb_state.0.index_markdown_document_sections(
+                file_path.clone(),
+                title,
+                content,
+                project_ids,
+            ).await {
+                Ok(count) => {
+                    println!(
+                        "[knowledge_base] auto indexed {} markdown sections for {}",
+                        count, file_path
+                    );
+                }
+                Err(e) => {
+                    eprintln!(
+                        "[knowledge_base] auto markdown indexing failed for {}: {}",
+                        file_path, e
+                    );
+                }
             }
-            Err(e) => {
-                eprintln!(
-                    "[knowledge_base] auto upsert failed for {}: {}",
-                    file_path, e
-                );
+        } else {
+            match kb_state.0.upsert_document(
+                Some(doc_id),
+                title,
+                content,
+                project_ids,
+                0,
+            ).await {
+                Ok(id) => {
+                    println!(
+                        "[knowledge_base] debounced auto upsert executed for {} (document_id={})",
+                        file_path, id
+                    );
+                }
+                Err(e) => {
+                    eprintln!(
+                        "[knowledge_base] auto upsert failed for {}: {}",
+                        file_path, e
+                    );
+                }
             }
         }
     });

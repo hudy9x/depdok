@@ -2,7 +2,7 @@ use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use rusqlite::{params, Connection};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::knowledge_base::embedding::{Embedder, chunker::{chunk_text, ChunkOptions}};
 use crate::knowledge_base::parser::{extract_metadata, split_markdown_into_sections};
@@ -48,13 +48,25 @@ pub struct GraphEdgeRecord {
 
 #[derive(Serialize, Clone, Debug)]
 pub struct ProjectGraphRecord {
-    #[serde(rename = "groupId")]
-    pub group_id: String,
-    #[serde(rename = "groupTitle")]
-    pub group_title: String,
+    #[serde(rename = "projectId", alias = "groupId")]
+    pub project_id: String,
+    #[serde(rename = "projectTitle", alias = "groupTitle")]
+    pub project_title: String,
     pub documents: Vec<GraphDocumentRecord>,
     pub edges: Vec<GraphEdgeRecord>,
 }
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct ProjectSummary {
+    #[serde(rename = "projectId", alias = "groupId")]
+    pub project_id: String,
+    pub title: String,
+    #[serde(rename = "documentCount")]
+    pub document_count: usize,
+}
+
+#[allow(dead_code)]
+pub type GroupSummary = ProjectSummary;
 
 #[derive(Clone)]
 pub struct KbManager {
@@ -106,7 +118,7 @@ impl KbManager {
         id: Option<String>,
         title: String,
         content: String,
-        group_ids: Vec<String>,
+        project_ids: Vec<String>,
         section_line_offset: u64,
     ) -> Result<String, String> {
         let doc_id = id.unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
@@ -145,28 +157,38 @@ impl KbManager {
         )
         .map_err(|e| format!("Failed to upsert document: {e}"))?;
 
-        // Handle groups
-        for group_id in &group_ids {
-            if group_id.trim().is_empty() {
+        // Handle projects
+        if !project_ids.is_empty() {
+            tx.execute(
+                "DELETE FROM document_projects WHERE document_id = ?1",
+                params![doc_id],
+            )
+            .map_err(|e| format!("Failed to clear old document projects: {e}"))?;
+        }
+
+        for project_id in &project_ids {
+            let trimmed = project_id.trim().trim_end_matches(['/', '\\']);
+            if trimmed.is_empty() {
                 continue;
             }
-            let group_title = Path::new(group_id)
+            let norm_project_id = trimmed.to_string();
+            let project_title = Path::new(&norm_project_id)
                 .file_name()
                 .and_then(|name| name.to_str())
-                .unwrap_or(group_id)
+                .unwrap_or(&norm_project_id)
                 .to_string();
 
             tx.execute(
-                "INSERT OR IGNORE INTO groups (id, title) VALUES (?1, ?2)",
-                params![group_id, group_title],
+                "INSERT OR IGNORE INTO projects (id, title) VALUES (?1, ?2)",
+                params![norm_project_id, project_title],
             )
-            .map_err(|e| format!("Failed to ensure group: {e}"))?;
+            .map_err(|e| format!("Failed to ensure project: {e}"))?;
 
             tx.execute(
-                "INSERT OR IGNORE INTO document_groups (document_id, group_id) VALUES (?1, ?2)",
-                params![doc_id, group_id],
+                "INSERT OR IGNORE INTO document_projects (document_id, project_id) VALUES (?1, ?2)",
+                params![doc_id, norm_project_id],
             )
-            .map_err(|e| format!("Failed to attach document to group: {e}"))?;
+            .map_err(|e| format!("Failed to attach document to project: {e}"))?;
         }
 
         // Clean stale chunks, embeddings, and tags
@@ -278,7 +300,7 @@ impl KbManager {
         file_path: String,
         document_title: String,
         content: String,
-        group_ids: Vec<String>,
+        project_ids: Vec<String>,
     ) -> Result<usize, String> {
         let base_document_id = format!("file:{file_path}");
         let section_id_like = format!("{base_document_id}#section:%");
@@ -309,7 +331,7 @@ impl KbManager {
                 Some(base_document_id),
                 document_title,
                 content,
-                group_ids,
+                project_ids,
                 0, // no section offset for whole-document fallback
             )
             .await?;
@@ -326,7 +348,7 @@ impl KbManager {
                 Some(section_document_id),
                 section_title,
                 section.content,
-                group_ids.clone(),
+                project_ids.clone(),
                 section_line_offset,
             )
             .await?;
@@ -463,11 +485,19 @@ impl KbManager {
         }
 
         Ok(results)
-    }
-
-    /// Execute a hybrid query combining FTS5 keyword scoring with sqlite-vec KNN search via Reciprocal Rank Fusion (RRF).
-    pub async fn search_hybrid(&self, query: String, limit: usize) -> Result<Vec<HybridSearchResult>, String> {
+    }    /// Execute a hybrid query combining FTS5 keyword scoring with sqlite-vec KNN search via Reciprocal Rank Fusion (RRF).
+    /// If `project_id` is provided, filters strictly to documents belonging to that project/folder.
+    pub async fn search_hybrid(
+        &self,
+        query: String,
+        limit: usize,
+        project_id: Option<String>,
+    ) -> Result<Vec<HybridSearchResult>, String> {
         let limit_i64 = limit as i64;
+        let normalized_project = project_id
+            .as_deref()
+            .map(|g| g.trim().trim_end_matches(['/', '\\']).to_string())
+            .filter(|g| !g.is_empty());
         let conn = self.db.lock().await;
 
         // 1. Keyword search (FTS5)
@@ -492,17 +522,36 @@ impl KbManager {
         let mut doc_map: std::collections::HashMap<String, RawResult> = std::collections::HashMap::new();
 
         if !fts_query.trim().is_empty() {
-            let mut fts_stmt = conn
-                .prepare(
+            let (query_str, params_vec): (&str, Vec<rusqlite::types::Value>) = match &normalized_project {
+                Some(pid) => (
+                    "SELECT d.id, d.title, d.content, f.rank
+                     FROM documents_fts f
+                     INNER JOIN documents d ON d.rowid = f.rowid
+                     WHERE documents_fts MATCH ?1
+                       AND EXISTS (
+                           SELECT 1 FROM document_projects dp
+                           WHERE (dp.document_id = d.id OR (instr(d.id, '#section:') > 0 AND dp.document_id = substr(d.id, 1, instr(d.id, '#section:') - 1)))
+                             AND (dp.project_id = ?2 OR rtrim(dp.project_id, '/\\') = ?2)
+                       )
+                     ORDER BY f.rank ASC LIMIT ?3",
+                    vec![fts_query.clone().into(), pid.clone().into(), limit_i64.into()],
+                ),
+                None => (
                     "SELECT d.id, d.title, d.content, f.rank
                      FROM documents_fts f
                      INNER JOIN documents d ON d.rowid = f.rowid
                      WHERE documents_fts MATCH ?1
                      ORDER BY f.rank ASC LIMIT ?2",
-                )
+                    vec![fts_query.clone().into(), limit_i64.into()],
+                ),
+            };
+
+            let mut fts_stmt = conn
+                .prepare(query_str)
                 .map_err(|e| format!("FTS query prepare failed: {e}"))?;
 
-            let mut rows = fts_stmt.query(params![fts_query, limit_i64])
+            let mut rows = fts_stmt
+                .query(rusqlite::params_from_iter(params_vec))
                 .map_err(|e| format!("FTS query execution failed: {e}"))?;
             let mut idx = 0;
             while let Some(row) = rows.next().map_err(|e| e.to_string())? {
@@ -533,18 +582,51 @@ impl KbManager {
         };
         let query_bytes = f32_slice_to_bytes(&query_vector);
 
-        let mut vec_stmt = conn
-            .prepare(
+        let vec_k = if normalized_project.is_some() {
+            (limit_i64 * 10).max(50)
+        } else {
+            limit_i64
+        };
+
+        let (vec_query_str, vec_params): (&str, Vec<rusqlite::types::Value>) = match &normalized_project {
+            Some(pid) => (
+                "SELECT de.document_id, d.title, d.content, de.distance, dc.content, dc.line_start
+                 FROM documents_embeddings de
+                 INNER JOIN documents d ON d.id = de.document_id
+                 INNER JOIN document_chunks dc ON dc.chunk_id = de.chunk_id
+                 WHERE de.embedding MATCH ?1 AND k = ?2
+                   AND EXISTS (
+                       SELECT 1 FROM document_projects dp
+                       WHERE (dp.document_id = d.id OR (instr(d.id, '#section:') > 0 AND dp.document_id = substr(d.id, 1, instr(d.id, '#section:') - 1)))
+                         AND (dp.project_id = ?3 OR rtrim(dp.project_id, '/\\') = ?3)
+                   )
+                 ORDER BY de.distance ASC",
+                vec![
+                    rusqlite::types::Value::Blob(query_bytes),
+                    vec_k.into(),
+                    pid.clone().into(),
+                ],
+            ),
+            None => (
                 "SELECT de.document_id, d.title, d.content, de.distance, dc.content, dc.line_start
                  FROM documents_embeddings de
                  INNER JOIN documents d ON d.id = de.document_id
                  INNER JOIN document_chunks dc ON dc.chunk_id = de.chunk_id
                  WHERE de.embedding MATCH ?1 AND k = ?2
                  ORDER BY de.distance ASC",
-            )
+                vec![
+                    rusqlite::types::Value::Blob(query_bytes),
+                    limit_i64.into(),
+                ],
+            ),
+        };
+
+        let mut vec_stmt = conn
+            .prepare(vec_query_str)
             .map_err(|e| format!("Vector query prepare failed: {e}"))?;
 
-        let mut rows = vec_stmt.query(params![query_bytes, limit_i64])
+        let mut rows = vec_stmt
+            .query(rusqlite::params_from_iter(vec_params))
             .map_err(|e| format!("Vector query execution failed: {e}"))?;
         let mut seen_docs = std::collections::HashSet::new();
         let mut vec_counter = 0;
@@ -612,26 +694,26 @@ impl KbManager {
         Ok(scored_results)
     }
 
-    /// Retrieve the documents and edges associated with a project group.
-    pub async fn get_project_graph(&self, group_id: String) -> Result<ProjectGraphRecord, String> {
+    /// Retrieve the documents and edges associated with a project.
+    pub async fn get_project_graph(&self, project_id: String) -> Result<ProjectGraphRecord, String> {
         let conn = self.db.lock().await;
 
-        let group_title = Path::new(&group_id)
+        let project_title = Path::new(&project_id)
             .file_name()
             .and_then(|name| name.to_str())
-            .unwrap_or(&group_id)
+            .unwrap_or(&project_id)
             .to_string();
 
         conn.execute(
-            "INSERT OR IGNORE INTO groups (id, title) VALUES (?1, ?2)",
-            params![group_id, group_title],
+            "INSERT OR IGNORE INTO projects (id, title) VALUES (?1, ?2)",
+            params![project_id, project_title],
         )
-        .map_err(|e| format!("Failed to ensure group: {e}"))?;
+        .map_err(|e| format!("Failed to ensure project: {e}"))?;
 
-        let group_title: String = conn
+        let project_title: String = conn
             .query_row(
-                "SELECT title FROM groups WHERE id = ?1",
-                params![group_id],
+                "SELECT title FROM projects WHERE id = ?1",
+                params![project_id],
                 |row| row.get(0),
             )
             .map_err(|e| e.to_string())?;
@@ -640,14 +722,14 @@ impl KbManager {
             .prepare(
                 "SELECT d.id, d.title, d.content
                  FROM documents d
-                 INNER JOIN document_groups dg ON dg.document_id = d.id
-                 WHERE dg.group_id = ?1
+                 INNER JOIN document_projects dp ON dp.document_id = d.id
+                 WHERE dp.project_id = ?1
                  ORDER BY d.title COLLATE NOCASE",
             )
             .map_err(|e| e.to_string())?;
 
         let documents = doc_stmt
-            .query_map(params![group_id], |row| {
+            .query_map(params![project_id], |row| {
                 Ok(GraphDocumentRecord {
                     id: row.get(0)?,
                     title: row.get(1)?,
@@ -662,14 +744,14 @@ impl KbManager {
             .prepare(
                 "SELECT e.id, e.source_id, e.target_id, e.type
                  FROM edges e
-                 INNER JOIN document_groups sg ON sg.document_id = e.source_id AND sg.group_id = ?1
-                 INNER JOIN document_groups tg ON tg.document_id = e.target_id AND tg.group_id = ?1
+                 INNER JOIN document_projects sp ON sp.document_id = e.source_id AND sp.project_id = ?1
+                 INNER JOIN document_projects tp ON tp.document_id = e.target_id AND tp.project_id = ?1
                  ORDER BY e.id",
             )
             .map_err(|e| e.to_string())?;
 
         let edges = edge_stmt
-            .query_map(params![group_id], |row| {
+            .query_map(params![project_id], |row| {
                 Ok(GraphEdgeRecord {
                     id: row.get(0)?,
                     source_id: row.get(1)?,
@@ -682,8 +764,8 @@ impl KbManager {
             .map_err(|e| e.to_string())?;
 
         Ok(ProjectGraphRecord {
-            group_id,
-            group_title,
+            project_id,
+            project_title,
             documents,
             edges,
         })
@@ -735,6 +817,7 @@ impl KbManager {
                     .file_name()
                     .and_then(|f| f.to_str())
                     .unwrap_or(link);
+
                 let filename_with_md = if filename.ends_with(".md") {
                     filename.to_string()
                 } else {
@@ -774,5 +857,53 @@ impl KbManager {
             .map_err(|e| format!("Failed to commit transaction: {e}"))?;
 
         Ok(())
+    }
+
+    /// List all projects and their document counts, with optional query filter.
+    pub async fn list_projects(&self, query: Option<String>) -> Result<Vec<ProjectSummary>, String> {
+        let conn = self.db.lock().await;
+
+        let (sql, params_vec): (&str, Vec<rusqlite::types::Value>) = match &query {
+            Some(q) if !q.trim().is_empty() => (
+                "SELECT p.id, p.title, COUNT(dp.document_id) as doc_count
+                 FROM projects p
+                 LEFT JOIN document_projects dp ON dp.project_id = p.id
+                 WHERE p.id LIKE ?1 OR p.title LIKE ?1
+                 GROUP BY p.id, p.title
+                 ORDER BY p.title COLLATE NOCASE",
+                vec![format!("%{}%", q.trim()).into()],
+            ),
+            _ => (
+                "SELECT p.id, p.title, COUNT(dp.document_id) as doc_count
+                 FROM projects p
+                 LEFT JOIN document_projects dp ON dp.project_id = p.id
+                 GROUP BY p.id, p.title
+                 ORDER BY p.title COLLATE NOCASE",
+                vec![],
+            ),
+        };
+
+        let mut stmt = conn.prepare(sql).map_err(|e| e.to_string())?;
+        let rows = stmt
+            .query_map(rusqlite::params_from_iter(params_vec), |row| {
+                Ok(ProjectSummary {
+                    project_id: row.get(0)?,
+                    title: row.get(1)?,
+                    document_count: row.get::<_, i64>(2)? as usize,
+                })
+            })
+            .map_err(|e| e.to_string())?;
+
+        let mut projects = Vec::new();
+        for row in rows {
+            projects.push(row.map_err(|e| e.to_string())?);
+        }
+
+        Ok(projects)
+    }
+
+    /// List all project groups and their document counts (alias for list_projects).
+    pub async fn list_groups(&self, query: Option<String>) -> Result<Vec<ProjectSummary>, String> {
+        self.list_projects(query).await
     }
 }

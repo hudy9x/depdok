@@ -46,6 +46,12 @@ function getToolIcon(name: string) {
     case "search_knowledge_base":
     case "semantic_search":
     case "search_knowledge":
+    case "list_knowledge_base_projects":
+    case "list_projects":
+    case "get_projects":
+    case "list_knowledge_base_groups":
+    case "list_groups":
+    case "get_groups":
       return <BookOpen className="h-3.5 w-3.5 text-amber-300" />;
     case "generate_content":
       return <PenTool className="h-3.5 w-3.5 text-amber-400" />;
@@ -122,6 +128,15 @@ function formatToolSummary(name: string, args: unknown, result: unknown): string
       const query = parsedArgs.query ? `"${parsedArgs.query}"` : "query";
       const total = typeof parsedResult.totalFound === "number" ? ` (${parsedResult.totalFound} found)` : "";
       return `Searched knowledge base for ${query}${total}`;
+    }
+    case "list_knowledge_base_projects":
+    case "list_projects":
+    case "get_projects":
+    case "list_knowledge_base_groups":
+    case "list_groups":
+    case "get_groups": {
+      const total = typeof parsedResult.totalFound === "number" ? ` (${parsedResult.totalFound} groups)` : "";
+      return `Listed knowledge base projects${total}`;
     }
     case "generate_content": {
       const topic = parsedArgs.topic ? `"${parsedArgs.topic}"` : "requested topic";

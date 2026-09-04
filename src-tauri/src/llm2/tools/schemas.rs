@@ -7,14 +7,42 @@ pub fn get_builtin_tools_schema(content_model_to_use: &str) -> serde_json::Value
       "type": "function",
       "function": {
         "name": "search_knowledge_base",
-        "description": "Search the local workspace knowledge base and indexed documentation using semantic vector and keyword retrieval to find relevant notes, specifications, guides, and section contents.",
+        "description": "Search the local workspace knowledge base and indexed documentation using semantic vector and keyword retrieval to find relevant notes, specifications, guides, and section contents within the active project or specified project path.",
         "parameters": {
           "type": "object",
           "properties": {
             "query": { "type": "string", "description": "The search query, topic, or concept to look up across workspace notes and documents (e.g. 'authentication flow', 'markdown pagination', 'database schema')" },
-            "limit": { "type": "integer", "description": "Maximum number of relevant sections to retrieve (default: 6)" }
+            "limit": { "type": "integer", "description": "Maximum number of relevant sections to retrieve (default: 6)" },
+            "project": { "type": "string", "description": "The project or folder path to scope the search within (use the Active Workspace Folder from system prompt)." },
+            "group": { "type": "string", "description": "Deprecated alias for 'project'." }
           },
-          "required": ["query"]
+          "required": ["query", "project"]
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "list_knowledge_base_projects",
+        "description": "List all indexed projects, workspace folders, and their document counts in the knowledge base. Use this to discover available projects or find a project path for cross-project searches.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "query": { "type": "string", "description": "Optional search term to filter projects by name or path." }
+          }
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "list_knowledge_base_groups",
+        "description": "Alias for 'list_knowledge_base_projects'. List all indexed projects in the knowledge base.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "query": { "type": "string", "description": "Optional search term to filter projects by name or path." }
+          }
         }
       }
     },

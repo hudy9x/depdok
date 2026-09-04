@@ -11,6 +11,10 @@ use super::super::service::KbMcpService;
 pub struct SearchRequest {
     pub query: String,
     pub limit: Option<usize>,
+    #[serde(default)]
+    pub project_id: Option<String>,
+    #[serde(default)]
+    pub group_id: Option<String>,
 }
 
 impl schemars::JsonSchema for SearchRequest {
@@ -28,6 +32,14 @@ impl schemars::JsonSchema for SearchRequest {
                 "limit": {
                     "type": "integer",
                     "minimum": 1
+                },
+                "project_id": {
+                    "type": "string",
+                    "description": "Optional project/folder path to scope search within"
+                },
+                "group_id": {
+                    "type": "string",
+                    "description": "Deprecated alias for project_id"
                 }
             },
             "required": ["query"],
@@ -95,7 +107,8 @@ impl KbMcpService {
     #[tool(description = "Search the knowledge base using hybrid keyword (FTS5) + semantic (vector) search.")]
     async fn kb_search(&self, Parameters(req): Parameters<SearchRequest>) -> Result<CallToolResult, McpError> {
         let limit = req.limit.unwrap_or(10);
-        let results = self.kb_manager.search_hybrid(req.query, limit).await
+        let project_id = req.project_id.or(req.group_id);
+        let results = self.kb_manager.search_hybrid(req.query, limit, project_id).await
             .map_err(|e| McpError::internal_error(e, None))?;
 
         let pretty_results = serde_json::to_string_pretty(&results)

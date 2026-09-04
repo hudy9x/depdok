@@ -6,6 +6,10 @@ import { workspaceRootAtom } from "@/features/FileExplorer/store";
 export interface SearchKnowledgeBaseArgs {
   query: string;
   limit?: number;
+  project?: string;
+  projectId?: string;
+  group?: string;
+  groupId?: string;
 }
 
 export interface FormattedKnowledgeMatch {
@@ -63,9 +67,18 @@ export async function searchKnowledgeBaseTool(
   const limit = typeof args.limit === "number" && args.limit > 0 ? Math.min(args.limit, 20) : 6;
   const store = getDefaultStore();
   const workspaceRoot = store.get(workspaceRootAtom);
+  const effectiveProjectId =
+    (
+      args.project?.trim() ||
+      args.projectId?.trim() ||
+      args.group?.trim() ||
+      args.groupId?.trim() ||
+      workspaceRoot ||
+      ""
+    ).trim() || undefined;
 
   try {
-    const rawResults: HybridSearchResult[] = await searchHybrid(query, limit);
+    const rawResults: HybridSearchResult[] = await searchHybrid(query, limit, effectiveProjectId);
 
     if (!rawResults || rawResults.length === 0) {
       return {

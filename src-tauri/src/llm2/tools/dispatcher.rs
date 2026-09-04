@@ -10,7 +10,7 @@ use super::{
   GenerateContentTool, GetCurrentDatetimeTool, GetUserAgeTool, GetUserCountryTool,
   GetUserDobTool, GetUserNameTool, ListFilesTool, MoveFilesOrFoldersTool,
   ReadMarkdownTool, RenameFileTool, RenameFolderTool, RunShellTool,
-  SearchKnowledgeBaseTool, SumFourDigitsTool, UpsertMarkdownSectionTool,
+  SearchKnowledgeBaseTool, ListKnowledgeBaseProjectsTool, ListKnowledgeBaseGroupsTool, SumFourDigitsTool, UpsertMarkdownSectionTool,
   UpsertMarkdownTool, WebSearchTool, FetchWebPageTool, WriteSkillTool,
   McpVerifyConfigTool, McpTestServerTool, McpListServersTool, McpReloadTool,
   SearchFileTool, ReloadSkillsTool,
@@ -166,6 +166,20 @@ pub async fn dispatch_tool_call(
       match serde_json::from_value(call_args) {
         Ok(args) => tool.call(args).await.map_err(|e| e.to_string()),
         Err(e) => Err(format!("Invalid arguments for search_knowledge_base: {}", e)),
+      }
+    }
+    "list_knowledge_base_projects" | "list_projects" | "get_projects" => {
+      let tool = ListKnowledgeBaseProjectsTool { app: app.clone(), pending: pending.clone() };
+      match serde_json::from_value(call_args) {
+        Ok(args) => tool.call(args).await.map_err(|e| e.to_string()),
+        Err(e) => Err(format!("Invalid arguments for list_knowledge_base_projects: {}", e)),
+      }
+    }
+    "list_knowledge_base_groups" | "list_groups" | "get_groups" => {
+      let tool = ListKnowledgeBaseGroupsTool { app: app.clone(), pending: pending.clone() };
+      match serde_json::from_value(call_args) {
+        Ok(args) => tool.call(args).await.map_err(|e| e.to_string()),
+        Err(e) => Err(format!("Invalid arguments for list_knowledge_base_groups: {}", e)),
       }
     }
     "write_skill" => {

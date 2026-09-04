@@ -1,5 +1,5 @@
-import React, { useMemo } from "react";
-import { Streamdown } from "streamdown";
+import React, { ComponentProps, useMemo } from "react";
+import { defaultRehypePlugins, Streamdown } from "streamdown";
 
 import { extractCitedSources } from "../lib/extractCitedSources";
 import { ChatMessage, ToolExecutionLog } from "../store/LLMChat2Store";
@@ -16,6 +16,51 @@ export interface AssistantChatMessageProps {
   isGenerating?: boolean;
   activeToolCall?: ToolExecutionLog | null;
 }
+
+/**
+ * Configure Streamdown rehype plugins to whitelist internal citation schemes (cite:, depdok-cite:)
+ * and prevent rehype-harden from stripping href or injecting "[blocked]" indicator spans.
+ */
+const streamdownRehypePlugins: ComponentProps<typeof Streamdown>["rehypePlugins"] = (() => {
+  const sanitizeEntry = defaultRehypePlugins.sanitize;
+  const hardenEntry = defaultRehypePlugins.harden;
+
+  const sanitizePlugin = Array.isArray(sanitizeEntry) ? sanitizeEntry[0] : sanitizeEntry;
+  const sanitizeConfig =
+    Array.isArray(sanitizeEntry) && sanitizeEntry[1] ? (sanitizeEntry[1] as Record<string, any>) : {};
+
+  const hardenPlugin = Array.isArray(hardenEntry) ? hardenEntry[0] : hardenEntry;
+  const hardenConfig =
+    Array.isArray(hardenEntry) && hardenEntry[1] ? (hardenEntry[1] as Record<string, any>) : {};
+
+  const customSanitizeConfig = {
+    ...sanitizeConfig,
+    protocols: {
+      ...sanitizeConfig?.protocols,
+      href: [
+        ...(Array.isArray(sanitizeConfig?.protocols?.href) ? sanitizeConfig.protocols.href : []),
+        "cite",
+        "depdok-cite",
+      ],
+    },
+  };
+
+  const customHardenConfig = {
+    ...hardenConfig,
+    linkBlockPolicy: "text-only",
+    allowedProtocols: [
+      ...(Array.isArray(hardenConfig?.allowedProtocols) ? hardenConfig.allowedProtocols : ["*"]),
+      "cite:",
+      "depdok-cite:",
+    ],
+  };
+
+  return [
+    defaultRehypePlugins.raw,
+    [sanitizePlugin as any, customSanitizeConfig],
+    [hardenPlugin as any, customHardenConfig],
+  ];
+})();
 
 /**
  * Detects whether a text snippet contains an inner monologue / planning scratchpad
@@ -70,6 +115,34 @@ export const AssistantChatMessage: React.FC<AssistantChatMessageProps> = ({
   // Configure custom Streamdown components to intercept citation links (e.g. cite:1 or [^1])
   const streamdownComponents = useMemo(() => {
     return {
+      span: ({ title, children, className, ...props }: React.HTMLAttributes<HTMLSpanElement>) => {
+        // Defensive fallback: If any upstream plugin marked a citation link as blocked,
+        // intercept and restore it as an interactive CitationBadge instead of showing "[blocked]".
+        if (title && title.startsWith("Blocked URL:")) {
+          const rawUrl = title.replace(/^Blocked URL:\s*/, "").trim();
+          let numId: number | null = null;
+          if (rawUrl.startsWith("cite:") || rawUrl.startsWith("depdok-cite:")) {
+            const parsed = parseInt(rawUrl.replace(/^(cite|depdok-cite):/, ""), 10);
+            if (!isNaN(parsed)) numId = parsed;
+          } else {
+            const textMatch = String(children ?? "").match(/^(\d+)/);
+            if (textMatch) {
+              const parsed = parseInt(textMatch[1], 10);
+              if (!isNaN(parsed)) numId = parsed;
+            }
+          }
+
+          if (numId !== null) {
+            return <CitationBadge citationId={numId} sources={sources} />;
+          }
+        }
+
+        return (
+          <span className={className} title={title} {...props}>
+            {children}
+          </span>
+        );
+      },
       a: ({ href, children, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement>) => {
         if (href) {
           let numId: number | null = null;
@@ -161,6 +234,7 @@ export const AssistantChatMessage: React.FC<AssistantChatMessageProps> = ({
                     key={part.id}
                     animated
                     caret="block"
+                    rehypePlugins={streamdownRehypePlugins}
                     components={streamdownComponents}
                   >
                     {part.content}
@@ -201,6 +275,7 @@ export const AssistantChatMessage: React.FC<AssistantChatMessageProps> = ({
                     <Streamdown
                       animated
                       caret="block"
+                      rehypePlugins={streamdownRehypePlugins}
                       components={streamdownComponents}
                     >
                       {answer}

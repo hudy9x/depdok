@@ -7,7 +7,7 @@ use std::fs;
 
 use super::{
     embedding::EmbedderState,
-    manager::{GraphDocumentRecord, HybridSearchResult, ProjectGraphRecord, SearchResult},
+    manager::{GraphDocumentRecord, HybridSearchResult, ProjectGraphRecord, ProjectSummary, SearchResult},
     KbState,
 };
 
@@ -27,9 +27,11 @@ pub async fn insert_or_replace_document(
     id: Option<String>,
     title: String,
     content: String,
-    group_ids: Vec<String>,
+    project_ids: Option<Vec<String>>,
+    group_ids: Option<Vec<String>>,
 ) -> Result<String, String> {
-    kb_state.0.upsert_document(id, title, content, group_ids, 0).await
+    let p_ids = project_ids.or(group_ids).unwrap_or_default();
+    kb_state.0.upsert_document(id, title, content, p_ids, 0).await
 }
 
 #[tauri::command]
@@ -39,9 +41,11 @@ pub async fn index_markdown_document_sections(
     file_path: String,
     document_title: String,
     content: String,
-    group_ids: Vec<String>,
+    project_ids: Option<Vec<String>>,
+    group_ids: Option<Vec<String>>,
 ) -> Result<usize, String> {
-    kb_state.0.index_markdown_document_sections(file_path, document_title, content, group_ids).await
+    let p_ids = project_ids.or(group_ids).unwrap_or_default();
+    kb_state.0.index_markdown_document_sections(file_path, document_title, content, p_ids).await
 }
 
 #[tauri::command]
@@ -128,10 +132,18 @@ pub async fn search_similar(
 #[tauri::command]
 pub async fn search_hybrid(
     kb_state: State<'_, KbState>,
+    project_state: State<'_, super::CurrentProject>,
     query: String,
     limit: usize,
+    project_id: Option<String>,
+    group_id: Option<String>,
 ) -> Result<Vec<HybridSearchResult>, String> {
-    kb_state.0.search_hybrid(query, limit).await
+    let req_project = project_id.or(group_id);
+    let effective_project_id = req_project
+        .filter(|g| !g.trim().is_empty())
+        .or_else(|| project_state.0.lock().ok().and_then(|g| g.clone()));
+
+    kb_state.0.search_hybrid(query, limit, effective_project_id).await
 }
 
 #[tauri::command]
@@ -154,22 +166,53 @@ pub async fn get_document(
 #[tauri::command]
 pub async fn get_project_graph(
     kb_state: State<'_, KbState>,
-    group_id: String,
+    project_id: Option<String>,
+    group_id: Option<String>,
 ) -> Result<ProjectGraphRecord, String> {
-    kb_state.0.get_project_graph(group_id).await
+    let target = project_id
+        .or(group_id)
+        .ok_or_else(|| "project_id is required".to_string())?;
+    kb_state.0.get_project_graph(target).await
+}
+
+#[tauri::command]
+pub async fn set_current_project(
+    project_state: State<'_, super::CurrentProject>,
+    project_id: Option<String>,
+    group_id: Option<String>,
+) -> Result<(), String> {
+    let target = project_id.or(group_id).unwrap_or_default();
+    let mut current_project = project_state
+        .0
+        .lock()
+        .map_err(|e| format!("Current project lock poisoned: {e}"))?;
+    *current_project = if target.is_empty() { None } else { Some(target) };
+    Ok(())
 }
 
 #[tauri::command]
 pub async fn set_current_project_group(
-    group_state: State<'_, super::CurrentProjectGroup>,
-    group_id: String,
+    project_state: State<'_, super::CurrentProject>,
+    group_id: Option<String>,
+    project_id: Option<String>,
 ) -> Result<(), String> {
-    let mut current_group = group_state
-        .0
-        .lock()
-        .map_err(|e| format!("Project group lock poisoned: {e}"))?;
-    *current_group = Some(group_id);
-    Ok(())
+    set_current_project(project_state, project_id, group_id).await
+}
+
+#[tauri::command]
+pub async fn list_projects(
+    kb_state: State<'_, KbState>,
+    query: Option<String>,
+) -> Result<Vec<ProjectSummary>, String> {
+    kb_state.0.list_projects(query).await
+}
+
+#[tauri::command]
+pub async fn list_groups(
+    kb_state: State<'_, KbState>,
+    query: Option<String>,
+) -> Result<Vec<ProjectSummary>, String> {
+    kb_state.0.list_groups(query).await
 }
 
 #[tauri::command]

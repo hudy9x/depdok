@@ -57,6 +57,7 @@ pub async fn prepare_agent_history(
   prompt: &str,
   initial_history: Option<Vec<OllamaMessage>>,
   system_prompt_addendum: Option<String>,
+  current_workspace: Option<&str>,
   mcp_manager: Option<&McpClientManager>,
   num_ctx: usize,
   tools_schema: Option<&serde_json::Value>,
@@ -64,6 +65,23 @@ pub async fn prepare_agent_history(
   sliding_window_enabled: bool,
 ) -> (Vec<OllamaMessage>, SlidingWindowResult) {
   let mut system_content = build_system_prompt(model_to_use, content_model_to_use);
+
+  // Inject active Workspace / Project environment grounding
+  if let Some(ws) = current_workspace {
+    let trimmed = ws.trim().trim_end_matches(['/', '\\']);
+    if !trimmed.is_empty() {
+      let folder_name = std::path::Path::new(trimmed)
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or(trimmed);
+      system_content.push_str("\n\n---\n## Active Project & Workspace Environment\n");
+      system_content.push_str(&format!("- Active Workspace Folder: `{trimmed}`\n"));
+      system_content.push_str(&format!("- Project Name: `{folder_name}`\n"));
+      system_content.push_str("When invoking 'search_knowledge_base', you MUST pass this Active Workspace Folder (`");
+      system_content.push_str(trimmed);
+      system_content.push_str("`) for the `project` parameter. If you need to search or discover other projects, invoke 'list_knowledge_base_projects'.\n");
+    }
+  }
 
   // Inject active MCP servers & discovered tools info
   if let Some(mgr) = mcp_manager {

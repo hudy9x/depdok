@@ -77,7 +77,7 @@ fn init_database_inner(db_path: &Path, dims: usize) -> Result<Connection, String
         .query_row("PRAGMA user_version;", [], |row| row.get(0))
         .map_err(|e| format!("Failed to read user_version: {e}"))?;
 
-    let target_version = 3;
+    let target_version = 4;
 
     if user_version < target_version {
         // Drop all existing tables to perform a clean reset, avoiding trigger/virtual table mismatches.
@@ -91,8 +91,10 @@ fn init_database_inner(db_path: &Path, dims: usize) -> Result<Connection, String
             DROP TABLE IF EXISTS documents_embeddings;
             DROP TABLE IF EXISTS document_chunks;
             DROP TABLE IF EXISTS document_tags;
+            DROP TABLE IF EXISTS document_projects;
             DROP TABLE IF EXISTS document_groups;
             DROP TABLE IF EXISTS edges;
+            DROP TABLE IF EXISTS projects;
             DROP TABLE IF EXISTS groups;
             DROP TABLE IF EXISTS documents;
             PRAGMA foreign_keys = ON;
@@ -109,15 +111,15 @@ fn init_database_inner(db_path: &Path, dims: usize) -> Result<Connection, String
             content TEXT NOT NULL
         );
 
-        CREATE TABLE IF NOT EXISTS groups (
+        CREATE TABLE IF NOT EXISTS projects (
             id    TEXT PRIMARY KEY,
             title TEXT NOT NULL
         );
 
-        CREATE TABLE IF NOT EXISTS document_groups (
+        CREATE TABLE IF NOT EXISTS document_projects (
             document_id TEXT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
-            group_id    TEXT NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
-            PRIMARY KEY (document_id, group_id)
+            project_id  TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+            PRIMARY KEY (document_id, project_id)
         );
 
         CREATE TABLE IF NOT EXISTS edges (
@@ -145,6 +147,8 @@ fn init_database_inner(db_path: &Path, dims: usize) -> Result<Connection, String
         CREATE INDEX IF NOT EXISTS idx_chunks_doc ON document_chunks(document_id);
         CREATE INDEX IF NOT EXISTS idx_tags_doc ON document_tags(document_id);
         CREATE INDEX IF NOT EXISTS idx_tags_tag ON document_tags(tag);
+        CREATE INDEX IF NOT EXISTS idx_doc_projects_project ON document_projects(project_id);
+        CREATE INDEX IF NOT EXISTS idx_doc_projects_doc ON document_projects(document_id);
         ",
     )
     .map_err(|e| format!("Schema creation failed: {e}"))?;

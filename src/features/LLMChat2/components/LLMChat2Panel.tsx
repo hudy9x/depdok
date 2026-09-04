@@ -717,6 +717,8 @@ export function LLMChat2Panel() {
       // Exclude web search tools when web toggle is OFF, while preserving all MCP tools
       allowedTools = [
         "search_knowledge_base",
+        "list_knowledge_base_projects",
+        "list_knowledge_base_groups",
         "generate_content",
         "sum_four_digits",
         "get_user_name",

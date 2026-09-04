@@ -37,6 +37,7 @@ pub const PROMPT_MULTI_STEP_EXECUTION: &str = r#"- MULTI-STEP EXECUTION & TOOL F
 /// Why we need this: Grounding in local workspace knowledge. Ensures the model searches the vector
 /// database (`search_knowledge_base`) for project documentation, architecture, and notes before answering.
 pub const PROMPT_KNOWLEDGE_BASE: &str = r#"- When asked questions about workspace documentation, project architecture, guides, previous notes, or concepts, invoke 'search_knowledge_base' to retrieve relevant sections and notes from the vector knowledge base before answering.
+- Use 'list_knowledge_base_groups' when you need to discover available projects/groups or find the exact path for another project when searching across projects.
 - When answering from knowledge base results:
   * SYNTHESIZE & REWRITE: Do not raw copy-paste large blocks. Rephrase and summarize the insights cleanly in your own words while retaining the original facts and technical meaning.
   * CITE SOURCES INLINE: Attach inline citation markdown links right after sentences, claims, or bullet points derived from a source:

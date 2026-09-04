@@ -21,6 +21,7 @@ import {
   upsertMarkdownSectionTool,
   addMarkdownCommentTool,
   searchKnowledgeBaseTool,
+  listKnowledgeBaseProjectsTool,
   writeSkillTool,
   getCurrentDatetimeTool,
   runShellTool,
@@ -39,6 +40,7 @@ import {
   UpsertMarkdownSectionArgs,
   AddMarkdownCommentArgs,
   SearchKnowledgeBaseArgs,
+  ListKnowledgeBaseProjectsArgs,
   WriteSkillArgs,
   GetCurrentDatetimeArgs,
   RunShellArgs,
@@ -294,6 +296,14 @@ export function useToolListener() {
           case "semantic_search":
           case "search_knowledge":
             toolOutput = await searchKnowledgeBaseTool(args as unknown as SearchKnowledgeBaseArgs);
+            break;
+          case "list_knowledge_base_projects":
+          case "list_projects":
+          case "get_projects":
+          case "list_knowledge_base_groups":
+          case "list_groups":
+          case "get_groups":
+            toolOutput = await listKnowledgeBaseProjectsTool(args as unknown as ListKnowledgeBaseProjectsArgs);
             break;
           case "write_skill":
             toolOutput = await writeSkillTool(args as unknown as WriteSkillArgs);

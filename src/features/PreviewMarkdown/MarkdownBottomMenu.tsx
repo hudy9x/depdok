@@ -1,6 +1,7 @@
 import { useRef, useState, useEffect } from "react";
 import { Editor, useEditorState } from "@tiptap/react";
 import { MessageSquare, MessageSquarePlus } from "lucide-react";
+import { BsCardList } from "react-icons/bs";
 import { useAtomValue, useSetAtom } from "jotai";
 
 import { BlockButtons } from "./MenuButtons";
@@ -13,6 +14,7 @@ import {
   useCommentAuthor,
   type CommentThread,
 } from "./extensions/comment";
+import { stringifyFrontmatter } from "./utils/frontmatter";
 
 interface MarkdownBottomMenuProps {
   editor: Editor | null;
@@ -22,6 +24,84 @@ interface MarkdownBottomMenuProps {
   filePath?: string;
   isSidebarVisible?: boolean;
   onToggleSidebar?: () => void;
+}
+
+/** Quick button to insert or focus Document Properties section at the top of the file. */
+function AddDocumentPropertiesButton({
+  editor,
+  filePath = '',
+}: {
+  editor: Editor;
+  filePath?: string;
+}) {
+  const hasDocProps = useEditorState({
+    editor,
+    selector: (ctx) => {
+      let found = false;
+      ctx.editor.state.doc.descendants((node) => {
+        if (node.type.name === "documentProperties") {
+          found = true;
+          return false;
+        }
+      });
+      return found;
+    },
+  });
+
+  const handleAddProperties = () => {
+    // Strictly verify in current ProseMirror doc state before inserting
+    let alreadyExists = false;
+    editor.state.doc.descendants((node) => {
+      if (node.type.name === "documentProperties") {
+        alreadyExists = true;
+        return false;
+      }
+    });
+
+    if (alreadyExists || hasDocProps) {
+      // Scroll to top of the markdown editor container smoothly
+      const scrollContainer =
+        editor.view.dom.closest(".scroll-area-viewport, .overflow-y-auto, [data-radix-scroll-area-viewport]") ||
+        editor.view.dom.parentElement;
+      scrollContainer?.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+
+    const initialMetadata = {
+      title: "",
+      desc: "",
+    };
+    const raw = stringifyFrontmatter(initialMetadata);
+
+    editor
+      .chain()
+      .focus("start")
+      .insertContentAt(0, {
+        type: "documentProperties",
+        attrs: {
+          metadata: initialMetadata,
+          raw,
+          filePath: filePath || "",
+        },
+      })
+      .run();
+  };
+
+  return (
+    <button
+      type="button"
+      id="add-document-properties-button"
+      onClick={handleAddProperties}
+      title={hasDocProps ? "Document properties (Scroll to top)" : "Add document properties"}
+      className={`p-2 rounded hover:bg-accent transition-colors ${
+        hasDocProps
+          ? "text-primary hover:text-primary bg-primary/10"
+          : "text-muted-foreground hover:text-foreground"
+      }`}
+    >
+      <BsCardList className="w-4 h-4" />
+    </button>
+  );
 }
 
 /** Add Comment button with inline Popover for entering comment text. */
@@ -196,9 +276,9 @@ export function MarkdownBottomMenu({
         </>
       )}
 
-
       {editable && editor && (
         <>
+          <AddDocumentPropertiesButton editor={editor} filePath={filePath} />
           <AddCommentButton editor={editor} filePath={filePath} />
           <div className="relative inline-flex items-center">
             <button
@@ -220,7 +300,6 @@ export function MarkdownBottomMenu({
             </button>
           </div>
           <div className="w-[1px] h-5 bg-border mx-1 shrink-0 size-control-divider" />
-
         </>
       )}
 
@@ -241,4 +320,3 @@ export function MarkdownBottomMenu({
     </div>
   );
 }
-

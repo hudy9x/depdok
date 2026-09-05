@@ -8,8 +8,6 @@ export interface SearchKnowledgeBaseArgs {
   limit?: number;
   project?: string;
   projectId?: string;
-  group?: string;
-  groupId?: string;
 }
 
 export interface FormattedKnowledgeMatch {
@@ -68,14 +66,7 @@ export async function searchKnowledgeBaseTool(
   const store = getDefaultStore();
   const workspaceRoot = store.get(workspaceRootAtom);
   const effectiveProjectId =
-    (
-      args.project?.trim() ||
-      args.projectId?.trim() ||
-      args.group?.trim() ||
-      args.groupId?.trim() ||
-      workspaceRoot ||
-      ""
-    ).trim() || undefined;
+    (args.project?.trim() || args.projectId?.trim() || workspaceRoot || "").trim() || undefined;
 
   try {
     const rawResults: HybridSearchResult[] = await searchHybrid(query, limit, effectiveProjectId);

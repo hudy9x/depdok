@@ -20,8 +20,6 @@ pub struct SearchKnowledgeBaseArgs {
   pub limit: Option<usize>,
   #[serde(default)]
   pub project: Option<String>,
-  #[serde(default)]
-  pub group: Option<String>,
 }
 
 impl PortableTool for SearchKnowledgeBaseTool {
@@ -40,15 +38,14 @@ impl PortableTool for SearchKnowledgeBaseTool {
       "properties": {
         "query": { "type": "string", "description": "The search query or concept to search for across the indexed workspace notes and documents (e.g. 'authentication flow', 'markdown pagination', 'sqlite vector setup')" },
         "limit": { "type": "integer", "description": "Maximum number of relevant section results to return (default: 6, max: 20)" },
-        "project": { "type": "string", "description": "The project or folder path to scope the search within (e.g. the current workspace or project folder path)." },
-        "group": { "type": "string", "description": "Deprecated alias for 'project'." }
+        "project": { "type": "string", "description": "The project or folder path to scope the search within (e.g. the current workspace or project folder path)." }
       },
       "required": ["query", "project"]
     })
   }
 
   async fn call(&self, mut args: Self::Args) -> Result<Self::Output, Self::Error> {
-    let mut resolved_project = args.project.clone().or_else(|| args.group.clone());
+    let mut resolved_project = args.project.clone();
     if resolved_project.is_none() {
       if let Some(project_state) = self.app.try_state::<crate::knowledge_base::CurrentProject>() {
         if let Ok(guard) = project_state.0.lock() {
@@ -58,8 +55,7 @@ impl PortableTool for SearchKnowledgeBaseTool {
         }
       }
     }
-    args.project = resolved_project.clone();
-    args.group = resolved_project;
+    args.project = resolved_project;
     call_frontend_tool(&self.app, &self.pending, Self::NAME, args).await
   }
 }

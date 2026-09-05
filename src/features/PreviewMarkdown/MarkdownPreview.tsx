@@ -49,6 +49,7 @@ import {
   useCommentExtension,
 } from "./extensions/comment";
 import { SlashCommandExtension } from "./extensions/slash-command";
+import { DocumentPropertiesExtension } from "./extensions/document-properties";
 
 const lowlight = createLowlight(common);
 
@@ -88,8 +89,6 @@ export function MarkdownPreview({
   // containerRef moved here so it can be referenced in TableOfContents scrollParent
   const containerRef = useRef<HTMLDivElement>(null);
   // handleLinkClick initialised after containerRef below
-
-
 
   const getAssetsFolder = useCallback(
     () => localStorage.getItem('settings-markdown-asset-folder') || '',
@@ -202,6 +201,7 @@ export function MarkdownPreview({
         placeholder: 'Start writing…',
         showOnlyCurrent: false,
       }),
+      DocumentPropertiesExtension,
       CommentMark,
       TableOfContents.configure({
         // eslint-disable-next-line @typescript-eslint/no-explicit-any

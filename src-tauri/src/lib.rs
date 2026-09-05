@@ -1010,6 +1010,7 @@ pub fn run() {
             commands::files::rename_node,
             commands::files::copy_node,
             commands::files::reveal_file,
+            commands::files::get_file_fs_metadata,
             commands::export::export_markdown_to_html,
             commands::export::export_markdown_to_pdf,
             commands::file_watcher::start_watching,

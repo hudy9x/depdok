@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { NodeViewWrapper, NodeViewProps } from "@tiptap/react";
 import { useAtomValue, useSetAtom } from "jotai";
 import { useNavigate } from "react-router-dom";
@@ -23,9 +23,11 @@ import {
 
 import { workspaceRootAtom } from "@/features/FileExplorer/store";
 import { createTabAtom } from "@/stores/TabStore";
+import { fileReloadVersionAtomFamily } from "@/stores/EditorStore";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { FileIcon } from "@/components/FileIcon";
 import { fuzzySearchFiles, SearchResult } from "@/features/FileSearchDialog/api";
+import { getFileFsMetadata } from "@/lib/fileOperations";
 import { stringifyFrontmatter } from "../../utils/frontmatter";
 
 export function DocumentPropertiesNodeView(props: NodeViewProps) {
@@ -34,9 +36,33 @@ export function DocumentPropertiesNodeView(props: NodeViewProps) {
   const metadata: Record<string, any> = node.attrs.metadata || {};
   const filePath: string = node.attrs.filePath || "";
 
-  const [isExpanded, setIsExpanded] = useState(true);
+  const fileReloadVersion = useAtomValue(
+    useMemo(() => fileReloadVersionAtomFamily(filePath), [filePath])
+  );
+
+  const [isExpanded, setIsExpanded] = useState(false);
   const [newTagInput, setNewTagInput] = useState("");
   const [isAddingTag, setIsAddingTag] = useState(false);
+
+  // OS Filesystem Metadata (Created at & Updated at) - read-only, loaded on mount & reloads
+  const [fsMetadata, setFsMetadata] = useState<{
+    created_at: string | null;
+    updated_at: string | null;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!filePath || filePath.startsWith("UNTITLED://")) return;
+    getFileFsMetadata(filePath)
+      .then((data) => {
+        setFsMetadata({
+          created_at: data.created_at,
+          updated_at: data.updated_at,
+        });
+      })
+      .catch((err) => {
+        console.warn("[DocumentProperties] Failed to fetch fs metadata:", err);
+      });
+  }, [filePath, fileReloadVersion]);
 
   // Reference search popover state
   const [isAddingRef, setIsAddingRef] = useState(false);
@@ -139,9 +165,18 @@ export function DocumentPropertiesNodeView(props: NodeViewProps) {
         : "";
   const author = typeof metadata.author === "string" ? metadata.author : "";
   const updatedBy = typeof metadata.updated_by === "string" ? metadata.updated_by : "";
-  const updatedAt =
-    metadata.updated_at || metadata.date || metadata.created_at || metadata.updated || "";
-  const updatedAtStr = updatedAt ? String(updatedAt) : "";
+
+  // Resolved timestamps from OS filesystem metadata (with frontmatter fallback)
+  const createdAtDisplay =
+    fsMetadata?.created_at ||
+    (metadata.created_at ? String(metadata.created_at) : null) ||
+    (metadata.created ? String(metadata.created) : null);
+
+  const updatedAtDisplay =
+    fsMetadata?.updated_at ||
+    (metadata.updated_at ? String(metadata.updated_at) : null) ||
+    (metadata.date ? String(metadata.date) : null) ||
+    (metadata.updated ? String(metadata.updated) : null);
 
   // References list
   const references: string[] = Array.isArray(metadata.references)
@@ -171,6 +206,7 @@ export function DocumentPropertiesNodeView(props: NodeViewProps) {
     "date",
     "updated_at",
     "created_at",
+    "created",
     "updated",
   ]);
 
@@ -243,17 +279,11 @@ export function DocumentPropertiesNodeView(props: NodeViewProps) {
     navigate("/editor");
   };
 
-  const handleSetToday = () => {
-    const today = new Date().toISOString().split("T")[0];
-    handleUpdateField("updated_at", today);
-  };
-
   const availableQuickProps = [
     { key: "title", label: "Title", icon: Heading, exists: !!metadata.title },
     { key: "desc", label: "Description", icon: AlignLeft, exists: !!(metadata.desc || metadata.description) },
     { key: "author", label: "Author", icon: User, exists: !!metadata.author },
     { key: "updated_by", label: "Updated by", icon: UserCheck, exists: !!metadata.updated_by },
-    { key: "updated_at", label: "Updated at", icon: Clock, exists: !!(metadata.updated_at || metadata.date) },
     { key: "tags", label: "Tags", icon: Tag, exists: tags.length > 0 },
     { key: "references", label: "References", icon: Link2, exists: references.length > 0 },
   ];
@@ -263,7 +293,8 @@ export function DocumentPropertiesNodeView(props: NodeViewProps) {
     desc ||
     author ||
     updatedBy ||
-    updatedAtStr ||
+    createdAtDisplay ||
+    updatedAtDisplay ||
     tags.length > 0 ||
     references.length > 0 ||
     customProperties.length > 0;
@@ -322,9 +353,7 @@ export function DocumentPropertiesNodeView(props: NodeViewProps) {
                             key={p.key}
                             type="button"
                             onClick={() => {
-                              if (p.key === "updated_at") {
-                                handleSetToday();
-                              } else if (p.key === "tags") {
+                              if (p.key === "tags") {
                                 handleUpdateField("tags", ["tag"]);
                               } else if (p.key === "references") {
                                 handleUpdateField("references", ["/overview.md"]);
@@ -540,58 +569,35 @@ export function DocumentPropertiesNodeView(props: NodeViewProps) {
                 </div>
               )}
 
-              {/* Date / Updated At */}
-              {(updatedAtStr ||
-                (isEditable &&
-                  (metadata.updated_at !== undefined ||
-                    metadata.date !== undefined ||
-                    metadata.created_at !== undefined))) && (
-                <div className="group/field flex items-center gap-2 min-w-0">
+              {/* Created At (OS filesystem metadata / read-only) */}
+              {createdAtDisplay && (
+                <div className="flex items-center gap-2 min-w-0">
                   <span className="flex items-center gap-1.5 text-muted-foreground font-medium w-24 shrink-0">
                     <Calendar className="w-3.5 h-3.5 text-muted-foreground/80" />
+                    <span>Created at</span>
+                  </span>
+                  <span
+                    className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-mono bg-secondary/60 text-secondary-foreground border border-border/30 truncate"
+                    title="Detected from file system metadata"
+                  >
+                    {createdAtDisplay}
+                  </span>
+                </div>
+              )}
+
+              {/* Updated At / Modified At (OS filesystem metadata / read-only) */}
+              {updatedAtDisplay && (
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="flex items-center gap-1.5 text-muted-foreground font-medium w-24 shrink-0">
+                    <Clock className="w-3.5 h-3.5 text-muted-foreground/80" />
                     <span>Updated at</span>
                   </span>
-                  {isEditable ? (
-                    <div className="flex items-center gap-1 flex-1 min-w-0">
-                      <input
-                        type="text"
-                        value={updatedAtStr}
-                        onChange={(e) => {
-                          const targetKey = metadata.date !== undefined ? "date" : "updated_at";
-                          handleUpdateField(targetKey, e.target.value);
-                        }}
-                        placeholder="YYYY-MM-DD"
-                        className="px-2 py-0.5 rounded-md text-xs font-mono bg-secondary/60 text-secondary-foreground border border-border/30 focus:border-primary focus:bg-background outline-none flex-1 min-w-0 truncate"
-                      />
-                      <button
-                        type="button"
-                        onClick={handleSetToday}
-                        className="px-1.5 py-0.5 text-[10px] font-mono rounded bg-secondary hover:bg-secondary/80 border border-border/40 text-muted-foreground hover:text-foreground cursor-pointer shrink-0"
-                        title="Set to today"
-                      >
-                        Today
-                      </button>
-                    </div>
-                  ) : (
-                    <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-mono bg-secondary/60 text-secondary-foreground border border-border/30">
-                      {updatedAtStr}
-                    </span>
-                  )}
-                  {isEditable && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        handleRemoveField("updated_at");
-                        handleRemoveField("date");
-                        handleRemoveField("created_at");
-                        handleRemoveField("updated");
-                      }}
-                      className="opacity-0 group-hover/field:opacity-100 p-0.5 text-muted-foreground hover:text-destructive transition-all cursor-pointer"
-                      title="Remove date"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  )}
+                  <span
+                    className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-mono bg-secondary/60 text-secondary-foreground border border-border/30 truncate"
+                    title="Detected from file system metadata"
+                  >
+                    {updatedAtDisplay}
+                  </span>
                 </div>
               )}
 

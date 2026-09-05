@@ -293,3 +293,33 @@ pub fn copy_node(source: &str, destination: &str) -> Result<(), String> {
     }
     Ok(())
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct FileMetadataInfo {
+    pub created_at: Option<String>,
+    pub updated_at: Option<String>,
+    pub size: u64,
+}
+
+#[tauri::command]
+pub fn get_file_fs_metadata(path: &str) -> Result<FileMetadataInfo, String> {
+    let metadata = fs::metadata(path).map_err(|e| e.to_string())?;
+
+    let created_at = metadata.created().ok().map(|t| {
+        chrono::DateTime::<chrono::Local>::from(t)
+            .format("%Y-%m-%d %H:%M")
+            .to_string()
+    });
+    let updated_at = metadata.modified().ok().map(|t| {
+        chrono::DateTime::<chrono::Local>::from(t)
+            .format("%Y-%m-%d %H:%M")
+            .to_string()
+    });
+
+    Ok(FileMetadataInfo {
+        created_at,
+        updated_at,
+        size: metadata.len(),
+    })
+}
+

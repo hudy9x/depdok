@@ -11,6 +11,7 @@ import {
   ClipboardCopy,
   Columns2,
   Rows,
+  RotateCw,
 } from 'lucide-react';
 import {
   ContextMenu,
@@ -27,6 +28,14 @@ import {
 } from '@/stores/TabStore';
 import { activePaneIdAtom, splitPaneAtom } from '@/stores/PaneStore';
 import { revealFileAtom, isFileExplorerVisibleAtom } from '@/features/FileExplorer/store';
+import {
+  liveFilesContentAtom,
+  clearLiveFileWriterAtom,
+  triggerFileReloadAtom,
+} from '@/stores/EditorStore';
+import { markFileAsSavedAtom } from '@/stores/DirtyStore';
+import { readFileContent } from '@/lib/fileOperations';
+import { draftService } from '@/lib/indexeddb';
 import { RenameTabDialog } from './RenameTabDialog';
 
 interface TabContextMenuProps {
@@ -43,10 +52,32 @@ export function TabContextMenu({ tab, paneId, children }: TabContextMenuProps) {
   const splitPane = useSetAtom(splitPaneAtom);
   const revealFile = useSetAtom(revealFileAtom);
   const setFileExplorerVisible = useSetAtom(isFileExplorerVisibleAtom);
+  const setLiveFilesContent = useSetAtom(liveFilesContentAtom);
+  const clearLiveFileWriter = useSetAtom(clearLiveFileWriterAtom);
+  const triggerFileReload = useSetAtom(triggerFileReloadAtom);
+  const markFileAsSaved = useSetAtom(markFileAsSavedAtom);
   const [showRenameDialog, setShowRenameDialog] = useState(false);
 
   const handleRename = () => {
     setShowRenameDialog(true);
+  };
+
+  const handleReloadFile = async () => {
+    if (isDummyPath(tab.filePath)) return;
+    try {
+      const diskContent = await readFileContent(tab.filePath);
+      await draftService.removeDraft(tab.filePath);
+      markFileAsSaved(tab.filePath);
+      clearLiveFileWriter(tab.filePath);
+      setLiveFilesContent((prev) => ({
+        ...prev,
+        [tab.filePath]: diskContent,
+      }));
+      triggerFileReload(tab.filePath);
+      toast.success('Reloaded file from disk');
+    } catch (err) {
+      toast.error(`Failed to reload file: ${String(err)}`);
+    }
   };
 
   const handleCloseOthers = () => {
@@ -94,6 +125,13 @@ export function TabContextMenu({ tab, paneId, children }: TabContextMenuProps) {
             <Pencil className="mr-2 h-4 w-4" />
             Rename
           </ContextMenuItem>
+          <ContextMenuItem
+            onClick={handleReloadFile}
+            disabled={isDummyPath(tab.filePath)}
+          >
+            <RotateCw className="mr-2 h-4 w-4" />
+            Reload File
+          </ContextMenuItem>
           <ContextMenuSeparator />
           <ContextMenuItem onClick={() => splitPane({ paneId: targetPaneId, direction: 'horizontal' })}>
             <Columns2 className="mr-2 h-4 w-4" />
@@ -135,12 +173,6 @@ export function TabContextMenu({ tab, paneId, children }: TabContextMenuProps) {
             <XCircle className="mr-2 h-4 w-4" />
             Close All
           </ContextMenuItem>
-
-          {/* <ContextMenuSeparator /> */}
-          {/* <ContextMenuItem onClick={handleClose}>
-            <X className="mr-2 h-4 w-4" />
-            Close
-          </ContextMenuItem> */}
         </ContextMenuContent>
       </ContextMenu>
 

@@ -1,4 +1,5 @@
 import { atom } from 'jotai';
+import { atomFamily } from 'jotai/utils';
 import {
   activePaneIdAtom,
   paneTreeAtom,
@@ -59,6 +60,17 @@ export const clearLiveFileWriterAtom = atom(
     if (!(filePath in current)) return;
     const { [filePath]: _removed, ...rest } = current;
     set(liveFilesWriterPaneAtom, rest);
+  }
+);
+
+// Version counter atom family incremented whenever a file is explicitly reloaded from disk
+export const fileReloadVersionAtomFamily = atomFamily((_filePath: string) => atom(0));
+
+export const triggerFileReloadAtom = atom(
+  null,
+  (get, set, filePath: string) => {
+    const currentVersion = get(fileReloadVersionAtomFamily(filePath));
+    set(fileReloadVersionAtomFamily(filePath), currentVersion + 1);
   }
 );
 

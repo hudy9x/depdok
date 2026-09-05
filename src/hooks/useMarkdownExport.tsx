@@ -1,6 +1,15 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { exportMarkdownToHtml, exportMarkdownToPdf, revealFile, readFileContent } from '@/lib/fileOperations';
+import { stripFrontmatter } from '@/features/PreviewMarkdown/utils/frontmatter';
+
+/**
+ * Strips metadata (frontmatter) and trims whitespace from markdown before export.
+ */
+export function cleanMarkdownForExport(content: string): string {
+  if (!content) return '';
+  return stripFrontmatter(content).trim();
+}
 
 export function useMarkdownExport() {
   const [exporting, setExporting] = useState(false);
@@ -19,11 +28,14 @@ export function useMarkdownExport() {
         throw new Error('No markdown content to export');
       }
 
+      // Filter out YAML frontmatter metadata section before exporting
+      const cleanedMarkdown = cleanMarkdownForExport(markdown);
+
       let savedPath: string;
       if (format === 'pdf') {
-        savedPath = await exportMarkdownToPdf(markdown, filePath);
+        savedPath = await exportMarkdownToPdf(cleanedMarkdown, filePath);
       } else {
-        savedPath = await exportMarkdownToHtml(markdown, filePath);
+        savedPath = await exportMarkdownToHtml(cleanedMarkdown, filePath);
       }
 
       toast.success(

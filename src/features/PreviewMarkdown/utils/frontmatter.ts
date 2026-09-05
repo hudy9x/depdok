@@ -78,3 +78,11 @@ export function prependFrontmatter(body: string, rawFrontmatter: string | null):
   const trimmedBody = body.replace(/^\n+/, "");
   return `---\n${rawFrontmatter.trim()}\n---\n\n${trimmedBody}`;
 }
+
+/**
+ * Strips the YAML frontmatter block (if any) from markdown content.
+ */
+export function stripFrontmatter(rawContent: string): string {
+  return extractFrontmatter(rawContent).body;
+}
+

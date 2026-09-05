@@ -7,6 +7,7 @@ import { useSetAtom } from "jotai";
 import { createTabAtom } from "@/stores/TabStore";
 
 import { CitedSource } from "../types/citations";
+import { slugify } from "@/features/PreviewMarkdown/HeadingNodeView";
 
 export interface SourcesBarProps {
   sources: CitedSource[];
@@ -30,6 +31,7 @@ export const SourcesBar: React.FC<SourcesBarProps> = ({ sources }) => {
         fileName,
         switchTo: true,
         lineNumber: source.lineStart !== undefined ? source.lineStart + 1 : undefined,
+        sectionSlug: source.sectionSlug || (source.title ? slugify(source.title) : undefined),
       });
       navigate("/editor");
     } else if (source.url) {

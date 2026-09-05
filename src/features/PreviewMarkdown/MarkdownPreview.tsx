@@ -30,7 +30,7 @@ import { TableOfContents } from "@tiptap/extension-table-of-contents";
 
 import { MarkdownOutlineMinimap } from "./MarkdownOutlineMinimap";
 import Heading from "@tiptap/extension-heading";
-import { HeadingNodeView } from "./HeadingNodeView";
+import { HeadingNodeView, slugify } from "./HeadingNodeView";
 import { Table } from "@tiptap/extension-table";
 import { TableRow } from "@tiptap/extension-table-row";
 import { CustomTableCell, CustomTableHeader, getContrastTextColor } from "./CustomTableExtensions";
@@ -70,6 +70,8 @@ interface MarkdownPreviewProps {
   filePath?: string;
   /** Whether this tab is currently the active visible tab. */
   isTabActive?: boolean;
+  sectionSlug?: string;
+  lineNumber?: number;
 }
 
 export function MarkdownPreview({
@@ -78,6 +80,8 @@ export function MarkdownPreview({
   onContentChange,
   filePath = "",
   isTabActive = true,
+  sectionSlug,
+  lineNumber: _lineNumber,
 }: MarkdownPreviewProps) {
   const TauriImage = createTauriImage(filePath);
   const isUpdatingRef = useRef(false);
@@ -296,6 +300,92 @@ export function MarkdownPreview({
       editor.state.tr.setMeta(PAGINATION_TOGGLE_META, isPageMode),
     );
   }, [editor, isPageMode]);
+
+  // Smoothly jump to source section / heading when sectionSlug is provided
+  useEffect(() => {
+    if (!sectionSlug || !isTabActive) return;
+
+    let cancelled = false;
+    let attempts = 0;
+    const maxAttempts = 20;
+
+    const tryJump = () => {
+      if (cancelled) return;
+
+      const rawSlug = sectionSlug.trim();
+      const slugified = slugify(rawSlug);
+      const decodedRaw = decodeURIComponent(rawSlug);
+      const decodedSlugified = slugify(decodedRaw);
+
+      // Strategy 1: Find element by ID (HeadingNodeView assigns id={slugify(node.textContent)})
+      const element =
+        document.getElementById(rawSlug) ||
+        document.getElementById(slugified) ||
+        document.getElementById(decodedRaw) ||
+        document.getElementById(decodedSlugified);
+
+      // Strategy 2: Find element from tocAnchors (matches id or textContent)
+      let targetElement: HTMLElement | null = element;
+      if (!targetElement && tocAnchors.length > 0) {
+        const matchedAnchor = tocAnchors.find(
+          (a) =>
+            a.id === rawSlug ||
+            a.id === slugified ||
+            a.id === decodedSlugified ||
+            slugify(a.textContent) === slugified ||
+            slugify(a.textContent) === decodedSlugified ||
+            a.textContent.toLowerCase().trim() === rawSlug.toLowerCase().trim()
+        );
+        if (matchedAnchor) {
+          targetElement =
+            document.getElementById(matchedAnchor.id) ||
+            matchedAnchor.dom ||
+            null;
+        }
+      }
+
+      // Strategy 3: Query selector inside container for heading elements with matching text
+      if (!targetElement && containerRef.current) {
+        const headings = containerRef.current.querySelectorAll<HTMLElement>(
+          "h1, h2, h3, h4, h5, h6, [data-heading]"
+        );
+        for (let i = 0; i < headings.length; i++) {
+          const h = headings[i];
+          const text = h.textContent?.trim() || "";
+          if (slugify(text) === slugified || slugify(text) === decodedSlugified) {
+            targetElement = h;
+            break;
+          }
+        }
+      }
+
+      if (targetElement) {
+        targetElement.scrollIntoView({ behavior: "smooth", block: "start" });
+        targetElement.classList.add(
+          "bg-primary/20",
+          "rounded-md",
+          "transition-colors",
+          "duration-1000"
+        );
+        setTimeout(() => {
+          targetElement?.classList.remove("bg-primary/20");
+        }, 2000);
+        return;
+      }
+
+      attempts++;
+      if (attempts < maxAttempts) {
+        setTimeout(tryJump, 80);
+      }
+    };
+
+    const timer = setTimeout(tryJump, 50);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [sectionSlug, isTabActive, tocAnchors]);
 
   useEffect(() => {
     const container = containerRef.current;

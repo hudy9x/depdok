@@ -18,6 +18,8 @@ interface PreviewPanelProps {
   onContentChange?: (content: string) => void;
   /** Whether this tab is currently the active visible tab. */
   isTabActive?: boolean;
+  sectionSlug?: string;
+  lineNumber?: number;
 }
 
 import { PreviewImage } from "../PreviewImage";
@@ -29,6 +31,8 @@ export function PreviewPanel({
   editable = false,
   onContentChange,
   isTabActive = true,
+  sectionSlug,
+  lineNumber,
 }: PreviewPanelProps) {
 
   if (!fileExtension) {
@@ -51,6 +55,8 @@ export function PreviewPanel({
         onContentChange={onContentChange}
         filePath={filePath}
         isTabActive={isTabActive}
+        sectionSlug={sectionSlug}
+        lineNumber={lineNumber}
       />
     );
   }

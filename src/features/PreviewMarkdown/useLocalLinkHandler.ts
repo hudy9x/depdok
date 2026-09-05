@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { createTabAtom } from "@/stores/TabStore";
 import type { EditorView } from "@tiptap/pm/view";
 import { openUrl } from "@tauri-apps/plugin-opener";
+import { slugify } from "./HeadingNodeView";
 
 /** Resolves a relative href against a base file path (handles ./, ../, bare names). */
 function resolveLocalPath(basePath: string, href: string): string {
@@ -31,7 +32,8 @@ function isLocalPath(href: string): boolean {
  *
  * - Local paths  → open as preview tabs
  * - HTTP(S) URLs → opened in system browser via window.open
- * - #anchors / mailto: → ignored (default behaviour)
+ * - #anchors     → smooth scroll to heading element
+ * - mailto:      → ignored (default behaviour)
  *
  * Also returns a ProseMirror `handleClick` to prevent cursor placement
  * when clicking links in editable mode.
@@ -67,7 +69,22 @@ export function useLocalLinkHandler(
       const anchor = (e.target as HTMLElement).closest('a[href]');
       if (!anchor) return;
       const href = anchor.getAttribute('href');
-      if (!href || href.startsWith('#') || href.startsWith('mailto:')) return;
+      if (!href || href.startsWith('mailto:')) return;
+
+      if (href.startsWith('#')) {
+        const targetId = decodeURIComponent(href.slice(1));
+        const el =
+          document.getElementById(targetId) ||
+          document.getElementById(slugify(targetId));
+        if (el) {
+          e.preventDefault();
+          e.stopPropagation();
+          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          el.classList.add("bg-primary/25", "rounded-md", "transition-colors", "duration-1000");
+          setTimeout(() => el?.classList.remove("bg-primary/25"), 2000);
+        }
+        return;
+      }
 
       e.preventDefault();
       e.stopPropagation();

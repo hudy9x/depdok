@@ -80,6 +80,7 @@ function TabContent({
               initialContent={initialContent}
               enableFileWatcher={enableWatcher}
               lineNumber={tab.lineNumber}
+              sectionSlug={tab.sectionSlug}
               filePath={currentFilePath}
               tabId={tab.id}
               isDeleted={tab.isDeleted}
@@ -117,6 +118,8 @@ function TabContent({
                   editable={true}
                   onContentChange={localHandleChange}
                   isTabActive={isTabActive}
+                  sectionSlug={tab.sectionSlug}
+                  lineNumber={tab.lineNumber}
                 />
               )}
             </PreviewFileWatcher>

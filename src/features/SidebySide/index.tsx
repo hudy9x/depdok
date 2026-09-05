@@ -9,6 +9,7 @@ interface SideBySideProps {
   initialContent: string;
   enableFileWatcher?: boolean; // Enable file watcher in the editor panel
   lineNumber?: number; // Line number to jump to in the editor
+  sectionSlug?: string; // Section slug to jump to in preview
   filePath: string;
   tabId: string;
   isDeleted?: boolean;
@@ -21,6 +22,7 @@ export function SideBySide({
   initialContent,
   enableFileWatcher = false,
   lineNumber,
+  sectionSlug,
   filePath,
   tabId,
   isDeleted,
@@ -65,6 +67,8 @@ export function SideBySide({
           fileExtension={fileExtension}
           filePath={filePath}
           isTabActive={isTabActive}
+          sectionSlug={sectionSlug}
+          lineNumber={lineNumber}
         />
       </Panel>
     </PanelGroup>

@@ -1,4 +1,6 @@
 use serde::{Deserialize, Serialize};
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+use std::process::Command;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OllamaModelInfo {
@@ -6,6 +8,67 @@ pub struct OllamaModelInfo {
   pub size: Option<u64>,
   pub parameter_size: Option<String>,
   pub quantization_level: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct SystemProfile {
+  pub os: String,
+  pub architecture: String,
+  pub total_memory_bytes: Option<u64>,
+}
+
+fn total_memory_bytes() -> Option<u64> {
+  #[cfg(target_os = "macos")]
+  {
+    let output = Command::new("sysctl")
+      .args(["-n", "hw.memsize"])
+      .output()
+      .ok()?;
+    return String::from_utf8(output.stdout).ok()?.trim().parse().ok();
+  }
+
+  #[cfg(target_os = "windows")]
+  {
+    let output = Command::new("powershell")
+      .args([
+        "-NoProfile",
+        "-Command",
+        "(Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory",
+      ])
+      .output()
+      .ok()?;
+    let digits: String = String::from_utf8(output.stdout)
+      .ok()?
+      .chars()
+      .filter(|character| character.is_ascii_digit())
+      .collect();
+    return digits.parse().ok();
+  }
+
+  #[cfg(target_os = "linux")]
+  {
+    let meminfo = std::fs::read_to_string("/proc/meminfo").ok()?;
+    let memory_kib = meminfo
+      .lines()
+      .find_map(|line| line.strip_prefix("MemTotal:"))?
+      .split_whitespace()
+      .next()?
+      .parse::<u64>()
+      .ok()?;
+    return memory_kib.checked_mul(1024);
+  }
+
+  #[allow(unreachable_code)]
+  None
+}
+
+#[tauri::command]
+pub fn llm2_get_system_profile() -> SystemProfile {
+  SystemProfile {
+    os: std::env::consts::OS.to_string(),
+    architecture: std::env::consts::ARCH.to_string(),
+    total_memory_bytes: total_memory_bytes(),
+  }
 }
 
 #[tauri::command]

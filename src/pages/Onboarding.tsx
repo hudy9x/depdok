@@ -1,23 +1,26 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useSetAtom, useAtomValue } from 'jotai';
-import { useTheme } from 'next-themes';
-import { HomeTitlebar } from '@/features/Titlebar';
-import { settingsService } from '@/lib/settings';
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useSetAtom } from "jotai";
+import { useTheme } from "next-themes";
+import { HomeTitlebar } from "@/features/Titlebar";
+import { settingsService } from "@/lib/settings";
 import {
   getUserProfile,
   saveUserProfile,
   setOnboarded,
-} from '@/lib/userProfile';
-import { openFolderDialog } from '@/features/FileExplorer/api';
-import { openWorkspaceAtom } from '@/features/FileExplorer/store';
-import { createUntitledTabAtom, tabsAtom } from '@/stores/TabStore';
+} from "@/lib/userProfile";
+import { openFolderDialog } from "@/features/FileExplorer/api";
+import { openWorkspaceAtom } from "@/features/FileExplorer/store";
 
-import { type OnboardingStep, ONBOARDING_STEPS } from '@/features/Onboarding/types';
-import { OnboardingSidebar } from '@/features/Onboarding/OnboardingSidebar';
-import { StepProfile } from '@/features/Onboarding/StepProfile';
-import { StepTheme } from '@/features/Onboarding/StepTheme';
-import { StepGetStarted } from '@/features/Onboarding/StepGetStarted';
+import {
+  type OnboardingStep,
+  ONBOARDING_STEPS,
+} from "@/features/Onboarding/types";
+import { OnboardingSidebar } from "@/features/Onboarding/OnboardingSidebar";
+import { StepAiSetup } from "@/features/Onboarding/StepAiSetup";
+import { StepProfile } from "@/features/Onboarding/StepProfile";
+import { StepTheme } from "@/features/Onboarding/StepTheme";
+import { StepGetStarted } from "@/features/Onboarding/StepGetStarted";
 
 export default function Onboarding(): JSX.Element {
   const navigate = useNavigate();
@@ -25,14 +28,12 @@ export default function Onboarding(): JSX.Element {
 
   const [step, setStep] = useState<OnboardingStep>(0);
   const initialProfile = getUserProfile();
-  const [userName, setUserName] = useState(initialProfile.name || '');
+  const [userName, setUserName] = useState(initialProfile.name || "");
   const [selectedAvatarId, setSelectedAvatarId] = useState(
-    initialProfile.avatar || 'writer'
+    initialProfile.avatar || "writer",
   );
 
   const openWorkspace = useSetAtom(openWorkspaceAtom);
-  const createUntitledTab = useSetAtom(createUntitledTabAtom);
-  const tabs = useAtomValue(tabsAtom);
 
   const handleSelectAvatar = (id: string) => {
     setSelectedAvatarId(id);
@@ -44,14 +45,16 @@ export default function Onboarding(): JSX.Element {
     saveUserProfile({ name: val, avatar: selectedAvatarId });
   };
 
-  const handleSelectTheme = (selectedTheme: 'light' | 'dark' | 'system') => {
+  const handleSelectTheme = (selectedTheme: "light" | "dark" | "system") => {
     setTheme(selectedTheme);
     settingsService.updateSettings({ theme: selectedTheme });
   };
 
   const handleNext = () => {
     saveUserProfile({ name: userName.trim(), avatar: selectedAvatarId });
-    if (step < 2) setStep((s) => (s + 1) as OnboardingStep);
+    if (step < ONBOARDING_STEPS.length - 1) {
+      setStep((s) => (s + 1) as OnboardingStep);
+    }
   };
 
   const handleBack = () => {
@@ -65,23 +68,14 @@ export default function Onboarding(): JSX.Element {
       const folderPath = await openFolderDialog();
       if (folderPath) {
         await openWorkspace(folderPath);
-        navigate('/editor');
+        navigate("/editor");
       } else {
-        navigate('/home');
+        navigate("/home");
       }
     } catch (error) {
-      console.error('Failed to open folder during onboarding:', error);
-      navigate('/home');
+      console.error("Failed to open folder during onboarding:", error);
+      navigate("/home");
     }
-  };
-
-  const handleStartWriting = () => {
-    saveUserProfile({ name: userName.trim(), avatar: selectedAvatarId });
-    setOnboarded(true);
-    if (tabs.length === 0) {
-      createUntitledTab('Untitled.md');
-    }
-    navigate('/editor');
   };
 
   const currentStepItem = ONBOARDING_STEPS[step];
@@ -101,7 +95,7 @@ export default function Onboarding(): JSX.Element {
               <div className="flex-1 flex flex-col">
                 {/* Step Counter Badge & Title */}
                 <p className="text-xs font-semibold tracking-wide text-primary uppercase mb-1.5">
-                  Step {step + 1} of 3
+                  Step {step + 1} of {ONBOARDING_STEPS.length}
                 </p>
                 <h2 className="text-2xl font-bold text-foreground leading-tight mb-1">
                   {currentStepItem.title}
@@ -133,12 +127,15 @@ export default function Onboarding(): JSX.Element {
                 )}
 
                 {step === 2 && (
+                  <StepAiSetup onBack={handleBack} onNext={handleNext} />
+                )}
+
+                {step === 3 && (
                   <StepGetStarted
                     userName={userName}
                     selectedAvatarId={selectedAvatarId}
                     onBack={handleBack}
                     onOpenFolder={handleOpenFolder}
-                    onStartWriting={handleStartWriting}
                   />
                 )}
               </div>

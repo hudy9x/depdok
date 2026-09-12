@@ -1,13 +1,12 @@
-import { ArrowLeft, Folder, Edit3 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { AVATAR_PRESETS, type AvatarPreset } from '@/lib/userProfile';
+import { ArrowLeft, Folder } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { AVATAR_PRESETS, type AvatarPreset } from "@/lib/userProfile";
 
 interface StepGetStartedProps {
   userName: string;
   selectedAvatarId: string;
   onBack: () => void;
   onOpenFolder: () => void;
-  onStartWriting: () => void;
 }
 
 export function StepGetStarted({
@@ -15,12 +14,11 @@ export function StepGetStarted({
   selectedAvatarId,
   onBack,
   onOpenFolder,
-  onStartWriting,
 }: StepGetStartedProps): JSX.Element {
   const currentAvatar: AvatarPreset =
     AVATAR_PRESETS.find((a) => a.id === selectedAvatarId) || AVATAR_PRESETS[1];
 
-  const displayName = userName.trim() || 'friend';
+  const displayName = userName.trim() || "friend";
 
   return (
     <div className="flex-1 flex flex-col justify-between">
@@ -35,7 +33,8 @@ export function StepGetStarted({
           You're all set, {displayName}
         </h2>
         <p className="text-sm text-muted-foreground max-w-sm leading-relaxed">
-          Open a documentation folder to organize your Markdown files, or jump straight into writing.
+          Open the folder that holds your documentation to start working in
+          Depdok.
         </p>
       </div>
 
@@ -45,16 +44,10 @@ export function StepGetStarted({
           <ArrowLeft className="w-4 h-4" />
           <span>Back</span>
         </Button>
-        <div className="flex items-center gap-3">
-          <Button variant="outline" onClick={onOpenFolder} className="gap-2">
-            <Folder className="w-4 h-4" />
-            <span>Open Folder</span>
-          </Button>
-          <Button onClick={onStartWriting} className="gap-2">
-            <Edit3 className="w-4 h-4" />
-            <span>Start Writing</span>
-          </Button>
-        </div>
+        <Button onClick={onOpenFolder} className="gap-2">
+          <Folder className="w-4 h-4" />
+          <span>Open Folder</span>
+        </Button>
       </div>
     </div>
   );

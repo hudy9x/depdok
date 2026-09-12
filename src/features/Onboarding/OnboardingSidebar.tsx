@@ -1,12 +1,20 @@
-import { Check, BookOpen, Sparkles, User, Palette, Folder } from 'lucide-react';
-import { ONBOARDING_STEPS, type OnboardingStep } from './types';
+import {
+  Bot,
+  BookOpen,
+  Check,
+  Folder,
+  Palette,
+  Sparkles,
+  User,
+} from "lucide-react";
+import { ONBOARDING_STEPS, type OnboardingStep } from "./types";
 
 interface OnboardingSidebarProps {
   currentStep: OnboardingStep;
   onSelectStep: (step: OnboardingStep) => void;
 }
 
-const STEP_ICONS = [User, Palette, Folder];
+const STEP_ICONS = [User, Palette, Bot, Folder];
 
 export function OnboardingSidebar({
   currentStep,
@@ -29,7 +37,7 @@ export function OnboardingSidebar({
         Welcome to Depdok.
       </h1>
       <p className="text-sm text-muted-foreground leading-relaxed mb-8">
-        Let's get your workspace set up — it only takes a minute.
+        Set up your workspace in a few quick steps.
       </p>
 
       {/* Steps Navigation List */}
@@ -49,8 +57,8 @@ export function OnboardingSidebar({
               }}
               className={`relative w-full text-left flex items-start gap-3.5 rounded-xl px-3.5 py-3 transition-all cursor-pointer ${
                 active
-                  ? 'bg-primary/10 text-foreground'
-                  : 'hover:bg-accent/50 text-muted-foreground'
+                  ? "bg-primary/10 text-foreground"
+                  : "hover:bg-accent/50 text-muted-foreground"
               }`}
             >
               {active && (
@@ -60,10 +68,10 @@ export function OnboardingSidebar({
               <span
                 className={`w-8 h-8 shrink-0 rounded-lg flex items-center justify-center transition-colors ${
                   active
-                    ? 'bg-primary text-primary-foreground shadow-xs'
+                    ? "bg-primary text-primary-foreground shadow-xs"
                     : done
-                    ? 'bg-primary/20 text-primary font-semibold'
-                    : 'bg-muted text-muted-foreground'
+                      ? "bg-primary/20 text-primary font-semibold"
+                      : "bg-muted text-muted-foreground"
                 }`}
               >
                 {done ? (
@@ -76,7 +84,7 @@ export function OnboardingSidebar({
               <span className="min-w-0 flex-1">
                 <span
                   className={`block text-sm font-semibold leading-tight ${
-                    active || done ? 'text-foreground' : 'text-muted-foreground'
+                    active || done ? "text-foreground" : "text-muted-foreground"
                   }`}
                 >
                   {s.title}

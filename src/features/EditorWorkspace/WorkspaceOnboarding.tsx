@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 
+import { setupSkills } from '@/api-client/skills';
 import { Button } from '@/components/ui/button';
 import {
   fileTreeDataAtom,
@@ -326,24 +327,41 @@ export function WorkspaceOnboarding(): React.JSX.Element {
     setIsFileExplorerVisible(true);
     setIsCreating(true);
     try {
-      // 1. Create missing folders for chosen preset
+      // 1. Create missing documentation folders for chosen preset
       for (const folder of missingFolders) {
         const folderPath = joinPath(workspaceRoot, folder.name);
         await createDirectory(folderPath);
       }
 
-      // 2. Generate and write overview.md template matching the active preset
+      // 2. Initialize .depdok/ and .depdok/skills/ with built-in templates
+      try {
+        await setupSkills(workspaceRoot);
+      } catch (skillErr) {
+        console.warn('Skills setup fallback:', skillErr);
+        await createDirectory(joinPath(workspaceRoot, '.depdok'));
+        await createDirectory(joinPath(workspaceRoot, '.depdok/skills'));
+      }
+
+      // 3. Create .depdok/memory.json
+      const memoryPath = joinPath(workspaceRoot, '.depdok/memory.json');
+      try {
+        await writeFileContent(memoryPath, '{\n  "memories": []\n}\n');
+      } catch (memErr) {
+        console.warn('Failed to initialize memory.json:', memErr);
+      }
+
+      // 4. Generate and write overview.md template matching the active preset
       const overviewContent = generateOverviewMd(activeFolders);
       const overviewPath = joinPath(workspaceRoot, 'overview.md');
       await writeFileContent(overviewPath, overviewContent);
 
-      // 3. Refresh file tree in explorer
+      // 5. Refresh file tree in explorer
       await refreshDirectory(workspaceRoot);
 
-      // 4. Select only overview.md in explorer tree
+      // 6. Select only overview.md in explorer tree
       selectItem({ path: overviewPath });
 
-      // 5. Open overview.md in editor tab
+      // 7. Open overview.md in editor tab
       createTab({
         filePath: overviewPath,
         fileName: 'overview.md',
@@ -351,7 +369,7 @@ export function WorkspaceOnboarding(): React.JSX.Element {
       });
 
       toast.success(
-        `Workspace initialized with ${activeFolders.length} folders and overview.md`
+        `Workspace initialized with ${activeFolders.length} folders, .depdok, and overview.md`
       );
     } catch (error) {
       console.error('Failed to initialize workspace folders:', error);

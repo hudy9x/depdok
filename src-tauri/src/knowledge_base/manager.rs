@@ -5,7 +5,9 @@ use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
 
 use crate::knowledge_base::embedding::{Embedder, chunker::{chunk_text, ChunkOptions}};
-use crate::knowledge_base::parser::{extract_metadata, split_markdown_into_sections};
+use crate::knowledge_base::parser::{
+    detect_document_category, extract_metadata, normalize_category, split_markdown_into_sections,
+};
 
 #[derive(Serialize, Clone, Debug)]
 pub struct HybridSearchResult {
@@ -147,13 +149,16 @@ impl KbManager {
             .transaction()
             .map_err(|e| format!("Failed to start transaction: {e}"))?;
 
+        let category = detect_document_category(&doc_id, &content);
+
         tx.execute(
-            "INSERT INTO documents (id, title, content)
-             VALUES (?1, ?2, ?3)
+            "INSERT INTO documents (id, title, content, category)
+             VALUES (?1, ?2, ?3, ?4)
              ON CONFLICT(id) DO UPDATE SET
                  title = excluded.title,
-                 content = excluded.content",
-            params![doc_id, title, content],
+                 content = excluded.content,
+                 category = excluded.category",
+            params![doc_id, title, content, category],
         )
         .map_err(|e| format!("Failed to upsert document: {e}"))?;
 
@@ -238,6 +243,16 @@ impl KbManager {
                 params![doc_id, tag],
             )
             .map_err(|e| format!("Failed to insert tag: {e}"))?;
+        }
+
+        // Insert category tag if detected
+        if let Some(ref cat) = category {
+            let cat_tag = format!("category:{}", cat);
+            tx.execute(
+                "INSERT OR IGNORE INTO document_tags (document_id, tag) VALUES (?1, ?2)",
+                params![doc_id, cat_tag],
+            )
+            .map_err(|e| format!("Failed to insert category tag: {e}"))?;
         }
 
         // Auto-linking wikilinks
@@ -487,17 +502,48 @@ impl KbManager {
         Ok(results)
     }    /// Execute a hybrid query combining FTS5 keyword scoring with sqlite-vec KNN search via Reciprocal Rank Fusion (RRF).
     /// If `project_id` is provided, filters strictly to documents belonging to that project/folder.
+    /// If `categories` is provided (and does not contain '*'), filters strictly to matching categories or folder paths.
     pub async fn search_hybrid(
         &self,
         query: String,
         limit: usize,
         project_id: Option<String>,
+        categories: Option<Vec<String>>,
     ) -> Result<Vec<HybridSearchResult>, String> {
         let limit_i64 = limit as i64;
         let normalized_project = project_id
             .as_deref()
             .map(|g| g.trim().trim_end_matches(['/', '\\']).to_string())
             .filter(|g| !g.is_empty());
+
+        let normalized_categories: Option<Vec<String>> = categories.and_then(|cats| {
+            let list: Vec<String> = cats
+                .into_iter()
+                .map(|c| c.trim().to_lowercase())
+                .filter(|c| !c.is_empty())
+                .collect();
+
+            if list.is_empty() || list.iter().any(|c| c == "*" || c == "all") {
+                None
+            } else {
+                let mut final_cats = Vec::new();
+                for c in list {
+                    if let Some(norm) = normalize_category(&c) {
+                        if !final_cats.contains(&norm) {
+                            final_cats.push(norm);
+                        }
+                    } else if !final_cats.contains(&c) {
+                        final_cats.push(c);
+                    }
+                }
+                if final_cats.is_empty() {
+                    None
+                } else {
+                    Some(final_cats)
+                }
+            }
+        });
+
         let conn = self.db.lock().await;
 
         // 1. Keyword search (FTS5)
@@ -522,32 +568,55 @@ impl KbManager {
         let mut doc_map: std::collections::HashMap<String, RawResult> = std::collections::HashMap::new();
 
         if !fts_query.trim().is_empty() {
-            let (query_str, params_vec): (&str, Vec<rusqlite::types::Value>) = match &normalized_project {
-                Some(pid) => (
-                    "SELECT d.id, d.title, d.content, f.rank
-                     FROM documents_fts f
-                     INNER JOIN documents d ON d.rowid = f.rowid
-                     WHERE documents_fts MATCH ?1
-                       AND EXISTS (
-                           SELECT 1 FROM document_projects dp
-                           WHERE (dp.document_id = d.id OR (instr(d.id, '#section:') > 0 AND dp.document_id = substr(d.id, 1, instr(d.id, '#section:') - 1)))
-                             AND (dp.project_id = ?2 OR rtrim(dp.project_id, '/\\') = ?2)
-                       )
-                     ORDER BY f.rank ASC LIMIT ?3",
-                    vec![fts_query.clone().into(), pid.clone().into(), limit_i64.into()],
-                ),
-                None => (
-                    "SELECT d.id, d.title, d.content, f.rank
-                     FROM documents_fts f
-                     INNER JOIN documents d ON d.rowid = f.rowid
-                     WHERE documents_fts MATCH ?1
-                     ORDER BY f.rank ASC LIMIT ?2",
-                    vec![fts_query.clone().into(), limit_i64.into()],
-                ),
-            };
+            let mut query_str = String::from(
+                "SELECT d.id, d.title, d.content, f.rank
+                 FROM documents_fts f
+                 INNER JOIN documents d ON d.rowid = f.rowid
+                 WHERE documents_fts MATCH ?1",
+            );
+            let mut params_vec: Vec<rusqlite::types::Value> = vec![fts_query.clone().into()];
+
+            if let Some(ref pid) = normalized_project {
+                let p_idx = params_vec.len() + 1;
+                query_str.push_str(&format!(
+                    " AND EXISTS (
+                        SELECT 1 FROM document_projects dp
+                        WHERE (dp.document_id = d.id OR (instr(d.id, '#section:') > 0 AND dp.document_id = substr(d.id, 1, instr(d.id, '#section:') - 1)))
+                          AND (dp.project_id = ?{p_idx} OR rtrim(dp.project_id, '/\\') = ?{p_idx})
+                    )"
+                ));
+                params_vec.push(pid.clone().into());
+            }
+
+            if let Some(ref cats) = normalized_categories {
+                let mut cat_clauses = Vec::new();
+                for cat in cats {
+                    let cat_idx = params_vec.len() + 1;
+                    params_vec.push(cat.clone().into());
+                    let tag_idx = params_vec.len() + 1;
+                    params_vec.push(format!("category:{cat}").into());
+                    let path_idx = params_vec.len() + 1;
+                    params_vec.push(format!("%/{cat}/%").into());
+
+                    cat_clauses.push(format!(
+                        "(d.category = ?{cat_idx} OR d.id LIKE ?{path_idx} OR EXISTS (
+                            SELECT 1 FROM document_tags dt
+                            WHERE (dt.document_id = d.id OR (instr(d.id, '#section:') > 0 AND dt.document_id = substr(d.id, 1, instr(d.id, '#section:') - 1)))
+                              AND dt.tag = ?{tag_idx}
+                        ))"
+                    ));
+                }
+                if !cat_clauses.is_empty() {
+                    query_str.push_str(&format!(" AND ({})", cat_clauses.join(" OR ")));
+                }
+            }
+
+            let limit_idx = params_vec.len() + 1;
+            query_str.push_str(&format!(" ORDER BY f.rank ASC LIMIT ?{limit_idx}"));
+            params_vec.push(limit_i64.into());
 
             let mut fts_stmt = conn
-                .prepare(query_str)
+                .prepare(&query_str)
                 .map_err(|e| format!("FTS query prepare failed: {e}"))?;
 
             let mut rows = fts_stmt
@@ -582,47 +651,63 @@ impl KbManager {
         };
         let query_bytes = f32_slice_to_bytes(&query_vector);
 
-        let vec_k = if normalized_project.is_some() {
+        let vec_k = if normalized_project.is_some() || normalized_categories.is_some() {
             (limit_i64 * 10).max(50)
         } else {
             limit_i64
         };
 
-        let (vec_query_str, vec_params): (&str, Vec<rusqlite::types::Value>) = match &normalized_project {
-            Some(pid) => (
-                "SELECT de.document_id, d.title, d.content, de.distance, dc.content, dc.line_start
-                 FROM documents_embeddings de
-                 INNER JOIN documents d ON d.id = de.document_id
-                 INNER JOIN document_chunks dc ON dc.chunk_id = de.chunk_id
-                 WHERE de.embedding MATCH ?1 AND k = ?2
-                   AND EXISTS (
-                       SELECT 1 FROM document_projects dp
-                       WHERE (dp.document_id = d.id OR (instr(d.id, '#section:') > 0 AND dp.document_id = substr(d.id, 1, instr(d.id, '#section:') - 1)))
-                         AND (dp.project_id = ?3 OR rtrim(dp.project_id, '/\\') = ?3)
-                   )
-                 ORDER BY de.distance ASC",
-                vec![
-                    rusqlite::types::Value::Blob(query_bytes),
-                    vec_k.into(),
-                    pid.clone().into(),
-                ],
-            ),
-            None => (
-                "SELECT de.document_id, d.title, d.content, de.distance, dc.content, dc.line_start
-                 FROM documents_embeddings de
-                 INNER JOIN documents d ON d.id = de.document_id
-                 INNER JOIN document_chunks dc ON dc.chunk_id = de.chunk_id
-                 WHERE de.embedding MATCH ?1 AND k = ?2
-                 ORDER BY de.distance ASC",
-                vec![
-                    rusqlite::types::Value::Blob(query_bytes),
-                    limit_i64.into(),
-                ],
-            ),
-        };
+        let mut vec_query_str = String::from(
+            "SELECT de.document_id, d.title, d.content, de.distance, dc.content, dc.line_start
+             FROM documents_embeddings de
+             INNER JOIN documents d ON d.id = de.document_id
+             INNER JOIN document_chunks dc ON dc.chunk_id = de.chunk_id
+             WHERE de.embedding MATCH ?1 AND k = ?2",
+        );
+        let mut vec_params: Vec<rusqlite::types::Value> = vec![
+            rusqlite::types::Value::Blob(query_bytes),
+            vec_k.into(),
+        ];
+
+        if let Some(ref pid) = normalized_project {
+            let p_idx = vec_params.len() + 1;
+            vec_query_str.push_str(&format!(
+                " AND EXISTS (
+                    SELECT 1 FROM document_projects dp
+                    WHERE (dp.document_id = d.id OR (instr(d.id, '#section:') > 0 AND dp.document_id = substr(d.id, 1, instr(d.id, '#section:') - 1)))
+                      AND (dp.project_id = ?{p_idx} OR rtrim(dp.project_id, '/\\') = ?{p_idx})
+                )"
+            ));
+            vec_params.push(pid.clone().into());
+        }
+
+        if let Some(ref cats) = normalized_categories {
+            let mut cat_clauses = Vec::new();
+            for cat in cats {
+                let cat_idx = vec_params.len() + 1;
+                vec_params.push(cat.clone().into());
+                let tag_idx = vec_params.len() + 1;
+                vec_params.push(format!("category:{cat}").into());
+                let path_idx = vec_params.len() + 1;
+                vec_params.push(format!("%/{cat}/%").into());
+
+                cat_clauses.push(format!(
+                    "(d.category = ?{cat_idx} OR d.id LIKE ?{path_idx} OR EXISTS (
+                        SELECT 1 FROM document_tags dt
+                        WHERE (dt.document_id = d.id OR (instr(d.id, '#section:') > 0 AND dt.document_id = substr(d.id, 1, instr(d.id, '#section:') - 1)))
+                          AND dt.tag = ?{tag_idx}
+                    ))"
+                ));
+            }
+            if !cat_clauses.is_empty() {
+                vec_query_str.push_str(&format!(" AND ({})", cat_clauses.join(" OR ")));
+            }
+        }
+
+        vec_query_str.push_str(" ORDER BY de.distance ASC");
 
         let mut vec_stmt = conn
-            .prepare(vec_query_str)
+            .prepare(&vec_query_str)
             .map_err(|e| format!("Vector query prepare failed: {e}"))?;
 
         let mut rows = vec_stmt

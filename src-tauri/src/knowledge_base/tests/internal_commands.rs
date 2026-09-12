@@ -35,9 +35,10 @@ async fn build_test_manager() -> Result<KbManager, String> {
         PRAGMA foreign_keys = ON;
 
         CREATE TABLE documents (
-            id      TEXT PRIMARY KEY,
-            title   TEXT NOT NULL,
-            content TEXT NOT NULL
+            id       TEXT PRIMARY KEY,
+            title    TEXT NOT NULL,
+            content  TEXT NOT NULL,
+            category TEXT
         );
 
         CREATE TABLE projects (
@@ -216,11 +217,73 @@ async fn hybrid_search_rrf_works() -> Result<(), String> {
         0,
     ).await?;
 
-    let results = kb.search_hybrid("ownership".to_string(), 10, None).await?;
+    let results = kb.search_hybrid("ownership".to_string(), 10, None, None).await?;
     assert!(!results.is_empty());
     // Rust Ownership should be the top match because "ownership" is in its title and content.
     assert_eq!(results[0].document_id, "doc-a");
     assert!(results[0].matched_chunks.len() >= 1);
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn category_scoped_search_hybrid_filters_and_accepts_wildcard() -> Result<(), String> {
+    let kb = build_test_manager().await?;
+
+    // Document in plan folder
+    kb.upsert_document(
+        Some("file:/workspace/plan/sprint-1.md".to_string()),
+        "Sprint 1 Plan".to_string(),
+        "Task 101: Implement authentication feature with start date 2026-09-01.".to_string(),
+        vec!["/workspace".to_string()],
+        0,
+    ).await?;
+
+    // Document in decisions folder
+    kb.upsert_document(
+        Some("file:/workspace/decisions/auth-decision.md".to_string()),
+        "Auth Decision".to_string(),
+        "Decided to use OAuth and JWT authentication after meeting.".to_string(),
+        vec!["/workspace".to_string()],
+        0,
+    ).await?;
+
+    // Document in requirements folder
+    kb.upsert_document(
+        Some("file:/workspace/requirements/auth-spec.md".to_string()),
+        "Auth Requirements".to_string(),
+        "The system must require authentication for all API endpoints.".to_string(),
+        vec!["/workspace".to_string()],
+        0,
+    ).await?;
+
+    // Scoped query to 'plan'
+    let plan_results = kb.search_hybrid(
+        "authentication".to_string(),
+        10,
+        None,
+        Some(vec!["plan".to_string()]),
+    ).await?;
+    assert_eq!(plan_results.len(), 1);
+    assert_eq!(plan_results[0].title, "Sprint 1 Plan");
+
+    // Scoped query to ['decisions', 'requirements']
+    let multi_results = kb.search_hybrid(
+        "authentication".to_string(),
+        10,
+        None,
+        Some(vec!["decisions".to_string(), "requirements".to_string()]),
+    ).await?;
+    assert_eq!(multi_results.len(), 2);
+
+    // Wildcard query '*' should return all 3
+    let wildcard_results = kb.search_hybrid(
+        "authentication".to_string(),
+        10,
+        None,
+        Some(vec!["*".to_string()]),
+    ).await?;
+    assert_eq!(wildcard_results.len(), 3);
 
     Ok(())
 }
@@ -252,6 +315,7 @@ async fn group_scoped_search_hybrid_isolates_projects() -> Result<(), String> {
         "architecture".to_string(),
         10,
         Some("/workspace/project-alpha".to_string()),
+        None,
     ).await?;
 
     assert_eq!(alpha_results.len(), 1);
@@ -263,6 +327,7 @@ async fn group_scoped_search_hybrid_isolates_projects() -> Result<(), String> {
         "architecture".to_string(),
         10,
         Some("/workspace/project-beta/".to_string()), // test trailing slash normalization
+        None,
     ).await?;
 
     assert_eq!(beta_results.len(), 1);
@@ -270,7 +335,7 @@ async fn group_scoped_search_hybrid_isolates_projects() -> Result<(), String> {
     assert_eq!(beta_results[0].title, "Beta Architecture");
 
     // Unscoped query: returns both
-    let all_results = kb.search_hybrid("architecture".to_string(), 10, None).await?;
+    let all_results = kb.search_hybrid("architecture".to_string(), 10, None, None).await?;
     assert_eq!(all_results.len(), 2);
 
     Ok(())

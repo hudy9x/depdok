@@ -8,6 +8,8 @@ export interface SearchKnowledgeBaseArgs {
   limit?: number;
   project?: string;
   projectId?: string;
+  categories?: string[] | string;
+  category?: string;
 }
 
 export interface FormattedKnowledgeMatch {
@@ -27,6 +29,7 @@ export interface FormattedKnowledgeMatch {
 export interface SearchKnowledgeBaseResult {
   query: string;
   totalFound: number;
+  categories?: string[];
   message?: string;
   instruction?: string;
   results: FormattedKnowledgeMatch[];
@@ -68,8 +71,52 @@ export async function searchKnowledgeBaseTool(
   const effectiveProjectId =
     (args.project?.trim() || args.projectId?.trim() || workspaceRoot || "").trim() || undefined;
 
+  // Normalize categories filter
+  let targetCategories: string[] | undefined = undefined;
+  const rawCategories = args.categories ?? args.category;
+  if (rawCategories) {
+    if (Array.isArray(rawCategories)) {
+      targetCategories = rawCategories.map((c) => String(c).trim().toLowerCase()).filter(Boolean);
+    } else if (typeof rawCategories === "string") {
+      const trimmed = rawCategories.trim();
+      if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+        try {
+          const parsed = JSON.parse(trimmed);
+          if (Array.isArray(parsed)) {
+            targetCategories = parsed.map((c) => String(c).trim().toLowerCase()).filter(Boolean);
+          }
+        } catch {
+          // fallback to regex / split
+        }
+      }
+      if (!targetCategories) {
+        targetCategories = trimmed
+          .replace(/^[\[\(\{"']+|[\]\)\}"']+$/g, "")
+          .split(",")
+          .map((c) => c.trim().replace(/^['"]+|['"]+$/g, "").toLowerCase())
+          .filter(Boolean);
+      }
+    }
+  }
+
+  // Wildcard '*' or 'all' or empty means search across all categories
+  if (
+    targetCategories &&
+    (targetCategories.includes("*") ||
+      targetCategories.includes("all") ||
+      targetCategories.length === 0)
+  ) {
+    targetCategories = undefined;
+  }
+
   try {
-    const rawResults: HybridSearchResult[] = await searchHybrid(query, limit, effectiveProjectId);
+    const rawResults: HybridSearchResult[] = await searchHybrid(
+      query,
+      limit,
+      effectiveProjectId,
+      undefined,
+      targetCategories
+    );
 
     if (!rawResults || rawResults.length === 0) {
       return {
@@ -108,6 +155,7 @@ export async function searchKnowledgeBaseTool(
     return {
       query,
       totalFound: formattedMatches.length,
+      categories: targetCategories,
       instruction:
         "When referencing or summarizing facts from these documents, synthesize in your own words and place inline citation links like [1](cite:1) or [2](cite:2) corresponding to citationId.",
       results: formattedMatches,

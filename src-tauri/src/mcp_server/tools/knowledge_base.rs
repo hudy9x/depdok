@@ -15,6 +15,8 @@ pub struct SearchRequest {
     pub project_id: Option<String>,
     #[serde(default)]
     pub group_id: Option<String>,
+    #[serde(default)]
+    pub categories: Option<Vec<String>>,
 }
 
 impl schemars::JsonSchema for SearchRequest {
@@ -40,6 +42,11 @@ impl schemars::JsonSchema for SearchRequest {
                 "group_id": {
                     "type": "string",
                     "description": "Deprecated alias for project_id"
+                },
+                "categories": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "description": "Optional categories (e.g. ['decisions', 'mettings', 'plan', 'requirements', 'qna'] or ['*'] for all)"
                 }
             },
             "required": ["query"],
@@ -108,7 +115,7 @@ impl KbMcpService {
     async fn kb_search(&self, Parameters(req): Parameters<SearchRequest>) -> Result<CallToolResult, McpError> {
         let limit = req.limit.unwrap_or(10);
         let project_id = req.project_id.or(req.group_id);
-        let results = self.kb_manager.search_hybrid(req.query, limit, project_id).await
+        let results = self.kb_manager.search_hybrid(req.query, limit, project_id, req.categories).await
             .map_err(|e| McpError::internal_error(e, None))?;
 
         let pretty_results = serde_json::to_string_pretty(&results)

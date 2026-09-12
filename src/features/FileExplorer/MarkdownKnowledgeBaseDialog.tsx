@@ -45,12 +45,21 @@ async function collectMarkdownFiles(rootPath: string): Promise<MarkdownFileOptio
     const entries = await listDirectory(dirPath);
 
     for (const entry of entries) {
+      const lowerName = entry.name.toLowerCase();
+
       if (entry.is_dir) {
+        if (
+          lowerName === '.depdok' ||
+          lowerName === '.git' ||
+          lowerName === 'node_modules' ||
+          lowerName.startsWith('.depdok')
+        ) {
+          continue;
+        }
         await walk(entry.path);
         continue;
       }
 
-      const lowerName = entry.name.toLowerCase();
       if (!lowerName.endsWith('.md') || isKnowledgeGraphFile(entry.path)) {
         continue;
       }
@@ -58,6 +67,17 @@ async function collectMarkdownFiles(rootPath: string): Promise<MarkdownFileOptio
       const relativePath = entry.path.startsWith(rootPath)
         ? entry.path.slice(rootPath.length).replace(/^[/\\]+/, '')
         : entry.path;
+
+      // Ensure any files nested under .depdok are ignored
+      const normalizedRelative = relativePath.replace(/\\/g, '/');
+      if (
+        normalizedRelative.startsWith('.depdok/') ||
+        normalizedRelative === '.depdok' ||
+        normalizedRelative.startsWith('.git/') ||
+        normalizedRelative.startsWith('node_modules/')
+      ) {
+        continue;
+      }
 
       results.push({
         path: entry.path,
@@ -248,7 +268,8 @@ export function MarkdownKnowledgeBaseDialog({
       onOpenChange(false);
     } catch (error) {
       console.error('Failed to index markdown files:', error);
-      toast.error('Failed to index selected markdown files');
+      const msg = typeof error === 'string' ? error : (error instanceof Error ? error.message : 'Failed to index selected markdown files');
+      toast.error(`Indexing failed: ${msg}`);
     } finally {
       setIsSubmitting(false);
     }

@@ -113,7 +113,8 @@ export async function searchHybrid(
   query: string,
   limit = 10,
   projectId?: string,
-  groupId?: string
+  groupId?: string,
+  categories?: string[]
 ): Promise<HybridSearchResult[]> {
   const targetProject = projectId ?? groupId;
   return await invoke<HybridSearchResult[]>('search_hybrid', {
@@ -121,6 +122,7 @@ export async function searchHybrid(
     limit,
     projectId: targetProject,
     groupId: targetProject,
+    categories: categories && categories.length > 0 ? categories : null,
   });
 }
 

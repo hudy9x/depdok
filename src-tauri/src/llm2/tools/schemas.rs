@@ -6,6 +6,32 @@ pub fn get_builtin_tools_schema(content_model_to_use: &str) -> serde_json::Value
     {
       "type": "function",
       "function": {
+        "name": "ask_user",
+        "description": "Ask the user a clarification question with an optional list of selectable choices/options. Pauses execution and awaits user input or button click in the UI before continuing.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "question": {
+              "type": "string",
+              "description": "The question or prompt to present to the user (e.g. 'Which topic would you like to search for?')"
+            },
+            "options": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Optional list of predefined choices/buttons for the user to click (e.g. ['Plan & Tasks', 'Requirements', 'Decisions', 'Meetings', 'Q&A', 'All (*)'])"
+            },
+            "allow_custom": {
+              "type": "boolean",
+              "description": "Whether to allow the user to type a custom response in addition to picking an option (default: true)"
+            }
+          },
+          "required": ["question"]
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
         "name": "search_knowledge_base",
         "description": "Search the local workspace knowledge base and indexed documentation using semantic vector and keyword retrieval to find relevant notes, specifications, guides, and section contents within the active project or specified project path.",
         "parameters": {

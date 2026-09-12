@@ -23,6 +23,7 @@ import {
   searchKnowledgeBaseTool,
   listKnowledgeBaseProjectsTool,
   writeSkillTool,
+  askUserTool,
   getCurrentDatetimeTool,
   runShellTool,
   searchWebTool,
@@ -42,6 +43,7 @@ import {
   SearchKnowledgeBaseArgs,
   ListKnowledgeBaseProjectsArgs,
   WriteSkillArgs,
+  AskUserArgs,
   GetCurrentDatetimeArgs,
   RunShellArgs,
   SearchWebArgs,
@@ -307,6 +309,10 @@ export function useToolListener() {
             break;
           case "write_skill":
             toolOutput = await writeSkillTool(args as unknown as WriteSkillArgs);
+            break;
+          case "ask_user":
+          case "ask_question":
+            toolOutput = await askUserTool(args as unknown as AskUserArgs, request_id);
             break;
           case "get_current_datetime":
           case "get_datetime":

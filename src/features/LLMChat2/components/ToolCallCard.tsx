@@ -20,8 +20,11 @@ import {
   Terminal,
   Globe,
   ExternalLink,
+  HelpCircle,
+  Send,
 } from "lucide-react";
 import { ToolExecutionLog } from "../store/LLMChat2Store";
+import { normalizeAskOptions, submitUserAnswer } from "../tools/common/askUser";
 
 interface ToolCallCardProps {
   log: ToolExecutionLog;
@@ -29,6 +32,9 @@ interface ToolCallCardProps {
 
 function getToolIcon(name: string) {
   switch (name) {
+    case "ask_user":
+    case "ask_question":
+      return <HelpCircle className="h-3.5 w-3.5 text-indigo-400" />;
     case "run_shell":
     case "execute_shell":
     case "shell_command":
@@ -94,6 +100,12 @@ function formatToolSummary(name: string, args: unknown, result: unknown): string
   const parsedResult = typeof result === "object" && result !== null ? (result as Record<string, unknown>) : {};
 
   switch (name) {
+    case "ask_user":
+    case "ask_question": {
+      const q = parsedArgs.question ? `"${parsedArgs.question}"` : "Clarification question";
+      const sel = parsedResult.selected ? ` ➔ "${parsedResult.selected}"` : "";
+      return `Ask: ${q}${sel}`;
+    }
     case "get_current_datetime":
     case "get_datetime": {
       const formatted = parsedResult.formatted || parsedResult.compactTimestamp || parsedResult.iso;
@@ -126,8 +138,12 @@ function formatToolSummary(name: string, args: unknown, result: unknown): string
     case "semantic_search":
     case "search_knowledge": {
       const query = parsedArgs.query ? `"${parsedArgs.query}"` : "query";
+      const cats = Array.isArray(parsedArgs.categories)
+        ? parsedArgs.categories.join(", ")
+        : (parsedArgs.category || (Array.isArray(parsedResult.categories) ? parsedResult.categories.join(", ") : ""));
+      const catScope = cats ? ` in [${cats}]` : "";
       const total = typeof parsedResult.totalFound === "number" ? ` (${parsedResult.totalFound} found)` : "";
-      return `Searched knowledge base for ${query}${total}`;
+      return `Searched knowledge base${catScope} for ${query}${total}`;
     }
     case "list_knowledge_base_projects":
     case "list_projects":
@@ -188,9 +204,108 @@ function formatToolSummary(name: string, args: unknown, result: unknown): string
   }
 }
 
+function AskUserInteractiveView({ log }: { log: ToolExecutionLog }) {
+  const [customInput, setCustomInput] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const parsedArgs = typeof log.args === "object" && log.args !== null ? (log.args as Record<string, unknown>) : {};
+  const question = typeof parsedArgs.question === "string" ? parsedArgs.question : "Please select an option:";
+  const options = normalizeAskOptions(parsedArgs.options);
+  const allowCustom = parsedArgs.allow_custom !== false;
+
+  const handleSelect = (choice: string, isCustom = false) => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    submitUserAnswer(log.requestId, choice, isCustom);
+  };
+
+  const handleCustomSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!customInput.trim() || isSubmitting) return;
+    handleSelect(customInput.trim(), true);
+  };
+
+  if (log.status === "success" && log.result) {
+    const res = typeof log.result === "object" && log.result !== null ? (log.result as Record<string, unknown>) : {};
+    const selectedText = typeof res.selected === "string" ? res.selected : JSON.stringify(log.result);
+    return (
+      <div className="p-2.5 bg-indigo-500/5 border border-indigo-500/20 rounded-xl space-y-1 my-1 text-xs">
+        <div className="flex items-center gap-1.5 text-indigo-400 font-medium">
+          <HelpCircle className="h-3.5 w-3.5 shrink-0" />
+          <span>{question}</span>
+        </div>
+        <div className="flex items-center gap-1.5 pl-5 text-emerald-400 font-mono text-[11px]">
+          <CheckCircle2 className="h-3 w-3 shrink-0" />
+          <span className="text-foreground/80">User Selected:</span>
+          <span className="px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20 font-semibold">
+            {selectedText}
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-3 bg-gradient-to-b from-indigo-500/10 to-background/80 border border-indigo-500/30 rounded-xl space-y-2.5 my-1.5 shadow-sm">
+      <div className="flex items-start gap-2">
+        <div className="p-1 rounded-md bg-indigo-500/20 text-indigo-400 shrink-0 mt-0.5">
+          <HelpCircle className="h-4 w-4" />
+        </div>
+        <div className="flex-1">
+          <h4 className="text-xs font-semibold text-foreground/95 leading-snug">{question}</h4>
+          <p className="text-[10px] text-muted-foreground mt-0.5">
+            Click an option below or type a custom answer
+          </p>
+        </div>
+      </div>
+
+      {options.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 pl-6">
+          {options.map((option, idx) => (
+            <button
+              key={idx}
+              type="button"
+              disabled={isSubmitting}
+              onClick={() => handleSelect(option)}
+              className="px-2.5 py-1.5 text-[11px] font-medium rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 hover:text-indigo-200 border border-indigo-500/25 hover:border-indigo-500/40 transition-all cursor-pointer active:scale-95 text-left"
+            >
+              {option}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {allowCustom && (
+        <form onSubmit={handleCustomSubmit} className="flex items-center gap-1.5 pl-6 pt-0.5">
+          <input
+            type="text"
+            value={customInput}
+            onChange={(e) => setCustomInput(e.target.value)}
+            disabled={isSubmitting}
+            placeholder="Or type custom clarification..."
+            className="flex-1 h-7 px-2.5 text-[11px] bg-background/80 border border-border/60 rounded-lg focus:outline-none focus:border-indigo-500/60 text-foreground placeholder:text-muted-foreground/60 transition-colors"
+          />
+          <button
+            type="submit"
+            disabled={!customInput.trim() || isSubmitting}
+            className="h-7 px-2.5 flex items-center gap-1 text-[11px] font-medium rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer shrink-0"
+          >
+            <Send className="h-3 w-3" />
+            <span>Send</span>
+          </button>
+        </form>
+      )}
+    </div>
+  );
+}
+
 export function ToolCallCard({ log }: ToolCallCardProps) {
   const [isOpen, setIsOpen] = useState(false);
   const summaryText = formatToolSummary(log.toolName, log.args, log.result);
+  const isAskUser = log.toolName === "ask_user" || log.toolName === "ask_question";
+
+  if (isAskUser && log.status === "executing") {
+    return <AskUserInteractiveView log={log} />;
+  }
 
   return (
     <div className="my-1.5 rounded-xl border border-border/50 bg-background/60 shadow-sm overflow-hidden text-xs transition-all duration-200 hover:border-border">

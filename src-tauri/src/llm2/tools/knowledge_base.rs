@@ -13,6 +13,119 @@ pub struct SearchKnowledgeBaseTool {
   pub pending: PendingRequests,
 }
 
+fn deserialize_flexible_string_vec<'de, D>(deserializer: D) -> Result<Option<Vec<String>>, D::Error>
+where
+  D: serde::Deserializer<'de>,
+{
+  struct FlexibleStringVecVisitor;
+
+  impl<'de> serde::de::Visitor<'de> for FlexibleStringVecVisitor {
+    type Value = Option<Vec<String>>;
+
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+      formatter.write_str("a string, list of strings, or stringified JSON array")
+    }
+
+    fn visit_none<E>(self) -> Result<Self::Value, E>
+    where
+      E: serde::de::Error,
+    {
+      Ok(None)
+    }
+
+    fn visit_some<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+    where
+      D: serde::Deserializer<'de>,
+    {
+      deserializer.deserialize_any(FlexibleStringVecVisitor)
+    }
+
+    fn visit_unit<E>(self) -> Result<Self::Value, E>
+    where
+      E: serde::de::Error,
+    {
+      Ok(None)
+    }
+
+    fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+    where
+      E: serde::de::Error,
+    {
+      let trimmed = v.trim();
+      if trimmed.is_empty() {
+        return Ok(None);
+      }
+      // If it looks like a JSON array, e.g. ["plan"] or ["plan", "requirements"]
+      if trimmed.starts_with('[') && trimmed.ends_with(']') {
+        if let Ok(parsed) = serde_json::from_str::<Vec<String>>(trimmed) {
+          return Ok(Some(parsed));
+        }
+      }
+      // Comma-separated or single string
+      let items: Vec<String> = trimmed
+        .trim_matches(|c| c == '[' || c == ']')
+        .split(',')
+        .map(|s| s.trim().trim_matches(|c| c == '"' || c == '\'').to_string())
+        .filter(|s| !s.is_empty())
+        .collect();
+
+      if items.is_empty() {
+        Ok(None)
+      } else {
+        Ok(Some(items))
+      }
+    }
+
+    fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
+    where
+      E: serde::de::Error,
+    {
+      self.visit_str(&v)
+    }
+
+    fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+    where
+      A: serde::de::SeqAccess<'de>,
+    {
+      let mut items = Vec::new();
+      while let Some(elem) = seq.next_element::<serde_json::Value>()? {
+        match elem {
+          serde_json::Value::String(s) => {
+            let s_trim = s.trim();
+            if !s_trim.is_empty() {
+              items.push(s_trim.to_string());
+            }
+          }
+          serde_json::Value::Array(sub_arr) => {
+            for sub_val in sub_arr {
+              if let serde_json::Value::String(s) = sub_val {
+                let s_trim = s.trim();
+                if !s_trim.is_empty() {
+                  items.push(s_trim.to_string());
+                }
+              }
+            }
+          }
+          other => {
+            let s = other.to_string();
+            let s_trim = s.trim().trim_matches('"');
+            if !s_trim.is_empty() {
+              items.push(s_trim.to_string());
+            }
+          }
+        }
+      }
+      if items.is_empty() {
+        Ok(None)
+      } else {
+        Ok(Some(items))
+      }
+    }
+  }
+
+  deserializer.deserialize_option(FlexibleStringVecVisitor)
+}
+
 #[derive(Debug, Deserialize, Serialize)]
 pub struct SearchKnowledgeBaseArgs {
   pub query: String,
@@ -20,6 +133,10 @@ pub struct SearchKnowledgeBaseArgs {
   pub limit: Option<usize>,
   #[serde(default)]
   pub project: Option<String>,
+  #[serde(default, deserialize_with = "deserialize_flexible_string_vec")]
+  pub categories: Option<Vec<String>>,
+  #[serde(default)]
+  pub category: Option<String>,
 }
 
 impl PortableTool for SearchKnowledgeBaseTool {
@@ -29,18 +146,27 @@ impl PortableTool for SearchKnowledgeBaseTool {
   type Output = serde_json::Value;
 
   fn description(&self) -> String {
-    "Search the local workspace knowledge base and indexed documentation using semantic and hybrid vector retrieval to find relevant notes, specifications, guides, and section contents within the active project or specified project path.".to_string()
+    "Search the local workspace knowledge base and indexed documentation using semantic and hybrid vector retrieval to find relevant notes, specifications, decisions, meeting notes, plans, requirements, and Q&A. Supports optional category filtering ('decisions', 'mettings', 'plan', 'requirements', 'qna', or '*' for all categories).".to_string()
   }
 
   fn parameters(&self) -> serde_json::Value {
     json!({
       "type": "object",
       "properties": {
-        "query": { "type": "string", "description": "The search query or concept to search for across the indexed workspace notes and documents (e.g. 'authentication flow', 'markdown pagination', 'sqlite vector setup')" },
+        "query": { "type": "string", "description": "The search query or concept to search for across indexed notes (e.g. 'authentication flow', 'sprint 1 tasks', 'oauth decision')" },
         "limit": { "type": "integer", "description": "Maximum number of relevant section results to return (default: 6, max: 20)" },
-        "project": { "type": "string", "description": "The project or folder path to scope the search within (e.g. the current workspace or project folder path)." }
+        "project": { "type": "string", "description": "The project or folder path to scope the search within." },
+        "categories": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Optional list of categories to filter: 'decisions', 'mettings', 'plan', 'requirements', 'qna'. Pass ['*'] to search across all categories."
+        },
+        "category": {
+          "type": "string",
+          "description": "Optional single category filter (e.g. 'plan', 'requirements', 'decisions', 'mettings', 'qna', or '*' for all categories)."
+        }
       },
-      "required": ["query", "project"]
+      "required": ["query"]
     })
   }
 
@@ -133,3 +259,57 @@ impl PortableTool for ListKnowledgeBaseGroupsTool {
     call_frontend_tool(&self.app, &self.pending, Self::NAME, args).await
   }
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn test_search_args_deserialization_stringified_json_array() {
+    let raw_json = r#"{"query":"kickoff date","categories":"[\"plan\"]"}"#;
+    let args: SearchKnowledgeBaseArgs = serde_json::from_str(raw_json).unwrap();
+    assert_eq!(args.query, "kickoff date");
+    assert_eq!(args.categories, Some(vec!["plan".to_string()]));
+  }
+
+  #[test]
+  fn test_search_args_deserialization_array_literal() {
+    let raw_json = r#"{"query":"kickoff date","categories":["plan","meetings"]}"#;
+    let args: SearchKnowledgeBaseArgs = serde_json::from_str(raw_json).unwrap();
+    assert_eq!(args.query, "kickoff date");
+    assert_eq!(args.categories, Some(vec!["plan".to_string(), "meetings".to_string()]));
+  }
+
+  #[test]
+  fn test_search_args_deserialization_single_string() {
+    let raw_json = r#"{"query":"kickoff date","categories":"plan"}"#;
+    let args: SearchKnowledgeBaseArgs = serde_json::from_str(raw_json).unwrap();
+    assert_eq!(args.query, "kickoff date");
+    assert_eq!(args.categories, Some(vec!["plan".to_string()]));
+  }
+
+  #[test]
+  fn test_search_args_deserialization_comma_separated() {
+    let raw_json = r#"{"query":"kickoff date","categories":"plan, decisions, qna"}"#;
+    let args: SearchKnowledgeBaseArgs = serde_json::from_str(raw_json).unwrap();
+    assert_eq!(args.query, "kickoff date");
+    assert_eq!(
+      args.categories,
+      Some(vec!["plan".to_string(), "decisions".to_string(), "qna".to_string()])
+    );
+  }
+
+  #[test]
+  fn test_search_args_deserialization_none_and_null() {
+    let raw_json = r#"{"query":"kickoff date","categories":null}"#;
+    let args: SearchKnowledgeBaseArgs = serde_json::from_str(raw_json).unwrap();
+    assert_eq!(args.query, "kickoff date");
+    assert_eq!(args.categories, None);
+
+    let raw_json_empty = r#"{"query":"kickoff date"}"#;
+    let args_empty: SearchKnowledgeBaseArgs = serde_json::from_str(raw_json_empty).unwrap();
+    assert_eq!(args_empty.query, "kickoff date");
+    assert_eq!(args_empty.categories, None);
+  }
+}
+

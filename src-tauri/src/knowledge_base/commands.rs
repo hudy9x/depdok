@@ -137,13 +137,14 @@ pub async fn search_hybrid(
     limit: usize,
     project_id: Option<String>,
     group_id: Option<String>,
+    categories: Option<Vec<String>>,
 ) -> Result<Vec<HybridSearchResult>, String> {
     let req_project = project_id.or(group_id);
     let effective_project_id = req_project
         .filter(|g| !g.trim().is_empty())
         .or_else(|| project_state.0.lock().ok().and_then(|g| g.clone()));
 
-    kb_state.0.search_hybrid(query, limit, effective_project_id).await
+    kb_state.0.search_hybrid(query, limit, effective_project_id, categories).await
 }
 
 #[tauri::command]

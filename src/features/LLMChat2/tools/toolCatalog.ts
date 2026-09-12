@@ -189,6 +189,11 @@ export const TOOL_CATALOG: ToolCatalogItem[] = [
     description: "Execute batch spreadsheet atomic commands",
     category: "spreadsheet",
   },
+  {
+    name: "ask_user",
+    description: "Ask the user a question with interactive selectable options",
+    category: "system",
+  },
 ];
 
 export const AVAILABLE_TOOL_NAMES = TOOL_CATALOG.map((t) => t.name);

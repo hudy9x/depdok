@@ -280,6 +280,59 @@ pub fn extract_metadata(content: &str) -> ExtractedMetadata {
     }
 }
 
+/// Normalizes raw category alias or folder name to standard canonical categories:
+/// "decisions", "mettings", "plan", "requirements", "qna".
+pub fn normalize_category(input: &str) -> Option<String> {
+    let clean = input.trim().to_lowercase();
+    match clean.as_str() {
+        "decisions" | "decision" => Some("decisions".to_string()),
+        "mettings" | "meetings" | "meeting" => Some("mettings".to_string()),
+        "plan" | "plans" => Some("plan".to_string()),
+        "requirements" | "requirement" | "specs" | "spec" => Some("requirements".to_string()),
+        "qna" | "q&a" | "questions" | "faq" => Some("qna".to_string()),
+        _ => None,
+    }
+}
+
+/// Detects a document's primary category from explicit YAML frontmatter or filesystem path.
+/// Recognized categories: "decisions", "mettings", "plan", "requirements", "qna".
+pub fn detect_document_category(file_path: &str, content: &str) -> Option<String> {
+    // 1. Check YAML frontmatter for category or type
+    let trimmed_start = content.trim_start();
+    if trimmed_start.starts_with("---") {
+        if let Some(rest) = trimmed_start.strip_prefix("---") {
+            if let Some(first_newline) = rest.find('\n') {
+                let after_first_line = &rest[first_newline + 1..];
+                if let Some(closing_idx) = after_first_line.find("\n---") {
+                    let yaml_block = &after_first_line[..closing_idx];
+                    for line in yaml_block.lines() {
+                        let line_trimmed = line.trim();
+                        if let Some(val) = line_trimmed.strip_prefix("category:").or_else(|| line_trimmed.strip_prefix("type:")) {
+                            let raw_val = val.trim().trim_matches('"').trim_matches('\'').trim().to_lowercase();
+                            if !raw_val.is_empty() {
+                                if let Some(canonical) = normalize_category(&raw_val) {
+                                    return Some(canonical);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // 2. Detect from file path segments
+    let normalized = file_path.replace('\\', "/").to_lowercase();
+    let segments: Vec<&str> = normalized.split('/').collect();
+    for segment in segments {
+        if let Some(canonical) = normalize_category(segment) {
+            return Some(canonical);
+        }
+    }
+
+    None
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

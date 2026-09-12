@@ -6,7 +6,7 @@ use crate::llm2::runtime::PendingRequests;
 use crate::mcp_client::McpClientManager;
 
 use super::{
-  AddMarkdownCommentTool, CreateFileTool, CreateFolderTool, DeleteFileOrFolderTool,
+  AddMarkdownCommentTool, AskUserTool, CreateFileTool, CreateFolderTool, DeleteFileOrFolderTool,
   GenerateContentTool, GetCurrentDatetimeTool, GetUserAgeTool, GetUserCountryTool,
   GetUserDobTool, GetUserNameTool, ListFilesTool, MoveFilesOrFoldersTool,
   ReadMarkdownTool, RenameFileTool, RenameFolderTool, RunShellTool,
@@ -32,6 +32,13 @@ pub async fn dispatch_tool_call(
   println!("[llm2][dispatcher] Executing '{}' with args: {:?}", call_name, call_args);
 
   match call_name {
+    "ask_user" | "ask_question" => {
+      let tool = AskUserTool { app: app.clone(), pending: pending.clone() };
+      match serde_json::from_value(call_args) {
+        Ok(args) => tool.call(args).await.map_err(|e| e.to_string()),
+        Err(e) => Err(format!("Invalid arguments for ask_user: {}", e)),
+      }
+    }
     "generate_content" => {
       let tool = GenerateContentTool {
         app: app.clone(),

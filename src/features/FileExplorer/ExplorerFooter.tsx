@@ -2,20 +2,17 @@ import { useState } from 'react';
 import { useAtomValue, useSetAtom } from 'jotai';
 import { Settings } from 'lucide-react';
 import { AiOutlineAlert } from 'react-icons/ai';
-import { PiTerminalWindowLight, PiTerminalFill, PiStarOfDavid } from 'react-icons/pi';
+import { PiStarOfDavid } from 'react-icons/pi';
 
 import { Button } from '@/components/ui/button';
 import { licensePopoverOpenAtom } from '@/stores/license-popover';
 import { isLicensedAtom } from '@/stores/license';
-import { isTerminalOpenAtom, setIsTerminalOpenAtom } from '@/stores/TerminalStore';
 import { LLMChat2Button } from '@/features/LLMChat2';
 import { SettingsDialog } from '@/features/SettingsDialog';
 
 export function ExplorerFooter() {
   const setLicenseOpen = useSetAtom(licensePopoverOpenAtom);
   const isLicensed = useAtomValue(isLicensedAtom);
-  const isTerminalOpen = useAtomValue(isTerminalOpenAtom);
-  const setIsTerminalOpen = useSetAtom(setIsTerminalOpenAtom);
   const [showSettings, setShowSettings] = useState(false);
 
   return (
@@ -34,25 +31,6 @@ export function ExplorerFooter() {
             <PiStarOfDavid data-tauri-drag-region="false" className="!h-4.5 !w-4.5 text-amber-500" />
           ) : (
             <AiOutlineAlert data-tauri-drag-region="false" className="!h-4 !w-4 text-red-500 hover:text-red-600" />
-          )}
-        </Button>
-
-        {/* Terminal Toggle */}
-        <Button
-          data-tauri-drag-region="false"
-          variant="ghost"
-          size="icon"
-          className={`h-7 w-7 cursor-pointer transition-colors ${isTerminalOpen
-            ? 'text-primary hover:text-primary'
-            : 'text-muted-foreground hover:text-foreground'
-            }`}
-          onClick={() => setIsTerminalOpen(!isTerminalOpen)}
-          title={`${isTerminalOpen ? 'Hide' : 'Show'} Terminal (Ctrl+\`)`}
-        >
-          {isTerminalOpen ? (
-            <PiTerminalFill data-tauri-drag-region="false" className="!h-4.5 !w-4.5" />
-          ) : (
-            <PiTerminalWindowLight data-tauri-drag-region="false" className="!h-4.5 !w-4.5" />
           )}
         </Button>
 

@@ -21,15 +21,7 @@ import { EditorSave } from "@/features/Editor/EditorSaveHandler";
 import { ContentSearchDialog } from "@/features/ContentSearchDialog";
 import { useGlobalShortcuts } from "@/hooks/useGlobalShortcuts";
 import { useWorkspaceWatcher } from "@/hooks/useWorkspaceWatcher";
-import { TerminalPanel } from "@/features/Terminal/TerminalPanel";
 import { LLMChat2Panel } from "@/features/LLMChat2";
-import {
-  setIsTerminalOpenAtom,
-  isTerminalOpenAtom,
-  terminalPositionAtom,
-} from "@/stores/TerminalStore";
-
-
 
 export default function Editor() {
   const [searchParams] = useSearchParams();
@@ -41,24 +33,9 @@ export default function Editor() {
   const isFileExplorerVisible = useAtomValue(isFileExplorerVisibleAtom);
   const workspaceRoot = useAtomValue(workspaceRootAtom);
   const [showSettings, setShowSettings] = useState(false);
-  const setIsTerminalOpen = useSetAtom(setIsTerminalOpenAtom);
-  const isTerminalOpen = useAtomValue(isTerminalOpenAtom);
-  const terminalPosition = useAtomValue(terminalPositionAtom);
 
   // Initialize global shortcuts (e.g. Cmd+B to toggle explorer)
   useGlobalShortcuts();
-
-  // Toggle terminal panel with Ctrl+`
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === '`') {
-        e.preventDefault();
-        setIsTerminalOpen(!isTerminalOpen);
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isTerminalOpen, setIsTerminalOpen]);
 
   // Watch the workspace for external file system changes
   useWorkspaceWatcher();
@@ -101,8 +78,6 @@ export default function Editor() {
     return null;
   }
 
-  const isRight = terminalPosition === 'right';
-
   return (
     <>
       <FileSearchDialog />
@@ -112,41 +87,34 @@ export default function Editor() {
 
       {/* Outer flex wrapper: horizontal flex with workspace on left and LLMChat2Panel on right */}
       <div className="w-full h-full flex flex-row overflow-hidden">
-        {/* Left / Center Area: Workspace + Terminal (if bottom) */}
-        <div className={`flex-1 min-h-0 min-w-0 flex ${isRight ? 'flex-row' : 'flex-col'} overflow-hidden`}>
-          {/* Main Body Workspace Container */}
-          <div className="flex-1 min-h-0 min-w-0 flex bg-layout-chrome overflow-hidden">
-            {/* 2. Main Content pane with Resizable Sidebar & Editor */}
-            <PanelSectionGroup storageKey="depdok-editor-layouts">
-              <PanelSectionItem
-                id="sidebar"
-                visible={isFileExplorerVisible}
-                minWidth={180}
-                maxWidth={400}
-                defaultWidth={240}
-                data-tauri-drag-region
-                className="bg-layout-chrome flex flex-col select-none pt-[38px]"
-              >
-                <div data-tauri-drag-region="false" className="flex-1 min-h-0 overflow-y-auto">
-                  <FileExplorer />
-                </div>
-              </PanelSectionItem>
+        {/* Main Content pane with Resizable Sidebar & Editor */}
+        <div className="flex-1 min-h-0 min-w-0 flex bg-layout-chrome overflow-hidden">
+          <PanelSectionGroup storageKey="depdok-editor-layouts">
+            <PanelSectionItem
+              id="sidebar"
+              visible={isFileExplorerVisible}
+              minWidth={180}
+              maxWidth={400}
+              defaultWidth={240}
+              data-tauri-drag-region
+              className="bg-layout-chrome flex flex-col select-none pt-[38px]"
+            >
+              <div data-tauri-drag-region="false" className="flex-1 min-h-0 overflow-y-auto">
+                <FileExplorer />
+              </div>
+            </PanelSectionItem>
 
-              <PanelSectionHandle
-                targetId="sidebar"
-                visible={isFileExplorerVisible}
-                resizeDirection="right"
-                className="bg-transparent group-hover:bg-primary/0 transition-colors"
-              />
+            <PanelSectionHandle
+              targetId="sidebar"
+              visible={isFileExplorerVisible}
+              resizeDirection="right"
+              className="bg-transparent group-hover:bg-primary/0 transition-colors"
+            />
 
-              <PanelSectionItem flex={1} className="bg-layout-chrome min-w-0 min-h-0">
-                <EditorWorkspace />
-              </PanelSectionItem>
-            </PanelSectionGroup>
-          </div>
-
-          {/* Terminal panel — sits at bottom or right of the workspace */}
-          <TerminalPanel shortcutHint="Ctrl+`" />
+            <PanelSectionItem flex={1} className="bg-layout-chrome min-w-0 min-h-0">
+              <EditorWorkspace />
+            </PanelSectionItem>
+          </PanelSectionGroup>
         </div>
 
         {/* AI Chat v2 panel — sits at right of the workspace */}

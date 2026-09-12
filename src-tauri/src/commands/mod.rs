@@ -3,7 +3,6 @@ pub mod file_watcher;
 pub mod file_explorer;
 pub mod file_search;
 pub mod content_search;
-pub mod terminal;
 pub mod export;
 pub mod shell;
 pub mod web_search;

@@ -1,7 +1,7 @@
 #![recursion_limit = "512"]
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-use std::sync::{Arc, Mutex};
+use std::sync::Mutex;
 use tauri::{Manager, WebviewUrl, WebviewWindowBuilder, Emitter};
 use tauri_plugin_store::StoreExt;
 
@@ -850,11 +850,6 @@ pub fn run() {
             
             // Initialize content search state
             app.manage(commands::content_search::init());
-            
-
-
-            // Initialize terminal PTY state
-            app.manage(Arc::new(commands::terminal::TerminalState::new()));
 
             // Initialize LLM2 PendingRequests
             app.manage(llm2::PendingRequests::new());
@@ -1034,10 +1029,6 @@ pub fn run() {
             get_mcp_server_paths,
             check_mcp_config_status,
             activate_license,
-            commands::terminal::start_pty_session,
-            commands::terminal::write_to_pty,
-            commands::terminal::resize_pty,
-            commands::terminal::close_pty_session,
             commands::shell::execute_shell_command,
             commands::web_search::search_web,
             commands::web_search::fetch_web_page,
@@ -1085,11 +1076,6 @@ pub fn run() {
         .expect("error while building tauri application")
         .run(|app, event| {
             if let tauri::RunEvent::Exit = event {
-                // Kill all open PTY sessions to prevent orphaned shell processes.
-                if let Some(terminal_state) = app.try_state::<Arc<commands::terminal::TerminalState>>() {
-                    terminal_state.kill_all();
-                }
-
                 // Shutdown active MCP client subprocesses.
                 if let Some(mcp_mgr) = app.try_state::<mcp_client::McpClientManager>() {
                     let mgr = mcp_mgr.inner().clone();

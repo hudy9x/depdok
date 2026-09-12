@@ -1,12 +1,13 @@
 import * as React from 'react';
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import {
-  Boxes,
   CalendarCheck,
+  CheckCircle2,
   CheckSquare,
   Clock,
   Compass,
   FileCode,
+  FileText,
   FolderPlus,
   GitCommit,
   Layers,
@@ -290,7 +291,40 @@ export function WorkspaceOnboarding(): React.JSX.Element {
   const createTab = useSetAtom(createTabAtom);
   const selectItem = useSetAtom(selectItemAtom);
   const [isFileExplorerVisible, setIsFileExplorerVisible] = useAtom(isFileExplorerVisibleAtom);
-  const [preset, setPreset] = React.useState<ProjectPreset>('full');
+  const rootEntries = (workspaceRoot && fileTreeData[workspaceRoot]) || [];
+  const existingFolderNames = React.useMemo(() => {
+    return new Set(
+      rootEntries
+        .filter((entry) => entry.is_dir)
+        .map((entry) => entry.name.toLowerCase())
+    );
+  }, [rootEntries]);
+
+  // Track if user explicitly clicked a preset tab, otherwise auto-detect best match
+  const [userSelectedPreset, setUserSelectedPreset] = React.useState<ProjectPreset | null>(null);
+
+  const preset = React.useMemo<ProjectPreset>(() => {
+    if (userSelectedPreset) return userSelectedPreset;
+
+    const names = existingFolderNames;
+    const hasFull = BASE_FOLDERS.every((f) => names.has(f.name.toLowerCase()));
+    if (hasFull) return 'full';
+
+    const essentialFolders = BASE_FOLDERS.filter((f) => f.isEssential);
+    const hasEssential = essentialFolders.every((f) => names.has(f.name.toLowerCase()));
+    if (hasEssential) return 'essential';
+
+    const kickoffNames = ['requirements', 'technical', 'planning'];
+    const hasKickoff = kickoffNames.every((n) => names.has(n));
+    if (hasKickoff) return 'kickoff';
+
+    return 'full';
+  }, [userSelectedPreset, existingFolderNames]);
+
+  const setPreset = (p: ProjectPreset): void => {
+    setUserSelectedPreset(p);
+  };
+
   const [isCreating, setIsCreating] = React.useState(false);
 
   const activeFolders = React.useMemo(() => {
@@ -306,15 +340,6 @@ export function WorkspaceOnboarding(): React.JSX.Element {
         return BASE_FOLDERS;
     }
   }, [preset]);
-
-  const rootEntries = (workspaceRoot && fileTreeData[workspaceRoot]) || [];
-  const existingFolderNames = React.useMemo(() => {
-    return new Set(
-      rootEntries
-        .filter((entry) => entry.is_dir)
-        .map((entry) => entry.name.toLowerCase())
-    );
-  }, [rootEntries]);
 
   const missingFolders = React.useMemo(() => {
     return activeFolders.filter(
@@ -379,25 +404,69 @@ export function WorkspaceOnboarding(): React.JSX.Element {
     }
   };
 
+  const hasOverviewMd = rootEntries.some(
+    (entry) => !entry.is_dir && entry.name.toLowerCase() === 'overview.md'
+  );
+
+  const handleOpenOverview = (): void => {
+    if (!workspaceRoot) return;
+    const overviewPath = joinPath(workspaceRoot, 'overview.md');
+    selectItem({ path: overviewPath });
+    createTab({
+      filePath: overviewPath,
+      fileName: 'overview.md',
+      switchTo: true,
+    });
+  };
+
+  const isCompletelyEmpty = rootEntries.length === 0;
+  const isInitialized = missingFolders.length === 0;
+
   return (
     <div className="h-full w-full overflow-y-auto bg-layout-content text-foreground p-6 md:p-10 flex flex-col items-center justify-center select-none">
-      <div className="max-w-4xl w-full flex flex-col items-center space-y-7 my-auto">
+      <div className="max-w-4xl w-full flex flex-col items-center space-y-8 my-auto">
         {/* Header Hero */}
-        <div className="flex flex-col items-center text-center space-y-3">
-          <div className="w-14 h-14 rounded-2xl border border-primary/20 bg-primary/10 flex items-center justify-center text-primary shadow-sm ring-4 ring-primary/5">
-            <Boxes className="w-7 h-7" />
+        <div className="flex flex-col items-center text-center space-y-6">
+          <div className="w-20 h-20 rounded-2xl flex items-center justify-center shadow-sm">
+            <img src="/app-icon.png" alt="Depdok" className="w-20 h-20 object-contain rounded-2xl" />
           </div>
 
-          <div className="space-y-1">
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20 mb-1">
-              <Sparkles className="w-3.5 h-3.5" />
-              Workspace Setup
+          <div className="space-y-4 flex flex-col items-center">
+            <div
+              className={cn(
+                'inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full text-xs font-medium border shadow-xs',
+                isInitialized
+                  ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
+                  : 'bg-primary/10 text-primary border border-primary/20'
+              )}
+            >
+              {isInitialized ? (
+                <>
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  Workspace Ready
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-3.5 h-3.5" />
+                  Workspace Setup
+                </>
+              )}
             </div>
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
-              This project folder is empty
+
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight pt-1">
+              {isCompletelyEmpty
+                ? 'This project folder is empty'
+                : isInitialized
+                  ? 'No file is currently open'
+                  : 'No file is currently open'}
             </h1>
-            <p className="text-sm text-muted-foreground max-w-xl">
-              Create the standard documentation folders to organize your project and get started.
+
+            <p className="text-sm text-muted-foreground max-w-xl leading-relaxed">
+              {isCompletelyEmpty
+                ? 'Create the standard documentation folders to organize your project and get started.'
+                : isInitialized
+                  ? 'Select a file from the sidebar explorer to begin editing, or open overview.md to review your project documentation structure.'
+                  : 'Select a file from the sidebar explorer to begin editing, or add additional documentation folders below.'}
             </p>
           </div>
 
@@ -491,7 +560,7 @@ export function WorkspaceOnboarding(): React.JSX.Element {
 
         {/* Action Controls */}
         <div className="flex flex-col sm:flex-row items-center justify-center gap-3 w-full pt-2">
-          {missingFolders.length > 0 ? (
+          {missingFolders.length > 0 && (
             <Button
               size="default"
               variant="default"
@@ -507,11 +576,25 @@ export function WorkspaceOnboarding(): React.JSX.Element {
               ) : (
                 <>
                   <FolderPlus className="w-4 h-4" />
-                  Initialize Base Folders ({missingFolders.length})
+                  {isCompletelyEmpty
+                    ? `Initialize Base Folders (${missingFolders.length})`
+                    : `Initialize Missing Folders (${missingFolders.length})`}
                 </>
               )}
             </Button>
-          ) : null}
+          )}
+
+          {hasOverviewMd && (
+            <Button
+              size="default"
+              variant={missingFolders.length > 0 ? "outline" : "default"}
+              onClick={handleOpenOverview}
+              className="w-full sm:w-auto shadow-sm gap-2 font-medium"
+            >
+              <FileText className="w-4 h-4" />
+              Open overview.md
+            </Button>
+          )}
 
           <Button
             variant="outline"

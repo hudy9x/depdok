@@ -68,6 +68,10 @@ pub async fn prompt_agent(
   )
   .await;
 
+  let current_workspace = app
+    .try_state::<crate::knowledge_base::CurrentProject>()
+    .and_then(|state| state.0.lock().ok().and_then(|g| g.clone()));
+
   // 2. Prepare optimized conversation history & apply sliding window budgeting
   let (mut history, sliding_res) = prepare_agent_history(
     &model_to_use,
@@ -75,6 +79,7 @@ pub async fn prompt_agent(
     prompt,
     initial_history,
     system_prompt_addendum,
+    current_workspace.as_deref(),
     mcp_manager.as_deref(),
     num_ctx_to_use,
     Some(&effective_tools_schema),

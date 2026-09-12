@@ -2,10 +2,12 @@ use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use rusqlite::{params, Connection};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::knowledge_base::embedding::{Embedder, chunker::{chunk_text, ChunkOptions}};
-use crate::knowledge_base::parser::{extract_metadata, split_markdown_into_sections};
+use crate::knowledge_base::parser::{
+    detect_document_category, extract_metadata, normalize_category, split_markdown_into_sections,
+};
 
 #[derive(Serialize, Clone, Debug)]
 pub struct HybridSearchResult {
@@ -16,6 +18,9 @@ pub struct HybridSearchResult {
     pub score: f32,
     #[serde(rename = "matchedChunks")]
     pub matched_chunks: Vec<String>,
+    /// 0-based line number within the source file where the best-matching chunk starts.
+    #[serde(rename = "lineStart")]
+    pub line_start: Option<u64>,
 }
 
 #[derive(Serialize, Clone, Debug)]
@@ -45,13 +50,25 @@ pub struct GraphEdgeRecord {
 
 #[derive(Serialize, Clone, Debug)]
 pub struct ProjectGraphRecord {
-    #[serde(rename = "groupId")]
-    pub group_id: String,
-    #[serde(rename = "groupTitle")]
-    pub group_title: String,
+    #[serde(rename = "projectId", alias = "groupId")]
+    pub project_id: String,
+    #[serde(rename = "projectTitle", alias = "groupTitle")]
+    pub project_title: String,
     pub documents: Vec<GraphDocumentRecord>,
     pub edges: Vec<GraphEdgeRecord>,
 }
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct ProjectSummary {
+    #[serde(rename = "projectId", alias = "groupId")]
+    pub project_id: String,
+    pub title: String,
+    #[serde(rename = "documentCount")]
+    pub document_count: usize,
+}
+
+#[allow(dead_code)]
+pub type GroupSummary = ProjectSummary;
 
 #[derive(Clone)]
 pub struct KbManager {
@@ -94,19 +111,24 @@ impl KbManager {
     }
 
     /// Insert or update a document, automatically parsing tags, links, and creating vector embeddings.
+    ///
+    /// `section_line_offset` is the 0-based line number of the first line of `content` within the
+    /// original full file. Chunk line numbers are computed relative to `content` and then shifted
+    /// by this offset so that `document_chunks.line_start` is always absolute.
     pub async fn upsert_document(
         &self,
         id: Option<String>,
         title: String,
         content: String,
-        group_ids: Vec<String>,
+        project_ids: Vec<String>,
+        section_line_offset: u64,
     ) -> Result<String, String> {
         let doc_id = id.unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
 
         // 1. Extract metadata (links & tags)
         let metadata = extract_metadata(&content);
 
-        // 2. Chunk text
+        // 2. Chunk text — returns Vec<(content, relative_line_start)>
         let opts = ChunkOptions::default();
         let chunks = chunk_text(&content, &opts);
 
@@ -114,8 +136,8 @@ impl KbManager {
         let embeddings: Vec<Vec<f32>> = {
             let embedder = self.embedder.read().await;
             let mut results = Vec::new();
-            for chunk in &chunks {
-                let vec = embedder.embed(chunk).await?;
+            for (chunk_content, _) in &chunks {
+                let vec = embedder.embed(chunk_content).await?;
                 results.push(vec);
             }
             results
@@ -127,38 +149,51 @@ impl KbManager {
             .transaction()
             .map_err(|e| format!("Failed to start transaction: {e}"))?;
 
+        let category = detect_document_category(&doc_id, &content);
+
         tx.execute(
-            "INSERT INTO documents (id, title, content)
-             VALUES (?1, ?2, ?3)
+            "INSERT INTO documents (id, title, content, category)
+             VALUES (?1, ?2, ?3, ?4)
              ON CONFLICT(id) DO UPDATE SET
                  title = excluded.title,
-                 content = excluded.content",
-            params![doc_id, title, content],
+                 content = excluded.content,
+                 category = excluded.category",
+            params![doc_id, title, content, category],
         )
         .map_err(|e| format!("Failed to upsert document: {e}"))?;
 
-        // Handle groups
-        for group_id in &group_ids {
-            if group_id.trim().is_empty() {
+        // Handle projects
+        if !project_ids.is_empty() {
+            tx.execute(
+                "DELETE FROM document_projects WHERE document_id = ?1",
+                params![doc_id],
+            )
+            .map_err(|e| format!("Failed to clear old document projects: {e}"))?;
+        }
+
+        for project_id in &project_ids {
+            let trimmed = project_id.trim().trim_end_matches(['/', '\\']);
+            if trimmed.is_empty() {
                 continue;
             }
-            let group_title = Path::new(group_id)
+            let norm_project_id = trimmed.to_string();
+            let project_title = Path::new(&norm_project_id)
                 .file_name()
                 .and_then(|name| name.to_str())
-                .unwrap_or(group_id)
+                .unwrap_or(&norm_project_id)
                 .to_string();
 
             tx.execute(
-                "INSERT OR IGNORE INTO groups (id, title) VALUES (?1, ?2)",
-                params![group_id, group_title],
+                "INSERT OR IGNORE INTO projects (id, title) VALUES (?1, ?2)",
+                params![norm_project_id, project_title],
             )
-            .map_err(|e| format!("Failed to ensure group: {e}"))?;
+            .map_err(|e| format!("Failed to ensure project: {e}"))?;
 
             tx.execute(
-                "INSERT OR IGNORE INTO document_groups (document_id, group_id) VALUES (?1, ?2)",
-                params![doc_id, group_id],
+                "INSERT OR IGNORE INTO document_projects (document_id, project_id) VALUES (?1, ?2)",
+                params![doc_id, norm_project_id],
             )
-            .map_err(|e| format!("Failed to attach document to group: {e}"))?;
+            .map_err(|e| format!("Failed to attach document to project: {e}"))?;
         }
 
         // Clean stale chunks, embeddings, and tags
@@ -181,13 +216,14 @@ impl KbManager {
         .map_err(|e| format!("Failed to delete old tags: {e}"))?;
 
         // Insert new chunks and embeddings
-        for (i, (chunk_content, embedding)) in chunks.iter().zip(embeddings.iter()).enumerate() {
+        for (i, ((chunk_content, chunk_rel_line), embedding)) in chunks.iter().zip(embeddings.iter()).enumerate() {
             let chunk_id = format!("{doc_id}#{i}");
+            let abs_line_start = section_line_offset + chunk_rel_line;
 
             tx.execute(
-                "INSERT INTO document_chunks (chunk_id, document_id, chunk_index, content)
-                 VALUES (?1, ?2, ?3, ?4)",
-                params![chunk_id, doc_id, i as i64, chunk_content],
+                "INSERT INTO document_chunks (chunk_id, document_id, chunk_index, content, line_start)
+                 VALUES (?1, ?2, ?3, ?4, ?5)",
+                params![chunk_id, doc_id, i as i64, chunk_content, abs_line_start as i64],
             )
             .map_err(|e| format!("Failed to insert chunk {i}: {e}"))?;
 
@@ -207,6 +243,16 @@ impl KbManager {
                 params![doc_id, tag],
             )
             .map_err(|e| format!("Failed to insert tag: {e}"))?;
+        }
+
+        // Insert category tag if detected
+        if let Some(ref cat) = category {
+            let cat_tag = format!("category:{}", cat);
+            tx.execute(
+                "INSERT OR IGNORE INTO document_tags (document_id, tag) VALUES (?1, ?2)",
+                params![doc_id, cat_tag],
+            )
+            .map_err(|e| format!("Failed to insert category tag: {e}"))?;
         }
 
         // Auto-linking wikilinks
@@ -269,7 +315,7 @@ impl KbManager {
         file_path: String,
         document_title: String,
         content: String,
-        group_ids: Vec<String>,
+        project_ids: Vec<String>,
     ) -> Result<usize, String> {
         let base_document_id = format!("file:{file_path}");
         let section_id_like = format!("{base_document_id}#section:%");
@@ -300,7 +346,8 @@ impl KbManager {
                 Some(base_document_id),
                 document_title,
                 content,
-                group_ids,
+                project_ids,
+                0, // no section offset for whole-document fallback
             )
             .await?;
             return Ok(1);
@@ -310,12 +357,14 @@ impl KbManager {
         for section in sections {
             let section_document_id = format!("{base_document_id}#section:{}", section.id);
             let section_title = format!("{document_title} - {}", section.title);
+            let section_line_offset = section.line_start;
 
             self.upsert_document(
                 Some(section_document_id),
                 section_title,
                 section.content,
-                group_ids.clone(),
+                project_ids.clone(),
+                section_line_offset,
             )
             .await?;
 
@@ -451,11 +500,50 @@ impl KbManager {
         }
 
         Ok(results)
-    }
-
-    /// Execute a hybrid query combining FTS5 keyword scoring with sqlite-vec KNN search via Reciprocal Rank Fusion (RRF).
-    pub async fn search_hybrid(&self, query: String, limit: usize) -> Result<Vec<HybridSearchResult>, String> {
+    }    /// Execute a hybrid query combining FTS5 keyword scoring with sqlite-vec KNN search via Reciprocal Rank Fusion (RRF).
+    /// If `project_id` is provided, filters strictly to documents belonging to that project/folder.
+    /// If `categories` is provided (and does not contain '*'), filters strictly to matching categories or folder paths.
+    pub async fn search_hybrid(
+        &self,
+        query: String,
+        limit: usize,
+        project_id: Option<String>,
+        categories: Option<Vec<String>>,
+    ) -> Result<Vec<HybridSearchResult>, String> {
         let limit_i64 = limit as i64;
+        let normalized_project = project_id
+            .as_deref()
+            .map(|g| g.trim().trim_end_matches(['/', '\\']).to_string())
+            .filter(|g| !g.is_empty());
+
+        let normalized_categories: Option<Vec<String>> = categories.and_then(|cats| {
+            let list: Vec<String> = cats
+                .into_iter()
+                .map(|c| c.trim().to_lowercase())
+                .filter(|c| !c.is_empty())
+                .collect();
+
+            if list.is_empty() || list.iter().any(|c| c == "*" || c == "all") {
+                None
+            } else {
+                let mut final_cats = Vec::new();
+                for c in list {
+                    if let Some(norm) = normalize_category(&c) {
+                        if !final_cats.contains(&norm) {
+                            final_cats.push(norm);
+                        }
+                    } else if !final_cats.contains(&c) {
+                        final_cats.push(c);
+                    }
+                }
+                if final_cats.is_empty() {
+                    None
+                } else {
+                    Some(final_cats)
+                }
+            }
+        });
+
         let conn = self.db.lock().await;
 
         // 1. Keyword search (FTS5)
@@ -474,22 +562,65 @@ impl KbManager {
             fts_rank: Option<usize>,
             vec_rank: Option<usize>,
             matched_chunks: Vec<String>,
+            line_start: Option<u64>,
         }
 
         let mut doc_map: std::collections::HashMap<String, RawResult> = std::collections::HashMap::new();
 
         if !fts_query.trim().is_empty() {
+            let mut query_str = String::from(
+                "SELECT d.id, d.title, d.content, f.rank
+                 FROM documents_fts f
+                 INNER JOIN documents d ON d.rowid = f.rowid
+                 WHERE documents_fts MATCH ?1",
+            );
+            let mut params_vec: Vec<rusqlite::types::Value> = vec![fts_query.clone().into()];
+
+            if let Some(ref pid) = normalized_project {
+                let p_idx = params_vec.len() + 1;
+                query_str.push_str(&format!(
+                    " AND EXISTS (
+                        SELECT 1 FROM document_projects dp
+                        WHERE (dp.document_id = d.id OR (instr(d.id, '#section:') > 0 AND dp.document_id = substr(d.id, 1, instr(d.id, '#section:') - 1)))
+                          AND (dp.project_id = ?{p_idx} OR rtrim(dp.project_id, '/\\') = ?{p_idx})
+                    )"
+                ));
+                params_vec.push(pid.clone().into());
+            }
+
+            if let Some(ref cats) = normalized_categories {
+                let mut cat_clauses = Vec::new();
+                for cat in cats {
+                    let cat_idx = params_vec.len() + 1;
+                    params_vec.push(cat.clone().into());
+                    let tag_idx = params_vec.len() + 1;
+                    params_vec.push(format!("category:{cat}").into());
+                    let path_idx = params_vec.len() + 1;
+                    params_vec.push(format!("%/{cat}/%").into());
+
+                    cat_clauses.push(format!(
+                        "(d.category = ?{cat_idx} OR d.id LIKE ?{path_idx} OR EXISTS (
+                            SELECT 1 FROM document_tags dt
+                            WHERE (dt.document_id = d.id OR (instr(d.id, '#section:') > 0 AND dt.document_id = substr(d.id, 1, instr(d.id, '#section:') - 1)))
+                              AND dt.tag = ?{tag_idx}
+                        ))"
+                    ));
+                }
+                if !cat_clauses.is_empty() {
+                    query_str.push_str(&format!(" AND ({})", cat_clauses.join(" OR ")));
+                }
+            }
+
+            let limit_idx = params_vec.len() + 1;
+            query_str.push_str(&format!(" ORDER BY f.rank ASC LIMIT ?{limit_idx}"));
+            params_vec.push(limit_i64.into());
+
             let mut fts_stmt = conn
-                .prepare(
-                    "SELECT d.id, d.title, d.content, f.rank
-                     FROM documents_fts f
-                     INNER JOIN documents d ON d.rowid = f.rowid
-                     WHERE documents_fts MATCH ?1
-                     ORDER BY f.rank ASC LIMIT ?2",
-                )
+                .prepare(&query_str)
                 .map_err(|e| format!("FTS query prepare failed: {e}"))?;
 
-            let mut rows = fts_stmt.query(params![fts_query, limit_i64])
+            let mut rows = fts_stmt
+                .query(rusqlite::params_from_iter(params_vec))
                 .map_err(|e| format!("FTS query execution failed: {e}"))?;
             let mut idx = 0;
             while let Some(row) = rows.next().map_err(|e| e.to_string())? {
@@ -506,6 +637,7 @@ impl KbManager {
                         fts_rank: Some(idx + 1),
                         vec_rank: None,
                         matched_chunks: Vec::new(),
+                        line_start: None,
                     },
                 );
                 idx += 1;
@@ -519,18 +651,67 @@ impl KbManager {
         };
         let query_bytes = f32_slice_to_bytes(&query_vector);
 
+        let vec_k = if normalized_project.is_some() || normalized_categories.is_some() {
+            (limit_i64 * 10).max(50)
+        } else {
+            limit_i64
+        };
+
+        let mut vec_query_str = String::from(
+            "SELECT de.document_id, d.title, d.content, de.distance, dc.content, dc.line_start
+             FROM documents_embeddings de
+             INNER JOIN documents d ON d.id = de.document_id
+             INNER JOIN document_chunks dc ON dc.chunk_id = de.chunk_id
+             WHERE de.embedding MATCH ?1 AND k = ?2",
+        );
+        let mut vec_params: Vec<rusqlite::types::Value> = vec![
+            rusqlite::types::Value::Blob(query_bytes),
+            vec_k.into(),
+        ];
+
+        if let Some(ref pid) = normalized_project {
+            let p_idx = vec_params.len() + 1;
+            vec_query_str.push_str(&format!(
+                " AND EXISTS (
+                    SELECT 1 FROM document_projects dp
+                    WHERE (dp.document_id = d.id OR (instr(d.id, '#section:') > 0 AND dp.document_id = substr(d.id, 1, instr(d.id, '#section:') - 1)))
+                      AND (dp.project_id = ?{p_idx} OR rtrim(dp.project_id, '/\\') = ?{p_idx})
+                )"
+            ));
+            vec_params.push(pid.clone().into());
+        }
+
+        if let Some(ref cats) = normalized_categories {
+            let mut cat_clauses = Vec::new();
+            for cat in cats {
+                let cat_idx = vec_params.len() + 1;
+                vec_params.push(cat.clone().into());
+                let tag_idx = vec_params.len() + 1;
+                vec_params.push(format!("category:{cat}").into());
+                let path_idx = vec_params.len() + 1;
+                vec_params.push(format!("%/{cat}/%").into());
+
+                cat_clauses.push(format!(
+                    "(d.category = ?{cat_idx} OR d.id LIKE ?{path_idx} OR EXISTS (
+                        SELECT 1 FROM document_tags dt
+                        WHERE (dt.document_id = d.id OR (instr(d.id, '#section:') > 0 AND dt.document_id = substr(d.id, 1, instr(d.id, '#section:') - 1)))
+                          AND dt.tag = ?{tag_idx}
+                    ))"
+                ));
+            }
+            if !cat_clauses.is_empty() {
+                vec_query_str.push_str(&format!(" AND ({})", cat_clauses.join(" OR ")));
+            }
+        }
+
+        vec_query_str.push_str(" ORDER BY de.distance ASC");
+
         let mut vec_stmt = conn
-            .prepare(
-                "SELECT de.document_id, d.title, d.content, de.distance, dc.content
-                 FROM documents_embeddings de
-                 INNER JOIN documents d ON d.id = de.document_id
-                 INNER JOIN document_chunks dc ON dc.chunk_id = de.chunk_id
-                 WHERE de.embedding MATCH ?1 AND k = ?2
-                 ORDER BY de.distance ASC",
-            )
+            .prepare(&vec_query_str)
             .map_err(|e| format!("Vector query prepare failed: {e}"))?;
 
-        let mut rows = vec_stmt.query(params![query_bytes, limit_i64])
+        let mut rows = vec_stmt
+            .query(rusqlite::params_from_iter(vec_params))
             .map_err(|e| format!("Vector query execution failed: {e}"))?;
         let mut seen_docs = std::collections::HashSet::new();
         let mut vec_counter = 0;
@@ -541,6 +722,7 @@ impl KbManager {
             let content: String = row.get(2).map_err(|e| e.to_string())?;
             let _distance: f32 = row.get(3).map_err(|e| e.to_string())?;
             let chunk_content: String = row.get(4).map_err(|e| e.to_string())?;
+            let chunk_line_start: Option<i64> = row.get(5).map_err(|e| e.to_string())?;
 
             let is_new = seen_docs.insert(id.clone());
             if is_new {
@@ -554,10 +736,13 @@ impl KbManager {
                 fts_rank: None,
                 vec_rank: None,
                 matched_chunks: Vec::new(),
+                line_start: None,
             });
 
             if is_new {
                 entry.vec_rank = Some(vec_counter);
+                // Keep the line_start from the top-ranked (nearest) chunk for this document.
+                entry.line_start = chunk_line_start.map(|v| v as u64);
             }
             entry.matched_chunks.push(chunk_content);
         }
@@ -583,6 +768,7 @@ impl KbManager {
                 content: doc.content,
                 score,
                 matched_chunks: doc.matched_chunks,
+                line_start: doc.line_start,
             });
         }
 
@@ -593,26 +779,26 @@ impl KbManager {
         Ok(scored_results)
     }
 
-    /// Retrieve the documents and edges associated with a project group.
-    pub async fn get_project_graph(&self, group_id: String) -> Result<ProjectGraphRecord, String> {
+    /// Retrieve the documents and edges associated with a project.
+    pub async fn get_project_graph(&self, project_id: String) -> Result<ProjectGraphRecord, String> {
         let conn = self.db.lock().await;
 
-        let group_title = Path::new(&group_id)
+        let project_title = Path::new(&project_id)
             .file_name()
             .and_then(|name| name.to_str())
-            .unwrap_or(&group_id)
+            .unwrap_or(&project_id)
             .to_string();
 
         conn.execute(
-            "INSERT OR IGNORE INTO groups (id, title) VALUES (?1, ?2)",
-            params![group_id, group_title],
+            "INSERT OR IGNORE INTO projects (id, title) VALUES (?1, ?2)",
+            params![project_id, project_title],
         )
-        .map_err(|e| format!("Failed to ensure group: {e}"))?;
+        .map_err(|e| format!("Failed to ensure project: {e}"))?;
 
-        let group_title: String = conn
+        let project_title: String = conn
             .query_row(
-                "SELECT title FROM groups WHERE id = ?1",
-                params![group_id],
+                "SELECT title FROM projects WHERE id = ?1",
+                params![project_id],
                 |row| row.get(0),
             )
             .map_err(|e| e.to_string())?;
@@ -621,14 +807,14 @@ impl KbManager {
             .prepare(
                 "SELECT d.id, d.title, d.content
                  FROM documents d
-                 INNER JOIN document_groups dg ON dg.document_id = d.id
-                 WHERE dg.group_id = ?1
+                 INNER JOIN document_projects dp ON dp.document_id = d.id
+                 WHERE dp.project_id = ?1
                  ORDER BY d.title COLLATE NOCASE",
             )
             .map_err(|e| e.to_string())?;
 
         let documents = doc_stmt
-            .query_map(params![group_id], |row| {
+            .query_map(params![project_id], |row| {
                 Ok(GraphDocumentRecord {
                     id: row.get(0)?,
                     title: row.get(1)?,
@@ -643,14 +829,14 @@ impl KbManager {
             .prepare(
                 "SELECT e.id, e.source_id, e.target_id, e.type
                  FROM edges e
-                 INNER JOIN document_groups sg ON sg.document_id = e.source_id AND sg.group_id = ?1
-                 INNER JOIN document_groups tg ON tg.document_id = e.target_id AND tg.group_id = ?1
+                 INNER JOIN document_projects sp ON sp.document_id = e.source_id AND sp.project_id = ?1
+                 INNER JOIN document_projects tp ON tp.document_id = e.target_id AND tp.project_id = ?1
                  ORDER BY e.id",
             )
             .map_err(|e| e.to_string())?;
 
         let edges = edge_stmt
-            .query_map(params![group_id], |row| {
+            .query_map(params![project_id], |row| {
                 Ok(GraphEdgeRecord {
                     id: row.get(0)?,
                     source_id: row.get(1)?,
@@ -663,8 +849,8 @@ impl KbManager {
             .map_err(|e| e.to_string())?;
 
         Ok(ProjectGraphRecord {
-            group_id,
-            group_title,
+            project_id,
+            project_title,
             documents,
             edges,
         })
@@ -716,6 +902,7 @@ impl KbManager {
                     .file_name()
                     .and_then(|f| f.to_str())
                     .unwrap_or(link);
+
                 let filename_with_md = if filename.ends_with(".md") {
                     filename.to_string()
                 } else {
@@ -755,5 +942,53 @@ impl KbManager {
             .map_err(|e| format!("Failed to commit transaction: {e}"))?;
 
         Ok(())
+    }
+
+    /// List all projects and their document counts, with optional query filter.
+    pub async fn list_projects(&self, query: Option<String>) -> Result<Vec<ProjectSummary>, String> {
+        let conn = self.db.lock().await;
+
+        let (sql, params_vec): (&str, Vec<rusqlite::types::Value>) = match &query {
+            Some(q) if !q.trim().is_empty() => (
+                "SELECT p.id, p.title, COUNT(dp.document_id) as doc_count
+                 FROM projects p
+                 LEFT JOIN document_projects dp ON dp.project_id = p.id
+                 WHERE p.id LIKE ?1 OR p.title LIKE ?1
+                 GROUP BY p.id, p.title
+                 ORDER BY p.title COLLATE NOCASE",
+                vec![format!("%{}%", q.trim()).into()],
+            ),
+            _ => (
+                "SELECT p.id, p.title, COUNT(dp.document_id) as doc_count
+                 FROM projects p
+                 LEFT JOIN document_projects dp ON dp.project_id = p.id
+                 GROUP BY p.id, p.title
+                 ORDER BY p.title COLLATE NOCASE",
+                vec![],
+            ),
+        };
+
+        let mut stmt = conn.prepare(sql).map_err(|e| e.to_string())?;
+        let rows = stmt
+            .query_map(rusqlite::params_from_iter(params_vec), |row| {
+                Ok(ProjectSummary {
+                    project_id: row.get(0)?,
+                    title: row.get(1)?,
+                    document_count: row.get::<_, i64>(2)? as usize,
+                })
+            })
+            .map_err(|e| e.to_string())?;
+
+        let mut projects = Vec::new();
+        for row in rows {
+            projects.push(row.map_err(|e| e.to_string())?);
+        }
+
+        Ok(projects)
+    }
+
+    /// List all project groups and their document counts (alias for list_projects).
+    pub async fn list_groups(&self, query: Option<String>) -> Result<Vec<ProjectSummary>, String> {
+        self.list_projects(query).await
     }
 }

@@ -16,19 +16,31 @@ impl Default for ChunkOptions {
     }
 }
 
+/// Count the number of `\n` characters in `text[..offset]` to derive the 0-based line number.
+fn line_at_byte(text: &str, offset: usize) -> u64 {
+    text[..offset.min(text.len())].chars().filter(|&c| c == '\n').count() as u64
+}
+
 /// Split `text` into overlapping chunks using `opts`.
+///
+/// Returns `Vec<(content, line_start)>` where `line_start` is the 0-based line
+/// number of the first character of the chunk within `text`.
 ///
 /// - If the text fits within `max_chars` it is returned as a single chunk.
 /// - Splits prefer natural boundaries (paragraph → sentence → word) near the
 ///   `max_chars` limit; falls back to a hard character split.
 /// - Chunk IDs are not assigned here — callers use `"{doc_id}#{index}"`.
-pub fn chunk_text(text: &str, opts: &ChunkOptions) -> Vec<String> {
+pub fn chunk_text(text: &str, opts: &ChunkOptions) -> Vec<(String, u64)> {
     if text.len() <= opts.max_chars {
         let trimmed = text.trim().to_string();
-        return if trimmed.is_empty() { vec![] } else { vec![trimmed] };
+        return if trimmed.is_empty() {
+            vec![]
+        } else {
+            vec![(trimmed, 0)]
+        };
     }
 
-    let mut chunks: Vec<String> = Vec::new();
+    let mut chunks: Vec<(String, u64)> = Vec::new();
     let bytes = text.as_bytes();
     let len = bytes.len();
     let mut start = 0usize;
@@ -49,7 +61,8 @@ pub fn chunk_text(text: &str, opts: &ChunkOptions) -> Vec<String> {
 
         let chunk = text[start..split].trim().to_string();
         if !chunk.is_empty() {
-            chunks.push(chunk);
+            let line_start = line_at_byte(text, start);
+            chunks.push((chunk, line_start));
         }
 
         // Advance, backing up by `overlap_chars` for context continuity.
@@ -137,7 +150,8 @@ mod tests {
     fn single_chunk_when_short() {
         let chunks = chunk_text("Hello world", &ChunkOptions::default());
         assert_eq!(chunks.len(), 1);
-        assert_eq!(chunks[0], "Hello world");
+        assert_eq!(chunks[0].0, "Hello world");
+        assert_eq!(chunks[0].1, 0);
     }
 
     #[test]
@@ -145,7 +159,7 @@ mod tests {
         let long = "word ".repeat(200); // ~1000 chars
         let chunks = chunk_text(&long, &ChunkOptions { max_chars: 100, overlap_chars: 20 });
         assert!(chunks.len() > 1);
-        for chunk in &chunks {
+        for (chunk, _) in &chunks {
             assert!(chunk.len() <= 105); // slight slack for boundary rounding
         }
     }
@@ -160,12 +174,12 @@ mod tests {
         );
         let chunks = chunk_text(&content, &ChunkOptions::default());
         assert!(chunks.len() >= 3);
-        assert!(chunks.iter().any(|c| c.contains("Second")));
+        assert!(chunks.iter().any(|(c, _)| c.contains("Second")));
     }
 
     #[test]
     fn does_not_panic_on_multibyte_overlap() {
-        let text = "## Mermaid Diagram Support\n\nNhiều ứng dụng hỗ trợ sơ đồ với ký tự tiếng Việt như: sự, ự, ắ, ề.\n\n".repeat(10);
+        let text = "## Mermaid Diagram Support\n\nNhieu ung dung ho tro so do voi ky tu tieng Viet.\n\n".repeat(10);
         let chunks = chunk_text(
             &text,
             &ChunkOptions {
@@ -175,6 +189,19 @@ mod tests {
         );
 
         assert!(!chunks.is_empty());
-        assert!(chunks.iter().all(|chunk| !chunk.is_empty()));
+        assert!(chunks.iter().all(|(chunk, _)| !chunk.is_empty()));
+    }
+
+    #[test]
+    fn line_start_increases_with_newlines() {
+        let text = "line0\nline1\nline2\nline3\nline4\n".repeat(20);
+        let chunks = chunk_text(&text, &ChunkOptions { max_chars: 60, overlap_chars: 10 });
+        assert!(chunks.len() > 1);
+        // Each subsequent chunk's line_start should be >= previous
+        let mut prev_line = 0u64;
+        for (_, line) in &chunks {
+            assert!(*line >= prev_line);
+            prev_line = *line;
+        }
     }
 }

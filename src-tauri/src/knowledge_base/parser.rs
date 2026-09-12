@@ -7,6 +7,8 @@ pub struct ParsedSection {
     pub content: String,
     #[allow(dead_code)]
     pub level: u32,
+    /// 0-based line number where this section's heading starts in the original file.
+    pub line_start: u64,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -40,9 +42,72 @@ fn slugify_section_title(title: &str) -> String {
     }
 }
 
+/// Count the number of newlines before byte `offset` in `text`.
+/// Returns the 0-based line number of that position.
+fn line_at_byte(text: &str, offset: usize) -> u64 {
+    text[..offset.min(text.len())].chars().filter(|&c| c == '\n').count() as u64
+}
+
+/// Strips YAML frontmatter if present and extracts any title property.
+/// Returns (clean_markdown, optional_frontmatter_title, byte_offset_of_body)
+pub fn strip_frontmatter(content: &str) -> (&str, Option<String>, usize) {
+    let trimmed_start = content.trim_start();
+    if !trimmed_start.starts_with("---") {
+        return (content, None, 0);
+    }
+
+    let leading_whitespace_len = content.len() - trimmed_start.len();
+    if let Some(rest) = trimmed_start.strip_prefix("---") {
+        if let Some(first_newline) = rest.find('\n') {
+            let after_first_line = &rest[first_newline + 1..];
+            if let Some(closing_idx) = after_first_line.find("\n---") {
+                let yaml_block = &after_first_line[..closing_idx];
+                let after_closing = &after_first_line[closing_idx + 4..];
+                let body_start_in_trimmed = (rest.as_ptr() as usize - trimmed_start.as_ptr() as usize)
+                    + first_newline
+                    + 1
+                    + closing_idx
+                    + 4;
+                let body_offset = leading_whitespace_len + body_start_in_trimmed;
+
+                let actual_body_offset = if let Some(_stripped) = after_closing.strip_prefix("\r\n") {
+                    body_offset + 2
+                } else if let Some(_stripped) = after_closing.strip_prefix('\n') {
+                    body_offset + 1
+                } else {
+                    body_offset
+                };
+
+                // Extract title: from yaml if present
+                let mut title = None;
+                for line in yaml_block.lines() {
+                    let trimmed = line.trim();
+                    if let Some(val) = trimmed.strip_prefix("title:") {
+                        let t = val.trim().trim_matches('"').trim_matches('\'').trim();
+                        if !t.is_empty() {
+                            title = Some(t.to_string());
+                            break;
+                        }
+                    }
+                }
+
+                let clean_body = if actual_body_offset < content.len() {
+                    content[actual_body_offset..].trim_start_matches(|c| c == '\r' || c == '\n')
+                } else {
+                    ""
+                };
+                return (clean_body, title, actual_body_offset);
+            }
+        }
+    }
+
+    (content, None, 0)
+}
+
 /// Split markdown text into hierarchical section documents at heading boundaries.
 pub fn split_markdown_into_sections(content: &str) -> Vec<ParsedSection> {
-    let parser = Parser::new(content);
+    let (clean_content, frontmatter_title, body_offset) = strip_frontmatter(content);
+    let parser = Parser::new(clean_content);
     let mut sections = Vec::new();
     let mut current_heading: Option<(String, u32, usize)> = None; // (title, level, start_byte_offset)
     
@@ -73,13 +138,14 @@ pub fn split_markdown_into_sections(content: &str) -> Vec<ParsedSection> {
                 in_heading = false;
                 
                 if let Some((prev_title, prev_level, prev_start)) = current_heading {
-                    let section_content = content[prev_start..heading_start].trim().to_string();
+                    let section_content = clean_content[prev_start..heading_start].trim().to_string();
                     if !section_content.is_empty() {
                         sections.push(ParsedSection {
                             id: slugify_section_title(&prev_title),
                             title: prev_title,
                             content: section_content,
                             level: prev_level,
+                            line_start: line_at_byte(content, body_offset + prev_start),
                         });
                     }
                 }
@@ -90,21 +156,24 @@ pub fn split_markdown_into_sections(content: &str) -> Vec<ParsedSection> {
     }
 
     if let Some((prev_title, prev_level, prev_start)) = current_heading {
-        let section_content = content[prev_start..].trim().to_string();
+        let section_content = clean_content[prev_start..].trim().to_string();
         if !section_content.is_empty() {
             sections.push(ParsedSection {
                 id: slugify_section_title(&prev_title),
                 title: prev_title,
                 content: section_content,
                 level: prev_level,
+                line_start: line_at_byte(content, body_offset + prev_start),
             });
         }
-    } else if !content.trim().is_empty() {
+    } else if !clean_content.trim().is_empty() {
+        let fallback_title = frontmatter_title.unwrap_or_else(|| "Overview".to_string());
         sections.push(ParsedSection {
-            id: "overview".to_string(),
-            title: "Overview".to_string(),
-            content: content.trim().to_string(),
+            id: slugify_section_title(&fallback_title),
+            title: fallback_title,
+            content: clean_content.trim().to_string(),
             level: 1,
+            line_start: line_at_byte(content, body_offset),
         });
     }
 
@@ -120,6 +189,8 @@ pub fn split_markdown_into_sections(content: &str) -> Vec<ParsedSection> {
 
     sections
 }
+
+
 
 /// Extract tags and links (both markdown links and wikilinks) from markdown content.
 pub fn extract_metadata(content: &str) -> ExtractedMetadata {
@@ -208,3 +279,89 @@ pub fn extract_metadata(content: &str) -> ExtractedMetadata {
         links: links.into_iter().collect(),
     }
 }
+
+/// Normalizes raw category alias or folder name to standard canonical categories:
+/// "decisions", "mettings", "plan", "requirements", "qna".
+pub fn normalize_category(input: &str) -> Option<String> {
+    let clean = input.trim().to_lowercase();
+    match clean.as_str() {
+        "decisions" | "decision" => Some("decisions".to_string()),
+        "mettings" | "meetings" | "meeting" => Some("mettings".to_string()),
+        "plan" | "plans" => Some("plan".to_string()),
+        "requirements" | "requirement" | "specs" | "spec" => Some("requirements".to_string()),
+        "qna" | "q&a" | "questions" | "faq" => Some("qna".to_string()),
+        _ => None,
+    }
+}
+
+/// Detects a document's primary category from explicit YAML frontmatter or filesystem path.
+/// Recognized categories: "decisions", "mettings", "plan", "requirements", "qna".
+pub fn detect_document_category(file_path: &str, content: &str) -> Option<String> {
+    // 1. Check YAML frontmatter for category or type
+    let trimmed_start = content.trim_start();
+    if trimmed_start.starts_with("---") {
+        if let Some(rest) = trimmed_start.strip_prefix("---") {
+            if let Some(first_newline) = rest.find('\n') {
+                let after_first_line = &rest[first_newline + 1..];
+                if let Some(closing_idx) = after_first_line.find("\n---") {
+                    let yaml_block = &after_first_line[..closing_idx];
+                    for line in yaml_block.lines() {
+                        let line_trimmed = line.trim();
+                        if let Some(val) = line_trimmed.strip_prefix("category:").or_else(|| line_trimmed.strip_prefix("type:")) {
+                            let raw_val = val.trim().trim_matches('"').trim_matches('\'').trim().to_lowercase();
+                            if !raw_val.is_empty() {
+                                if let Some(canonical) = normalize_category(&raw_val) {
+                                    return Some(canonical);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // 2. Detect from file path segments
+    let normalized = file_path.replace('\\', "/").to_lowercase();
+    let segments: Vec<&str> = normalized.split('/').collect();
+    for segment in segments {
+        if let Some(canonical) = normalize_category(segment) {
+            return Some(canonical);
+        }
+    }
+
+    None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_strip_frontmatter() {
+        let md = "---\ntitle: Project Roadmap\nauthor: Maya\n---\n\n# Heading 1\nContent here";
+        let (body, title, offset) = strip_frontmatter(md);
+        assert_eq!(title, Some("Project Roadmap".to_string()));
+        assert_eq!(body, "# Heading 1\nContent here");
+        assert!(offset > 0);
+    }
+
+    #[test]
+    fn test_split_sections_with_frontmatter() {
+        let md = "---\ntitle: Project Nexus Q3 Roadmap\nauthor: Maya\n---\n\n# Section 1\nSome description\n\n## Section 2\nMore details";
+        let sections = split_markdown_into_sections(md);
+        assert_eq!(sections.len(), 2);
+        assert_eq!(sections[0].title, "Section 1");
+        assert_eq!(sections[1].title, "Section 2");
+    }
+
+    #[test]
+    fn test_split_sections_no_heading_with_frontmatter() {
+        let md = "---\ntitle: Document Without Headings\n---\n\nJust pure paragraph text.";
+        let sections = split_markdown_into_sections(md);
+        assert_eq!(sections.len(), 1);
+        assert_eq!(sections[0].title, "Document Without Headings");
+        assert_eq!(sections[0].content, "Just pure paragraph text.");
+    }
+}
+

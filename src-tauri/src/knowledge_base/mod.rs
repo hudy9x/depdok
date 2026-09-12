@@ -13,8 +13,12 @@ mod tests;
 /// Tauri managed state wrapping the shared knowledge base manager.
 pub struct KbState(pub manager::KbManager);
 
-/// Current project/group selected by the UI.
-pub struct CurrentProjectGroup(pub Mutex<Option<String>>);
+/// Current project selected by the UI.
+pub struct CurrentProject(pub Mutex<Option<String>>);
+
+/// Backward compatibility alias
+#[allow(dead_code)]
+pub type CurrentProjectGroup = CurrentProject;
 
 /// Initialise both the database and the embedder, returning the two managed
 /// states to be registered with `app.manage(...)` inside Tauri's `.setup()`.

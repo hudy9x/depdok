@@ -827,7 +827,7 @@ pub fn run() {
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_store::Builder::default().build())
         .setup(|app| {
-            app.manage(knowledge_base::CurrentProjectGroup(Mutex::new(None)));
+            app.manage(knowledge_base::CurrentProject(Mutex::new(None)));
 
             let current_dir = std::env::current_dir().unwrap_or_default();
             let mut initial_paths = Vec::new();
@@ -1010,6 +1010,7 @@ pub fn run() {
             commands::files::rename_node,
             commands::files::copy_node,
             commands::files::reveal_file,
+            commands::files::get_file_fs_metadata,
             commands::export::export_markdown_to_html,
             commands::export::export_markdown_to_pdf,
             commands::file_watcher::start_watching,
@@ -1050,7 +1051,10 @@ pub fn run() {
             knowledge_base::commands::get_chunk_context,
             knowledge_base::commands::get_document,
             knowledge_base::commands::get_project_graph,
+            knowledge_base::commands::set_current_project,
             knowledge_base::commands::set_current_project_group,
+            knowledge_base::commands::list_projects,
+            knowledge_base::commands::list_groups,
             knowledge_base::commands::test_database_query,
             knowledge_base::commands::rebuild_all_edges,
             knowledge_base::commands::get_current_embedding_model,

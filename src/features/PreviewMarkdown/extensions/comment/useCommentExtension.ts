@@ -6,6 +6,7 @@ import {
   fileCommentThreadsAtomFamily,
 } from "./commentStore";
 import { appendComments, extractComments } from "./commentParser";
+import { extractFrontmatter, prependFrontmatter } from "../../utils/frontmatter";
 import { markFileAsDirtyAtom } from "@/stores/DirtyStore";
 
 interface UseCommentExtensionOptions {
@@ -38,6 +39,9 @@ export function useCommentExtension({
   const [commentThreads, setCommentThreads] = useAtom(fileCommentThreadsAtomFamily(filePath));
   const [activeCommentId, setActiveCommentId] = useAtom(fileActiveCommentIdAtomFamily(filePath));
   const markFileAsDirty = useSetAtom(markFileAsDirtyAtom);
+
+  // Track the raw YAML frontmatter (if present) so it is preserved across saves
+  const rawFrontmatterRef = useRef<string | null>(null);
 
   // Track the last known content (from load, save, or edit) to avoid false-positive dirty states
   const lastContentRef = useRef(content);
@@ -73,44 +77,72 @@ export function useCommentExtension({
     [filePath, markFileAsDirty, onContentChange, debouncedSaveDraft]
   );
 
-  // Handle editor updates: serialize markdown with comments appended
+  // Handle editor updates: serialize markdown with comments appended and frontmatter preserved
   const handleEditorUpdate = useCallback(
     (ed: Editor) => {
-      const markdownContent = appendComments(ed.getMarkdown(), commentThreadsRef.current);
+      let currentRawFrontmatter = rawFrontmatterRef.current;
+      ed.state.doc.descendants((node) => {
+        if (node.type.name === "documentProperties") {
+          currentRawFrontmatter = node.attrs.raw || "";
+          rawFrontmatterRef.current = currentRawFrontmatter;
+          return false;
+        }
+      });
+
+      const markdownContent = prependFrontmatter(
+        appendComments(ed.getMarkdown(), commentThreadsRef.current),
+        currentRawFrontmatter
+      );
       processContentChange(markdownContent);
     },
     [processContentChange]
   );
 
-  // Extract comments on read-only content change
+  // Extract frontmatter & comments on read-only content change
   useEffect(() => {
     if (editor && !editable) {
-      const { cleanMarkdown, threads } = extractComments(content);
+      const { rawFrontmatter, metadata, body } = extractFrontmatter(content);
+      rawFrontmatterRef.current = rawFrontmatter;
+      const { cleanMarkdown, threads } = extractComments(body);
       isUpdatingRef.current = true;
       setCommentThreads(threads);
-      editor.commands.setContent(cleanMarkdown, { contentType: "markdown" });
-      const initialSerialized = appendComments(editor.getMarkdown(), threads);
+      const editorInput = rawFrontmatter
+        ? `<div data-type="document-properties" data-raw="${encodeURIComponent(rawFrontmatter)}" data-metadata="${encodeURIComponent(JSON.stringify(metadata || {}))}" data-file-path="${encodeURIComponent(filePath)}"></div>\n\n${cleanMarkdown}`
+        : cleanMarkdown;
+      editor.commands.setContent(editorInput, { contentType: "markdown" });
+      const initialSerialized = prependFrontmatter(
+        appendComments(editor.getMarkdown(), threads),
+        rawFrontmatter
+      );
       lastContentRef.current = initialSerialized;
       setTimeout(() => {
         isUpdatingRef.current = false;
       }, 0);
     }
-  }, [content, editor, editable, setCommentThreads, isUpdatingRef]);
+  }, [content, editor, editable, filePath, setCommentThreads, isUpdatingRef]);
 
-  // Extract comments when content changes in editable mode
+  // Extract frontmatter & comments when content changes in editable mode
   useEffect(() => {
     if (editor && editable && content) {
-      const { cleanMarkdown, threads } = extractComments(content);
+      const { rawFrontmatter, metadata, body } = extractFrontmatter(content);
+      rawFrontmatterRef.current = rawFrontmatter;
+      const { cleanMarkdown, threads } = extractComments(body);
       isUpdatingRef.current = true;
       setCommentThreads(threads);
-      editor.commands.setContent(cleanMarkdown, { contentType: "markdown" });
-      const initialSerialized = appendComments(editor.getMarkdown(), threads);
+      const editorInput = rawFrontmatter
+        ? `<div data-type="document-properties" data-raw="${encodeURIComponent(rawFrontmatter)}" data-metadata="${encodeURIComponent(JSON.stringify(metadata || {}))}" data-file-path="${encodeURIComponent(filePath)}"></div>\n\n${cleanMarkdown}`
+        : cleanMarkdown;
+      editor.commands.setContent(editorInput, { contentType: "markdown" });
+      const initialSerialized = prependFrontmatter(
+        appendComments(editor.getMarkdown(), threads),
+        rawFrontmatter
+      );
       lastContentRef.current = initialSerialized;
       setTimeout(() => {
         isUpdatingRef.current = false;
       }, 0);
     }
-  }, [editable, content, editor, setCommentThreads, isUpdatingRef]);
+  }, [editable, content, editor, filePath, setCommentThreads, isUpdatingRef]);
 
   // Re-save and mark file as dirty whenever comment threads change (add reply, edit, delete, resolve)
   useEffect(() => {
@@ -120,7 +152,19 @@ export function useCommentExtension({
     }
 
     console.log('[useCommentExtension] 🔄 useEffect[commentThreads] executing');
-    const markdownContent = appendComments(editor.getMarkdown(), commentThreads);
+    let currentRawFrontmatter = rawFrontmatterRef.current;
+    editor.state.doc.descendants((node) => {
+      if (node.type.name === "documentProperties") {
+        currentRawFrontmatter = node.attrs.raw || "";
+        rawFrontmatterRef.current = currentRawFrontmatter;
+        return false;
+      }
+    });
+
+    const markdownContent = prependFrontmatter(
+      appendComments(editor.getMarkdown(), commentThreads),
+      currentRawFrontmatter
+    );
     processContentChange(markdownContent);
   }, [commentThreads, editor, editable, isUpdatingRef, processContentChange]);
 

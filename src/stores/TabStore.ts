@@ -18,6 +18,7 @@ export interface Tab {
   isActive: boolean;
   isPreview: boolean;
   lineNumber?: number; // Optional line number to jump to when opening
+  sectionSlug?: string; // Optional section slug / heading anchor to jump to when opening
   isDeleted?: boolean; // True when the file/parent folder was deleted externally
 }
 
@@ -142,9 +143,9 @@ const updateAllPanesTabs = (node: PaneNode, updater: (tabs: Tab[]) => Tab[]): Pa
 // Action: Create a new tab
 export const createTabAtom = atom(
   null,
-  (get, set, payload: { filePath: string; fileName: string; switchTo?: boolean; isPreview?: boolean; lineNumber?: number }) => {
+  (get, set, payload: { filePath: string; fileName: string; switchTo?: boolean; isPreview?: boolean; lineNumber?: number; sectionSlug?: string }) => {
     const tabs = get(tabsAtom);
-    const { filePath, fileName, switchTo = true, isPreview = false } = payload;
+    const { filePath, fileName, switchTo = true, isPreview = false, sectionSlug } = payload;
 
     // Check if tab already exists
     const existingTab = tabs.find((tab) => tab.filePath === filePath);
@@ -156,25 +157,25 @@ export const createTabAtom = atom(
       if (!isPreview && existingTab.isPreview) {
         const tree = get(paneTreeAtom);
         const updated = updateAllPanesTabs(tree, (tList) =>
-          tList.map(t => t.id === existingTab.id ? { ...t, isPreview: false, lineNumber: payload.lineNumber } : t)
+          tList.map(t => t.id === existingTab.id ? { ...t, isPreview: false, lineNumber: payload.lineNumber, sectionSlug } : t)
         );
         set(paneTreeAtom, updated);
-      } else if (payload.lineNumber !== undefined) {
-        // Update lineNumber even if tab exists - set it temporarily, will be cleared after jump
+      } else if (payload.lineNumber !== undefined || sectionSlug !== undefined) {
+        // Update lineNumber/sectionSlug even if tab exists - set it temporarily, will be cleared after jump
         const tree = get(paneTreeAtom);
         const updated = updateAllPanesTabs(tree, (tList) =>
-          tList.map(t => t.id === existingTab.id ? { ...t, lineNumber: payload.lineNumber } : t)
+          tList.map(t => t.id === existingTab.id ? { ...t, lineNumber: payload.lineNumber, sectionSlug } : t)
         );
         set(paneTreeAtom, updated);
 
-        // Clear lineNumber after a short delay to allow the effect to trigger
+        // Clear lineNumber/sectionSlug after a short delay to allow the effect to trigger
         setTimeout(() => {
           const currentTree = get(paneTreeAtom);
           const cleared = updateAllPanesTabs(currentTree, (tList) =>
-            tList.map(t => t.id === existingTab.id ? { ...t, lineNumber: undefined } : t)
+            tList.map(t => t.id === existingTab.id ? { ...t, lineNumber: undefined, sectionSlug: undefined } : t)
           );
           set(paneTreeAtom, cleared);
-        }, 500);
+        }, 1000);
       }
       return existingTab.id;
     }
@@ -190,6 +191,7 @@ export const createTabAtom = atom(
         isPreview: isPreview,
         isActive: switchTo,
         lineNumber: payload.lineNumber,
+        sectionSlug,
       };
 
       const tree = get(paneTreeAtom);
@@ -212,6 +214,7 @@ export const createTabAtom = atom(
       isActive: switchTo,
       isPreview,
       lineNumber: payload.lineNumber,
+      sectionSlug,
     };
 
     const tree = get(paneTreeAtom);

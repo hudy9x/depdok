@@ -136,3 +136,18 @@ export async function exportMarkdownToPdf(markdown: string, filePath?: string): 
 export async function revealFile(path: string): Promise<void> {
   await invoke('reveal_file', { path });
 }
+
+export interface FileMetadataInfo {
+  created_at: string | null;
+  updated_at: string | null;
+  size: number;
+}
+
+/**
+ * Get OS filesystem metadata (creation time, modification time, size)
+ * @param path - Path of the file
+ */
+export async function getFileFsMetadata(path: string): Promise<FileMetadataInfo> {
+  return await invoke<FileMetadataInfo>('get_file_fs_metadata', { path });
+}
+

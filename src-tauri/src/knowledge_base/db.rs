@@ -77,7 +77,7 @@ fn init_database_inner(db_path: &Path, dims: usize) -> Result<Connection, String
         .query_row("PRAGMA user_version;", [], |row| row.get(0))
         .map_err(|e| format!("Failed to read user_version: {e}"))?;
 
-    let target_version = 2;
+    let target_version = 5;
 
     if user_version < target_version {
         // Drop all existing tables to perform a clean reset, avoiding trigger/virtual table mismatches.
@@ -91,8 +91,10 @@ fn init_database_inner(db_path: &Path, dims: usize) -> Result<Connection, String
             DROP TABLE IF EXISTS documents_embeddings;
             DROP TABLE IF EXISTS document_chunks;
             DROP TABLE IF EXISTS document_tags;
+            DROP TABLE IF EXISTS document_projects;
             DROP TABLE IF EXISTS document_groups;
             DROP TABLE IF EXISTS edges;
+            DROP TABLE IF EXISTS projects;
             DROP TABLE IF EXISTS groups;
             DROP TABLE IF EXISTS documents;
             PRAGMA foreign_keys = ON;
@@ -104,20 +106,21 @@ fn init_database_inner(db_path: &Path, dims: usize) -> Result<Connection, String
     conn.execute_batch(
         "
         CREATE TABLE IF NOT EXISTS documents (
-            id      TEXT PRIMARY KEY,   -- UUID v4 or file:{path}
-            title   TEXT NOT NULL,
-            content TEXT NOT NULL
+            id       TEXT PRIMARY KEY,   -- UUID v4 or file:{path}
+            title    TEXT NOT NULL,
+            content  TEXT NOT NULL,
+            category TEXT
         );
 
-        CREATE TABLE IF NOT EXISTS groups (
+        CREATE TABLE IF NOT EXISTS projects (
             id    TEXT PRIMARY KEY,
             title TEXT NOT NULL
         );
 
-        CREATE TABLE IF NOT EXISTS document_groups (
+        CREATE TABLE IF NOT EXISTS document_projects (
             document_id TEXT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
-            group_id    TEXT NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
-            PRIMARY KEY (document_id, group_id)
+            project_id  TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+            PRIMARY KEY (document_id, project_id)
         );
 
         CREATE TABLE IF NOT EXISTS edges (
@@ -131,7 +134,8 @@ fn init_database_inner(db_path: &Path, dims: usize) -> Result<Connection, String
             chunk_id    TEXT PRIMARY KEY,
             document_id TEXT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
             chunk_index INTEGER NOT NULL,
-            content     TEXT NOT NULL
+            content     TEXT NOT NULL,
+            line_start  INTEGER NOT NULL DEFAULT 0
         );
 
         CREATE TABLE IF NOT EXISTS document_tags (
@@ -140,13 +144,36 @@ fn init_database_inner(db_path: &Path, dims: usize) -> Result<Connection, String
             PRIMARY KEY (document_id, tag)
         );
 
-        -- Index foreign keys
+        -- Index foreign keys and search columns
+        CREATE INDEX IF NOT EXISTS idx_documents_category ON documents(category);
         CREATE INDEX IF NOT EXISTS idx_chunks_doc ON document_chunks(document_id);
         CREATE INDEX IF NOT EXISTS idx_tags_doc ON document_tags(document_id);
         CREATE INDEX IF NOT EXISTS idx_tags_tag ON document_tags(tag);
+        CREATE INDEX IF NOT EXISTS idx_doc_projects_project ON document_projects(project_id);
+        CREATE INDEX IF NOT EXISTS idx_doc_projects_doc ON document_projects(document_id);
         ",
     )
     .map_err(|e| format!("Schema creation failed: {e}"))?;
+
+    // Migration check: Ensure 'category' column exists on existing documents table
+    let has_category_column: bool = conn
+        .prepare("PRAGMA table_info(documents);")
+        .and_then(|mut stmt| {
+            let mut rows = stmt.query([])?;
+            while let Some(row) = rows.next()? {
+                let col_name: String = row.get(1)?;
+                if col_name == "category" {
+                    return Ok(true);
+                }
+            }
+            Ok(false)
+        })
+        .unwrap_or(false);
+
+    if !has_category_column {
+        let _ = conn.execute("ALTER TABLE documents ADD COLUMN category TEXT;", []);
+        let _ = conn.execute("CREATE INDEX IF NOT EXISTS idx_documents_category ON documents(category);", []);
+    }
 
     // --- FTS5 virtual table & triggers -----------------------------------------
     conn.execute_batch(

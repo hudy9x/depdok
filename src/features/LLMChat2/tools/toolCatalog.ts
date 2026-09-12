@@ -79,6 +79,16 @@ export const TOOL_CATALOG: ToolCatalogItem[] = [
     category: "knowledge",
   },
   {
+    name: "list_knowledge_base_projects",
+    description: "List all indexed projects, folders, and document counts",
+    category: "knowledge",
+  },
+  {
+    name: "list_knowledge_base_groups",
+    description: "List all indexed project groups, folders, and document counts (alias)",
+    category: "knowledge",
+  },
+  {
     name: "web_search",
     description: "Search the web using search engine",
     category: "web",
@@ -178,6 +188,11 @@ export const TOOL_CATALOG: ToolCatalogItem[] = [
     name: "sheet_execute_commands",
     description: "Execute batch spreadsheet atomic commands",
     category: "spreadsheet",
+  },
+  {
+    name: "ask_user",
+    description: "Ask the user a question with interactive selectable options",
+    category: "system",
   },
 ];
 

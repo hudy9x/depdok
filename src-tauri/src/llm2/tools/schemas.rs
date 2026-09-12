@@ -6,15 +6,69 @@ pub fn get_builtin_tools_schema(content_model_to_use: &str) -> serde_json::Value
     {
       "type": "function",
       "function": {
+        "name": "ask_user",
+        "description": "Ask the user a clarification question with an optional list of selectable choices/options. Pauses execution and awaits user input or button click in the UI before continuing.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "question": {
+              "type": "string",
+              "description": "The question or prompt to present to the user (e.g. 'Which topic would you like to search for?')"
+            },
+            "options": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Optional list of predefined choices/buttons for the user to click (e.g. ['Plan & Tasks', 'Requirements', 'Decisions', 'Meetings', 'Q&A', 'All (*)'])"
+            },
+            "allow_custom": {
+              "type": "boolean",
+              "description": "Whether to allow the user to type a custom response in addition to picking an option (default: true)"
+            }
+          },
+          "required": ["question"]
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
         "name": "search_knowledge_base",
-        "description": "Search the local workspace knowledge base and indexed documentation using semantic vector and keyword retrieval to find relevant notes, specifications, guides, and section contents.",
+        "description": "Search the local workspace knowledge base and indexed documentation using semantic vector and keyword retrieval to find relevant notes, specifications, guides, and section contents within the active project or specified project path.",
         "parameters": {
           "type": "object",
           "properties": {
             "query": { "type": "string", "description": "The search query, topic, or concept to look up across workspace notes and documents (e.g. 'authentication flow', 'markdown pagination', 'database schema')" },
-            "limit": { "type": "integer", "description": "Maximum number of relevant sections to retrieve (default: 6)" }
+            "limit": { "type": "integer", "description": "Maximum number of relevant sections to retrieve (default: 6)" },
+            "project": { "type": "string", "description": "The project or folder path to scope the search within (use the Active Workspace Folder from system prompt)." },
+            "group": { "type": "string", "description": "Deprecated alias for 'project'." }
           },
-          "required": ["query"]
+          "required": ["query", "project"]
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "list_knowledge_base_projects",
+        "description": "List all indexed projects, workspace folders, and their document counts in the knowledge base. Use this to discover available projects or find a project path for cross-project searches.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "query": { "type": "string", "description": "Optional search term to filter projects by name or path." }
+          }
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "list_knowledge_base_groups",
+        "description": "Alias for 'list_knowledge_base_projects'. List all indexed projects in the knowledge base.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "query": { "type": "string", "description": "Optional search term to filter projects by name or path." }
+          }
         }
       }
     },

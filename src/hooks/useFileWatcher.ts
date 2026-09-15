@@ -11,23 +11,16 @@ import { isBinaryFile } from "@/lib/fileSupport";
 interface UseFileWatcherOptions {
   filePath: string;
   onContentReload: (newContent: string) => void;
-  /**
-   * If true, tries to result in auto-reload (unless dirty).
-   * If false, ALWAYS shows confirmation dialog (for preview mode).
-   * Default: true
-   */
-  autoReload?: boolean;
 }
 
 /**
  * Custom hook to watch a file for external changes
- * - autoReload=true: Automatically reloads content if clean, warns if dirty.
- * - autoReload=false: Shows confirmation dialog always (debounced).
+ * - Automatically reloads clean files when they change externally.
+ * - Shows a confirmation dialog when the current file has unsaved changes.
  */
 export function useFileWatcher({
   filePath,
   onContentReload,
-  autoReload = true
 }: UseFileWatcherOptions) {
   const isFileDirty = useAtomValue(isFileDirtyAtom(filePath));
   const isSaving = useAtomValue(isSavingAtom);
@@ -66,7 +59,6 @@ export function useFileWatcher({
   const callbackRef = useRef({
     filePath,
     isSaving,
-    autoReload,
     isFileDirty,
     reloadFileContent
   });
@@ -75,7 +67,6 @@ export function useFileWatcher({
     callbackRef.current = {
       filePath,
       isSaving,
-      autoReload,
       isFileDirty,
       reloadFileContent
     };
@@ -113,7 +104,6 @@ export function useFileWatcher({
         const {
           filePath: currentPath,
           isSaving: currentSaving,
-          autoReload: currentAutoReload,
           isFileDirty: currentFileDirty,
           reloadFileContent: currentReloadFileContent
         } = callbackRef.current;
@@ -132,7 +122,7 @@ export function useFileWatcher({
           console.log("[FileWatcher] Path mismatch. Event:", changedFilePath, "Watched:", currentPath);
           return;
         }
-        console.log("[FileWatcher] Processing change. AutoReload:", currentAutoReload, "IsDirty:", currentFileDirty);
+        console.log("[FileWatcher] Processing change. IsDirty:", currentFileDirty);
 
         const handleShowToast = async () => {
           // Debounce: if we already have a pending reload notification for this file, don't show another
@@ -182,11 +172,11 @@ export function useFileWatcher({
           });
         };
 
-        if (currentAutoReload) {
-          // Standard behavior (Editor / SideBySide) - auto-reload directly
+        if (!currentFileDirty) {
+          // Clean files can safely follow the latest content on disk.
           currentReloadFileContent();
         } else {
-          // Preview mode: user requested ALWAYS confirm
+          // Preserve local edits when the file is dirty.
           handleShowToast();
         }
       });

@@ -17,6 +17,7 @@ import {
   Scissors,
   ClipboardPaste,
   Database,
+  RotateCw,
 } from "lucide-react";
 import { useSetAtom, useAtomValue } from "jotai";
 import {
@@ -31,6 +32,10 @@ import { copyNode, revealFile } from "./api";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { toast } from "sonner";
 import { useFileOperations } from "./useFileOperations";
+import { readFileContent } from "@/lib/fileOperations";
+import { liveFilesContentAtom, clearLiveFileWriterAtom, triggerFileReloadAtom } from "@/stores/EditorStore";
+import { markFileAsSavedAtom } from "@/stores/DirtyStore";
+import { draftService } from "@/lib/indexeddb";
 
 interface FileContextMenuProps {
   path: string;
@@ -49,6 +54,10 @@ export function FileContextMenu({
   const selectedPaths = useAtomValue(selectedPathsAtom);
   const workspaceRoot = useAtomValue(workspaceRootAtom);
   const startIndexing = useSetAtom(startIndexingAtom);
+  const setLiveFilesContent = useSetAtom(liveFilesContentAtom);
+  const clearLiveFileWriter = useSetAtom(clearLiveFileWriterAtom);
+  const triggerFileReload = useSetAtom(triggerFileReloadAtom);
+  const markFileAsSaved = useSetAtom(markFileAsSavedAtom);
 
   const { cut, copy, paste, deleteItems, clipboard } = useFileOperations();
 
@@ -144,6 +153,22 @@ export function FileContextMenu({
     void startIndexing({ path, isFolder });
   };
 
+  const handleReload = async () => {
+    if (isFolder) return;
+    try {
+      const diskContent = await readFileContent(path);
+      await draftService.removeDraft(path);
+      markFileAsSaved(path);
+      clearLiveFileWriter(path);
+      setLiveFilesContent((prev) => ({ ...prev, [path]: diskContent }));
+      triggerFileReload(path);
+      toast.success("Reloaded file from disk");
+    } catch (error) {
+      console.error("Failed to reload file:", error);
+      toast.error("Failed to reload file");
+    }
+  };
+
   if (isMultiSelect) {
     return (
       <ContextMenu>
@@ -200,6 +225,12 @@ export function FileContextMenu({
           <Database className="mr-2 h-4 w-4" />
           Index {isFolder ? "Folder" : "File"}
         </ContextMenuItem>
+        {!isFolder && (
+          <ContextMenuItem onClick={handleReload}>
+            <RotateCw className="mr-2 h-4 w-4" />
+            Refresh
+          </ContextMenuItem>
+        )}
         <ContextMenuSeparator />
         <ContextMenuItem onClick={() => openRenameDialog(path)}>
           <Pencil className="mr-2 h-4 w-4" />

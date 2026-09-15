@@ -1,6 +1,17 @@
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, type ReactNode } from "react";
 import { Editor, useEditorState } from "@tiptap/react";
-import { MessageSquare, MessageSquarePlus } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  Check,
+  CaseSensitive,
+  MessageSquare,
+  MessageSquarePlus,
+  Regex,
+  Search,
+  WholeWord,
+  X,
+} from "lucide-react";
 import { BsCardList } from "react-icons/bs";
 import { useAtomValue, useSetAtom } from "jotai";
 
@@ -24,6 +35,117 @@ interface MarkdownBottomMenuProps {
   filePath?: string;
   isSidebarVisible?: boolean;
   onToggleSidebar?: () => void;
+  isSearchOpen: boolean;
+  onSearchToggle: () => void;
+}
+
+export function SearchAndReplacePanel({ editor, editable, open, onClose }: { editor: Editor; editable: boolean; open: boolean; onClose: () => void }) {
+  const [, forceUpdate] = useState(0);
+  const [searchInput, setSearchInput] = useState("");
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const storage = editor.storage.findAndReplace;
+  const results = storage?.results ?? [];
+  const currentIndex = storage?.currentIndex ?? null;
+  const replaceTerm = storage?.replaceTerm ?? "";
+  const caseSensitive = storage?.caseSensitive ?? false;
+  const wholeWord = storage?.wholeWord ?? false;
+  const useRegex = storage?.useRegex ?? false;
+
+  useEffect(() => {
+    const handleTransaction = () => forceUpdate((value) => value + 1);
+    editor.on("transaction", handleTransaction);
+    return () => {
+      editor.off("transaction", handleTransaction);
+    };
+  }, [editor]);
+
+  useEffect(() => {
+    if (!open) setSearchInput("");
+  }, [open]);
+
+  useEffect(() => {
+    if (open) {
+      requestAnimationFrame(() => searchInputRef.current?.focus());
+    }
+  }, [open]);
+
+  const updateSearch = (value: string) => {
+    setSearchInput(value);
+    editor.commands.setSearchTerm(value);
+  };
+  const updateReplace = (value: string) => editor.commands.setReplaceTerm(value);
+
+  const toggleOption = (command: () => boolean, active: boolean, icon: ReactNode) => (
+    <button
+      type="button"
+      aria-pressed={active}
+      onClick={() => command()}
+      className={`rounded p-1.5 transition-colors ${active ? "bg-accent text-foreground" : "text-muted-foreground hover:bg-accent hover:text-foreground"}`}
+    >
+      {icon}
+      {active ? <Check className="h-2.5 w-2.5" /> : null}
+    </button>
+  );
+
+  return (
+    <div
+      role="dialog"
+      aria-label="Search and replace"
+      data-open={open}
+      className={`absolute left-4 top-4 z-50 w-80 flex-col gap-2 rounded-xl border border-border bg-background p-3 text-foreground shadow-xl ${open ? "flex" : "hidden"}`}
+      onMouseDown={(event) => event.stopPropagation()}
+    >
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-semibold">Search and replace</span>
+        <button type="button" onClick={onClose} className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground" title="Close">
+          <X className="h-3.5 w-3.5" />
+        </button>
+      </div>
+      <div className="flex items-center gap-1.5 rounded-md border border-border px-2">
+        <Search className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+        <input
+          ref={searchInputRef}
+          value={searchInput}
+          onChange={(event) => updateSearch(event.target.value)}
+          placeholder="Search"
+          aria-label="Search"
+          autoFocus
+          className="min-w-0 flex-1 bg-transparent py-1.5 text-xs outline-none"
+        />
+        <span className="whitespace-nowrap text-[10px] text-muted-foreground">{currentIndex === null ? 0 : currentIndex + 1} / {results.length}</span>
+      </div>
+      <div className="flex items-center gap-1.5 rounded-md border border-border px-2">
+        <input
+          value={replaceTerm}
+          onChange={(event) => updateReplace(event.target.value)}
+          placeholder="Replace"
+          aria-label="Replace"
+          className="min-w-0 flex-1 bg-transparent py-1.5 text-xs outline-none"
+        />
+      </div>
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-0.5">
+          <span title="Match case">{toggleOption(() => editor.commands.setCaseSensitive(!caseSensitive), caseSensitive, <CaseSensitive className="h-3.5 w-3.5" />)}</span>
+          <span title="Whole words">{toggleOption(() => editor.commands.setWholeWord(!wholeWord), wholeWord, <WholeWord className="h-3.5 w-3.5" />)}</span>
+          <span title="Use regular expression">{toggleOption(() => editor.commands.setUseRegex(!useRegex), useRegex, <Regex className="h-3.5 w-3.5" />)}</span>
+        </div>
+        <div className="flex items-center gap-0.5">
+          <button type="button" disabled={!results.length} onClick={() => editor.commands.goToPreviousResult()} className="rounded p-1.5 text-muted-foreground hover:bg-accent disabled:opacity-40" title="Previous result">
+            <ArrowUp className="h-3.5 w-3.5" />
+          </button>
+          <button type="button" disabled={!results.length} onClick={() => editor.commands.goToNextResult()} className="rounded p-1.5 text-muted-foreground hover:bg-accent disabled:opacity-40" title="Next result">
+            <ArrowDown className="h-3.5 w-3.5" />
+          </button>
+          <button type="button" disabled={!results.length || !replaceTerm || !editable} onClick={() => editor.commands.replace()} className="rounded px-2 py-1.5 text-[10px] text-muted-foreground hover:bg-accent disabled:opacity-40">
+            Replace
+          </button>
+          <button type="button" disabled={!results.length || !replaceTerm || !editable} onClick={() => editor.commands.replaceAll()} className="rounded px-2 py-1.5 text-[10px] text-muted-foreground hover:bg-accent disabled:opacity-40">
+            All
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 /** Quick button to insert or focus Document Properties section at the top of the file. */
@@ -261,12 +383,28 @@ export function MarkdownBottomMenu({
   filePath = '',
   isSidebarVisible = false,
   onToggleSidebar,
+  isSearchOpen,
+  onSearchToggle,
 }: MarkdownBottomMenuProps) {
   const commentThreads = useAtomValue(fileCommentThreadsAtomFamily(filePath));
   const openCommentCount = commentThreads.filter((t) => !t.resolved).length;
 
   return (
-    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 rounded-full border border-border bg-background/85 backdrop-blur-md px-2.5 py-1 shadow-lg max-w-[95vw] select-none overflow-x-auto">
+    <div className="absolute bottom-4 left-1/2 z-20 flex max-w-[95vw] -translate-x-1/2 items-center gap-1.5 rounded-full border border-border bg-background/85 px-2.5 py-1 shadow-lg backdrop-blur-md select-none overflow-visible">
+      {editor && (
+        <div className="relative shrink-0">
+          <button
+            type="button"
+            aria-label="Search and replace"
+            aria-expanded={isSearchOpen}
+            onClick={onSearchToggle}
+            className={`rounded p-2 transition-colors ${isSearchOpen ? "bg-accent text-foreground" : "text-muted-foreground hover:bg-accent hover:text-foreground"}`}
+            title="Search and replace (⌘F)"
+          >
+            <Search className="h-4 w-4" />
+          </button>
+        </div>
+      )}
       {editable && editor && (
         <>
           <div className="flex items-center gap-0.5">

@@ -81,7 +81,6 @@ export function MonacoEditor({
   useFileWatcher({
     filePath: enableFileWatcher ? filePath : "",
     onContentReload: handleContentReload,
-    autoReload: true, // Always auto-reload in editor mode
   });
 
   const handleChange = (value: string | undefined) => {

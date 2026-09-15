@@ -130,7 +130,7 @@ export function TabContextMenu({ tab, paneId, children }: TabContextMenuProps) {
             disabled={isDummyPath(tab.filePath)}
           >
             <RotateCw className="mr-2 h-4 w-4" />
-            Reload File
+            Refresh
           </ContextMenuItem>
           <ContextMenuSeparator />
           <ContextMenuItem onClick={() => splitPane({ paneId: targetPaneId, direction: 'horizontal' })}>

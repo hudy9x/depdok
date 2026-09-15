@@ -37,11 +37,9 @@ export function PreviewFileWatcher({
   );
 
   // Only enable file watcher if explicitly requested
-  // Preview mode: show confirmation dialog before reloading
   useFileWatcher({
     filePath: enableFileWatcher ? filePath : "",
     onContentReload: handleContentReload,
-    autoReload: false, // Show confirmation in preview mode
   });
 
   return <>{children(content)}</>;

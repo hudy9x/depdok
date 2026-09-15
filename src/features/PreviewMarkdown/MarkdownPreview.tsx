@@ -15,7 +15,7 @@ import "./markdown.css";
 import "./extensions/pagination/PaginationExtension.css";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
-import { MarkdownBottomMenu } from "./MarkdownBottomMenu";
+import { MarkdownBottomMenu, SearchAndReplacePanel } from "./MarkdownBottomMenu";
 // import { MarkdownDragHandle } from "./MarkdownDragHandle";
 import { type MarkdownEditorSize } from "./MarkdownSizeControl";
 import { useFileHandler } from "./useFileHandler";
@@ -41,6 +41,7 @@ import Link from "@tiptap/extension-link";
 import Subscript from "@tiptap/extension-subscript";
 import Superscript from "@tiptap/extension-superscript";
 import Placeholder from "@tiptap/extension-placeholder";
+import FindAndReplace from "@tiptap/extension-find-and-replace";
 
 import { PaginationExtension, PAGINATION_TOGGLE_META } from "./extensions/pagination";
 import {
@@ -87,6 +88,7 @@ export function MarkdownPreview({
   const isUpdatingRef = useRef(false);
   const [isOutlineOpen, setIsOutlineOpen] = useLocalStorage('markdown-outline-open', false);
   const [isCommentSidebarVisible, setIsCommentSidebarVisible] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [editorSize, setEditorSize] = useLocalStorage<MarkdownEditorSize>('markdown-editor-size', 'wide');
   const isPageMode = editorSize === 'page';
   const [tocAnchors, setTocAnchors] = useState<TocAnchor[]>([]);
@@ -222,6 +224,9 @@ export function MarkdownPreview({
         enabled: isPageMode,
       }),
       SlashCommandExtension,
+      FindAndReplace.configure({
+        searchDebounceMs: 250,
+      }),
     ],
     content: "",
     contentType: 'markdown', // Enable markdown mode
@@ -283,6 +288,18 @@ export function MarkdownPreview({
   });
 
   const handleLinkClick = useLocalLinkHandler(filePath, containerRef);
+
+  useEffect(() => {
+    if (!editor) return;
+    const handleShortcut = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "f") {
+        event.preventDefault();
+        setIsSearchOpen(true);
+      }
+    };
+    window.addEventListener("keydown", handleShortcut);
+    return () => window.removeEventListener("keydown", handleShortcut);
+  }, [editor]);
 
   // Relay viewport recalculation when tab becomes visible after display:none → block.
   useEffect(() => {
@@ -494,7 +511,18 @@ export function MarkdownPreview({
 
 
   return (
-    <div className={`w-full h-full overflow-hidden flex ${isPageMode ? 'bg-[#e5e7eb] dark:bg-[#18181b]' : 'bg-layout-content'}`} ref={containerRef}>
+    <div className={`relative w-full h-full overflow-hidden flex ${isPageMode ? 'bg-[#e5e7eb] dark:bg-[#18181b]' : 'bg-layout-content'}`} ref={containerRef}>
+      {editor && (
+        <SearchAndReplacePanel
+          editor={editor}
+          editable={editable}
+          open={isSearchOpen}
+          onClose={() => {
+            editor.commands.clearSearch();
+            setIsSearchOpen(false);
+          }}
+        />
+      )}
       <div className={`flex-1 h-full relative min-w-0 flex flex-col bottom-menu-container pt-1.5 ${isPageMode ? 'bg-[#e5e7eb] dark:bg-[#18181b]' : ''}`}>
         {/* Left-center View Mode Switcher */}
         <div className="absolute left-3 top-1/2 -translate-y-1/2 z-30">
@@ -540,6 +568,8 @@ export function MarkdownPreview({
           filePath={filePath}
           isSidebarVisible={isCommentSidebarVisible}
           onToggleSidebar={() => setIsCommentSidebarVisible((v) => !v)}
+          isSearchOpen={isSearchOpen}
+          onSearchToggle={() => setIsSearchOpen((open) => !open)}
         />
       </div>
 

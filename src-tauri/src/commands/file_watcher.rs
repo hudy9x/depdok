@@ -278,6 +278,7 @@ pub async fn start_watching_workspace(workspace_root: String, app: AppHandle) ->
                                 EventKind::Create(_) => {
                                     for p in &event.paths {
                                         if !is_ignored_path(p) {
+                                            crate::commands::files::schedule_kb_upsert(app_clone.clone(), normalize_path_str(p));
                                             batch.push(WorkspaceChangeEvent {
                                                 kind: ChangeKind::Created,
                                                 path: normalize_path_str(p),
@@ -293,6 +294,8 @@ pub async fn start_watching_workspace(workspace_root: String, app: AppHandle) ->
                                         let from = &event.paths[0];
                                         let to = &event.paths[1];
                                         if !is_ignored_path(from) || !is_ignored_path(to) {
+                                            crate::commands::files::schedule_kb_delete(app_clone.clone(), normalize_path_str(from));
+                                            crate::commands::files::schedule_kb_upsert(app_clone.clone(), normalize_path_str(to));
                                             batch.push(WorkspaceChangeEvent {
                                                 kind: ChangeKind::Renamed,
                                                 path: normalize_path_str(to),
@@ -302,6 +305,7 @@ pub async fn start_watching_workspace(workspace_root: String, app: AppHandle) ->
                                     } else {
                                         for p in &event.paths {
                                             if !is_ignored_path(p) {
+                                                crate::commands::files::schedule_kb_upsert(app_clone.clone(), normalize_path_str(p));
                                                 batch.push(WorkspaceChangeEvent {
                                                     kind: ChangeKind::Modified,
                                                     path: normalize_path_str(p),
@@ -314,6 +318,7 @@ pub async fn start_watching_workspace(workspace_root: String, app: AppHandle) ->
                                 EventKind::Modify(_) => {
                                     for p in &event.paths {
                                         if !is_ignored_path(p) {
+                                            crate::commands::files::schedule_kb_upsert(app_clone.clone(), normalize_path_str(p));
                                             batch.push(WorkspaceChangeEvent {
                                                 kind: ChangeKind::Modified,
                                                 path: normalize_path_str(p),

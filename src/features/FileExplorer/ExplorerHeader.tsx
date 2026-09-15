@@ -17,7 +17,7 @@ import { createFile, readFileContent, writeFileContent } from '@/lib/fileOperati
 import { buildKnowledgeGraphFilePath, KNOWLEDGE_GRAPH_FILE_NAME } from '@/lib/knowledgeGraph';
 import { RecentFoldersDialog } from '@/features/RecentFoldersDialog';
 import { KnowledgeBaseSearchDialog } from './KnowledgeBaseSearchDialog';
-import { MarkdownKnowledgeBaseDialog } from './MarkdownKnowledgeBaseDialog';
+import { startIndexingAtom } from './indexing';
 import {
   workspaceRootAtom,
   openCreateDialogAtom,
@@ -30,8 +30,8 @@ export function ExplorerHeader() {
   const setExpandedFolders = useSetAtom(expandedFoldersAtom);
   const createTab = useSetAtom(createTabAtom);
   const setViewMode = useSetAtom(viewModeAtom);
+  const startIndexing = useSetAtom(startIndexingAtom);
   const navigate = useNavigate();
-  const [isScanDialogOpen, setIsScanDialogOpen] = useState(false);
   const [isSearchDialogOpen, setIsSearchDialogOpen] = useState(false);
   const [showRecentFolders, setShowRecentFolders] = useState(false);
 
@@ -49,6 +49,11 @@ export function ExplorerHeader() {
 
   const handleCollapseAll = () => {
     setExpandedFolders(new Set());
+  };
+
+  const handleScanWorkspace = () => {
+    if (!workspaceRoot) return;
+    startIndexing({ path: workspaceRoot, isFolder: true });
   };
 
   const handleOpenKnowledgeGraph = async () => {
@@ -94,7 +99,7 @@ export function ExplorerHeader() {
           <Button variant="ghost" size="icon" className="h-6 w-6 text-gray-500" onClick={() => setIsSearchDialogOpen(true)} title="Search Knowledge Base">
             <VscSearch className="h-3.5 w-3.5" />
           </Button>
-          <Button variant="ghost" size="icon" className="h-6 w-6 text-gray-500" onClick={() => setIsScanDialogOpen(true)} title="Scan Markdown Files">
+          <Button variant="ghost" size="icon" className="h-6 w-6 text-gray-500" onClick={handleScanWorkspace} title="Index Project Markdown Files">
             <VscSync className="h-3.5 w-3.5" />
           </Button>
           <Button variant="ghost" size="icon" className="h-6 w-6 text-gray-500" onClick={handleOpenKnowledgeGraph} title="Knowledge Graph">
@@ -111,11 +116,6 @@ export function ExplorerHeader() {
           </Button>
         </div>
       </div>
-      <MarkdownKnowledgeBaseDialog
-        workspaceRoot={workspaceRoot}
-        open={isScanDialogOpen}
-        onOpenChange={setIsScanDialogOpen}
-      />
       <KnowledgeBaseSearchDialog
         open={isSearchDialogOpen}
         onOpenChange={setIsSearchDialogOpen}

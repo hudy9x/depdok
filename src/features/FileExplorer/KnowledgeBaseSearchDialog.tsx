@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
 import {
-  searchSimilar,
+  searchHybrid,
   getCurrentEmbeddingModel,
   updateEmbeddingModelAndReindex,
   getModelDownloadSize,
@@ -165,8 +165,18 @@ export function KnowledgeBaseSearchDialog({
     setIsSearching(true);
 
     try {
-      const nextResults = await searchSimilar(trimmedQuery, 20);
-      setResults(nextResults);
+      if (!workspaceRoot) {
+        throw new Error('No workspace is open');
+      }
+
+      const nextResults = await searchHybrid(trimmedQuery, 20, workspaceRoot);
+      setResults(
+        nextResults.map((result) => ({
+          id: result.documentId,
+          title: result.title,
+          distance: 1 - result.score,
+        })),
+      );
     } catch (error) {
       console.error('Knowledge base search failed:', error);
       toast.error('Knowledge base search failed');

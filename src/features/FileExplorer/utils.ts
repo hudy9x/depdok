@@ -1,4 +1,4 @@
-import { FileEntry } from './api';
+import { FileEntry, FileIndexingState } from './api';
 
 export interface FlatTreeNode {
   id: string;
@@ -8,6 +8,7 @@ export interface FlatTreeNode {
   isFolder: boolean;
   isOpen: boolean;
   parentPath: string | null;
+  indexingState: FileIndexingState;
 }
 
 /**
@@ -17,6 +18,7 @@ export function flattenTree(
   entries: FileEntry[],
   expandedFolders: Set<string>,
   treeData: Record<string, FileEntry[]>,
+  indexingStates: Record<string, FileIndexingState>,
   depth: number = 0,
   parentPath: string | null = null
 ): FlatTreeNode[] {
@@ -31,6 +33,7 @@ export function flattenTree(
       isFolder: entry.is_dir,
       isOpen: expandedFolders.has(entry.path),
       parentPath,
+      indexingState: indexingStates[entry.path] ?? entry.indexingState,
     };
 
     result.push(node);
@@ -43,6 +46,7 @@ export function flattenTree(
           children,
           expandedFolders,
           treeData,
+          indexingStates,
           depth + 1,
           entry.path
         );

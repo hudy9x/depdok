@@ -1,11 +1,11 @@
-import { ExportContextMenuItem } from '@/features/PreviewMarkdown/ExportContextMenuItem';
+import { ExportContextMenuItem } from "@/features/PreviewMarkdown/ExportContextMenuItem";
 import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuSeparator,
   ContextMenuTrigger,
-} from '@/components/ui/context-menu';
+} from "@/components/ui/context-menu";
 import {
   FilePlus,
   FolderPlus,
@@ -16,19 +16,21 @@ import {
   ClipboardCopy,
   Scissors,
   ClipboardPaste,
-} from 'lucide-react';
-import { useSetAtom, useAtomValue } from 'jotai';
+  Database,
+} from "lucide-react";
+import { useSetAtom, useAtomValue } from "jotai";
 import {
   openRenameDialogAtom,
   openCreateDialogAtom,
   refreshDirectoryAtom,
   workspaceRootAtom,
   selectedPathsAtom,
-} from './store';
-import { copyNode, revealFile } from './api';
-import { writeText } from '@tauri-apps/plugin-clipboard-manager';
-import { toast } from 'sonner';
-import { useFileOperations } from './useFileOperations';
+} from "./store";
+import { startIndexingAtom } from "./indexing";
+import { copyNode, revealFile } from "./api";
+import { writeText } from "@tauri-apps/plugin-clipboard-manager";
+import { toast } from "sonner";
+import { useFileOperations } from "./useFileOperations";
 
 interface FileContextMenuProps {
   path: string;
@@ -36,12 +38,17 @@ interface FileContextMenuProps {
   children: React.ReactNode;
 }
 
-export function FileContextMenu({ path, isFolder, children }: FileContextMenuProps) {
+export function FileContextMenu({
+  path,
+  isFolder,
+  children,
+}: FileContextMenuProps) {
   const openRenameDialog = useSetAtom(openRenameDialogAtom);
   const openCreateDialog = useSetAtom(openCreateDialogAtom);
   const refreshDirectory = useSetAtom(refreshDirectoryAtom);
   const selectedPaths = useAtomValue(selectedPathsAtom);
   const workspaceRoot = useAtomValue(workspaceRootAtom);
+  const startIndexing = useSetAtom(startIndexingAtom);
 
   const { cut, copy, paste, deleteItems, clipboard } = useFileOperations();
 
@@ -49,60 +56,64 @@ export function FileContextMenu({ path, isFolder, children }: FileContextMenuPro
   const effectivePaths = isMultiSelect ? Array.from(selectedPaths) : [path];
 
   const handleCreateFile = () => {
-    const parentPath = isFolder ? path : path.split(/[/\\]/).slice(0, -1).join('/');
-    openCreateDialog({ path: parentPath, type: 'file' });
+    const parentPath = isFolder
+      ? path
+      : path.split(/[/\\]/).slice(0, -1).join("/");
+    openCreateDialog({ path: parentPath, type: "file" });
   };
 
   const handleCreateFolder = () => {
-    const parentPath = isFolder ? path : path.split(/[/\\]/).slice(0, -1).join('/');
-    openCreateDialog({ path: parentPath, type: 'folder' });
+    const parentPath = isFolder
+      ? path
+      : path.split(/[/\\]/).slice(0, -1).join("/");
+    openCreateDialog({ path: parentPath, type: "folder" });
   };
 
   const handleDuplicate = async () => {
     try {
-      const fileName = path.split(/[/\\]/).pop() || '';
-      const parentPath = path.split(/[/\\]/).slice(0, -1).join('/');
+      const fileName = path.split(/[/\\]/).pop() || "";
+      const parentPath = path.split(/[/\\]/).slice(0, -1).join("/");
       const newPath = `${parentPath}/Copy of ${fileName}`;
 
       await copyNode(path, newPath);
-      toast.success('Duplicated successfully');
+      toast.success("Duplicated successfully");
       await refreshDirectory(parentPath);
     } catch (error) {
-      console.error('Failed to duplicate:', error);
-      toast.error('Failed to duplicate');
+      console.error("Failed to duplicate:", error);
+      toast.error("Failed to duplicate");
     }
   };
 
   const handleCopyPath = async () => {
     await writeText(path);
-    toast.success('Path copied to clipboard');
+    toast.success("Path copied to clipboard");
   };
 
   const handleCopyRelativePath = async () => {
     if (!workspaceRoot) {
       await writeText(path);
-      toast.success('Path copied to clipboard');
+      toast.success("Path copied to clipboard");
       return;
     }
 
     let relativePath = path;
     if (path.startsWith(workspaceRoot)) {
       relativePath = path.substring(workspaceRoot.length);
-      if (relativePath.startsWith('/') || relativePath.startsWith('\\')) {
+      if (relativePath.startsWith("/") || relativePath.startsWith("\\")) {
         relativePath = relativePath.substring(1);
       }
     }
 
     await writeText(relativePath);
-    toast.success('Relative path copied to clipboard');
+    toast.success("Relative path copied to clipboard");
   };
 
   const handleReveal = async () => {
     try {
       await revealFile(path);
     } catch (error) {
-      console.error('Failed to reveal:', error);
-      toast.error('Failed to reveal file');
+      console.error("Failed to reveal:", error);
+      toast.error("Failed to reveal file");
     }
   };
 
@@ -119,7 +130,9 @@ export function FileContextMenu({ path, isFolder, children }: FileContextMenuPro
   };
 
   const handlePaste = () => {
-    const destinationFolder = isFolder ? path : path.split(/[/\\]/).slice(0, -1).join('/');
+    const destinationFolder = isFolder
+      ? path
+      : path.split(/[/\\]/).slice(0, -1).join("/");
     paste(destinationFolder);
   };
 
@@ -127,6 +140,9 @@ export function FileContextMenu({ path, isFolder, children }: FileContextMenuPro
     deleteItems(effectivePaths);
   };
 
+  const handleIndex = () => {
+    void startIndexing({ path, isFolder });
+  };
 
   if (isMultiSelect) {
     return (
@@ -151,7 +167,10 @@ export function FileContextMenu({ path, isFolder, children }: FileContextMenuPro
             Paste
           </ContextMenuItem>
           <ContextMenuSeparator />
-          <ContextMenuItem onClick={handleDelete} className="text-red-600 focus:text-red-600">
+          <ContextMenuItem
+            onClick={handleDelete}
+            className="text-red-600 focus:text-red-600"
+          >
             <Trash2 className="mr-2 h-4 w-4" />
             Delete
           </ContextMenuItem>
@@ -177,6 +196,11 @@ export function FileContextMenu({ path, isFolder, children }: FileContextMenuPro
             <ContextMenuSeparator />
           </>
         )}
+        <ContextMenuItem onClick={handleIndex}>
+          <Database className="mr-2 h-4 w-4" />
+          Index {isFolder ? "Folder" : "File"}
+        </ContextMenuItem>
+        <ContextMenuSeparator />
         <ContextMenuItem onClick={() => openRenameDialog(path)}>
           <Pencil className="mr-2 h-4 w-4" />
           Rename

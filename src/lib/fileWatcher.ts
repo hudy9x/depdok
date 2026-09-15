@@ -1,5 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen, UnlistenFn } from '@tauri-apps/api/event';
+import { FileIndexingState } from '@/features/FileExplorer/api';
 
 // ---------------------------------------------------------------------------
 // Single-file watcher (used by useFileWatcher hook)
@@ -119,6 +120,11 @@ export interface WorkspaceChangeEvent {
   fromPath?: string;
 }
 
+export interface KnowledgeBaseIndexingStateEvent {
+  path: string;
+  state: FileIndexingState;
+}
+
 /**
  * Start watching the workspace root recursively.
  * Any previously active workspace watcher is stopped first.
@@ -140,6 +146,14 @@ export async function onWorkspaceChanged(
   callback: (events: WorkspaceChangeEvent[]) => void
 ): Promise<UnlistenFn> {
   return await listen<WorkspaceChangeEvent[]>('workspace-changed', (event) => {
+    callback(event.payload);
+  });
+}
+
+export async function onKnowledgeBaseIndexingStateChanged(
+  callback: (event: KnowledgeBaseIndexingStateEvent) => void
+): Promise<UnlistenFn> {
+  return await listen<KnowledgeBaseIndexingStateEvent>('knowledge-base-indexing', (event) => {
     callback(event.payload);
   });
 }

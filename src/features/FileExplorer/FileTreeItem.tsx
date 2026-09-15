@@ -1,12 +1,18 @@
-import { ChevronRight, ChevronDown } from 'lucide-react';
-import { PiFolderSimpleFill, PiFolderOpenFill } from 'react-icons/pi';
-import { useAtomValue } from 'jotai';
-import { FlatTreeNode } from './utils';
-import { cn } from '@/lib/utils';
-import { FileIcon } from '@/components/FileIcon';
-import { FileContextMenu } from './FileContextMenu';
-import { clipboardAtom } from './store';
-import { isUnsupportedFile } from '@/lib/fileSupport';
+import {
+  CheckCircle2,
+  ChevronRight,
+  ChevronDown,
+  MoreHorizontal,
+} from "lucide-react";
+import { PiFolderSimpleFill, PiFolderOpenFill } from "react-icons/pi";
+import { useAtomValue } from "jotai";
+import { FlatTreeNode } from "./utils";
+import { FileIndexingState } from "./api";
+import { cn } from "@/lib/utils";
+import { FileIcon } from "@/components/FileIcon";
+import { FileContextMenu } from "./FileContextMenu";
+import { clipboardAtom } from "./store";
+import { isUnsupportedFile } from "@/lib/fileSupport";
 
 interface FileTreeItemProps {
   node: FlatTreeNode;
@@ -26,7 +32,7 @@ export function FileTreeItem({
   onDoubleClick,
 }: FileTreeItemProps) {
   const clipboard = useAtomValue(clipboardAtom);
-  const isCut = clipboard?.op === 'cut' && clipboard.paths.includes(node.path);
+  const isCut = clipboard?.op === "cut" && clipboard.paths.includes(node.path);
 
   const handleClick = (e: React.MouseEvent) => {
     onSelect(node.path, e);
@@ -48,13 +54,13 @@ export function FileTreeItem({
       <div
         data-tauri-drag-region="false"
         className={cn(
-          'group/file-tree-item flex items-center gap-2 px-2 py-1 cursor-pointer select-none text-sm transition-colors',
+          "group/file-tree-item flex items-center gap-2 px-2 py-1 cursor-pointer select-none text-sm transition-colors",
           isSelected
-            ? 'bg-accent text-accent-foreground'
+            ? "bg-accent text-accent-foreground"
             : isActive
-              ? 'bg-primary/10 text-primary'
-              : 'text-muted-foreground hover:bg-accent/50',
-          isCut && 'opacity-50'
+              ? "bg-primary/10 text-primary"
+              : "text-muted-foreground hover:bg-accent/50",
+          isCut && "opacity-50",
         )}
         style={{ paddingLeft: `${node.depth * 16 + 8}px` }}
         onClick={handleClick}
@@ -79,22 +85,39 @@ export function FileTreeItem({
         )}
 
         {/* Icon */}
-        <span className="flex-shrink-0 w-4 h-4 flex items-center justify-center">
-          {node.isFolder ? (
-            node.isOpen ? (
-              <PiFolderOpenFill className="w-4 h-4 text-primary" />
+        <span className="relative flex-shrink-0 w-4 h-4 flex items-center justify-center">
+          <>
+            {node.isFolder ? (
+              node.isOpen ? (
+                <PiFolderOpenFill className="w-4 h-4 text-primary" />
+              ) : (
+                <PiFolderSimpleFill className="w-4 h-4 text-primary" />
+              )
             ) : (
-              <PiFolderSimpleFill className="w-4 h-4 text-primary" />
-            )
-          ) : (
-            <FileIcon filename={node.name} className={`w-4 h-4 ${isActive || isSelected ? '' : ''}`} />
-          )}
+              <FileIcon
+                filename={node.name}
+                className={`w-4 h-4 ${isActive || isSelected ? "" : ""}`}
+              />
+            )}
+            {node.indexingState === FileIndexingState.Indexing && (
+              <MoreHorizontal
+                aria-label="Indexing"
+                className="absolute z-10 w-4 h-4 rounded-sm bg-background text-primary stroke-[3] drop-shadow-sm animate-pulse pointer-events-none"
+              />
+            )}
+            {node.indexingState === FileIndexingState.Done && (
+              <CheckCircle2
+                aria-label="Indexed"
+                className="absolute z-10 w-4 h-4 rounded-full bg-background text-emerald-500 stroke-[3] drop-shadow-sm animate-in fade-in zoom-in duration-150 pointer-events-none"
+              />
+            )}
+          </>
         </span>
 
         {/* Name */}
         <FileTreeItemName path={node.path} name={node.name} />
       </div>
-    </FileContextMenu >
+    </FileContextMenu>
   );
 }
 
@@ -106,7 +129,14 @@ interface FileTreeItemNameProps {
 function FileTreeItemName({ path, name }: FileTreeItemNameProps) {
   const unsupported = isUnsupportedFile(path);
 
-  return <span className={cn('truncate text-[13px]', unsupported && 'text-muted-foreground/50')}>
-    {name}
-  </span>;
+  return (
+    <span
+      className={cn(
+        "truncate text-[13px]",
+        unsupported && "text-muted-foreground/50",
+      )}
+    >
+      {name}
+    </span>
+  );
 }

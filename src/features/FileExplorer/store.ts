@@ -1,7 +1,7 @@
 import { atom } from 'jotai';
 import { atomWithStorage } from 'jotai/utils';
 import { sessionStorageDriver } from '@/lib/storage';
-import { FileEntry, listDirectory } from './api';
+import { FileEntry, FileIndexingState, listDirectory } from './api';
 import { FlatTreeNode, flattenTree } from './utils';
 import { indexWorkspaceFiles } from '@/features/FileSearchDialog/api';
 import { setCurrentProject } from '@/api-client/knowledge-base';
@@ -49,6 +49,22 @@ export const selectedItemAtom = atom<string | null>(null);
 // File tree data (loaded from backend)
 export const fileTreeDataAtom = atom<Record<string, FileEntry[]>>({});
 
+/** Runtime indexing state emitted by the Rust knowledge-base synchronizer. */
+export const fileIndexingStatesAtom = atom<Record<string, FileIndexingState>>({});
+
+export const setFileIndexingStateAtom = atom(
+  null,
+  (get, set, { path, state }: { path: string; state: FileIndexingState }) => {
+    const nextStates = { ...get(fileIndexingStatesAtom) };
+    if (state === FileIndexingState.Idle) {
+      delete nextStates[path];
+    } else {
+      nextStates[path] = state;
+    }
+    set(fileIndexingStatesAtom, nextStates);
+  }
+);
+
 // Loading state
 export const isLoadingAtom = atom<boolean>(false);
 
@@ -57,13 +73,14 @@ export const flattenedTreeAtom = atom<FlatTreeNode[]>((get) => {
   const root = get(workspaceRootAtom);
   const expandedFolders = get(expandedFoldersAtom);
   const treeData = get(fileTreeDataAtom);
+  const indexingStates = get(fileIndexingStatesAtom);
 
   if (!root || !treeData[root]) {
     return [];
   }
 
   // Flatten the children of the root folder, starting at depth 0
-  return flattenTree(treeData[root], expandedFolders, treeData, 0, root);
+  return flattenTree(treeData[root], expandedFolders, treeData, indexingStates, 0, root);
 });
 
 import { readProjectsState, writeProjectsState } from '@/hooks/useProjectStateSync';
@@ -77,6 +94,7 @@ export const openWorkspaceAtom = atom(
       const entries = await listDirectory(rootPath);
 
       set(workspaceRootAtom, rootPath);
+      set(fileIndexingStatesAtom, {});
       await setCurrentProject(rootPath).catch((error) => {
         console.error('Failed to set current project:', error);
       });

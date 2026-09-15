@@ -77,9 +77,11 @@ fn init_database_inner(db_path: &Path, dims: usize) -> Result<Connection, String
         .query_row("PRAGMA user_version;", [], |row| row.get(0))
         .map_err(|e| format!("Failed to read user_version: {e}"))?;
 
-    let target_version = 5;
+    let target_version = 6;
 
-    if user_version < target_version {
+    // Versions before 5 used an incompatible schema and require the legacy
+    // clean reset. Later versions must migrate in place to preserve indexed data.
+    if user_version < 5 {
         // Drop all existing tables to perform a clean reset, avoiding trigger/virtual table mismatches.
         conn.execute_batch(
             "
@@ -109,7 +111,8 @@ fn init_database_inner(db_path: &Path, dims: usize) -> Result<Connection, String
             id       TEXT PRIMARY KEY,   -- UUID v4 or file:{path}
             title    TEXT NOT NULL,
             content  TEXT NOT NULL,
-            category TEXT
+            category TEXT,
+            content_hash TEXT
         );
 
         CREATE TABLE IF NOT EXISTS projects (
@@ -173,6 +176,25 @@ fn init_database_inner(db_path: &Path, dims: usize) -> Result<Connection, String
     if !has_category_column {
         let _ = conn.execute("ALTER TABLE documents ADD COLUMN category TEXT;", []);
         let _ = conn.execute("CREATE INDEX IF NOT EXISTS idx_documents_category ON documents(category);", []);
+    }
+
+    let has_content_hash_column: bool = conn
+        .prepare("PRAGMA table_info(documents);")
+        .and_then(|mut stmt| {
+            let mut rows = stmt.query([])?;
+            while let Some(row) = rows.next()? {
+                let col_name: String = row.get(1)?;
+                if col_name == "content_hash" {
+                    return Ok(true);
+                }
+            }
+            Ok(false)
+        })
+        .unwrap_or(false);
+
+    if !has_content_hash_column {
+        conn.execute("ALTER TABLE documents ADD COLUMN content_hash TEXT;", [])
+            .map_err(|e| format!("Failed to add document content hash column: {e}"))?;
     }
 
     // --- FTS5 virtual table & triggers -----------------------------------------

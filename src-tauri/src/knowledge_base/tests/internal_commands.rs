@@ -38,7 +38,8 @@ async fn build_test_manager() -> Result<KbManager, String> {
             id       TEXT PRIMARY KEY,
             title    TEXT NOT NULL,
             content  TEXT NOT NULL,
-            category TEXT
+            category TEXT,
+            content_hash TEXT
         );
 
         CREATE TABLE projects (
@@ -154,6 +155,36 @@ async fn upsert_and_get_document_works() -> Result<(), String> {
         )
         .map_err(|e| e.to_string())?;
     assert_eq!(tag_count, 1);
+
+    let content_hash: Option<String> = conn
+        .query_row(
+            "SELECT content_hash FROM documents WHERE id = 'doc-1'",
+            [],
+            |row| row.get(0),
+        )
+        .map_err(|e| e.to_string())?;
+    assert!(content_hash.is_some());
+
+    // Re-indexing identical content is a no-op and retains the existing chunk set.
+    drop(conn);
+    kb.upsert_document(
+        Some("doc-1".to_string()),
+        "My title".to_string(),
+        "My content #tag-one with some text.".to_string(),
+        vec!["project-a".to_string()],
+        0,
+    ).await?;
+
+    let conn = kb.db_lock();
+    let conn = conn.lock().await;
+    let unchanged_chunk_count: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM document_chunks WHERE document_id = 'doc-1'",
+            [],
+            |row| row.get(0),
+        )
+        .map_err(|e| e.to_string())?;
+    assert_eq!(unchanged_chunk_count, 1);
 
     Ok(())
 }

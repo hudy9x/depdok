@@ -5,6 +5,7 @@ import {
   startWatchingWorkspace,
   stopWatchingWorkspace,
   onWorkspaceChanged,
+  onKnowledgeBaseIndexingStateChanged,
   type WorkspaceChangeEvent,
 } from '@/lib/fileWatcher';
 import {
@@ -12,6 +13,7 @@ import {
   refreshDirectoryAtom,
   fileTreeDataAtom,
   expandedFoldersAtom,
+  setFileIndexingStateAtom,
 } from '@/features/FileExplorer/store';
 import {
   markTabsDeletedByPrefixAtom,
@@ -102,6 +104,29 @@ export function useWorkspaceWatcher(): void {
         });
     };
   }, [workspaceRoot]);
+
+  useEffect(() => {
+    if (!workspaceRoot) return;
+
+    let unlisten: (() => void) | undefined;
+    const setup = async () => {
+      unlisten = await onKnowledgeBaseIndexingStateChanged((event) => {
+        const path = normalise(event.path).replace(/\/+$/, '');
+        const root = normalise(workspaceRoot).replace(/\/+$/, '');
+        if (path === root || path.startsWith(`${root}/`)) {
+          store.set(setFileIndexingStateAtom, event);
+        }
+      });
+    };
+
+    setup().catch((err) => {
+      console.error('[WorkspaceWatcher] Failed to subscribe to indexing state:', err);
+    });
+
+    return () => {
+      unlisten?.();
+    };
+  }, [workspaceRoot, store]);
 
   // Subscribe to workspace-changed events.
   useEffect(() => {
@@ -227,4 +252,3 @@ export function useWorkspaceWatcher(): void {
     }
   }
 }
-

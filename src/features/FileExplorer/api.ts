@@ -1,9 +1,16 @@
 import { invoke } from '@tauri-apps/api/core';
 
+export enum FileIndexingState {
+  Idle = 'idle',
+  Indexing = 'indexing',
+  Done = 'done',
+}
+
 export interface FileEntry {
   name: string;
   path: string;
   is_dir: boolean;
+  indexingState: FileIndexingState;
   children?: FileEntry[] | null;
 }
 
@@ -18,7 +25,11 @@ export async function openFolderDialog(): Promise<string | null> {
 }
 
 export async function listDirectory(path: string): Promise<FileEntry[]> {
-  return await invoke('list_dir', { path });
+  const entries = await invoke<Omit<FileEntry, 'indexingState'>[]>('list_dir', { path });
+  return entries.map((entry) => ({
+    ...entry,
+    indexingState: FileIndexingState.Idle,
+  }));
 }
 
 export async function readFileContent(path: string): Promise<string> {

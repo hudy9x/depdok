@@ -1,5 +1,6 @@
 use std::path::Path;
 use std::sync::Arc;
+use sha2::{Digest, Sha256};
 use tokio::sync::RwLock;
 use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
@@ -80,6 +81,11 @@ fn f32_slice_to_bytes(v: &[f32]) -> Vec<u8> {
     v.iter().flat_map(|f| f.to_le_bytes()).collect()
 }
 
+fn content_hash(content: &str) -> String {
+    let digest = Sha256::digest(content.as_bytes());
+    format!("sha256:{digest:x}")
+}
+
 fn resolve_link_id(source_id: &str, link: &str) -> String {
     if source_id.starts_with("file:") && !link.starts_with("file:") {
         let source_path_str = source_id.trim_start_matches("file:");
@@ -123,7 +129,38 @@ impl KbManager {
         project_ids: Vec<String>,
         section_line_offset: u64,
     ) -> Result<String, String> {
+        self.upsert_document_with_source_hash(id, title, content, project_ids, section_line_offset, None)
+            .await
+    }
+
+    async fn upsert_document_with_source_hash(
+        &self,
+        id: Option<String>,
+        title: String,
+        content: String,
+        project_ids: Vec<String>,
+        section_line_offset: u64,
+        source_hash: Option<String>,
+    ) -> Result<String, String> {
         let doc_id = id.unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
+        let indexed_hash = source_hash.unwrap_or_else(|| content_hash(&content));
+
+        // Avoid re-embedding an unchanged document or source file. This check is
+        // deliberately done before any filesystem, embedding, or database writes.
+        {
+            let conn = self.db.lock().await;
+            let existing_hash: Option<String> = conn
+                .query_row(
+                    "SELECT content_hash FROM documents WHERE id = ?1",
+                    params![doc_id],
+                    |row| row.get(0),
+                )
+                .ok()
+                .flatten();
+            if existing_hash.as_deref() == Some(indexed_hash.as_str()) {
+                return Ok(doc_id);
+            }
+        }
 
         // 1. Extract metadata (links & tags)
         let metadata = extract_metadata(&content);
@@ -152,13 +189,14 @@ impl KbManager {
         let category = detect_document_category(&doc_id, &content);
 
         tx.execute(
-            "INSERT INTO documents (id, title, content, category)
-             VALUES (?1, ?2, ?3, ?4)
+            "INSERT INTO documents (id, title, content, category, content_hash)
+             VALUES (?1, ?2, ?3, ?4, ?5)
              ON CONFLICT(id) DO UPDATE SET
                  title = excluded.title,
                  content = excluded.content,
-                 category = excluded.category",
-            params![doc_id, title, content, category],
+                 category = excluded.category,
+                 content_hash = excluded.content_hash",
+            params![doc_id, title, content, category, indexed_hash],
         )
         .map_err(|e| format!("Failed to upsert document: {e}"))?;
 
@@ -341,6 +379,23 @@ impl KbManager {
         }
 
         let sections = split_markdown_into_sections(&content);
+        let source_hash = content_hash(&content);
+
+        if !sections.is_empty() {
+            let conn = self.db.lock().await;
+            let existing_hash: Option<String> = conn
+                .query_row(
+                    "SELECT content_hash FROM documents WHERE id LIKE ?1 LIMIT 1",
+                    params![format!("{base_document_id}#section:%")],
+                    |row| row.get(0),
+                )
+                .ok()
+                .flatten();
+            if existing_hash.as_deref() == Some(source_hash.as_str()) {
+                return Ok(sections.len());
+            }
+        }
+
         if sections.is_empty() {
             self.upsert_document(
                 Some(base_document_id),
@@ -359,12 +414,13 @@ impl KbManager {
             let section_title = format!("{document_title} - {}", section.title);
             let section_line_offset = section.line_start;
 
-            self.upsert_document(
+            self.upsert_document_with_source_hash(
                 Some(section_document_id),
                 section_title,
                 section.content,
                 project_ids.clone(),
                 section_line_offset,
+                Some(source_hash.clone()),
             )
             .await?;
 

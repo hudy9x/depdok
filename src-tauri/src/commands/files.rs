@@ -1,21 +1,17 @@
+use fs_extra;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 use std::process::Command;
 use std::sync::{Mutex, OnceLock};
-use std::time::Duration;
+use std::time::{Duration, Instant};
+use tauri::{Emitter, Manager};
 use tokio::time::sleep;
-use tauri::Manager;
-use fs_extra;
 
 #[cfg(target_os = "macos")]
 fn show_in_finder(path: &str) {
-    Command::new("open")
-        .arg("-R")
-        .arg(path)
-        .spawn()
-        .unwrap();
+    Command::new("open").arg("-R").arg(path).spawn().unwrap();
 }
 
 #[cfg(target_os = "windows")]
@@ -36,15 +32,41 @@ pub struct FileEntry {
 }
 
 static FILE_SYNC_SEQ: OnceLock<Mutex<HashMap<String, u64>>> = OnceLock::new();
+const MINIMUM_INDEXING_STATE_MS: u64 = 400;
+const INDEXING_DONE_DISPLAY_MS: u64 = 700;
 
-fn schedule_kb_upsert(app_handle: tauri::AppHandle, file_path: String) {
-    let file_name = Path::new(&file_path)
+fn emit_kb_indexing_state(app_handle: &tauri::AppHandle, file_path: &str, state: &str) {
+    let _ = app_handle.emit(
+        "knowledge-base-indexing",
+        serde_json::json!({
+            "path": file_path,
+            "state": state,
+        }),
+    );
+}
+
+fn is_latest_kb_sync(file_path: &str, seq: u64) -> bool {
+    let Some(seq_map) = FILE_SYNC_SEQ.get() else {
+        return false;
+    };
+    let Ok(m) = seq_map.lock() else {
+        return false;
+    };
+    m.get(file_path).copied() == Some(seq)
+}
+
+fn is_indexable_markdown(path: &str) -> bool {
+    let file_name = Path::new(path)
         .file_name()
         .and_then(|name| name.to_str())
         .unwrap_or("")
         .to_lowercase();
+    (file_name.ends_with(".md") || file_name.ends_with(".markdown"))
+        && file_name != "knowledge-graph.md"
+}
 
-    if !file_name.ends_with(".md") || file_name == "knowledge-graph.md" {
+pub fn schedule_kb_upsert(app_handle: tauri::AppHandle, file_path: String) {
+    if !is_indexable_markdown(&file_path) {
         return;
     }
 
@@ -63,24 +85,12 @@ fn schedule_kb_upsert(app_handle: tauri::AppHandle, file_path: String) {
         next
     };
 
+    emit_kb_indexing_state(&app_handle, &file_path, "indexing");
+
     tauri::async_runtime::spawn(async move {
         sleep(Duration::from_millis(500)).await;
 
-        let still_latest = {
-            let Some(seq_map) = FILE_SYNC_SEQ.get() else {
-                return;
-            };
-            let m = match seq_map.lock() {
-                Ok(guard) => guard,
-                Err(e) => {
-                    eprintln!("[knowledge_base] debounce lock poisoned: {e}");
-                    return;
-                }
-            };
-            m.get(&file_path).copied() == Some(seq)
-        };
-
-        if !still_latest {
+        if !is_latest_kb_sync(&file_path, seq) {
             return;
         }
 
@@ -91,6 +101,9 @@ fn schedule_kb_upsert(app_handle: tauri::AppHandle, file_path: String) {
                     "[knowledge_base] skipped upsert for {} (not readable as text): {}",
                     file_path, e
                 );
+                if is_latest_kb_sync(&file_path, seq) {
+                    emit_kb_indexing_state(&app_handle, &file_path, "idle");
+                }
                 return;
             }
         };
@@ -104,12 +117,21 @@ fn schedule_kb_upsert(app_handle: tauri::AppHandle, file_path: String) {
 
         let Some(kb_state) = app_handle.try_state::<crate::knowledge_base::KbState>() else {
             eprintln!("[knowledge_base] state unavailable; skipping auto upsert");
+            if is_latest_kb_sync(&file_path, seq) {
+                emit_kb_indexing_state(&app_handle, &file_path, "idle");
+            }
             return;
         };
 
         let project_ids = app_handle
             .try_state::<crate::knowledge_base::CurrentProject>()
-            .and_then(|state| state.0.lock().ok().and_then(|project| project.clone().map(|project_id| vec![project_id])))
+            .and_then(|state| {
+                state
+                    .0
+                    .lock()
+                    .ok()
+                    .and_then(|project| project.clone().map(|project_id| vec![project_id]))
+            })
             .unwrap_or_else(|| {
                 Path::new(&file_path)
                     .parent()
@@ -118,51 +140,110 @@ fn schedule_kb_upsert(app_handle: tauri::AppHandle, file_path: String) {
                     .unwrap_or_default()
             });
 
-        let is_markdown = Path::new(&file_path)
-            .extension()
-            .map_or(false, |ext| ext.eq_ignore_ascii_case("md") || ext.eq_ignore_ascii_case("markdown"));
+        let is_markdown = Path::new(&file_path).extension().map_or(false, |ext| {
+            ext.eq_ignore_ascii_case("md") || ext.eq_ignore_ascii_case("markdown")
+        });
 
         if is_markdown {
-            match kb_state.0.index_markdown_document_sections(
-                file_path.clone(),
-                title,
-                content,
-                project_ids,
-            ).await {
+            match kb_state
+                .0
+                .index_markdown_document_sections(file_path.clone(), title, content, project_ids)
+                .await
+            {
                 Ok(count) => {
                     println!(
                         "[knowledge_base] auto indexed {} markdown sections for {}",
                         count, file_path
                     );
+                    if is_latest_kb_sync(&file_path, seq) {
+                        emit_kb_indexing_state(&app_handle, &file_path, "done");
+                        sleep(Duration::from_millis(INDEXING_DONE_DISPLAY_MS)).await;
+                        if is_latest_kb_sync(&file_path, seq) {
+                            emit_kb_indexing_state(&app_handle, &file_path, "idle");
+                        }
+                    }
                 }
                 Err(e) => {
                     eprintln!(
                         "[knowledge_base] auto markdown indexing failed for {}: {}",
                         file_path, e
                     );
+                    if is_latest_kb_sync(&file_path, seq) {
+                        emit_kb_indexing_state(&app_handle, &file_path, "idle");
+                    }
                 }
             }
         } else {
-            match kb_state.0.upsert_document(
-                Some(doc_id),
-                title,
-                content,
-                project_ids,
-                0,
-            ).await {
+            match kb_state
+                .0
+                .upsert_document(Some(doc_id), title, content, project_ids, 0)
+                .await
+            {
                 Ok(id) => {
                     println!(
                         "[knowledge_base] debounced auto upsert executed for {} (document_id={})",
                         file_path, id
                     );
+                    if is_latest_kb_sync(&file_path, seq) {
+                        emit_kb_indexing_state(&app_handle, &file_path, "done");
+                        sleep(Duration::from_millis(INDEXING_DONE_DISPLAY_MS)).await;
+                        if is_latest_kb_sync(&file_path, seq) {
+                            emit_kb_indexing_state(&app_handle, &file_path, "idle");
+                        }
+                    }
                 }
                 Err(e) => {
                     eprintln!(
                         "[knowledge_base] auto upsert failed for {}: {}",
                         file_path, e
                     );
+                    if is_latest_kb_sync(&file_path, seq) {
+                        emit_kb_indexing_state(&app_handle, &file_path, "idle");
+                    }
                 }
             }
+        }
+    });
+}
+
+pub fn schedule_kb_delete(app_handle: tauri::AppHandle, file_path: String) {
+    if !is_indexable_markdown(&file_path) {
+        return;
+    }
+
+    emit_kb_indexing_state(&app_handle, &file_path, "indexing");
+
+    tauri::async_runtime::spawn(async move {
+        let indexing_started_at = Instant::now();
+        let Some(kb_state) = app_handle.try_state::<crate::knowledge_base::KbState>() else {
+            eprintln!("[knowledge_base] state unavailable; skipping delete for {file_path}");
+            let elapsed = indexing_started_at.elapsed();
+            if elapsed < Duration::from_millis(MINIMUM_INDEXING_STATE_MS) {
+                sleep(Duration::from_millis(MINIMUM_INDEXING_STATE_MS) - elapsed).await;
+            }
+            emit_kb_indexing_state(&app_handle, &file_path, "idle");
+            return;
+        };
+
+        if let Err(error) = kb_state
+            .0
+            .delete_document(format!("file:{file_path}"))
+            .await
+        {
+            eprintln!("[knowledge_base] auto delete failed for {file_path}: {error}");
+            let elapsed = indexing_started_at.elapsed();
+            if elapsed < Duration::from_millis(MINIMUM_INDEXING_STATE_MS) {
+                sleep(Duration::from_millis(MINIMUM_INDEXING_STATE_MS) - elapsed).await;
+            }
+            emit_kb_indexing_state(&app_handle, &file_path, "idle");
+        } else {
+            let elapsed = indexing_started_at.elapsed();
+            if elapsed < Duration::from_millis(MINIMUM_INDEXING_STATE_MS) {
+                sleep(Duration::from_millis(MINIMUM_INDEXING_STATE_MS) - elapsed).await;
+            }
+            emit_kb_indexing_state(&app_handle, &file_path, "done");
+            sleep(Duration::from_millis(INDEXING_DONE_DISPLAY_MS)).await;
+            emit_kb_indexing_state(&app_handle, &file_path, "idle");
         }
     });
 }
@@ -222,7 +303,12 @@ pub fn list_dir(path: &str) -> Result<Vec<FileEntry>, String> {
     });
 
     let duration = start_time.elapsed();
-    println!("[PERF RUST] list_dir for '{}' returned {} entries in {:?}", path, entries.len(), duration);
+    println!(
+        "[PERF RUST] list_dir for '{}' returned {} entries in {:?}",
+        path,
+        entries.len(),
+        duration
+    );
 
     Ok(entries)
 }
@@ -266,18 +352,27 @@ pub fn create_file(app_handle: tauri::AppHandle, path: &str) -> Result<(), Strin
 }
 
 #[tauri::command]
-pub fn delete_node(path: &str) -> Result<(), String> {
+pub fn delete_node(app_handle: tauri::AppHandle, path: &str) -> Result<(), String> {
     let path = Path::new(path);
     if path.is_dir() {
         fs::remove_dir_all(path).map_err(|e| e.to_string())
     } else {
-        fs::remove_file(path).map_err(|e| e.to_string())
+        fs::remove_file(path).map_err(|e| e.to_string())?;
+        schedule_kb_delete(app_handle, path.to_string_lossy().to_string());
+        Ok(())
     }
 }
 
 #[tauri::command]
-pub fn rename_node(old_path: &str, new_path: &str) -> Result<(), String> {
-    fs::rename(old_path, new_path).map_err(|e| e.to_string())
+pub fn rename_node(
+    app_handle: tauri::AppHandle,
+    old_path: &str,
+    new_path: &str,
+) -> Result<(), String> {
+    fs::rename(old_path, new_path).map_err(|e| e.to_string())?;
+    schedule_kb_delete(app_handle.clone(), old_path.to_string());
+    schedule_kb_upsert(app_handle, new_path.to_string());
+    Ok(())
 }
 
 #[tauri::command]
@@ -322,4 +417,3 @@ pub fn get_file_fs_metadata(path: &str) -> Result<FileMetadataInfo, String> {
         size: metadata.len(),
     })
 }
-

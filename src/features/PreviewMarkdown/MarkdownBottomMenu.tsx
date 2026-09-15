@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect, type ReactNode } from "react";
+import { useRef, useState, useEffect, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
 import { Editor, useEditorState } from "@tiptap/react";
 import {
   ArrowDown,
@@ -75,6 +75,31 @@ export function SearchAndReplacePanel({ editor, editable, open, onClose }: { edi
   };
   const updateReplace = (value: string) => editor.commands.setReplaceTerm(value);
 
+  const navigateToResult = (direction: "next" | "previous") => {
+    const moved = direction === "next"
+      ? editor.commands.goToNextResult()
+      : editor.commands.goToPreviousResult();
+
+    if (moved) {
+      requestAnimationFrame(() => {
+        const currentResult = editor.view.dom.querySelector<HTMLElement>(
+          ".find-and-replace-result-current",
+        );
+        currentResult?.scrollIntoView({ behavior: "smooth", block: "center" });
+      });
+    }
+  };
+
+  const handleInputKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      onClose();
+    } else if (event.key === "Enter") {
+      event.preventDefault();
+      navigateToResult("next");
+    }
+  };
+
   const toggleOption = (command: () => boolean, active: boolean, icon: ReactNode) => (
     <button
       type="button"
@@ -107,6 +132,7 @@ export function SearchAndReplacePanel({ editor, editable, open, onClose }: { edi
           ref={searchInputRef}
           value={searchInput}
           onChange={(event) => updateSearch(event.target.value)}
+          onKeyDown={handleInputKeyDown}
           placeholder="Search"
           aria-label="Search"
           autoFocus
@@ -118,6 +144,7 @@ export function SearchAndReplacePanel({ editor, editable, open, onClose }: { edi
         <input
           value={replaceTerm}
           onChange={(event) => updateReplace(event.target.value)}
+          onKeyDown={handleInputKeyDown}
           placeholder="Replace"
           aria-label="Replace"
           className="min-w-0 flex-1 bg-transparent py-1.5 text-xs outline-none"
@@ -130,10 +157,10 @@ export function SearchAndReplacePanel({ editor, editable, open, onClose }: { edi
           <span title="Use regular expression">{toggleOption(() => editor.commands.setUseRegex(!useRegex), useRegex, <Regex className="h-3.5 w-3.5" />)}</span>
         </div>
         <div className="flex items-center gap-0.5">
-          <button type="button" disabled={!results.length} onClick={() => editor.commands.goToPreviousResult()} className="rounded p-1.5 text-muted-foreground hover:bg-accent disabled:opacity-40" title="Previous result">
+          <button type="button" disabled={!results.length} onClick={() => navigateToResult("previous")} className="rounded p-1.5 text-muted-foreground hover:bg-accent disabled:opacity-40" title="Previous result">
             <ArrowUp className="h-3.5 w-3.5" />
           </button>
-          <button type="button" disabled={!results.length} onClick={() => editor.commands.goToNextResult()} className="rounded p-1.5 text-muted-foreground hover:bg-accent disabled:opacity-40" title="Next result">
+          <button type="button" disabled={!results.length} onClick={() => navigateToResult("next")} className="rounded p-1.5 text-muted-foreground hover:bg-accent disabled:opacity-40" title="Next result">
             <ArrowDown className="h-3.5 w-3.5" />
           </button>
           <button type="button" disabled={!results.length || !replaceTerm || !editable} onClick={() => editor.commands.replace()} className="rounded px-2 py-1.5 text-[10px] text-muted-foreground hover:bg-accent disabled:opacity-40">

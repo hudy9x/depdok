@@ -13,7 +13,7 @@ interface AppSettings {
 const DEFAULT_SETTINGS: AppSettings = {
   autoSave: true,
   autoSaveDelay: 1000,
-  viewMode: 'editor-only',
+  viewMode: 'preview-only',
   theme: 'system',
   editorTheme: 'vs-dark',
   assetsFolder: '',
@@ -39,7 +39,7 @@ class SettingsService {
       }
       // Migrate legacy 'side-by-side' viewMode — no longer supported for Markdown
       if (parsed.viewMode === 'side-by-side') {
-        parsed.viewMode = 'editor-only';
+        parsed.viewMode = 'preview-only';
       }
       return { ...DEFAULT_SETTINGS, ...parsed };
     } catch {

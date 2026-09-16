@@ -117,7 +117,7 @@ const createInitialTree = (): PaneNode => {
       id: DEFAULT_PANE_ID,
       tabs: savedTabs,
       activeTabId: savedActiveTabId,
-      viewMode: initialSettings.viewMode || 'editor-only',
+      viewMode: initialSettings.viewMode || 'preview-only',
     },
   };
 };
@@ -300,7 +300,7 @@ export const closePaneAtom = atom(null, (get, set, paneId: string) => {
         id: DEFAULT_PANE_ID,
         tabs: [],
         activeTabId: null,
-        viewMode: initialSettings.viewMode || 'editor-only',
+        viewMode: initialSettings.viewMode || 'preview-only',
       },
     };
     set(paneTreeAtom, restoredTree);

@@ -15,17 +15,17 @@ const VIEW_MODES: { mode: ViewMode; icon: React.ReactNode; title: string }[] = [
 ];
 
 const EXTENSION_SUPPORTED_MODES: Record<string, ViewMode[]> = {
-  md: ["editor-only", "preview-only"],
-  todo: ["editor-only", "preview-only"],
-  mmd: ["editor-only", "preview-only"],
-  puml: ["editor-only", "preview-only"],
-  pu: ["editor-only", "preview-only"],
-  npuml: ["editor-only", "preview-only"],
-  nplantuml: ["editor-only", "preview-only"],
-  excalidraw: ["editor-only", "preview-only"],
+  md: ["preview-only", "editor-only"],
+  todo: ["preview-only", "editor-only"],
+  mmd: ["preview-only", "editor-only"],
+  puml: ["preview-only", "editor-only"],
+  pu: ["preview-only", "editor-only"],
+  npuml: ["preview-only", "editor-only"],
+  nplantuml: ["preview-only", "editor-only"],
+  excalidraw: ["preview-only", "editor-only"],
   xlsx: ["preview-only"],
   xls: ["preview-only"],
-  csv: ["editor-only", "preview-only"],
+  csv: ["preview-only", "editor-only"],
   png: ["preview-only"],
   jpg: ["preview-only"],
   jpeg: ["preview-only"],
@@ -62,7 +62,7 @@ export function EditorViewMode(props: EditorViewModeProps) {
       return ["preview-only"] as ViewMode[];
     }
 
-    return EXTENSION_SUPPORTED_MODES[ext] || ["editor-only", "side-by-side", "preview-only"];
+    return EXTENSION_SUPPORTED_MODES[ext] || ["preview-only", "editor-only", "side-by-side"];
   }, [ext, isGraphFile]);
 
   useEffect(() => {

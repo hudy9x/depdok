@@ -19,7 +19,7 @@ export interface ProjectState {
 export type ProjectsStateMap = Record<string, ProjectState>;
 
 const DEFAULT_PANE_ID = 'pane-primary';
-const DEFAULT_VIEW_MODE = settingsService.getSettings().viewMode || 'side-by-side';
+const DEFAULT_VIEW_MODE = settingsService.getSettings().viewMode || 'preview-only';
 
 const createDefaultProjectPaneTree = (): PaneNode => ({
   type: 'leaf',

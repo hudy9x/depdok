@@ -1,4 +1,4 @@
-export type OnboardingStep = 0 | 1 | 2 | 3;
+export type OnboardingStep = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 
 export interface StepItem {
   key: string;
@@ -8,23 +8,28 @@ export interface StepItem {
 
 export const ONBOARDING_STEPS: StepItem[] = [
   {
-    key: "profile",
-    title: "Set up your profile",
-    desc: "Your name and avatar as teammates will see them.",
+    key: "name",
+    title: "What should we call you?",
+    desc: "This is how your teammates will see you in shared docs.",
+  },
+  {
+    key: "avatar",
+    title: "Give yourself a little character.",
+    desc: "Pick a small visual signature. You can change it whenever you like.",
   },
   {
     key: "theme",
-    title: "Choose your appearance",
-    desc: "How Depdok looks while you read and write.",
+    title: "Choose a mood for your docs.",
+    desc: "A small visual cue for all those long reading and writing sessions.",
   },
   {
     key: "ai",
-    title: "Set up AI",
-    desc: "Optional: connect Ollama to use the AI assistant.",
+    title: "A helpful sidekick.",
+    desc: "Ollama is recommended for private, local help. You can also bring your own cloud key.",
   },
   {
-    key: "start",
-    title: "Open a folder",
+    key: "folder",
+    title: "Where should your docs live?",
     desc: "Choose the documentation folder you want to work in.",
   },
 ];

@@ -1,97 +1,29 @@
-import { ArrowLeft, ArrowRight, Sun, Moon, Laptop } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { AVATAR_PRESETS, type AvatarPreset } from '@/lib/userProfile';
-import { OnboardingLivePreview } from './OnboardingLivePreview';
+import { Laptop, Moon, Sun } from "lucide-react";
+import { useTheme } from "next-themes";
+import { ReferenceArtwork } from "./ReferenceArtwork";
 
-interface StepThemeProps {
-  userName: string;
-  selectedAvatarId: string;
-  currentTheme: string | undefined;
-  onSelectTheme: (theme: 'light' | 'dark' | 'system') => void;
-  onBack: () => void;
-  onNext: () => void;
-}
+interface StepThemeProps { currentTheme: string | undefined; onSelectTheme: (theme: "light" | "dark" | "system") => void; }
 
-export function StepTheme({
-  userName,
-  selectedAvatarId,
-  currentTheme,
-  onSelectTheme,
-  onBack,
-  onNext,
-}: StepThemeProps): JSX.Element {
-  const currentAvatar: AvatarPreset =
-    AVATAR_PRESETS.find((a) => a.id === selectedAvatarId) || AVATAR_PRESETS[1];
-
-  const isDarkPreview = currentTheme === 'dark';
-
+export function StepTheme({ currentTheme, onSelectTheme }: StepThemeProps): JSX.Element {
+  const { resolvedTheme } = useTheme();
+  const activeTheme = currentTheme === "system" ? resolvedTheme : currentTheme;
+  const options = [
+    { id: "light" as const, label: "Light", desc: "Clean & bright", icon: Sun },
+    { id: "dark" as const, label: "Dark", desc: "Easy on the eyes", icon: Moon },
+    { id: "system" as const, label: "System", desc: "Match your OS", icon: Laptop },
+  ];
   return (
-    <div className="flex-1 flex flex-col justify-between">
-      <div className="space-y-5">
-        {/* Live Preview Card with Theme Switching */}
-        <OnboardingLivePreview
-          userName={userName}
-          avatar={currentAvatar}
-          isDarkPreview={isDarkPreview}
-        />
-
-        {/* Theme Cards Grid */}
-        <div className="space-y-2">
-          <label className="text-xs font-semibold text-foreground">
-            Pick a look
-          </label>
-          <div className="grid grid-cols-3 gap-3">
-            {[
-              { id: 'light', icon: Sun, label: 'Light', desc: 'Clean & bright' },
-              { id: 'dark', icon: Moon, label: 'Dark', desc: 'Easy on the eyes' },
-              { id: 'system', icon: Laptop, label: 'System', desc: 'Match OS' },
-            ].map(({ id, icon: Icon, label, desc }) => {
-              const selected = currentTheme === id;
-              return (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() =>
-                    onSelectTheme(id as 'light' | 'dark' | 'system')
-                  }
-                  className={`bg-card border rounded-xl p-4 flex flex-col items-center gap-2 transition-all cursor-pointer hover:-translate-y-0.5 ${
-                    selected
-                      ? 'border-primary ring-2 ring-primary/20 bg-primary/10 shadow-xs'
-                      : 'border-border hover:border-border/80 hover:bg-accent/40'
-                  }`}
-                >
-                  <div
-                    className={`w-8 h-8 rounded-full flex items-center justify-center text-sm transition-colors ${
-                      selected
-                        ? 'bg-primary text-primary-foreground shadow-xs'
-                        : 'bg-muted text-foreground'
-                    }`}
-                  >
-                    <Icon className="w-4 h-4" />
-                  </div>
-                  <span className="text-xs font-semibold text-foreground">
-                    {label}
-                  </span>
-                  <span className="text-[11px] text-muted-foreground leading-tight text-center">
-                    {desc}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-
-      {/* Step Footer Actions */}
-      <div className="mt-8 pt-6 border-t border-border/80 flex items-center justify-between">
-        <Button variant="ghost" onClick={onBack} className="gap-2">
-          <ArrowLeft className="w-4 h-4" />
-          <span>Back</span>
-        </Button>
-        <Button onClick={onNext} className="gap-2">
-          <span>Continue</span>
-          <ArrowRight className="w-4 h-4" />
-        </Button>
+    <div className="flex w-full max-w-[680px] flex-col items-center text-center">
+      <ReferenceArtwork kind="theme" />
+      <p className="text-[11px] font-bold uppercase tracking-[.18em] text-[#d76b4a]">Step 3 of 5 · Your reading room</p>
+      <h2 className="mt-3 text-4xl font-bold leading-[.98] tracking-[-.06em] sm:text-[50px]">Choose a mood<br /><span className="text-[#d76b4a]">for your docs.</span></h2>
+      <p className="mt-5 max-w-[450px] text-sm leading-6 text-[#79757b] sm:text-base">A small visual cue for all those long reading and writing sessions.</p>
+      <div className="mt-8 grid w-full max-w-[600px] grid-cols-1 gap-3 sm:grid-cols-3">
+        {options.map(({ id, label, desc, icon: Icon }) => {
+          const selected = currentTheme === id;
+          const previewDark = id === "dark" || (id === "system" && activeTheme === "dark");
+          return <button key={id} type="button" onClick={() => onSelectTheme(id)} className={`rounded-2xl border p-3 text-left transition focus-visible:outline-none focus-visible:ring-0 ${selected ? "border-primary ring-4 ring-primary/25" : "border-border hover:border-primary/60"} ${id === "dark" ? "bg-[#29282e] text-white" : id === "system" ? "bg-muted" : "bg-card text-foreground"}`}><span className={`block h-24 overflow-hidden rounded-xl border p-3 ${previewDark ? "border-white/10 bg-[#38373d]" : id === "light" ? "border-[#e2dfd9] bg-[#fbfaf7]" : "border-border bg-[#fbfaf7]"}`}><span className="mb-3 flex gap-1"><i className={`h-2 w-2 rounded-full ${previewDark ? "bg-[#77737b]" : "bg-[#e7e3dd]"}`} /><i className={`h-2 w-2 rounded-full ${previewDark ? "bg-[#77737b]" : "bg-[#e7e3dd]"}`} /></span><span className={`block h-2 w-3/4 rounded-full ${previewDark ? "bg-[#8e8992]" : "bg-[#d8d4ce]"}`} /><span className={`mt-2 block h-2 w-full rounded-full ${previewDark ? "bg-[#5a5760]" : "bg-[#ebe8e2]"}`} /><span className={`mt-2 block h-2 w-1/2 rounded-full ${previewDark ? "bg-[#5a5760]" : "bg-[#ebe8e2]"}`} /></span><span className="mt-3 flex items-center gap-2 text-sm font-semibold"><Icon className="h-4 w-4" />{label}</span><span className={`mt-1 block text-xs ${id === "dark" ? "text-white/60" : id === "light" ? "text-muted-foreground" : "text-muted-foreground"}`}>{desc}</span></button>;
+        })}
       </div>
     </div>
   );

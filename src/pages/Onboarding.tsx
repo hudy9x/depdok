@@ -1,148 +1,39 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSetAtom } from "jotai";
 import { useTheme } from "next-themes";
+import { Button } from "@/components/ui/button";
 import { HomeTitlebar } from "@/features/Titlebar";
-import { settingsService } from "@/lib/settings";
-import {
-  getUserProfile,
-  saveUserProfile,
-  setOnboarded,
-} from "@/lib/userProfile";
 import { openFolderDialog } from "@/features/FileExplorer/api";
 import { openWorkspaceAtom } from "@/features/FileExplorer/store";
-
-import {
-  type OnboardingStep,
-  ONBOARDING_STEPS,
-} from "@/features/Onboarding/types";
-import { OnboardingSidebar } from "@/features/Onboarding/OnboardingSidebar";
 import { StepAiSetup } from "@/features/Onboarding/StepAiSetup";
-import { StepProfile } from "@/features/Onboarding/StepProfile";
+import { StepAvatar } from "@/features/Onboarding/StepAvatar";
+import { StepComplete } from "@/features/Onboarding/StepComplete";
+import { StepFolder } from "@/features/Onboarding/StepFolder";
+import { StepName } from "@/features/Onboarding/StepName";
 import { StepTheme } from "@/features/Onboarding/StepTheme";
-import { StepGetStarted } from "@/features/Onboarding/StepGetStarted";
+import type { OnboardingStep } from "@/features/Onboarding/types";
+import { settingsService } from "@/lib/settings";
+import { getUserProfile, saveUserProfile, setOnboarded } from "@/lib/userProfile";
 
 export default function Onboarding(): JSX.Element {
   const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
-
-  const [step, setStep] = useState<OnboardingStep>(0);
-  const initialProfile = getUserProfile();
-  const [userName, setUserName] = useState(initialProfile.name || "");
-  const [selectedAvatarId, setSelectedAvatarId] = useState(
-    initialProfile.avatar || "writer",
-  );
-
   const openWorkspace = useSetAtom(openWorkspaceAtom);
+  const [step, setStep] = useState<OnboardingStep>(0);
+  const [name, setName] = useState(getUserProfile().name);
+  const [avatar, setAvatar] = useState(getUserProfile().avatar || "writer");
+  const [folder, setFolder] = useState("~/Documents/Depdok");
+  const [folderPath, setFolderPath] = useState<string | null>(null);
+  const save = (nextName = name, nextAvatar = avatar): void => { saveUserProfile({ name: nextName.trim(), avatar: nextAvatar }); };
+  const next = (): void => { save(); setStep((value) => Math.min(6, value + 1) as OnboardingStep); };
+  const back = (): void => setStep((value) => Math.max(0, value - 1) as OnboardingStep);
+  const chooseFolder = async (): Promise<void> => { try { const selected = await openFolderDialog(); if (!selected) return; setFolderPath(selected); setFolder(selected); setStep(6); } catch (error) { console.error("Failed to choose onboarding folder:", error); } };
+  useEffect(() => { if (step !== 6 || !folderPath) return; const timer = window.setTimeout(() => { save(); setOnboarded(true); void openWorkspace(folderPath).then(() => navigate("/editor")).catch((error: unknown) => { console.error("Failed to open onboarding workspace:", error); navigate("/home"); }); }, 1400); return () => window.clearTimeout(timer); }, [folderPath, navigate, openWorkspace, step]);
+  const selectTheme = (value: "light" | "dark" | "system"): void => { setTheme(value); settingsService.updateSettings({ theme: value }); };
+  const chapterFor = (screen: number): number => screen <= 2 ? 0 : screen === 3 ? 1 : screen === 4 ? 2 : 3;
+  const showProgress = step > 0 && step < 6;
+  const doneChapter = (chapter: number): boolean => showProgress && chapter < chapterFor(step);
 
-  const handleSelectAvatar = (id: string) => {
-    setSelectedAvatarId(id);
-    saveUserProfile({ name: userName.trim(), avatar: id });
-  };
-
-  const handleNameChange = (val: string) => {
-    setUserName(val);
-    saveUserProfile({ name: val, avatar: selectedAvatarId });
-  };
-
-  const handleSelectTheme = (selectedTheme: "light" | "dark" | "system") => {
-    setTheme(selectedTheme);
-    settingsService.updateSettings({ theme: selectedTheme });
-  };
-
-  const handleNext = () => {
-    saveUserProfile({ name: userName.trim(), avatar: selectedAvatarId });
-    if (step < ONBOARDING_STEPS.length - 1) {
-      setStep((s) => (s + 1) as OnboardingStep);
-    }
-  };
-
-  const handleBack = () => {
-    if (step > 0) setStep((s) => (s - 1) as OnboardingStep);
-  };
-
-  const handleOpenFolder = async () => {
-    try {
-      saveUserProfile({ name: userName.trim(), avatar: selectedAvatarId });
-      setOnboarded(true);
-      const folderPath = await openFolderDialog();
-      if (folderPath) {
-        await openWorkspace(folderPath);
-        navigate("/editor");
-      } else {
-        navigate("/home");
-      }
-    } catch (error) {
-      console.error("Failed to open folder during onboarding:", error);
-      navigate("/home");
-    }
-  };
-
-  const currentStepItem = ONBOARDING_STEPS[step];
-
-  return (
-    <div className="h-screen w-screen flex flex-col overflow-hidden bg-layout-chrome text-foreground">
-      <HomeTitlebar />
-
-      <main className="flex-1 flex items-center justify-center p-4 sm:p-8 overflow-y-auto">
-        <div className="w-full max-w-[1040px] bg-card border border-border rounded-2xl shadow-card overflow-hidden">
-          <div className="grid grid-cols-1 md:grid-cols-5 min-h-[580px]">
-            {/* Left Steps Navigation Sidebar */}
-            <OnboardingSidebar currentStep={step} onSelectStep={setStep} />
-
-            {/* Right Step Content Panel */}
-            <div className="md:col-span-3 bg-muted/40 p-6 sm:p-8 flex flex-col justify-between min-h-[520px]">
-              <div className="flex-1 flex flex-col">
-                {/* Step Counter Badge & Title */}
-                <p className="text-xs font-semibold tracking-wide text-primary uppercase mb-1.5">
-                  Step {step + 1} of {ONBOARDING_STEPS.length}
-                </p>
-                <h2 className="text-2xl font-bold text-foreground leading-tight mb-1">
-                  {currentStepItem.title}
-                </h2>
-                <p className="text-sm text-muted-foreground mb-6">
-                  {currentStepItem.desc}
-                </p>
-
-                {/* Dynamic Step Component */}
-                {step === 0 && (
-                  <StepProfile
-                    userName={userName}
-                    selectedAvatarId={selectedAvatarId}
-                    onNameChange={handleNameChange}
-                    onSelectAvatar={handleSelectAvatar}
-                    onNext={handleNext}
-                  />
-                )}
-
-                {step === 1 && (
-                  <StepTheme
-                    userName={userName}
-                    selectedAvatarId={selectedAvatarId}
-                    currentTheme={theme}
-                    onSelectTheme={handleSelectTheme}
-                    onBack={handleBack}
-                    onNext={handleNext}
-                  />
-                )}
-
-                {step === 2 && (
-                  <StepAiSetup onBack={handleBack} onNext={handleNext} />
-                )}
-
-                {step === 3 && (
-                  <StepGetStarted
-                    userName={userName}
-                    selectedAvatarId={selectedAvatarId}
-                    onBack={handleBack}
-                    onOpenFolder={handleOpenFolder}
-                  />
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      </main>
-    </div>
-  );
+  return <div className="min-h-[100dvh] w-full bg-card text-foreground"><HomeTitlebar /><main className="flex min-h-[calc(100dvh-40px)] items-center justify-center p-3 sm:p-6 md:p-8"><section className="relative flex min-h-[calc(100dvh-64px)] w-full max-w-[1220px] flex-col overflow-hidden rounded-[30px] bg-card md:min-h-[760px]"><header className={`relative z-10 flex items-center justify-center px-5 py-5 sm:px-8 md:px-10 md:py-7 ${showProgress ? "" : "invisible"}`}><div className="flex w-32 gap-1.5 sm:w-40 md:w-48" aria-label="Setup progress">{["Profile", "Look", "Assistant", "Folder"].map((label, index) => <button key={label} type="button" disabled={!doneChapter(index)} onClick={() => doneChapter(index) && setStep((index === 0 ? 1 : index === 1 ? 3 : index === 2 ? 4 : 5) as OnboardingStep)} aria-label={label} className={`h-2 min-w-7 flex-1 rounded-full transition ${doneChapter(index) || (showProgress && chapterFor(step) === index) ? "bg-primary shadow-[0_3px_8px_rgba(215,107,74,.2)]" : "bg-muted"}`} />)}</div></header><div className="relative flex flex-1 items-center justify-center px-5 pb-4 sm:px-8 md:px-10"><div className="flex w-full justify-center">{step === 0 && <div className="flex w-full max-w-[620px] flex-col items-center text-center"><img src="/app-icon.png" alt="Depdok" className="mb-8 size-28 object-contain sm:size-28" /><p className="text-[11px] font-bold uppercase tracking-[.18em] text-primary">Welcome to Depdok</p><h1 className="mt-3 text-[38px] font-bold leading-[.98] tracking-[-.06em] sm:text-[48px]">A calmer place<br />for <span className="text-primary">documentation.</span></h1><p className="mt-5 max-w-[420px] text-sm leading-6 text-muted-foreground sm:text-base">Let’s set up your little corner of the docs. It takes about two minutes.</p><Button onClick={next} className="mt-8 rounded-xl px-8 py-3.5 shadow-[0_8px_18px_rgba(215,107,74,.22)]">Let’s get started <span>→</span></Button></div>}{step === 1 && <StepName name={name} onChange={(value) => { setName(value); save(value, avatar); }} onNext={next} />}{step === 2 && <StepAvatar selectedAvatarId={avatar} onSelectAvatar={(value) => { setAvatar(value); save(name, value); }} />}{step === 3 && <StepTheme currentTheme={theme} onSelectTheme={selectTheme} />}{step === 4 && <StepAiSetup />}{step === 5 && <StepFolder onChoose={() => void chooseFolder()} />}{step === 6 && <StepComplete name={name} avatar={({ developer: "Developer", writer: "Writer", rocket: "Rocket", sparkles: "Sparkles", ninja: "Ninja", cat: "Cat" }[avatar] ?? avatar)} theme={theme === "dark" ? "Dark" : theme === "light" ? "Light" : "System"} folder={folder} />}</div></div><footer className={`relative z-10 flex items-center justify-between px-5 pb-5 sm:px-8 md:px-10 md:pb-8 ${step === 0 || step === 6 ? "invisible" : ""}`}><button type="button" onClick={back} className="px-4 py-3 text-sm font-semibold text-muted-foreground transition hover:text-foreground">← Back</button><Button type="button" onClick={step === 5 ? () => void chooseFolder() : next} className="ml-auto rounded-xl px-6 py-3.5 shadow-[0_8px_18px_rgba(215,107,74,.22)]">{step === 4 ? "Continue" : step === 5 ? "Choose folder" : "Continue"} <span>→</span></Button></footer></section></main></div>;
 }

@@ -1,311 +1,99 @@
-import { useEffect, useMemo, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
-import { arch, platform } from "@tauri-apps/plugin-os";
-import {
-  ArrowLeft,
-  ArrowRight,
-  Check,
-  CircleAlert,
-  Copy,
-  Cpu,
-  ExternalLink,
-  LoaderCircle,
-  Terminal,
-} from "lucide-react";
+import { useState } from "react";
+import { platform } from "@tauri-apps/plugin-os";
+import { Check, Clipboard } from "lucide-react";
+import { Claude, OpenAI } from "@lobehub/icons";
+import { ReferenceArtwork } from "./ReferenceArtwork";
 
-import { Button } from "@/components/ui/button";
+type Provider = "Claude" | "OpenAI" | "OpenRouter";
+type SupportedOs = "macos" | "linux" | "windows";
 
-interface OllamaModelInfo {
-  name: string;
+function normalizeOs(value: string): SupportedOs {
+  if (value === "windows") return "windows";
+  if (value === "linux") return "linux";
+  return "macos";
 }
 
-interface SystemProfile {
-  os: string;
-  architecture: string;
-  total_memory_bytes?: number;
+function ProviderIcon({ provider }: { provider: Provider }): JSX.Element {
+  if (provider === "Claude") return <Claude className="size-5" />;
+  if (provider === "OpenAI") return <OpenAI className="size-5" />;
+  return <span className="text-base font-bold">◎</span>;
 }
 
-interface RecommendedModel {
-  id: string;
-  label: string;
-  reason: string;
-}
+export function StepAiSetup(): JSX.Element {
+  const [tab, setTab] = useState<"ollama" | "byok">("ollama");
+  const [provider, setProvider] = useState<Provider>("OpenAI");
+  const [selectedOs] = useState<SupportedOs>(() => normalizeOs(platform()));
+  const [copied, setCopied] = useState(false);
 
-type OllamaStatus = "checking" | "ready" | "unavailable";
-
-function getTotalMemoryGiB(
-  systemProfile: SystemProfile | null,
-): number | undefined {
-  if (systemProfile?.total_memory_bytes !== undefined) {
-    return Math.round(systemProfile.total_memory_bytes / 1_073_741_824);
-  }
-
-  return (navigator as Navigator & { deviceMemory?: number }).deviceMemory;
-}
-
-function getRecommendedModel(
-  systemProfile: SystemProfile | null,
-): RecommendedModel {
-  const totalMemoryGiB = getTotalMemoryGiB(systemProfile);
-
-  if (totalMemoryGiB !== undefined && totalMemoryGiB <= 4) {
-    return {
-      id: "qwen3.5:0.8b",
-      label: "Qwen 3.5 0.8B",
-      reason: "A lightweight option for systems with limited available memory.",
-    };
-  }
-
-  if (totalMemoryGiB !== undefined && totalMemoryGiB <= 8) {
-    return {
-      id: "qwen3.5:2b",
-      label: "Qwen 3.5 2B",
-      reason: "A balanced pick for a lower-memory laptop.",
-    };
-  }
-
-  const currentPlatform = systemProfile?.os ?? platform();
-  const currentArchitecture = systemProfile?.architecture ?? arch();
-
-  if (
-    currentPlatform === "macos" &&
-    (currentArchitecture === "aarch64" || currentArchitecture === "arm64")
-  ) {
-    return {
-      id: "qwen3.5:4b-mlx",
-      label: "Qwen 3.5 4B MLX",
-      reason: "Optimized for Apple silicon and the best default on this Mac.",
-    };
-  }
-
-  return {
-    id: "qwen3.5:4b",
-    label: "Qwen 3.5 4B",
-    reason: "Our recommended general-purpose model for this system.",
-  };
-}
-
-function getSystemLabel(systemProfile: SystemProfile | null): string {
-  const currentPlatform = systemProfile?.os ?? platform();
-  const currentArch = systemProfile?.architecture ?? arch();
-  const platformLabel =
-    currentPlatform === "macos"
-      ? "macOS"
-      : currentPlatform === "windows"
-        ? "Windows"
-        : "Linux";
-  const architectureLabel =
-    currentArch === "aarch64" ? "Apple silicon / ARM64" : currentArch;
-  const totalMemoryGiB = getTotalMemoryGiB(systemProfile);
-
-  return totalMemoryGiB === undefined
-    ? `${platformLabel} · ${architectureLabel}`
-    : `${platformLabel} · ${architectureLabel} · ${totalMemoryGiB} GB memory`;
-}
-
-function isInstalledModel(
-  installedName: string,
-  recommendedId: string,
-): boolean {
-  const normalizedInstalledName = installedName.toLowerCase();
-  const normalizedRecommendedId = recommendedId.toLowerCase();
-
-  return (
-    normalizedInstalledName === normalizedRecommendedId ||
-    normalizedInstalledName === `${normalizedRecommendedId}:latest`
-  );
-}
-
-export function StepAiSetup({
-  onBack,
-  onNext,
-}: {
-  onBack: () => void;
-  onNext: () => void;
-}): JSX.Element {
-  const [systemProfile, setSystemProfile] = useState<SystemProfile | null>(
-    null,
-  );
-  const recommendedModel = useMemo(
-    () => getRecommendedModel(systemProfile),
-    [systemProfile],
-  );
-  const systemLabel = useMemo(
-    () => getSystemLabel(systemProfile),
-    [systemProfile],
-  );
-  const [status, setStatus] = useState<OllamaStatus>("checking");
-  const [installedModels, setInstalledModels] = useState<OllamaModelInfo[]>([]);
-  const [isCopied, setIsCopied] = useState(false);
-
-  useEffect(() => {
-    const checkOllama = async (): Promise<void> => {
-      try {
-        const profile = await invoke<SystemProfile>("llm2_get_system_profile");
-        setSystemProfile(profile);
-      } catch (error) {
-        console.error(
-          "Failed to read the system profile during onboarding:",
-          error,
-        );
-      }
-
-      try {
-        const models = await invoke<OllamaModelInfo[]>("llm2_list_models");
-        setInstalledModels(models);
-        setStatus("ready");
-      } catch (error) {
-        console.error("Failed to check Ollama during onboarding:", error);
-        setStatus("unavailable");
-      }
-    };
-
-    void checkOllama();
-  }, []);
-
-  const installCommand =
-    platform() === "windows"
-      ? "irm https://ollama.com/install.ps1 | iex"
-      : "curl -fsSL https://ollama.com/install.sh | sh";
-  const pullCommand = `ollama pull ${recommendedModel.id}`;
-  const hasRecommendedModel = installedModels.some((model) =>
-    isInstalledModel(model.name, recommendedModel.id),
-  );
-
-  const handleCopy = async (): Promise<void> => {
+  const command = selectedOs === "windows"
+    ? "irm https://ollama.com/install.ps1 | iex"
+    : "curl -fsSL https://ollama.com/install.sh | sh";
+  const copy = async (): Promise<void> => {
     try {
-      await navigator.clipboard.writeText(`${installCommand}\n${pullCommand}`);
-      setIsCopied(true);
-      window.setTimeout(() => setIsCopied(false), 2_000);
+      await navigator.clipboard.writeText(command);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
     } catch (error) {
-      console.error("Failed to copy Ollama setup commands:", error);
+      console.error("Failed to copy Ollama command:", error);
     }
   };
 
   return (
-    <div className="flex-1 flex flex-col justify-between">
-      <div className="space-y-5">
-        <div className="rounded-xl border border-border bg-card p-4">
-          <div className="flex items-start gap-3">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-              <Cpu className="h-4 w-4" />
-            </span>
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-foreground">
-                Recommended for your system
-              </p>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                {systemLabel}
-              </p>
-              <p className="mt-2 text-sm font-medium text-foreground">
-                {recommendedModel.label}
-              </p>
-              <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
-                {recommendedModel.reason}
-              </p>
-            </div>
-          </div>
-        </div>
+    <div className="flex w-full max-w-[680px] flex-col items-center text-center">
+      <ReferenceArtwork kind="ai" />
+      <p className="text-[11px] font-bold uppercase tracking-[.18em] text-primary">Step 4 of 5 · Optional</p>
+      <h2 className="mt-3 text-4xl font-bold leading-[.98] tracking-[-.06em] sm:text-[50px]">
+        A helpful <span className="text-primary">sidekick.</span>
+      </h2>
+      <p className="mt-4 max-w-[490px] text-sm leading-6 text-muted-foreground sm:text-base">
+        Keep help private with Ollama, or connect a cloud provider with your own key.
+      </p>
 
-        <div className="rounded-xl border border-border bg-card p-4 space-y-3">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex items-start gap-3">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                <Terminal className="h-4 w-4" />
-              </span>
-              <div>
-                <p className="text-sm font-semibold text-foreground">
-                  Use Ollama locally
-                </p>
-                <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
-                  Download a model once, then use Depdok’s AI assistant
-                  privately on your computer.
-                </p>
-                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                  Qwen is the primary model family. <code>gemma4:e2b</code> is
-                  also a tested alternative.
-                </p>
-              </div>
-            </div>
-            {status === "checking" && (
-              <LoaderCircle className="h-4 w-4 shrink-0 animate-spin text-muted-foreground" />
-            )}
-            {status === "ready" && (
-              <span className="flex items-center gap-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
-                <Check className="h-3.5 w-3.5" /> Available
-              </span>
-            )}
-            {status === "unavailable" && (
-              <span className="flex items-center gap-1 text-xs font-medium text-amber-600 dark:text-amber-400">
-                <CircleAlert className="h-3.5 w-3.5" /> Not running
-              </span>
-            )}
-          </div>
-
-          {hasRecommendedModel ? (
-            <div className="rounded-lg bg-emerald-500/10 px-3 py-2 text-xs text-emerald-700 dark:text-emerald-300">
-              {recommendedModel.label} is ready to use in Depdok.
-            </div>
-          ) : (
-            <div className="space-y-2">
-              <p className="text-xs text-muted-foreground">
-                Run these commands in{" "}
-                {platform() === "windows" ? "PowerShell" : "Terminal"}:
-              </p>
-              <pre className="overflow-x-auto rounded-lg bg-muted px-3 py-2.5 text-xs leading-6 text-foreground">
-                <code>
-                  {installCommand}\n{pullCommand}
-                </code>
-              </pre>
-              <div className="flex items-center justify-between gap-3">
-                <a
-                  href="https://ollama.com/download"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
-                >
-                  Ollama download help <ExternalLink className="h-3 w-3" />
-                </a>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => void handleCopy()}
-                  className="gap-1.5"
-                >
-                  {isCopied ? (
-                    <Check className="h-3.5 w-3.5" />
-                  ) : (
-                    <Copy className="h-3.5 w-3.5" />
-                  )}
-                  {isCopied ? "Copied" : "Copy commands"}
-                </Button>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="rounded-xl border border-dashed border-border px-4 py-3">
-          <p className="text-sm font-medium text-foreground">
-            Prefer a cloud provider?
-          </p>
-          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-            OpenAI, Claude, and OpenRouter key setup is planned. This release’s
-            chat engine currently supports local Ollama only.
-          </p>
-        </div>
+      <div className="mt-7 flex w-full max-w-[560px] gap-1 rounded-xl bg-muted p-1">
+        <button type="button" onClick={() => setTab("ollama")} className={`flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition ${tab === "ollama" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`}>
+          Ollama
+        </button>
+        <button type="button" onClick={() => setTab("byok")} className={`flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition ${tab === "byok" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`}>
+          Bring your own key
+        </button>
       </div>
 
-      <div className="mt-8 flex items-center justify-between border-t border-border/80 pt-6">
-        <Button variant="ghost" onClick={onBack} className="gap-2">
-          <ArrowLeft className="h-4 w-4" />
-          <span>Back</span>
-        </Button>
-        <Button onClick={onNext} className="gap-2">
-          <span>{hasRecommendedModel ? "Continue" : "Set up later"}</span>
-          <ArrowRight className="h-4 w-4" />
-        </Button>
-      </div>
+      {tab === "ollama" ? (
+        <div className="mt-2 w-full max-w-[560px] p-1 text-left">
+          <div className="mt-4 mx-auto w-[430px] flex items-center gap-2 rounded-xl bg-muted px-3 py-3 font-mono text-xs text-foreground">
+            <code className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap">{command}</code>
+            <button type="button" onClick={() => void copy()} className="shrink-0 text-primary" aria-label="Copy install command">
+              {copied ? <Check className="size-4" /> : <Clipboard className="size-4" />}
+            </button>
+          </div>
+          <p className="my-4 text-center text-xs text-muted-foreground">or</p>
+
+          <div className="mt-4 flex items-center justify-center">
+            <a href="https://ollama.com/download" target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-sm transition hover:opacity-90">
+              Download installer
+            </a>
+          </div>
+        </div>
+      ) : (
+        <div className="mt-2 w-full max-w-[560px] p-1 flex flex-col items-center">
+          <div className="mt-5 flex flex-wrap gap-2">
+            {(["Claude", "OpenAI", "OpenRouter"] as Provider[]).map((item) => (
+              <button
+                key={item}
+                type="button"
+                onClick={() => setProvider(item)}
+                className={`inline-flex items-center gap-2 rounded-full border px-3 py-2 text-xs font-semibold transition ${provider === item ? "border-primary bg-primary/10 text-foreground ring-2 ring-primary/25" : "border-border bg-muted/40 text-muted-foreground hover:bg-muted"}`}
+              >
+                <ProviderIcon provider={item} />
+                {item}
+              </button>
+            ))}
+          </div>
+          <label htmlFor="api-key" className="mt-5 block text-xs font-semibold">API key</label>
+          <input id="api-key" placeholder="Paste your key here" className="mt-4 w-[400px] rounded-xl text-center bg-muted px-3 py-3 text-sm font-mono text-foreground outline-none placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20" />
+        </div>
+      )}
+      {/* <p className="mt-4 text-xs text-muted-foreground">You can change this later in Settings.</p> */}
     </div>
   );
 }

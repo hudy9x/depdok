@@ -1,10 +1,11 @@
-import { useState } from "react";
-import { platform } from "@tauri-apps/plugin-os";
-import { Check, Clipboard } from "lucide-react";
 import { Claude, OpenAI } from "@lobehub/icons";
-import { ReferenceArtwork } from "./ReferenceArtwork";
+import { invoke } from "@tauri-apps/api/core";
+import { platform } from "@tauri-apps/plugin-os";
+import { Check, Clipboard, LoaderCircle } from "lucide-react";
+import { useEffect, useState } from "react";
 
 type Provider = "Claude" | "OpenAI" | "OpenRouter";
+type OllamaStatus = "checking" | "available" | "unavailable";
 type SupportedOs = "macos" | "linux" | "windows";
 
 function normalizeOs(value: string): SupportedOs {
@@ -24,6 +25,26 @@ export function StepAiSetup(): JSX.Element {
   const [provider, setProvider] = useState<Provider>("OpenAI");
   const [selectedOs] = useState<SupportedOs>(() => normalizeOs(platform()));
   const [copied, setCopied] = useState(false);
+  const [ollamaStatus, setOllamaStatus] = useState<OllamaStatus>("checking");
+
+  useEffect(() => {
+    let isActive = true;
+
+    const checkOllama = async (): Promise<void> => {
+      const [isAvailable] = await Promise.all([
+        invoke("llm2_list_models").then(() => true).catch(() => false),
+        new Promise<void>((resolve) => window.setTimeout(resolve, 2000)),
+      ]);
+
+      if (isActive) setOllamaStatus(isAvailable ? "available" : "unavailable");
+    };
+
+    void checkOllama();
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
 
   const command = selectedOs === "windows"
     ? "irm https://ollama.com/install.ps1 | iex"
@@ -40,7 +61,7 @@ export function StepAiSetup(): JSX.Element {
 
   return (
     <div className="flex w-full max-w-[680px] flex-col items-center text-center">
-      <ReferenceArtwork kind="ai" />
+      <img src="/computer.png" alt="Computer" className="mx-auto mb-5 h-36 w-56 object-contain" />
       <p className="text-[11px] font-bold uppercase tracking-[.18em] text-primary">Step 4 of 5 · Optional</p>
       <h2 className="mt-3 text-4xl font-bold leading-[.98] tracking-[-.06em] sm:text-[50px]">
         A helpful <span className="text-primary">sidekick.</span>
@@ -59,20 +80,35 @@ export function StepAiSetup(): JSX.Element {
       </div>
 
       {tab === "ollama" ? (
-        <div className="mt-2 w-full max-w-[560px] p-1 text-left">
-          <div className="mt-4 mx-auto w-[430px] flex items-center gap-2 rounded-xl bg-muted px-3 py-3 font-mono text-xs text-foreground">
-            <code className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap">{command}</code>
-            <button type="button" onClick={() => void copy()} className="shrink-0 text-primary" aria-label="Copy install command">
-              {copied ? <Check className="size-4" /> : <Clipboard className="size-4" />}
-            </button>
-          </div>
-          <p className="my-4 text-center text-xs text-muted-foreground">or</p>
+        <div className="mt-2 w-full max-w-[460px] p-1 text-left">
+          {ollamaStatus === "checking" ? (
+            <p className="mt-8 flex items-center justify-center gap-2 text-sm text-muted-foreground">
+              <LoaderCircle aria-hidden="true" className="size-4 animate-spin" />
+              Checking for Ollama…
+            </p>
+          ) : ollamaStatus === "available" ? (
+            <p className="mt-8 text-center text-lg font-semibold text-green-600 dark:text-green-400">
+              Ollama is ready
+              <br />
+              Your private local AI assistant is running. Continue to the next step to finish setting up Depdok.
+            </p>
+          ) : (
+            <>
+              <div className="mx-auto mt-4 flex w-[430px] items-center gap-2 rounded-xl bg-muted px-3 py-3 font-mono text-xs text-foreground">
+                <code className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap">{command}</code>
+                <button type="button" onClick={() => void copy()} className="shrink-0 text-primary" aria-label="Copy install command">
+                  {copied ? <Check className="size-4" /> : <Clipboard className="size-4" />}
+                </button>
+              </div>
+              <p className="my-4 text-center text-xs text-muted-foreground">or</p>
 
-          <div className="mt-4 flex items-center justify-center">
-            <a href="https://ollama.com/download" target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-sm transition hover:opacity-90">
-              Download installer
-            </a>
-          </div>
+              <div className="mt-4 flex items-center justify-center">
+                <a href="https://ollama.com/download" target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-sm transition hover:opacity-90">
+                  Download installer
+                </a>
+              </div>
+            </>
+          )}
         </div>
       ) : (
         <div className="mt-2 w-full max-w-[560px] p-1 flex flex-col items-center">

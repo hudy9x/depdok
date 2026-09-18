@@ -1,9 +1,7 @@
-import { ReferenceArtwork } from "./ReferenceArtwork";
-
 export function StepName({ name, onChange, onNext }: { name: string; onChange: (name: string) => void; onNext: () => void }): JSX.Element {
   return (
     <div className="flex w-full max-w-[620px] flex-col items-center text-center">
-      <ReferenceArtwork kind="name" />
+      <img src="/note-book.png" alt="" aria-hidden="true" className="mx-auto mb-5 h-36 w-56 object-contain" />
       <p className="text-[11px] font-bold uppercase tracking-[.18em] text-[#d76b4a]">Step 1 of 5 · Your name</p>
       <h2 className="mt-3 text-4xl font-bold leading-[.98] tracking-[-.06em] sm:text-[50px]">What should we<br /><span className="text-[#d76b4a]">call you?</span></h2>
       <p className="mt-5 max-w-[420px] text-sm leading-6 text-[#79757b] sm:text-base">This is how your teammates will see you in shared docs.</p>
